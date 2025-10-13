@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'bun:test';
+import { describe, expect, it } from 'vitest';
 import { parseSMILES, generateSMILES } from '../index';
-import { BondType } from '../types';
+import { BondType, StereoType } from '../types';
 
 describe('SMILES Parser', () => {
   it('parses simple molecule C', () => {
@@ -116,6 +116,31 @@ describe('SMILES Parser', () => {
     expect(result.errors).toHaveLength(0);
     const generated = generateSMILES(result.molecules[0]!);
     expect(generated).toBe('[OH-]');
+  });
+
+  it('parses double-bond stereo F/C=C/F (E/Z style)', () => {
+    const result = parseSMILES('F/C=C/F');
+    expect(result.errors).toHaveLength(0);
+    const mol = result.molecules[0]!;
+    expect(mol.atoms).toHaveLength(4);
+    expect(mol.bonds).toHaveLength(3);
+    const dbl = mol.bonds.find(b => b.type === 'double');
+    expect(dbl).toBeDefined();
+    expect(dbl!.stereo).toBe(StereoType.UP);
+    // generator preserves markers
+    const gen = generateSMILES(mol);
+    expect(gen).toBe('F/C=C/F');
+  });
+
+  it('parses double-bond stereo F\\C=C\\F (down markers)', () => {
+    const result = parseSMILES('F\\C=C\\F');
+    expect(result.errors).toHaveLength(0);
+    const mol = result.molecules[0]!;
+    const dbl = mol.bonds.find(b => b.type === 'double');
+    expect(dbl).toBeDefined();
+    expect(dbl!.stereo).toBe(StereoType.DOWN);
+    const gen = generateSMILES(mol);
+    expect(gen).toBe('F\\C=C\\F');
   });
 });
 

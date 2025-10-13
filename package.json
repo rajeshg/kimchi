@@ -4,13 +4,19 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "test": "bun test"
+    "test": "bun test",
+    "test:node": "vitest"
   },
   "devDependencies": {
+    "@rdkit/rdkit": "latest",
     "@types/bun": "latest",
-    "@rdkit/rdkit": "latest"
+    "@vitest/ui": "^4.0.0-beta.17",
+    "vitest": "^4.0.0-beta.17"
   },
   "peerDependencies": {
-    "typescript": "^5"
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "es-toolkit": "^1.40.0"
   }
 }

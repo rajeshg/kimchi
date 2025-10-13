@@ -23,7 +23,6 @@ export interface Atom {
   isotope: number | null; // isotopic mass, null if unspecified
   aromatic: boolean; // true if aromatic
   chiral: string | null; // e.g., '@', '@@', '@TH1', etc.
-  ringClosures: number[]; // list of ring closure digits
   isBracket: boolean; // true if parsed from bracket
 }
 
