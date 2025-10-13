@@ -146,6 +146,13 @@ describe('Comprehensive SMILES Tests', () => {
       const doubleBond = result.molecules[0].bonds.find(b => b.type === 'double');
       expect(doubleBond).toBeDefined();
     });
+
+    it('handles two-digit ring numbers', () => {
+      const result = parseSMILES('C%10CCCCC%10');
+      expect(result.errors).toHaveLength(0);
+      expect(result.molecules[0].atoms).toHaveLength(6);
+      expect(result.molecules[0].bonds).toHaveLength(6);
+    });
   });
 
   describe('Stereochemistry', () => {
@@ -375,6 +382,15 @@ describe('Comprehensive SMILES Tests', () => {
       });
     });
 
+    it('handles additional element symbols', () => {
+      const elements = ['H', 'He', 'Li', 'Na', 'Mg', 'Al', 'Si', 'K', 'Ca', 'Ti', 'Fe', 'Ni', 'Cu', 'Zn', 'Ga', 'Ge', 'As', 'Se', 'Kr', 'Rb', 'Sr', 'Zr', 'Ag', 'Cd', 'In', 'Sn', 'Sb', 'Te', 'Xe', 'Cs', 'Ba', 'La', 'Ce', 'U'];
+      elements.forEach(element => {
+        const result = parseSMILES(element);
+        expect(result.errors).toHaveLength(0);
+        expect(result.molecules[0].atoms[0].symbol).toBe(element);
+      });
+    });
+
     it('handles bracket atoms', () => {
       const result = parseSMILES('[C]');
       expect(result.errors).toHaveLength(0);
@@ -382,11 +398,72 @@ describe('Comprehensive SMILES Tests', () => {
       expect(result.molecules[0].atoms[0].isBracket).toBe(true);
     });
 
+    it('handles wildcard atoms', () => {
+      // Wildcard outside brackets
+      const result1 = parseSMILES('*');
+      expect(result1.errors).toHaveLength(0);
+      expect(result1.molecules[0].atoms[0].symbol).toBe('*');
+      expect(result1.molecules[0].atoms[0].hydrogens).toBe(0);
+
+      // Wildcard in brackets with properties
+      const result2 = parseSMILES('[*H2+2]');
+      expect(result2.errors).toHaveLength(0);
+      expect(result2.molecules[0].atoms[0].symbol).toBe('*');
+      expect(result2.molecules[0].atoms[0].hydrogens).toBe(2);
+      expect(result2.molecules[0].atoms[0].charge).toBe(2);
+
+      // Wildcard in molecule
+      const result3 = parseSMILES('C*C');
+      expect(result3.errors).toHaveLength(0);
+      expect(result3.molecules[0].atoms).toHaveLength(3);
+      expect(result3.molecules[0].atoms[1].symbol).toBe('*');
+    });
+
+    it('handles atom classes', () => {
+      // Basic atom class
+      const result1 = parseSMILES('[CH4:2]');
+      expect(result1.errors).toHaveLength(0);
+      expect(result1.molecules[0].atoms[0].atomClass).toBe(2);
+
+      // Atom class with multiple digits
+      const result2 = parseSMILES('[C:123]');
+      expect(result2.errors).toHaveLength(0);
+      expect(result2.molecules[0].atoms[0].atomClass).toBe(123);
+
+      // Default atom class is 0
+      const result3 = parseSMILES('[CH4]');
+      expect(result3.errors).toHaveLength(0);
+      expect(result3.molecules[0].atoms[0].atomClass).toBe(0);
+
+      // Atom class with other properties
+      const result4 = parseSMILES('[13CH3+:5]');
+      expect(result4.errors).toHaveLength(0);
+      expect(result4.molecules[0].atoms[0].atomClass).toBe(5);
+      expect(result4.molecules[0].atoms[0].isotope).toBe(13);
+      expect(result4.molecules[0].atoms[0].charge).toBe(1);
+    });
+
     it('handles aromatic nitrogen in ring', () => {
       const result = parseSMILES('c1ccncc1');
       expect(result.errors).toHaveLength(0);
       const nitrogen = result.molecules[0].atoms.find(a => a.symbol === 'N');
       expect(nitrogen?.aromatic).toBe(true);
+    });
+
+    it('validates aromaticity', () => {
+      // Valid aromatic ring
+      const result1 = parseSMILES('c1ccccc1');
+      expect(result1.errors).toHaveLength(0);
+      expect(result1.molecules[0].atoms.every(a => a.aromatic)).toBe(true);
+
+      // Invalid: aromatic atom not in ring
+      const result2 = parseSMILES('cC');
+      expect(result2.errors.length).toBeGreaterThan(0);
+      expect(result2.errors.some(e => e.includes('not in a ring'))).toBe(true);
+
+      // Invalid: aromatic atom with wrong valence (too few bonds)
+      const result3 = parseSMILES('cC');
+      expect(result3.errors.some(e => e.includes('has') && e.includes('bonds'))).toBe(true);
     });
   });
 
@@ -427,6 +504,240 @@ describe('Comprehensive SMILES Tests', () => {
       expect(result.molecules[0].atoms).toHaveLength(6);
       const doubleBond = result.molecules[0].bonds.find(b => b.type === 'double');
       expect(doubleBond).toBeDefined();
+    });
+  });
+
+  describe('Edge Cases: Advanced Features', () => {
+    it('handles isotopes with atom classes', () => {
+      const result = parseSMILES('[13C:1][12C:2]');
+      expect(result.errors).toHaveLength(0);
+      expect(result.molecules[0].atoms[0].isotope).toBe(13);
+      expect(result.molecules[0].atoms[0].atomClass).toBe(1);
+      expect(result.molecules[0].atoms[1].isotope).toBe(12);
+      expect(result.molecules[0].atoms[1].atomClass).toBe(2);
+    });
+
+    it('handles large ring numbers', () => {
+      const result = parseSMILES('C%99CCCCCCCC%99');
+      expect(result.errors).toHaveLength(0);
+      expect(result.molecules[0].atoms).toHaveLength(9);
+      expect(result.molecules[0].bonds).toHaveLength(9);
+    });
+
+    it('handles multiple large ring numbers', () => {
+      const result = parseSMILES('C%10CC%20CCC%20CC%10');
+      expect(result.errors).toHaveLength(0);
+      expect(result.molecules[0].bonds).toHaveLength(9);
+    });
+
+    it('handles lanthanides', () => {
+      const elements = ['La', 'Ce', 'Pr', 'Nd', 'Pm', 'Sm', 'Eu', 'Gd', 'Tb', 'Dy', 'Ho', 'Er', 'Tm', 'Yb', 'Lu'];
+      elements.forEach(element => {
+        const result = parseSMILES(`[${element}]`);
+        expect(result.errors).toHaveLength(0);
+        expect(result.molecules[0].atoms[0].symbol).toBe(element);
+      });
+    });
+
+    it('handles actinides', () => {
+      const elements = ['Ac', 'Th', 'Pa', 'U', 'Np', 'Pu', 'Am', 'Cm', 'Bk', 'Cf', 'Es', 'Fm', 'Md', 'No', 'Lr'];
+      elements.forEach(element => {
+        const result = parseSMILES(`[${element}]`);
+        expect(result.errors).toHaveLength(0);
+        expect(result.molecules[0].atoms[0].symbol).toBe(element);
+      });
+    });
+
+    it('handles invalid aromaticity - non-aromatic element', () => {
+      const result = parseSMILES('f1ccccc1');
+      const fluorine = result.molecules[0]?.atoms.find(a => a.symbol === 'F');
+      expect(fluorine).toBeDefined();
+      expect(fluorine?.aromatic).toBe(false);
+    });
+
+    it('handles invalid aromaticity - chain not ring', () => {
+      const result = parseSMILES('ccccc');
+      expect(result.errors.length).toBeGreaterThan(0);
+      expect(result.errors.some(e => e.includes('not in a ring'))).toBe(true);
+    });
+
+    it('handles wildcard in simple chain', () => {
+      const result = parseSMILES('C*C');
+      expect(result.errors).toHaveLength(0);
+      expect(result.molecules[0].atoms).toHaveLength(3);
+      expect(result.molecules[0].atoms[1].symbol).toBe('*');
+      expect(result.molecules[0].atoms[1].hydrogens).toBe(0);
+    });
+
+    it('handles wildcard with explicit bonds', () => {
+      const result = parseSMILES('C=*=C');
+      expect(result.errors).toHaveLength(0);
+      expect(result.molecules[0].bonds[0].type).toBe('double');
+      expect(result.molecules[0].bonds[1].type).toBe('double');
+    });
+
+    it('handles complex bracket notation: isotope + chirality + charge + atom class', () => {
+      const result = parseSMILES('[13C@H+:7]');
+      expect(result.errors).toHaveLength(0);
+      const atom = result.molecules[0].atoms[0];
+      expect(atom.isotope).toBe(13);
+      expect(atom.chiral).toBe('@');
+      expect(atom.hydrogens).toBe(1);
+      expect(atom.charge).toBe(1);
+      expect(atom.atomClass).toBe(7);
+    });
+
+    it('handles isotope + charge + atom class on nitrogen', () => {
+      const result = parseSMILES('[15NH3+:3]');
+      expect(result.errors).toHaveLength(0);
+      const atom = result.molecules[0].atoms[0];
+      expect(atom.symbol).toBe('N');
+      expect(atom.isotope).toBe(15);
+      expect(atom.hydrogens).toBe(3);
+      expect(atom.charge).toBe(1);
+      expect(atom.atomClass).toBe(3);
+    });
+
+    it('handles multiple wildcards in molecule', () => {
+      const result = parseSMILES('*C*C*');
+      expect(result.errors).toHaveLength(0);
+      expect(result.molecules[0].atoms).toHaveLength(5);
+      const wildcards = result.molecules[0].atoms.filter(a => a.symbol === '*');
+      expect(wildcards).toHaveLength(3);
+    });
+
+    it('handles ring with mixed bond types', () => {
+      const result = parseSMILES('C1=CC=CC=C1');
+      expect(result.errors).toHaveLength(0);
+      const singleBonds = result.molecules[0].bonds.filter(b => b.type === 'single');
+      const doubleBonds = result.molecules[0].bonds.filter(b => b.type === 'double');
+      expect(singleBonds).toHaveLength(3);
+      expect(doubleBonds).toHaveLength(3);
+    });
+
+    it('handles atom class with zero', () => {
+      const result = parseSMILES('[C:0]');
+      expect(result.errors).toHaveLength(0);
+      expect(result.molecules[0].atoms[0].atomClass).toBe(0);
+    });
+
+    it('handles atom class with large number', () => {
+      const result = parseSMILES('[C:9999]');
+      expect(result.errors).toHaveLength(0);
+      expect(result.molecules[0].atoms[0].atomClass).toBe(9999);
+    });
+
+    it('handles very long chain with branches', () => {
+      const result = parseSMILES('CC(C)C(C)C(C)C(C)C(C)C');
+      expect(result.errors).toHaveLength(0);
+      expect(result.molecules[0].atoms).toHaveLength(12);
+    });
+
+    it('handles deeply nested branches', () => {
+      const result = parseSMILES('C(C(C(C(C))))');
+      expect(result.errors).toHaveLength(0);
+      expect(result.molecules[0].atoms).toHaveLength(5);
+      expect(result.molecules[0].bonds).toHaveLength(4);
+    });
+
+    it('handles noble gases', () => {
+      const elements = ['He', 'Ne', 'Ar', 'Kr', 'Xe', 'Rn'];
+      elements.forEach(element => {
+        const result = parseSMILES(`[${element}]`);
+        expect(result.errors).toHaveLength(0);
+        expect(result.molecules[0].atoms[0].symbol).toBe(element);
+      });
+    });
+
+    it('handles transition metals', () => {
+      const elements = ['Sc', 'Ti', 'V', 'Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Cu', 'Zn'];
+      elements.forEach(element => {
+        const result = parseSMILES(`[${element}]`);
+        expect(result.errors).toHaveLength(0);
+        expect(result.molecules[0].atoms[0].symbol).toBe(element);
+      });
+    });
+
+    it('handles aromatic pyrrole nitrogen', () => {
+      const result = parseSMILES('c1ccncc1');
+      expect(result.errors).toHaveLength(0);
+      const nitrogen = result.molecules[0].atoms.find(a => a.symbol === 'N');
+      expect(nitrogen?.aromatic).toBe(true);
+    });
+
+    it('handles five-membered aromatic ring', () => {
+      const result = parseSMILES('c1cncc1');
+      expect(result.errors).toHaveLength(0);
+      expect(result.molecules[0].atoms).toHaveLength(5);
+    });
+
+    it('handles simple aromatic six-membered rings', () => {
+      const result = parseSMILES('c1ccccc1');
+      expect(result.errors).toHaveLength(0);
+      expect(result.molecules[0].atoms).toHaveLength(6);
+      expect(result.molecules[0].atoms.every(a => a.aromatic)).toBe(true);
+    });
+
+    it('handles conflicting ring bond types', () => {
+      const result = parseSMILES('C1=CCC=C1');
+      expect(result.errors).toHaveLength(0);
+      expect(result.molecules[0].bonds).toHaveLength(5);
+    });
+
+    it('handles isotope on wildcard', () => {
+      const result = parseSMILES('[2*]');
+      expect(result.errors).toHaveLength(0);
+      expect(result.molecules[0].atoms[0].symbol).toBe('*');
+      expect(result.molecules[0].atoms[0].isotope).toBe(2);
+    });
+
+    it('handles wildcard with atom class', () => {
+      const result = parseSMILES('[*:5]');
+      expect(result.errors).toHaveLength(0);
+      expect(result.molecules[0].atoms[0].symbol).toBe('*');
+      expect(result.molecules[0].atoms[0].atomClass).toBe(5);
+    });
+
+    it('handles multiple disconnected aromatic rings', () => {
+      const result = parseSMILES('c1ccccc1.c1ccncc1');
+      expect(result.errors).toHaveLength(0);
+      expect(result.molecules).toHaveLength(2);
+      expect(result.molecules[0].atoms.every(a => a.aromatic)).toBe(true);
+      expect(result.molecules[1].atoms.every(a => a.aromatic)).toBe(true);
+    });
+
+    it('handles ring with explicit single bonds', () => {
+      const result = parseSMILES('C1CCCCC1');
+      expect(result.errors).toHaveLength(0);
+      expect(result.molecules[0].bonds.every(b => b.type === 'single')).toBe(true);
+    });
+
+    it('handles aromatic sulfur', () => {
+      const result = parseSMILES('c1cscc1');
+      expect(result.errors).toHaveLength(0);
+      const sulfur = result.molecules[0].atoms.find(a => a.symbol === 'S');
+      expect(sulfur?.aromatic).toBe(true);
+    });
+
+    it('handles aromatic oxygen', () => {
+      const result = parseSMILES('c1cocc1');
+      expect(result.errors).toHaveLength(0);
+      const oxygen = result.molecules[0].atoms.find(a => a.symbol === 'O');
+      expect(oxygen?.aromatic).toBe(true);
+    });
+
+    it('handles aromatic boron', () => {
+      const result = parseSMILES('c1cbcc1');
+      expect(result.errors).toHaveLength(0);
+      const boron = result.molecules[0].atoms.find(a => a.symbol === 'B');
+      expect(boron?.aromatic).toBe(true);
+    });
+
+    it('handles aromatic phosphorus', () => {
+      const result = parseSMILES('c1cpcc1');
+      expect(result.errors).toHaveLength(0);
+      const phosphorus = result.molecules[0].atoms.find(a => a.symbol === 'P');
+      expect(phosphorus?.aromatic).toBe(true);
     });
   });
 });

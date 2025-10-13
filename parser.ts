@@ -1,23 +1,30 @@
 import type { Atom, Bond, Molecule, ParseResult } from './types';
 import { BondType, StereoType } from './types';
 
-// Basic atomic numbers for organic subset
+// Complete atomic numbers for all elements (OpenSMILES specification)
 const ATOMIC_NUMBERS: Record<string, number> = {
-  H: 1,
-  B: 5,
-  C: 6,
-  N: 7,
-  O: 8,
-  F: 9,
-  P: 15,
-  S: 16,
-  Cl: 17,
-  Br: 35,
-  I: 53,
+  H: 1, He: 2, Li: 3, Be: 4, B: 5, C: 6, N: 7, O: 8, F: 9, Ne: 10,
+  Na: 11, Mg: 12, Al: 13, Si: 14, P: 15, S: 16, Cl: 17, Ar: 18, K: 19, Ca: 20,
+  Sc: 21, Ti: 22, V: 23, Cr: 24, Mn: 25, Fe: 26, Co: 27, Ni: 28, Cu: 29, Zn: 30,
+  Ga: 31, Ge: 32, As: 33, Se: 34, Br: 35, Kr: 36, Rb: 37, Sr: 38, Y: 39, Zr: 40,
+  Nb: 41, Mo: 42, Tc: 43, Ru: 44, Rh: 45, Pd: 46, Ag: 47, Cd: 48, In: 49, Sn: 50,
+  Sb: 51, Te: 52, I: 53, Xe: 54, Cs: 55, Ba: 56, Hf: 72, Ta: 73, W: 74, Re: 75,
+  Os: 76, Ir: 77, Pt: 78, Au: 79, Hg: 80, Tl: 81, Pb: 82, Bi: 83, Po: 84, At: 85,
+  Rn: 86, Fr: 87, Ra: 88, Rf: 104, Db: 105, Sg: 106, Bh: 107, Hs: 108, Mt: 109,
+  Ds: 110, Rg: 111, Cn: 112, Fl: 114, Lv: 116,
+  // Lanthanides
+  La: 57, Ce: 58, Pr: 59, Nd: 60, Pm: 61, Sm: 62, Eu: 63, Gd: 64, Tb: 65, Dy: 66,
+  Ho: 67, Er: 68, Tm: 69, Yb: 70, Lu: 71,
+  // Actinides
+  Ac: 89, Th: 90, Pa: 91, U: 92, Np: 93, Pu: 94, Am: 95, Cm: 96, Bk: 97, Cf: 98,
+  Es: 99, Fm: 100, Md: 101, No: 102, Lr: 103,
+  // Wildcard atom
+  '*': 0,
 };
 
-// Default valences for organic subset
+// Default valences for elements (OpenSMILES specification)
 const DEFAULT_VALENCES: Record<string, number[]> = {
+  // Organic subset
   B: [3],
   C: [4],
   N: [3, 5],
@@ -28,6 +35,71 @@ const DEFAULT_VALENCES: Record<string, number[]> = {
   Cl: [1],
   Br: [1],
   I: [1],
+  // Common elements
+  H: [1],
+  Li: [1],
+  Na: [1],
+  K: [1],
+  Rb: [1],
+  Cs: [1],
+  Be: [2],
+  Mg: [2],
+  Ca: [2],
+  Sr: [2],
+  Ba: [2],
+  Al: [3],
+  Si: [4],
+  Ga: [3],
+  Ge: [4],
+  As: [3, 5],
+  Se: [2, 4, 6],
+  Te: [2, 4, 6],
+  He: [0],
+  Ne: [0],
+  Ar: [0],
+  Kr: [0],
+  Xe: [0],
+  Rn: [0],
+  // Transition metals (common oxidation states)
+  Sc: [3],
+  Ti: [4],
+  V: [3, 4, 5],
+  Cr: [3, 6],
+  Mn: [2, 4, 7],
+  Fe: [2, 3],
+  Co: [2, 3],
+  Ni: [2],
+  Cu: [1, 2],
+  Zn: [2],
+  Zr: [4],
+  Nb: [5],
+  Mo: [6],
+  Tc: [7],
+  Ru: [3, 4],
+  Rh: [3],
+  Pd: [2, 4],
+  Ag: [1],
+  Cd: [2],
+  Hf: [4],
+  Ta: [5],
+  W: [6],
+  Re: [7],
+  Os: [4, 6],
+  Ir: [3, 4],
+  Pt: [2, 4],
+  Au: [1, 3],
+  Hg: [1, 2],
+  // Lanthanides and Actinides (common +3 state)
+  La: [3], Ce: [3, 4], Pr: [3], Nd: [3], Pm: [3], Sm: [3], Eu: [2, 3],
+  Gd: [3], Tb: [3, 4], Dy: [3], Ho: [3], Er: [3], Tm: [3], Yb: [2, 3], Lu: [3],
+  Ac: [3], Th: [4], Pa: [5], U: [4, 6], Np: [5], Pu: [4, 6], Am: [3, 6],
+  Cm: [3], Bk: [3, 4], Cf: [3], Es: [3], Fm: [3], Md: [3], No: [2, 3], Lr: [3],
+  // Other elements
+  In: [3], Sn: [2, 4], Sb: [3, 5], Tl: [1, 3], Pb: [2, 4], Bi: [3, 5],
+  Po: [2, 4, 6], At: [1, 3, 5, 7], Fr: [1], Ra: [2],
+  Rf: [4], Db: [5], Sg: [6], Bh: [7], Hs: [8], Mt: [9], Ds: [8], Rg: [9], Cn: [2], Fl: [2], Lv: [2],
+  // Wildcard atom (no specific valence)
+  '*': [],
 };
 
 export function parseSMILES(smiles: string): ParseResult {
@@ -112,6 +184,24 @@ function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: string
       continue;
     }
 
+    // Wildcard atom '*' (can be aromatic or aliphatic)
+    if (ch === '*') {
+      const atom = createAtom('*', atomId++, false, false, 0); // '*' is not aromatic by default
+      atoms.push(atom);
+      if (prevAtomId !== null) {
+        bonds.push({ atom1: prevAtomId, atom2: atom.id, type: pendingBondType, stereo: pendingBondStereo });
+        pendingBondStereo = StereoType.NONE;
+      } else if (branchStack.length > 0) {
+        const bp = branchStack[branchStack.length - 1]!;
+        bonds.push({ atom1: bp, atom2: atom.id, type: pendingBondType, stereo: pendingBondStereo });
+        pendingBondStereo = StereoType.NONE;
+      }
+      prevAtomId = atom.id;
+      pendingBondType = BondType.SINGLE;
+      i++;
+      continue;
+    }
+
     // Organic atoms (handle two-letter like Cl, Br)
     if (/[A-Za-z]/.test(ch)) {
       let symbol = ch;
@@ -125,8 +215,11 @@ function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: string
       } else {
         i++;
       }
-      const aromatic = symbol !== symbol.toUpperCase();
-      const atom = createAtom(symbol, atomId++, aromatic);
+      // Only consider atoms aromatic if they are in the aromatic organic subset
+      // or explicitly written in lowercase (like 'c' for carbon)
+      const isAromaticOrganic = /^[bcnosp]$/.test(symbol);
+      const aromatic = isAromaticOrganic;
+      const atom = createAtom(symbol, atomId++, aromatic, false, 0);
       atoms.push(atom);
 
       // chiral marker immediately after atom
@@ -303,13 +396,22 @@ function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: string
     const hasExplicitH = atom.isBracket && atom.hydrogens >= 0;
     if (!hasExplicitH) {
       const valence = calculateValence(atom, bonds);
-      const defaultValences = DEFAULT_VALENCES[atom.symbol] || [atom.atomicNumber];
-      const expectedValence = (defaultValences[0] || atom.atomicNumber) + (atom.charge || 0);
-      atom.hydrogens = Math.max(0, expectedValence - valence);
+      // Special handling for wildcard atom '*'
+      if (atom.symbol === '*') {
+        // Wildcard atom takes valence from its bonds, no implicit hydrogens
+        atom.hydrogens = 0;
+      } else {
+        const defaultValences = DEFAULT_VALENCES[atom.symbol] || [atom.atomicNumber];
+        const expectedValence = (defaultValences[0] || atom.atomicNumber) + (atom.charge || 0);
+        atom.hydrogens = Math.max(0, expectedValence - valence);
+      }
     } else if (atom.hydrogens < 0) {
       atom.hydrogens = 0;
     }
   }
+
+  // Validate aromaticity
+  validateAromaticity(atoms, bonds, errors);
 
   return { molecule: { atoms, bonds }, errors };
 }
@@ -318,9 +420,9 @@ function isOrganicAtom(char: string): boolean {
   return /^[BCNOPSFI]$/.test(char.toUpperCase());
 }
 
-function createAtom(symbol: string, id: number, aromatic = false, isBracket = false): Atom {
+function createAtom(symbol: string, id: number, aromatic = false, isBracket = false, atomClass = 0): Atom {
   // Handle two-letter symbols (Cl, Br) which should not be fully uppercased
-  const normalizedSymbol = symbol.length === 2 
+  const normalizedSymbol = symbol.length === 2
     ? symbol[0].toUpperCase() + symbol[1].toLowerCase()
     : symbol.toUpperCase();
   const atomicNumber = ATOMIC_NUMBERS[normalizedSymbol];
@@ -337,6 +439,7 @@ function createAtom(symbol: string, id: number, aromatic = false, isBracket = fa
     aromatic,
     chiral: null,
     isBracket,
+    atomClass,
   };
 }
 
@@ -347,6 +450,7 @@ function parseBracketAtom(content: string, id: number): Atom | null {
   let hydrogens = -1;
   let charge = 0;
   let chiral: string | null = null;
+  let atomClass = 0;
 
   let j = 0;
   // isotope
@@ -358,17 +462,17 @@ function parseBracketAtom(content: string, id: number): Atom | null {
     }
     isotope = parseInt(isoStr);
   }
-  // symbol
-  if (j < content.length && content[j]! >= 'A' && content[j]! <= 'Z') {
-    symbol += content[j]!;
-    j++;
-    if (j < content.length && content[j]! >= 'a' && content[j]! <= 'z') {
-      symbol += content[j]!;
-      j++;
-    }
-  } else {
-    return null; // invalid
-  }
+   // symbol (including wildcard *)
+   if (j < content.length && (content[j]! >= 'A' && content[j]! <= 'Z' || content[j]! === '*')) {
+     symbol += content[j]!;
+     j++;
+     if (j < content.length && content[j]! >= 'a' && content[j]! <= 'z') {
+       symbol += content[j]!;
+       j++;
+     }
+   } else {
+     return null; // invalid
+   }
   // rest: H, charge, etc. simplified
   while (j < content.length) {
     const c = content[j]!;
@@ -417,6 +521,19 @@ function parseBracketAtom(content: string, id: number): Atom | null {
         chiral = '@@';
         j++;
       }
+    } else if (c === ':') {
+      j++;
+      if (j < content.length && content[j]! >= '0' && content[j]! <= '9') {
+        let classStr = '';
+        while (j < content.length && content[j]! >= '0' && content[j]! <= '9') {
+          classStr += content[j]!;
+          j++;
+        }
+        atomClass = parseInt(classStr);
+      } else {
+        // Invalid atom class, ignore
+        j++;
+      }
     } else {
       // ignore others for now
       j++;
@@ -438,6 +555,7 @@ function parseBracketAtom(content: string, id: number): Atom | null {
     aromatic: false, // TODO
     chiral,
     isBracket: true,
+    atomClass,
   };
 }
 
@@ -456,10 +574,105 @@ function calculateValence(atom: Atom, bonds: Bond[]): number {
           valence += 3;
           break;
         case BondType.AROMATIC:
-          valence += 1.5; // approximate
+          valence += 1.5; // aromatic bonds contribute 1.5 to valence
           break;
       }
     }
   }
   return valence;
+}
+
+function validateAromaticity(atoms: Atom[], bonds: Bond[], errors: string[]): void {
+  // Basic aromaticity validation
+  // For now, just check that aromatic atoms are in rings and have appropriate connectivity
+
+  const aromaticAtoms = atoms.filter(a => a.aromatic);
+  if (aromaticAtoms.length === 0) return;
+
+  // Find rings containing aromatic atoms
+  const rings = findRings(atoms, bonds);
+
+  for (const atom of aromaticAtoms) {
+    // Check if this aromatic atom is in at least one ring
+    const atomInRing = rings.some(ring =>
+      ring.some(ringAtomId => ringAtomId === atom.id)
+    );
+
+    if (!atomInRing) {
+      errors.push(`Aromatic atom ${atom.symbol} (id: ${atom.id}) is not in a ring`);
+      // Mark as non-aromatic
+      atom.aromatic = false;
+    }
+
+    // Check valence - aromatic atoms should typically have 2-3 bonds
+    const atomBonds = bonds.filter(b => b.atom1 === atom.id || b.atom2 === atom.id);
+    if (atomBonds.length < 2 || atomBonds.length > 3) {
+      errors.push(`Aromatic atom ${atom.symbol} (id: ${atom.id}) has ${atomBonds.length} bonds, expected 2-3`);
+      atom.aromatic = false;
+    }
+  }
+
+  // Check that aromatic rings have alternating aromatic bonds or appropriate Kekule form
+  for (const ring of rings) {
+    const ringAtoms = ring.map(id => atoms.find(a => a.id === id)!);
+    const allAromatic = ringAtoms.every(a => a.aromatic);
+
+    if (allAromatic) {
+      // Check that bonds in the ring are aromatic
+      const ringBonds = bonds.filter(b =>
+        ring.includes(b.atom1) && ring.includes(b.atom2)
+      );
+
+      // For a proper aromatic ring, we expect alternating single/double or all aromatic
+      const aromaticBondCount = ringBonds.filter(b => b.type === BondType.AROMATIC).length;
+      const singleBondCount = ringBonds.filter(b => b.type === BondType.SINGLE).length;
+      const doubleBondCount = ringBonds.filter(b => b.type === BondType.DOUBLE).length;
+
+      // Allow either all aromatic bonds or alternating single/double
+      if (aromaticBondCount !== ring.length && singleBondCount + doubleBondCount !== ring.length) {
+        errors.push(`Aromatic ring ${ring.join(',')} has inconsistent bond types`);
+      }
+    }
+  }
+}
+
+function findRings(atoms: Atom[], bonds: Bond[]): number[][] {
+  // Simple ring finding using DFS
+  const rings: number[][] = [];
+  const visited = new Set<number>();
+
+  function dfs(startId: number, currentId: number, path: number[], visitedEdges: Set<string>): void {
+    path.push(currentId);
+    visited.add(currentId);
+
+    const neighbors = bonds
+      .filter(b => b.atom1 === currentId || b.atom2 === currentId)
+      .map(b => b.atom1 === currentId ? b.atom2 : b.atom1)
+      .filter(id => !visitedEdges.has(`${Math.min(currentId, id)}-${Math.max(currentId, id)}`));
+
+    for (const neighborId of neighbors) {
+      const edgeKey = `${Math.min(currentId, neighborId)}-${Math.max(currentId, neighborId)}`;
+      visitedEdges.add(edgeKey);
+
+      if (neighborId === startId && path.length >= 3) {
+        // Found a ring
+        rings.push([...path]);
+      } else if (!path.includes(neighborId)) {
+        dfs(startId, neighborId, [...path], new Set(visitedEdges));
+      }
+
+      visitedEdges.delete(edgeKey);
+    }
+
+    path.pop();
+    visited.delete(currentId);
+  }
+
+  for (const atom of atoms) {
+    if (!visited.has(atom.id)) {
+      dfs(atom.id, atom.id, [], new Set());
+    }
+  }
+
+  return rings;
 }

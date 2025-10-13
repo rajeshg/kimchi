@@ -24,6 +24,7 @@ export interface Atom {
   aromatic: boolean; // true if aromatic
   chiral: string | null; // e.g., '@', '@@', '@TH1', etc.
   isBracket: boolean; // true if parsed from bracket
+  atomClass: number; // atom class for application-specific marking (default 0)
 }
 
 export interface Bond {
