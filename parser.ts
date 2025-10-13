@@ -52,127 +52,40 @@ function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: string
   const bonds: Bond[] = [];
   let atomId = 0;
 
-  // Parser with branches and rings
+  // Small built-in tracing set for problematic inputs discovered earlier
+  const TRACE_SMILES = new Set([
+    'c1ccccc1',
+    'F/C1=CCC1/F',
+    'c1ccncc1',
+    'C1CC[C@H](C)CC1',
+  ]);
+  const trace = TRACE_SMILES.has(smiles);
+
   let i = 0;
   let prevAtomId: number | null = null;
   let pendingBondType = BondType.SINGLE;
-  const branchStack: number[] = []; // stack of prevAtomId before branch
-  const ringMap = new Map<number, number>(); // ring digit to atom id
+  let pendingBondStereo = StereoType.NONE;
+  const branchStack: number[] = [];
+  const bookmarks = new Map<number, { atomId: number; bondType: BondType; bondStereo: StereoType }[]>();
+
 
   while (i < smiles.length) {
-    const char = smiles[i]!;
-
-    if (char === ' ') {
-      i++;
-      continue; // skip spaces
+    const ch = smiles[i]!;
+    if (trace) {
+      console.warn(`TRACE[${smiles}] i=${i} ch='${ch}' prev=${prevAtomId} pendingType=${pendingBondType} pendingStereo=${pendingBondStereo} branchStack=[${branchStack.join(',')}] bookmarks=${JSON.stringify(Array.from(bookmarks.entries()))}`);
     }
 
-    if (isOrganicAtom(char)) {
-      const aromatic = char !== char.toUpperCase();
-      const currentAtom = createAtom(char, atomId++, aromatic);
-      atoms.push(currentAtom);
-
-      // parse ring closures
-      const ringClosures: number[] = [];
+    if (ch === ' ') {
       i++;
-      while (i < smiles.length) {
-        const next = smiles[i]!;
-        if (next >= '0' && next <= '9') {
-          const digit = parseInt(next);
-          ringClosures.push(digit);
-          if (ringMap.has(digit)) {
-            const ringAtomId = ringMap.get(digit)!;
-            bonds.push({
-              atom1: ringAtomId,
-              atom2: currentAtom.id,
-              type: BondType.SINGLE, // ring closures are single bonds
-              stereo: StereoType.NONE,
-            });
-            ringMap.delete(digit); // closed
-          } else {
-            ringMap.set(digit, currentAtom.id);
-          }
-          i++;
-        } else if (next === '%') {
-          // two-digit
-          i++;
-          if (i < smiles.length) {
-            const tens = smiles[i]!;
-            if (tens >= '0' && tens <= '9') {
-              if (i + 1 < smiles.length) {
-                const units = smiles[i + 1]!;
-                if (units >= '0' && units <= '9') {
-                  const digit = parseInt(tens + units);
-                  ringClosures.push(digit);
-                  if (ringMap.has(digit)) {
-                    const ringAtomId = ringMap.get(digit)!;
-                    bonds.push({
-                      atom1: ringAtomId,
-                      atom2: currentAtom.id,
-                      type: BondType.SINGLE,
-                      stereo: StereoType.NONE,
-                    });
-                    ringMap.delete(digit);
-                  } else {
-                    ringMap.set(digit, currentAtom.id);
-                  }
-                  i += 2;
-                } else {
-                  errors.push(`Invalid % digit at position ${i - 1}`);
-                  i++;
-                }
-              } else {
-                errors.push(`Invalid % at position ${i - 1}`);
-                i++;
-              }
-            } else {
-              errors.push(`Invalid % at position ${i - 1}`);
-              i++;
-            }
-          }
-        } else {
-          break;
-        }
-      }
-      currentAtom.ringClosures = ringClosures;
-
-      // parse chiral
-      if (i < smiles.length && smiles[i] === '@') {
-        i++;
-        if (i < smiles.length && smiles[i] === '@') {
-          currentAtom.chiral = '@@';
-          i++;
-        } else {
-          currentAtom.chiral = '@';
-        }
-      }
-
-      if (prevAtomId !== null) {
-        bonds.push({
-          atom1: prevAtomId,
-          atom2: currentAtom.id,
-          type: pendingBondType,
-          stereo: StereoType.NONE,
-        });
-      } else if (branchStack.length > 0) {
-        // branch atom
-        const branchPoint = branchStack[branchStack.length - 1]!;
-        bonds.push({
-          atom1: branchPoint,
-          atom2: currentAtom.id,
-          type: pendingBondType,
-          stereo: StereoType.NONE,
-        });
-      }
-      prevAtomId = currentAtom.id;
-      pendingBondType = BondType.SINGLE; // reset
+      continue;
     }
-    else if (char === '[') {
-      // bracket atom
+
+    // Bracket atoms like [NH4+]
+    if (ch === '[') {
       i++;
-      let bracketContent = '';
+      let content = '';
       while (i < smiles.length && smiles[i] !== ']') {
-        bracketContent += smiles[i]!;
+        content += smiles[i]!;
         i++;
       }
       if (i >= smiles.length || smiles[i] !== ']') {
@@ -180,137 +93,216 @@ function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: string
       } else {
         i++; // skip ]
       }
-      const currentAtom = parseBracketAtom(bracketContent, atomId++);
-      if (currentAtom !== null) {
-        atoms.push(currentAtom);
+      const atom = parseBracketAtom(content, atomId++);
+      if (!atom) {
+        errors.push(`Invalid bracket atom: ${content}`);
+        continue;
+      }
+      atoms.push(atom);
+      if (prevAtomId !== null) {
+        bonds.push({ atom1: prevAtomId, atom2: atom.id, type: pendingBondType, stereo: pendingBondStereo });
+        pendingBondStereo = StereoType.NONE;
+      } else if (branchStack.length > 0) {
+        const bp = branchStack[branchStack.length - 1]!;
+        bonds.push({ atom1: bp, atom2: atom.id, type: pendingBondType, stereo: pendingBondStereo });
+        pendingBondStereo = StereoType.NONE;
+      }
+      prevAtomId = atom.id;
+      pendingBondType = BondType.SINGLE;
+      continue;
+    }
 
-        // parse ring closures after ]
-        const ringClosures: number[] = [];
-        while (i < smiles.length) {
-          const next = smiles[i]!;
-          if (next >= '0' && next <= '9') {
-            const digit = parseInt(next);
-            ringClosures.push(digit);
-            if (ringMap.has(digit)) {
-              const ringAtomId = ringMap.get(digit)!;
-              bonds.push({
-                atom1: ringAtomId,
-                atom2: currentAtom.id,
-                type: BondType.SINGLE,
-                stereo: StereoType.NONE,
-              });
-              ringMap.delete(digit);
-            } else {
-              ringMap.set(digit, currentAtom.id);
-            }
-            i++;
-          } else if (next === '%') {
-            i++;
-            if (i < smiles.length) {
-              const tens = smiles[i]!;
-            if (tens >= '0' && tens <= '9') {
-              if (i + 1 < smiles.length) {
-                const units = smiles[i + 1]!;
-                if (units >= '0' && units <= '9') {
-                  const digit = parseInt(tens + units);
-                  ringClosures.push(digit);
-                  if (ringMap.has(digit)) {
-                    const ringAtomId = ringMap.get(digit)!;
-                    bonds.push({
-                      atom1: ringAtomId,
-                      atom2: currentAtom.id,
-                      type: BondType.SINGLE,
-                      stereo: StereoType.NONE,
-                    });
-                    ringMap.delete(digit);
-                  } else {
-                    ringMap.set(digit, currentAtom.id);
-                  }
-                  i += 2;
-                } else {
-                  errors.push(`Invalid % digit at position ${i - 1}`);
-                  i++;
-                }
-              } else {
-                errors.push(`Invalid % at position ${i - 1}`);
-                i++;
-              }
-            } else {
-              errors.push(`Invalid % at position ${i - 1}`);
-              i++;
-            }
-            }
-          } else {
-            break;
-          }
-        }
-        currentAtom.ringClosures = ringClosures;
+    // Organic atoms (handle two-letter like Cl, Br)
+    if (/[A-Za-z]/.test(ch)) {
+      let symbol = ch;
+      // Only treat as two-letter element when the first character is uppercase
+      // and the next character is lowercase (e.g., 'Cl', 'Br'). This avoids
+      // combining aromatic lowercase atoms like 'c' + 'c' -> 'cc'.
+      if (ch === ch.toUpperCase() && i + 1 < smiles.length && /[a-z]/.test(smiles[i + 1]!)) {
+        // two-letter element (e.g., Cl, Br)
+        symbol = ch + smiles[i + 1]!;
+        i += 2;
       } else {
-        errors.push(`Invalid bracket atom: ${bracketContent}`);
+        i++;
+      }
+      const aromatic = symbol !== symbol.toUpperCase();
+      const atom = createAtom(symbol, atomId++, aromatic);
+      atoms.push(atom);
+
+      // chiral marker immediately after atom
+      if (i < smiles.length && smiles[i] === '@') {
+        i++;
+        if (i < smiles.length && smiles[i] === '@') {
+          atom.chiral = '@@';
+          i++;
+        } else {
+          atom.chiral = '@';
+        }
       }
 
       if (prevAtomId !== null) {
-        bonds.push({
-          atom1: prevAtomId,
-          atom2: currentAtom!.id,
-          type: pendingBondType,
-          stereo: StereoType.NONE,
-        });
+        bonds.push({ atom1: prevAtomId, atom2: atom.id, type: pendingBondType, stereo: pendingBondStereo });
+        pendingBondStereo = StereoType.NONE;
       } else if (branchStack.length > 0) {
-        // branch atom
-        const branchPoint = branchStack[branchStack.length - 1]!;
-        bonds.push({
-          atom1: branchPoint,
-          atom2: currentAtom!.id,
-          type: pendingBondType,
-          stereo: StereoType.NONE,
-        });
+        const bp = branchStack[branchStack.length - 1]!;
+        bonds.push({ atom1: bp, atom2: atom.id, type: pendingBondType, stereo: pendingBondStereo });
+        pendingBondStereo = StereoType.NONE;
       }
-      prevAtomId = currentAtom!.id;
-      pendingBondType = BondType.SINGLE; // reset
-    } else if (char === '=') {
+
+      prevAtomId = atom.id;
+      pendingBondType = BondType.SINGLE;
+      continue;
+    }
+
+    // Bonds
+    if (ch === '/') {
+      pendingBondStereo = StereoType.UP;
+      i++;
+      continue;
+    }
+    if (ch === '\\') {
+      pendingBondStereo = StereoType.DOWN;
+      i++;
+      continue;
+    }
+    if (ch === '=') {
       pendingBondType = BondType.DOUBLE;
       i++;
-    } else if (char === '#') {
+      continue;
+    }
+    if (ch === '#') {
       pendingBondType = BondType.TRIPLE;
       i++;
-    } else if (char === '(') {
-      // start branch
-      branchStack.push(prevAtomId!); // the atom before branch
-      prevAtomId = null; // branch starts new chain
+      continue;
+    }
+
+    // Branching
+    if (ch === '(') {
+      branchStack.push(prevAtomId!);
+      prevAtomId = null;
       i++;
-    } else if (char === ')') {
-      // end branch
+      continue;
+    }
+    if (ch === ')') {
       if (branchStack.length === 0) {
         errors.push(`Unmatched ')' at position ${i}`);
       } else {
-        prevAtomId = branchStack.pop()!; // restore prev
+        prevAtomId = branchStack.pop()!;
       }
       i++;
-    } else {
-      errors.push(`Unsupported character: ${char} at position ${i}`);
+      continue;
+    }
+
+    // Ring closures: digit or %nn
+    if (ch >= '0' && ch <= '9') {
+      if (prevAtomId === null) {
+        errors.push(`Ring closure digit at position ${i} without previous atom`);
+      } else {
+        const d = parseInt(ch);
+        const list = bookmarks.get(d) || [];
+        // Always record the bookmark; pairing logic will choose endpoints later
+        list.push({ atomId: prevAtomId, bondType: pendingBondType, bondStereo: pendingBondStereo });
+        bookmarks.set(d, list);
+      }
+      pendingBondType = BondType.SINGLE;
+      pendingBondStereo = StereoType.NONE;
       i++;
+      continue;
+    }
+    if (ch === '%') {
+      if (prevAtomId === null) {
+        errors.push(`Ring closure % at position ${i} without previous atom`);
+        i++;
+        continue;
+      }
+      if (i + 2 < smiles.length && /[0-9][0-9]/.test(smiles.substr(i + 1, 2))) {
+        const d = parseInt(smiles.substr(i + 1, 2));
+        const list = bookmarks.get(d) || [];
+        // Always record the bookmark for %nn; pairing chooses endpoints later
+        list.push({ atomId: prevAtomId, bondType: pendingBondType, bondStereo: pendingBondStereo });
+        bookmarks.set(d, list);
+        i += 3;
+        pendingBondType = BondType.SINGLE;
+        pendingBondStereo = StereoType.NONE;
+        continue;
+      } else {
+        errors.push(`Invalid % ring closure at position ${i}`);
+        i++;
+        continue;
+      }
+    }
+
+    errors.push(`Unsupported character: ${ch} at position ${i}`);
+    i++;
+  }
+
+  // Debug: print bookmarks before pairing
+  if (bookmarks.size > 0) {
+    console.warn('Ring bookmarks:', Array.from(bookmarks.entries()).map(([d, es]) => [d, es.map(e => e.atomId)]));
+  }
+
+  // Post-process ring closures
+  for (const [digit, entries] of bookmarks) {
+    if (entries.length < 2) {
+      if (entries.length === 1) {
+        console.warn(`Ring closure ${digit} only had one end:`, entries.map(e => e.atomId));
+      } else {
+        console.warn(`Ring closure ${digit} had no entries`);
+      }
+      continue;
+    }
+
+    // Find the first two entries with distinct atomIds (chronological order)
+    let firstIndex = 0;
+    let secondIndex = -1;
+    for (let j = 1; j < entries.length; j++) {
+      if (entries[j]!.atomId !== entries[firstIndex]!.atomId) {
+        secondIndex = j;
+        break;
+      }
+    }
+    if (secondIndex === -1) {
+      // All recorded endpoints are the same atom — cannot form a valid ring bond
+      errors.push(`Ring closure digit ${digit} endpoints identical: ${entries.map(e => e.atomId).join(',')}`);
+      continue;
+    }
+
+    const first = entries[firstIndex]!;
+    const second = entries[secondIndex]!;
+    console.warn(`Pairing ring ${digit}: ${first.atomId} - ${second.atomId} (type from second ${second.bondType})`);
+    bonds.push({ atom1: first.atomId, atom2: second.atomId, type: second.bondType, stereo: second.bondStereo });
+
+    // If more than two distinct endpoints exist, report an error
+    const distinct = Array.from(new Set(entries.map(e => e.atomId)));
+    if (distinct.length > 2) {
+      errors.push(`Ring closure digit ${digit} used more than twice with endpoints ${distinct.join(',')}`);
     }
   }
+  console.warn('Bonds at end of pairing:', bonds.map(b => `${b.atom1}-${b.atom2}`));
 
-  if (branchStack.length > 0) {
-    errors.push('Unmatched opening parentheses');
+  if (branchStack.length > 0) errors.push('Unmatched opening parentheses');
+
+  // Stereo inference, aromatic bonds, hydrogens
+  for (const bd of bonds) {
+    if (bd.type !== BondType.DOUBLE) continue;
+    if (bd.stereo && bd.stereo !== StereoType.NONE) continue;
+    const a = bd.atom1;
+    const b = bd.atom2;
+    const singleA = bonds.find(bx => bx.type === BondType.SINGLE && ((bx.atom1 === a && bx.atom2 !== b) || (bx.atom2 === a && bx.atom1 !== b)) && bx.stereo && bx.stereo !== StereoType.NONE);
+    const singleB = bonds.find(bx => bx.type === BondType.SINGLE && ((bx.atom1 === b && bx.atom2 !== a) || (bx.atom2 === b && bx.atom1 !== a)) && bx.stereo && bx.stereo !== StereoType.NONE);
+    if (singleA && singleB && singleA.stereo === singleB.stereo) bd.stereo = singleA.stereo;
   }
 
-  // Set aromatic bonds
   for (const bond of bonds) {
-    const atom1 = atoms.find(a => a.id === bond.atom1)!;
-    const atom2 = atoms.find(a => a.id === bond.atom2)!;
-    if (atom1.aromatic && atom2.aromatic) {
-      bond.type = BondType.AROMATIC;
-    }
+    const a1 = atoms.find(a => a.id === bond.atom1)!;
+    const a2 = atoms.find(a => a.id === bond.atom2)!;
+    if (a1.aromatic && a2.aromatic) bond.type = BondType.AROMATIC;
   }
 
-  // Calculate implicit hydrogens
   for (const atom of atoms) {
-    if (atom.hydrogens === 0) { // only for atoms without explicit H
+    if (atom.hydrogens === 0) {
       const valence = calculateValence(atom, bonds);
-      const defaultValences = DEFAULT_VALENCES[atom.symbol] || [atom.atomicNumber]; // fallback
+      const defaultValences = DEFAULT_VALENCES[atom.symbol] || [atom.atomicNumber];
       const expectedValence = defaultValences[0] || atom.atomicNumber;
       atom.hydrogens = Math.max(0, expectedValence - valence);
     }
@@ -338,7 +330,6 @@ function createAtom(symbol: string, id: number, aromatic = false, isBracket = fa
     isotope: null,
     aromatic,
     chiral: null,
-    ringClosures: [],
     isBracket,
   };
 }
@@ -426,7 +417,6 @@ function parseBracketAtom(content: string, id: number): Atom | null {
     isotope,
     aromatic: false, // TODO
     chiral,
-    ringClosures: [],
     isBracket: true,
   };
 }
