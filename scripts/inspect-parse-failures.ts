@@ -16,6 +16,6 @@ for (const smi of failures) {
       console.log('  generated:', (res.molecules ? require('../index').generateSMILES(res.molecules) : 'N/A'));
     }
   } catch (e) {
-    console.log('SMILES:', smi, 'threw', e && e.message ? e.message : e);
+    console.log('SMILES:', smi, 'threw', e instanceof Error ? e.message : e);
   }
 }

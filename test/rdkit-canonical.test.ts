@@ -28,17 +28,6 @@ const TEST_SMILES = [
   'C1CC[C@H](C)CC1',
 ];
 
-async function getRdkitCanonical(smiles: string): Promise<string> {
-  const RDKit: any = await (initRDKitModule as any)();
-  try {
-    const mol = RDKit.get_mol(smiles);
-    if (!mol) return '';
-    return mol.get_canonical_smiles();
-  } catch (e) {
-    return '';
-  }
-}
-
 describe('RDKit Canonical SMILES Comparison', () => {
   TEST_SMILES.forEach((input) => {
     it(`matches RDKit canonical SMILES for ${input}`, async () => {

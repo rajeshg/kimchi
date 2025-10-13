@@ -69,7 +69,7 @@ while (TEST_SMILES.length < 300) {
       entry.ours = parsed.molecules ? generateSMILES(parsed.molecules) : null;
     } catch (e) {
       entry.ours = null;
-      entry.oursError = (e && e.message) ? e.message : String(e);
+      entry.oursError = e instanceof Error ? e.message : String(e);
     }
 
     // RDKit parse original
@@ -78,7 +78,7 @@ while (TEST_SMILES.length < 300) {
       entry.rdkitOriginal = (mol && mol.is_valid()) ? mol.get_smiles() : null;
     } catch (e) {
       entry.rdkitOriginal = null;
-      entry.rdkitOriginalError = (e && e.message) ? e.message : String(e);
+      entry.rdkitOriginalError = e instanceof Error ? e.message : String(e);
     }
 
     // RDKit parse ours
@@ -88,7 +88,7 @@ while (TEST_SMILES.length < 300) {
         entry.rdkitOurs = (mol2 && mol2.is_valid()) ? mol2.get_smiles() : null;
       } catch (e) {
         entry.rdkitOurs = null;
-        entry.rdkitOursError = (e && e.message) ? e.message : String(e);
+        entry.rdkitOursError = e instanceof Error ? e.message : String(e);
       }
     }
 

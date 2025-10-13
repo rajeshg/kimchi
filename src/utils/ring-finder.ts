@@ -92,11 +92,13 @@ export function classifyRingSystems(atoms: Atom[], bonds: Bond[]): {
   // Simple classification based on shared atoms
   for (let i = 0; i < rings.length; i++) {
     const ring1 = rings[i];
+    if (!ring1) continue;
     let sharedCount = 0;
     let sharedAtoms: number[] = [];
 
     for (let j = i + 1; j < rings.length; j++) {
       const ring2 = rings[j];
+      if (!ring2) continue;
       const shared = ring1.filter(id => ring2.includes(id));
 
       if (shared.length > 0) {
@@ -108,11 +110,11 @@ export function classifyRingSystems(atoms: Atom[], bonds: Bond[]): {
     if (sharedCount === 0) {
       isolated.push(ring1);
     } else if (sharedCount === 1 && sharedAtoms.length === 1) {
-      spiro.push(ring1); // spiro: share exactly 1 atom
+      spiro.push(ring1);
     } else if (sharedCount >= 1 && sharedAtoms.length >= 2) {
-      fused.push(ring1); // fused: share 2+ atoms
+      fused.push(ring1);
     } else {
-      bridged.push(ring1); // other complex cases
+      bridged.push(ring1);
     }
   }
 

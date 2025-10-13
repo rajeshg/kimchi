@@ -143,10 +143,10 @@ describe('RDKit Bulk Comparison (300 SMILES)', () => {
       }
 
       // Check semantic equivalence: the generated molecule should have same atom/bond count
-      const originalAtoms = parsed.molecules[0].atoms.length;
-      const originalBonds = parsed.molecules[0].bonds.length;
-      const generatedAtoms = roundTrip.molecules[0].atoms.length;
-      const generatedBonds = roundTrip.molecules[0].bonds.length;
+      const originalAtoms = parsed.molecules[0]!.atoms.length;
+      const originalBonds = parsed.molecules[0]!.bonds.length;
+      const generatedAtoms = roundTrip.molecules[0]!.atoms.length;
+      const generatedBonds = roundTrip.molecules[0]!.bonds.length;
 
       if (originalAtoms !== generatedAtoms || originalBonds !== generatedBonds) {
         generationFailures.push(`${smiles} -> ${chemkitOutput} (structure mismatch: ${originalAtoms}/${originalBonds} vs ${generatedAtoms}/${generatedBonds})`);

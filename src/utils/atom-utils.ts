@@ -12,9 +12,8 @@ export function isOrganicAtom(char: string): boolean {
  * Create a new atom with the given properties
  */
 export function createAtom(symbol: string, id: number, aromatic = false, isBracket = false, atomClass = 0): Atom {
-  // Handle two-letter symbols (Cl, Br) which should not be fully uppercased
   const normalizedSymbol = symbol.length === 2
-    ? symbol[0].toUpperCase() + symbol[1].toLowerCase()
+    ? (symbol[0]?.toUpperCase() ?? '') + (symbol[1]?.toLowerCase() ?? '')
     : symbol.toUpperCase();
   const atomicNumber = ATOMIC_NUMBERS[normalizedSymbol];
   if (atomicNumber === undefined) {
@@ -25,7 +24,7 @@ export function createAtom(symbol: string, id: number, aromatic = false, isBrack
     symbol: normalizedSymbol,
     atomicNumber,
     charge: 0,
-    hydrogens: 0, // will calculate later
+    hydrogens: 0,
     isotope: null,
     aromatic,
     chiral: null,

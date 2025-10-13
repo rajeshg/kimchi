@@ -1,4 +1,4 @@
-import type { Molecule, Bond } from './types';
+import type { Molecule, Bond, Atom } from '../../types';
 import { BondType, StereoType } from '../../types';
 
 // Internal canonical-ish SMILES generator using iterative atom invariants+
@@ -205,10 +205,12 @@ function generateComponentSMILES(atomIds: number[], molecule: Molecule): string 
     const num = ringCounter++;
     ringNumbers.set(edge, num);
     const [a, b] = edge.split('-').map(Number);
-    if (!atomRingNumbers.has(a)) atomRingNumbers.set(a, []);
-    if (!atomRingNumbers.has(b)) atomRingNumbers.set(b, []);
-    atomRingNumbers.get(a)!.push(num);
-    atomRingNumbers.get(b)!.push(num);
+    const aNum = a!;
+    const bNum = b!;
+    if (!atomRingNumbers.has(aNum)) atomRingNumbers.set(aNum, []);
+    if (!atomRingNumbers.has(bNum)) atomRingNumbers.set(bNum, []);
+    atomRingNumbers.get(aNum)!.push(num);
+    atomRingNumbers.get(bNum)!.push(num);
   }
 
   const visit = (atomId: number, parentId: number | null) => {
@@ -368,14 +370,13 @@ function bondPriority(b: Bond): number {
 function bondSymbolForOutput(bond: Bond, childId: number, molecule: Molecule): string {
   if (bond.type === BondType.SINGLE) {
     if (bond.stereo && bond.stereo !== StereoType.NONE) return bond.stereo === StereoType.UP ? '/' : '\\';
-    // check adjacent double bond on child side
     const dbl = molecule.bonds.find(x => x.type === BondType.DOUBLE && x.stereo && x.stereo !== StereoType.NONE && (x.atom1 === childId || x.atom2 === childId));
     if (dbl) return dbl.stereo === StereoType.UP ? '/' : '\\';
     return '';
   }
   if (bond.type === BondType.DOUBLE) return '=';
   if (bond.type === BondType.TRIPLE) return '#';
-  if (bond.type === BondType.AROMATIC) return ''; // aromatic bonds have no symbol
+  if (bond.type === BondType.AROMATIC) return '';
   return '';
 }
 
