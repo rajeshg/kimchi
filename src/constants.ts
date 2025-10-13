@@ -98,3 +98,16 @@ export const DEFAULT_VALENCES: Record<string, number[]> = {
   // Wildcard atom (no specific valence)
   '*': [],
 };
+
+// Aromatic valences for aromatic atoms (sp2 hybridization)
+// These are used for implicit hydrogen calculation on aromatic atoms
+export const AROMATIC_VALENCES: Record<string, number[]> = {
+  B: [2],       // sp2 boron (2 bonds, 0H, empty p orbital)
+  C: [3],       // sp2 carbon (benzene-like)
+  N: [2],       // default to pyridine-like (2 bonds, no H); pyrrole uses [nH] bracket notation
+  O: [2],       // furan-like (2 bonds in ring)
+  P: [2],       // similar to N
+  S: [2],       // thiophene-like (2 bonds in ring)
+  Se: [2],      // similar to S
+  As: [2],      // similar to P
+};

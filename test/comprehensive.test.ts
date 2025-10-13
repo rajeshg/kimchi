@@ -551,9 +551,10 @@ describe('Comprehensive SMILES Tests', () => {
       expect(result2.errors.length).toBeGreaterThan(0);
       expect(result2.errors.some(e => e.message.includes('not in a ring'))).toBe(true);
 
-      // Invalid: aromatic atom with wrong valence (too few bonds)
-      const result3 = parseSMILES('cC');
-      expect(result3.errors.some(e => e.message.includes('has') && e.message.includes('bonds'))).toBe(true);
+      // Invalid: aromatic ring violating Hückel's rule
+      const result3 = parseSMILES('c1ccc1'); // cyclobutadiene, 4 π electrons
+      expect(result3.errors.length).toBeGreaterThan(0);
+      expect(result3.errors.some(e => e.message.includes('violates Hückel'))).toBe(true);
     });
   });
 

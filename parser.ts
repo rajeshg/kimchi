@@ -1,10 +1,12 @@
 import type { Atom, Bond, Molecule, ParseResult, ParseError } from './types';
 import { BondType, StereoType } from './types';
-import { ATOMIC_NUMBERS, DEFAULT_VALENCES } from './src/constants';
+import { ATOMIC_NUMBERS, DEFAULT_VALENCES, AROMATIC_VALENCES } from './src/constants';
 import { calculateValence } from './src/utils/valence-calculator';
 import { findRings } from './src/utils/ring-finder';
 import { createAtom, isOrganicAtom } from './src/utils/atom-utils';
 import { validateAromaticity } from './src/validators/aromaticity-validator';
+import { validateValences } from './src/validators/valence-validator';
+import { validateStereochemistry } from './src/validators/stereo-validator';
 import { parseBracketAtom } from './src/parsers/bracket-parser';
 
 export function parseSMILES(smiles: string): ParseResult {
@@ -303,25 +305,129 @@ function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: ParseE
   }
 
   for (const atom of atoms) {
-    const hasExplicitH = atom.isBracket && atom.hydrogens >= 0;
-    if (!hasExplicitH) {
-      const valence = calculateValence(atom, bonds);
+    if (atom.isBracket) {
+      // Bracket atoms have explicit hydrogen count, default to 0 if not specified
+      if (atom.hydrogens < 0) {
+        atom.hydrogens = 0;
+      }
+    } else {
+      // Calculate implicit hydrogens for non-bracket atoms
+      // For hydrogen calculation, aromatic bonds count as 1.0 (not 1.5)
+      let bondOrderSum = 0;
+      for (const bond of bonds) {
+        if (bond.atom1 === atom.id || bond.atom2 === atom.id) {
+          switch (bond.type) {
+            case BondType.SINGLE:
+            case BondType.AROMATIC:
+              bondOrderSum += 1;
+              break;
+            case BondType.DOUBLE:
+              bondOrderSum += 2;
+              break;
+            case BondType.TRIPLE:
+              bondOrderSum += 3;
+              break;
+            case BondType.QUADRUPLE:
+              bondOrderSum += 4;
+              break;
+          }
+        }
+      }
+      
       // Special handling for wildcard atom '*'
       if (atom.symbol === '*') {
         // Wildcard atom takes valence from its bonds, no implicit hydrogens
         atom.hydrogens = 0;
       } else {
-        const defaultValences = DEFAULT_VALENCES[atom.symbol] || [atom.atomicNumber];
-        const expectedValence = (defaultValences[0] || atom.atomicNumber) + (atom.charge || 0);
-        atom.hydrogens = Math.max(0, expectedValence - valence);
+        // Use aromatic valences for aromatic atoms, default valences otherwise
+        const defaultValences = atom.aromatic 
+          ? (AROMATIC_VALENCES[atom.symbol] || DEFAULT_VALENCES[atom.symbol] || [atom.atomicNumber])
+          : (DEFAULT_VALENCES[atom.symbol] || [atom.atomicNumber]);
+        // Per OpenSMILES spec: if bond sum equals a known valence or exceeds all known valences, H count = 0
+        // Otherwise H count = (next highest known valence) - bond sum
+        const maxValence = Math.max(...defaultValences);
+        if (bondOrderSum >= maxValence) {
+          atom.hydrogens = 0;
+        } else {
+          // Find the next highest valence
+          let targetValence = maxValence;
+          for (const v of defaultValences.sort((a, b) => a - b)) {
+            if (v >= bondOrderSum) {
+              targetValence = v;
+              break;
+            }
+          }
+          atom.hydrogens = Math.max(0, targetValence + (atom.charge || 0) - bondOrderSum);
+        }
       }
-    } else if (atom.hydrogens < 0) {
-      atom.hydrogens = 0;
     }
   }
 
-  // Validate aromaticity
+  // Store original aromatic flags before validation (for two-pass hydrogen calculation)
+  const originalAromaticFlags = new Map(atoms.map(a => [a.id, a.aromatic]));
+
+  // Validate aromaticity (first pass)
   validateAromaticity(atoms, bonds, errors);
+
+  // Two-pass hydrogen calculation for 5-membered aromatic rings
+  // If aromaticity validation failed, try adjusting N/P atoms to have +1 H
+  const aromaticErrors = errors.filter(e => e.message.includes("Hückel's 4n+2 rule"));
+  if (aromaticErrors.length > 0) {
+    // Extract ring atom IDs from error messages
+    const failedRings = aromaticErrors.map(e => {
+      const match = e.message.match(/Ring ([\d,]+)/);
+      if (match) {
+        return match[1].split(',').map(Number);
+      }
+      return null;
+    }).filter(r => r !== null && r.length === 5); // Only 5-membered rings
+
+    // For each failed 5-membered ring, try adjusting N/P atoms
+    for (const ringIds of failedRings) {
+      if (!ringIds) continue;
+      
+      // Get ring atoms
+      const ringAtoms = ringIds.map(id => atoms.find(a => a.id === id)!);
+      
+      // Find N/P atoms in the ring with 0 hydrogens
+      const adjustableAtoms = ringAtoms
+        .filter(a => (a.symbol === 'N' || a.symbol === 'P') && a.hydrogens === 0 && !a.isBracket);
+
+      if (adjustableAtoms.length > 0) {
+        // Try giving each N/P atom 1 hydrogen
+        const oldHydrogens = adjustableAtoms.map(a => a.hydrogens);
+        adjustableAtoms.forEach(a => a.hydrogens = 1);
+        
+        // Restore original aromatic flags before re-validating
+        ringAtoms.forEach(a => a.aromatic = originalAromaticFlags.get(a.id)!);
+
+        // Re-validate aromaticity
+        const testErrors: ParseError[] = [];
+        validateAromaticity(atoms, bonds, testErrors);
+
+        // Check if this specific ring now passes
+        const ringIdStr = ringIds.join(',');
+        const stillFails = testErrors.some(e => e.message.includes(`Ring ${ringIdStr}`));
+
+        if (!stillFails) {
+          // Success! Remove the old error for this ring
+          const errorIndex = errors.findIndex(e => e.message.includes(`Ring ${ringIdStr}`));
+          if (errorIndex >= 0) {
+            errors.splice(errorIndex, 1);
+          }
+        } else {
+          // Revert the changes
+          adjustableAtoms.forEach((a, i) => a.hydrogens = oldHydrogens[i]);
+        }
+      }
+    }
+  }
+
+  // Validate valences
+  validateValences(atoms, bonds, errors);
+
+  // Validate stereochemistry
+  validateStereochemistry(atoms, bonds, errors);
 
   return { molecule: { atoms, bonds }, errors };
 }

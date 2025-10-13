@@ -2,10 +2,12 @@ import type { Atom, Bond } from '../../types';
 import { BondType } from '../../types';
 
 /**
- * Calculate the valence of an atom based on its bonds
+ * Calculate the valence of an atom based on its bonds and charge
  */
 export function calculateValence(atom: Atom, bonds: Bond[]): number {
   let valence = 0;
+
+  // Add bond contributions
   for (const bond of bonds) {
     if (bond.atom1 === atom.id || bond.atom2 === atom.id) {
       switch (bond.type) {
@@ -27,5 +29,9 @@ export function calculateValence(atom: Atom, bonds: Bond[]): number {
       }
     }
   }
+
+  // Add hydrogen contributions
+  valence += atom.hydrogens || 0;
+
   return valence;
 }

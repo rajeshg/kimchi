@@ -23,17 +23,37 @@ export function parseBracketAtom(content: string, id: number): Atom | null {
     }
     isotope = parseInt(isoStr);
   }
-   // symbol (including wildcard *)
-   if (j < content.length && (content[j]! >= 'A' && content[j]! <= 'Z' || content[j]! === '*')) {
-     symbol += content[j]!;
-     j++;
-     if (j < content.length && content[j]! >= 'a' && content[j]! <= 'z') {
-       symbol += content[j]!;
-       j++;
-     }
-   } else {
-     return null; // invalid
-   }
+  // symbol (including wildcard * and aromatic lowercase symbols)
+  let aromatic = false;
+  if (j < content.length) {
+    const firstChar = content[j]!;
+    if (firstChar === '*') {
+      symbol += firstChar;
+      j++;
+    } else if (firstChar >= 'A' && firstChar <= 'Z') {
+      // Regular uppercase element
+      symbol += firstChar;
+      j++;
+      if (j < content.length && content[j]! >= 'a' && content[j]! <= 'z') {
+        symbol += content[j]!;
+        j++;
+      }
+    } else if (firstChar >= 'a' && firstChar <= 'z') {
+      // Aromatic lowercase symbol (b, c, n, o, p, s, se, as)
+      aromatic = true;
+      symbol += firstChar.toUpperCase(); // Store as uppercase
+      j++;
+      if (j < content.length && content[j]! >= 'a' && content[j]! <= 'z') {
+        // Two-letter aromatic like 'se' or 'as'
+        symbol += content[j]!.toLowerCase();
+        j++;
+      }
+    } else {
+      return null; // invalid
+    }
+  } else {
+    return null; // empty content
+  }
   // rest: H, charge, etc. simplified
   while (j < content.length) {
     const c = content[j]!;
@@ -168,7 +188,7 @@ export function parseBracketAtom(content: string, id: number): Atom | null {
     charge,
     hydrogens,
     isotope,
-    aromatic: false, // TODO
+    aromatic,
     chiral,
     isBracket: true,
     atomClass,
