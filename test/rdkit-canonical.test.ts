@@ -1,6 +1,4 @@
-// NOTE: RDKit.js (@rdkit/rdkit) does NOT work in Bun. Run this test file with Node.js (e.g., Vitest) for canonical SMILES comparison.
-// See https://github.com/rdkit/rdkit-js for details.
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'bun:test';
 import { parseSMILES, generateSMILES } from '../index';
 
 const TEST_SMILES = [

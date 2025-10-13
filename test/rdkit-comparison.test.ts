@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'bun:test';
 import { parseSMILES, generateSMILES } from '../index';
 // RDKit's module export typing is not callable in this environment; cast to any where used
 
