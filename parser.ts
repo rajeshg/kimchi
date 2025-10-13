@@ -1,4 +1,4 @@
-import type { Atom, Bond, Molecule, ParseResult } from './types';
+import type { Atom, Bond, Molecule, ParseResult, ParseError } from './types';
 import { BondType, StereoType } from './types';
 
 // Complete atomic numbers for all elements (OpenSMILES specification)
@@ -103,7 +103,7 @@ const DEFAULT_VALENCES: Record<string, number[]> = {
 };
 
 export function parseSMILES(smiles: string): ParseResult {
-  const errors: string[] = [];
+  const errors: ParseError[] = [];
   const molecules: Molecule[] = [];
 
   // Split on '.' for disconnected structures
@@ -118,8 +118,8 @@ export function parseSMILES(smiles: string): ParseResult {
   return { molecules, errors };
 }
 
-function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: string[] } {
-  const errors: string[] = [];
+function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: ParseError[] } {
+  const errors: ParseError[] = [];
   const atoms: Atom[] = [];
   const bonds: Bond[] = [];
   let atomId = 0;
@@ -161,13 +161,13 @@ function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: string
         i++;
       }
       if (i >= smiles.length || smiles[i] !== ']') {
-        errors.push(`Unclosed bracket at position ${i}`);
+        errors.push({ message: 'Unclosed bracket', position: i });
       } else {
         i++; // skip ]
       }
       const atom = parseBracketAtom(content, atomId++);
       if (!atom) {
-        errors.push(`Invalid bracket atom: ${content}`);
+        errors.push({ message: `Invalid bracket atom: ${content}`, position: i });
         continue;
       }
       atoms.push(atom);
@@ -268,6 +268,11 @@ function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: string
       i++;
       continue;
     }
+    if (ch === '$') {
+      pendingBondType = BondType.QUADRUPLE;
+      i++;
+      continue;
+    }
 
     // Branching
     if (ch === '(') {
@@ -278,7 +283,7 @@ function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: string
     }
     if (ch === ')') {
       if (branchStack.length === 0) {
-        errors.push(`Unmatched ')' at position ${i}`);
+        errors.push({ message: 'Unmatched closing parenthesis', position: i });
       } else {
         prevAtomId = branchStack.pop()!;
       }
@@ -289,7 +294,7 @@ function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: string
     // Ring closures: digit or %nn
     if (ch >= '0' && ch <= '9') {
       if (prevAtomId === null) {
-        errors.push(`Ring closure digit at position ${i} without previous atom`);
+        errors.push({ message: 'Ring closure digit without previous atom', position: i });
       } else {
         const d = parseInt(ch);
         const list = bookmarks.get(d) || [];
@@ -304,7 +309,7 @@ function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: string
     }
     if (ch === '%') {
       if (prevAtomId === null) {
-        errors.push(`Ring closure % at position ${i} without previous atom`);
+        errors.push({ message: 'Ring closure % without previous atom', position: i });
         i++;
         continue;
       }
@@ -319,13 +324,13 @@ function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: string
         pendingBondStereo = StereoType.NONE;
         continue;
       } else {
-        errors.push(`Invalid % ring closure at position ${i}`);
+        errors.push({ message: 'Invalid % ring closure', position: i });
         i++;
         continue;
       }
     }
 
-    errors.push(`Unsupported character: ${ch} at position ${i}`);
+    errors.push({ message: `Unsupported character: ${ch}`, position: i });
     i++;
   }
 
@@ -356,7 +361,7 @@ function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: string
     }
     if (secondIndex === -1) {
       // All recorded endpoints are the same atom — cannot form a valid ring bond
-      errors.push(`Ring closure digit ${digit} endpoints identical: ${entries.map(e => e.atomId).join(',')}`);
+      errors.push({ message: `Ring closure digit ${digit} endpoints identical: ${entries.map(e => e.atomId).join(',')}`, position: -1 });
       continue;
     }
 
@@ -368,12 +373,12 @@ function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: string
     // If more than two distinct endpoints exist, report an error
     const distinct = Array.from(new Set(entries.map(e => e.atomId)));
     if (distinct.length > 2) {
-      errors.push(`Ring closure digit ${digit} used more than twice with endpoints ${distinct.join(',')}`);
+      errors.push({ message: `Ring closure digit ${digit} used more than twice with endpoints ${distinct.join(',')}`, position: -1 });
     }
   }
   console.warn('Bonds at end of pairing:', bonds.map(b => `${b.atom1}-${b.atom2}`));
 
-  if (branchStack.length > 0) errors.push('Unmatched opening parentheses');
+  if (branchStack.length > 0) errors.push({ message: 'Unmatched opening parentheses', position: -1 });
 
   // Stereo inference, aromatic bonds, hydrogens
   for (const bd of bonds) {
@@ -520,6 +525,61 @@ function parseBracketAtom(content: string, id: number): Atom | null {
       if (j < content.length && content[j]! === '@') {
         chiral = '@@';
         j++;
+      } else {
+        // Check for extended chirality: @TH1, @AL1, @SP1, @TB1, @OH1, etc.
+        // Try to parse extended forms
+        let extendedChiral = '@';
+        let startJ = j;
+        // Try TH1/TH2
+        if (j + 2 < content.length && content.slice(j, j + 2) === 'TH' && /[12]/.test(content[j + 2]!)) {
+          extendedChiral += 'TH' + content[j + 2]!;
+          j += 3;
+        }
+        // Try AL1/AL2
+        else if (j + 2 < content.length && content.slice(j, j + 2) === 'AL' && /[12]/.test(content[j + 2]!)) {
+          extendedChiral += 'AL' + content[j + 2]!;
+          j += 3;
+        }
+        // Try SP1/SP2/SP3
+        else if (j + 2 < content.length && content.slice(j, j + 2) === 'SP' && /[123]/.test(content[j + 2]!)) {
+          extendedChiral += 'SP' + content[j + 2]!;
+          j += 3;
+        }
+        // Try TB1-TB20
+        else if (j + 1 < content.length && content.slice(j, j + 2) === 'TB') {
+          j += 2;
+          let numStr = '';
+          while (j < content.length && /\d/.test(content[j]!)) {
+            numStr += content[j]!;
+            j++;
+          }
+          let num = parseInt(numStr);
+          if (num >= 1 && num <= 20) {
+            extendedChiral += 'TB' + numStr;
+          } else {
+            j = startJ; // Reset if invalid
+          }
+        }
+        // Try OH1-OH30
+        else if (j + 1 < content.length && content.slice(j, j + 2) === 'OH') {
+          j += 2;
+          let numStr = '';
+          while (j < content.length && /\d/.test(content[j]!)) {
+            numStr += content[j]!;
+            j++;
+          }
+          let num = parseInt(numStr);
+          if (num >= 1 && num <= 30) {
+            extendedChiral += 'OH' + numStr;
+          } else {
+            j = startJ; // Reset if invalid
+          }
+        }
+
+        if (extendedChiral.length > 1) {
+          chiral = extendedChiral;
+        }
+        // If no extended form matched, keep the basic '@'
       }
     } else if (c === ':') {
       j++;
@@ -573,6 +633,9 @@ function calculateValence(atom: Atom, bonds: Bond[]): number {
         case BondType.TRIPLE:
           valence += 3;
           break;
+        case BondType.QUADRUPLE:
+          valence += 4;
+          break;
         case BondType.AROMATIC:
           valence += 1.5; // aromatic bonds contribute 1.5 to valence
           break;
@@ -599,7 +662,7 @@ function validateAromaticity(atoms: Atom[], bonds: Bond[], errors: string[]): vo
     );
 
     if (!atomInRing) {
-      errors.push(`Aromatic atom ${atom.symbol} (id: ${atom.id}) is not in a ring`);
+      errors.push({ message: `Aromatic atom ${atom.symbol} (id: ${atom.id}) is not in a ring`, position: -1 });
       // Mark as non-aromatic
       atom.aromatic = false;
     }
@@ -607,7 +670,7 @@ function validateAromaticity(atoms: Atom[], bonds: Bond[], errors: string[]): vo
     // Check valence - aromatic atoms should typically have 2-3 bonds
     const atomBonds = bonds.filter(b => b.atom1 === atom.id || b.atom2 === atom.id);
     if (atomBonds.length < 2 || atomBonds.length > 3) {
-      errors.push(`Aromatic atom ${atom.symbol} (id: ${atom.id}) has ${atomBonds.length} bonds, expected 2-3`);
+      errors.push({ message: `Aromatic atom ${atom.symbol} (id: ${atom.id}) has ${atomBonds.length} bonds, expected 2-3`, position: -1 });
       atom.aromatic = false;
     }
   }
@@ -630,7 +693,7 @@ function validateAromaticity(atoms: Atom[], bonds: Bond[], errors: string[]): vo
 
       // Allow either all aromatic bonds or alternating single/double
       if (aromaticBondCount !== ring.length && singleBondCount + doubleBondCount !== ring.length) {
-        errors.push(`Aromatic ring ${ring.join(',')} has inconsistent bond types`);
+        errors.push({ message: `Aromatic ring ${ring.join(',')} has inconsistent bond types`, position: -1 });
       }
     }
   }

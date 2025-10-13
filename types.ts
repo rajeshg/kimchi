@@ -4,6 +4,7 @@ export enum BondType {
   SINGLE = 'single',
   DOUBLE = 'double',
   TRIPLE = 'triple',
+  QUADRUPLE = 'quadruple',
   AROMATIC = 'aromatic',
 }
 
@@ -40,7 +41,12 @@ export interface Molecule {
   // Additional properties can be added later, e.g., rings, properties
 }
 
+export interface ParseError {
+  message: string;
+  position: number; // character position in SMILES string (0-based)
+}
+
 export interface ParseResult {
   molecules: Molecule[];
-  errors: string[]; // any parsing errors
+  errors: ParseError[]; // any parsing errors with position info
 }

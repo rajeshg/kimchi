@@ -74,6 +74,12 @@ describe('Comprehensive SMILES Tests', () => {
       expect(result.molecules[0].bonds[0].type).toBe('triple');
     });
 
+    it('handles quadruple bonds', () => {
+      const result = parseSMILES('C$C');
+      expect(result.errors).toHaveLength(0);
+      expect(result.molecules[0].bonds[0].type).toBe('quadruple');
+    });
+
     it('handles aromatic bonds', () => {
       const result = parseSMILES('c1ccccc1');
       expect(result.errors).toHaveLength(0);
@@ -170,6 +176,59 @@ describe('Comprehensive SMILES Tests', () => {
       expect(chiralCarbon?.chiral).toBe('@@');
     });
 
+    it('handles extended chirality TH1/TH2', () => {
+      const result1 = parseSMILES('C[C@TH1H](O)N');
+      expect(result1.errors).toHaveLength(0);
+      const chiralCarbon1 = result1.molecules[0].atoms.find(a => a.chiral);
+      expect(chiralCarbon1?.chiral).toBe('@TH1');
+
+      const result2 = parseSMILES('C[C@TH2H](O)N');
+      expect(result2.errors).toHaveLength(0);
+      const chiralCarbon2 = result2.molecules[0].atoms.find(a => a.chiral);
+      expect(chiralCarbon2?.chiral).toBe('@TH2');
+    });
+
+    it('handles extended chirality in brackets', () => {
+      const result1 = parseSMILES('C[CH@TH1](O)N');
+      expect(result1.errors).toHaveLength(0);
+      const chiralCarbon1 = result1.molecules[0].atoms.find(a => a.chiral);
+      expect(chiralCarbon1?.chiral).toBe('@TH1');
+
+      const result2 = parseSMILES('C[CH@AL1](O)N');
+      expect(result2.errors).toHaveLength(0);
+      const chiralCarbon2 = result2.molecules[0].atoms.find(a => a.chiral);
+      expect(chiralCarbon2?.chiral).toBe('@AL1');
+    });
+
+    it('handles extended chirality AL1/AL2', () => {
+      const result1 = parseSMILES('[C@AL1](C)(O)N');
+      expect(result1.errors).toHaveLength(0);
+      const chiralCarbon1 = result1.molecules[0].atoms.find(a => a.chiral);
+      expect(chiralCarbon1?.chiral).toBe('@AL1');
+
+      const result2 = parseSMILES('[C@AL2](C)(O)N');
+      expect(result2.errors).toHaveLength(0);
+      const chiralCarbon2 = result2.molecules[0].atoms.find(a => a.chiral);
+      expect(chiralCarbon2?.chiral).toBe('@AL2');
+    });
+
+    it('handles extended chirality SP1/SP2/SP3', () => {
+      const result1 = parseSMILES('[Pt@SP1](Cl)(Br)(I)F');
+      expect(result1.errors).toHaveLength(0);
+      const chiralPt1 = result1.molecules[0].atoms.find(a => a.chiral);
+      expect(chiralPt1?.chiral).toBe('@SP1');
+
+      const result2 = parseSMILES('[Pt@SP2](Cl)(Br)(I)F');
+      expect(result2.errors).toHaveLength(0);
+      const chiralPt2 = result2.molecules[0].atoms.find(a => a.chiral);
+      expect(chiralPt2?.chiral).toBe('@SP2');
+
+      const result3 = parseSMILES('[Pt@SP3](Cl)(Br)(I)F');
+      expect(result3.errors).toHaveLength(0);
+      const chiralPt3 = result3.molecules[0].atoms.find(a => a.chiral);
+      expect(chiralPt3?.chiral).toBe('@SP3');
+    });
+
     it('handles E/Z double bond stereo /', () => {
       const result = parseSMILES('F/C=C/F');
       expect(result.errors).toHaveLength(0);
@@ -216,6 +275,37 @@ describe('Comprehensive SMILES Tests', () => {
       const result = parseSMILES('[2H]C');
       expect(result.errors).toHaveLength(0);
       expect(result.molecules[0].atoms[0].isotope).toBe(2);
+    });
+
+    it('handles explicit hydrogen atoms', () => {
+      // Molecular hydrogen
+      const result1 = parseSMILES('[H][H]');
+      expect(result1.errors).toHaveLength(0);
+      expect(result1.molecules[0].atoms).toHaveLength(2);
+      expect(result1.molecules[0].atoms[0].symbol).toBe('H');
+      expect(result1.molecules[0].atoms[1].symbol).toBe('H');
+
+      // Deuterium
+      const result2 = parseSMILES('[2H][2H]');
+      expect(result2.errors).toHaveLength(0);
+      expect(result2.molecules[0].atoms[0].isotope).toBe(2);
+      expect(result2.molecules[0].atoms[1].isotope).toBe(2);
+
+      // Tritium
+      const result3 = parseSMILES('[3H]C');
+      expect(result3.errors).toHaveLength(0);
+      expect(result3.molecules[0].atoms[0].isotope).toBe(3);
+
+      // Charged hydrogen
+      const result4 = parseSMILES('[H+]');
+      expect(result4.errors).toHaveLength(0);
+      expect(result4.molecules[0].atoms[0].charge).toBe(1);
+
+      // Deuterium ion
+      const result5 = parseSMILES('[2H+]');
+      expect(result5.errors).toHaveLength(0);
+      expect(result5.molecules[0].atoms[0].isotope).toBe(2);
+      expect(result5.molecules[0].atoms[0].charge).toBe(1);
     });
 
     it('handles carbon-13', () => {
@@ -459,11 +549,11 @@ describe('Comprehensive SMILES Tests', () => {
       // Invalid: aromatic atom not in ring
       const result2 = parseSMILES('cC');
       expect(result2.errors.length).toBeGreaterThan(0);
-      expect(result2.errors.some(e => e.includes('not in a ring'))).toBe(true);
+      expect(result2.errors.some(e => e.message.includes('not in a ring'))).toBe(true);
 
       // Invalid: aromatic atom with wrong valence (too few bonds)
       const result3 = parseSMILES('cC');
-      expect(result3.errors.some(e => e.includes('has') && e.includes('bonds'))).toBe(true);
+      expect(result3.errors.some(e => e.message.includes('has') && e.message.includes('bonds'))).toBe(true);
     });
   });
 
@@ -558,7 +648,7 @@ describe('Comprehensive SMILES Tests', () => {
     it('handles invalid aromaticity - chain not ring', () => {
       const result = parseSMILES('ccccc');
       expect(result.errors.length).toBeGreaterThan(0);
-      expect(result.errors.some(e => e.includes('not in a ring'))).toBe(true);
+      expect(result.errors.some(e => e.message.includes('not in a ring'))).toBe(true);
     });
 
     it('handles wildcard in simple chain', () => {
