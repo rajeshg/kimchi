@@ -1,5 +1,5 @@
 import type { Molecule, Bond } from './types';
-import { BondType, StereoType } from './types';
+import { BondType, StereoType } from '../../types';
 
 // Internal canonical-ish SMILES generator using iterative atom invariants+
 // deterministic traversal to approximate RDKit's canonical SMILES for common cases.
