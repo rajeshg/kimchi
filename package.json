@@ -1,0 +1,16 @@
+{
+  "name": "chemkit",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@rdkit/rdkit": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}
