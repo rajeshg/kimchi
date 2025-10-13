@@ -114,6 +114,7 @@ function generateComponentSMILES(atomIds: number[], molecule: Molecule): string 
     degrees.set(bond.atom1, (degrees.get(bond.atom1) || 0) + 1);
     degrees.set(bond.atom2, (degrees.get(bond.atom2) || 0) + 1);
   }
+}
 
   let root = atomsSorted[0]!.id;
   let rootAtom = componentAtoms.find(a => a.id === root)!;
