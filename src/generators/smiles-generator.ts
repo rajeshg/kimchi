@@ -11,7 +11,8 @@ export function generateSMILES(input: Molecule | Molecule[]): string {
   const molecule = input;
   if (molecule.atoms.length === 0) return '';
 
-  // Canonicalize stereo: omit stereo if substituents are symmetric or insufficient
+  // For SMILES generation, preserve stereochemistry as specified in input
+  // Only remove stereo for atoms with insufficient neighbors or in simple rings
   for (const atom of molecule.atoms) {
     if (atom.chiral) {
       const neighbors = getNeighbors(atom.id, molecule);
@@ -21,23 +22,25 @@ export function generateSMILES(input: Molecule | Molecule[]): string {
           atom.isBracket = false;
           atom.hydrogens = 0;
         }
-      } else {
-        const neighborAtoms = neighbors.map(([id]) => molecule.atoms.find(a => a.id === id)!);
-        const invariants = neighborAtoms.map(n => n.symbol + (n.chiral ? '@' : ''));
-        const sorted = [...invariants].sort();
-        let hasDuplicate = false;
-        for (let i = 1; i < sorted.length; i++) {
-          if (sorted[i] === sorted[i - 1]) {
-            hasDuplicate = true;
-            break;
+      }
+      // Also remove chirality if atom is in a saturated ring (simplified heuristic)
+      // Check if the atom is part of a ring by seeing if any two neighbors form a ring
+      if (atom.chiral && neighbors.length >= 2) {
+        for (let i = 0; i < neighbors.length; i++) {
+          for (let j = i + 1; j < neighbors.length; j++) {
+            const [n1] = neighbors[i]!;
+            const [n2] = neighbors[j]!;
+            if (isInSmallRing(n1, n2, molecule, 8)) {
+              // Atom is in a ring - remove chirality as a simplification
+              atom.chiral = null;
+              if (atom.symbol === 'C' && atom.hydrogens <= 1 && atom.charge === 0 && !atom.isotope) {
+                atom.isBracket = false;
+                atom.hydrogens = 0;
+              }
+              break;
+            }
           }
-        }
-        if (hasDuplicate) {
-          atom.chiral = null;
-          if (atom.symbol === 'C' && atom.hydrogens <= 1 && atom.charge === 0 && !atom.isotope) {
-            atom.isBracket = false;
-            atom.hydrogens = 0;
-          }
+          if (!atom.chiral) break;
         }
       }
     }
@@ -172,7 +175,7 @@ function generateComponentSMILES(atomIds: number[], molecule: Molecule): string 
   const findBackEdges = (atomId: number, parentId: number | null, visited: Set<number>, backEdges: Set<string>) => {
     visited.add(atomId);
     const neighbors = getNeighbors(atomId, subMol).filter(([nid]) => nid !== parentId);
-    
+
     neighbors.sort((x, y) => {
       const [aId, aBond] = x;
       const [bId, bBond] = y;
@@ -185,11 +188,10 @@ function generateComponentSMILES(atomIds: number[], molecule: Molecule): string 
       return aId - bId;
     });
 
-    for (let i = 0; i < neighbors.length; i++) {
-      const [nid] = neighbors[i]!;
+    for (const [nid] of neighbors) {
       if (visited.has(nid)) {
         backEdges.add(bondKey(atomId, nid));
-      } else if (i === 0) {
+      } else {
         findBackEdges(nid, atomId, visited, backEdges);
       }
     }
@@ -214,8 +216,8 @@ function generateComponentSMILES(atomIds: number[], molecule: Molecule): string 
     const sym = atom.aromatic ? atom.symbol.toLowerCase() : atom.symbol;
 
     if (atom.isBracket) out.push('[');
-    out.push(sym);
     if (atom.isotope) out.push(atom.isotope.toString());
+    out.push(sym);
     if (atom.chiral) out.push(atom.chiral);
     if (atom.isBracket && atom.hydrogens > 0) {
       out.push('H');
@@ -234,6 +236,30 @@ function generateComponentSMILES(atomIds: number[], molecule: Molecule): string 
     for (const num of ringNums) {
       const numStr = num < 10 ? String(num) : `%${String(num).padStart(2, '0')}`;
       out.push(numStr);
+      
+      // Find the ring closure bond and the other atom for this ring number
+      let ringBond: Bond | undefined;
+      let otherAtom: number | undefined;
+      for (const [edgeKey, ringNum] of ringNumbers.entries()) {
+        if (ringNum === num) {
+          const [a, b] = edgeKey.split('-').map(Number);
+          ringBond = componentBonds.find(bond => 
+            (bond.atom1 === a && bond.atom2 === b) || (bond.atom1 === b && bond.atom2 === a)
+          );
+          otherAtom = a === atomId ? b : a;
+          break;
+        }
+      }
+      
+      // Output bond symbol AFTER the ring number for the first occurrence
+      // (when the other atom hasn't been seen yet)
+      const isFirstOccurrence = otherAtom !== undefined && !seen.has(otherAtom);
+      
+      if (ringBond && isFirstOccurrence && ringBond.type !== BondType.SINGLE) {
+        if (ringBond.type === BondType.DOUBLE) out.push('=');
+        else if (ringBond.type === BondType.TRIPLE) out.push('#');
+        // Aromatic bonds don't need a symbol
+      }
     }
 
     seen.add(atomId);
@@ -333,8 +359,8 @@ function bondPriority(b: Bond): number {
   switch (b.type) {
     case BondType.TRIPLE: return -3;
     case BondType.DOUBLE: return -2;
+    case BondType.AROMATIC: return -4; // aromatic bonds have highest priority
     case BondType.SINGLE: return -1;
-    case BondType.AROMATIC: return -4;
     default: return 0;
   }
 }
@@ -349,6 +375,7 @@ function bondSymbolForOutput(bond: Bond, childId: number, molecule: Molecule): s
   }
   if (bond.type === BondType.DOUBLE) return '=';
   if (bond.type === BondType.TRIPLE) return '#';
+  if (bond.type === BondType.AROMATIC) return ''; // aromatic bonds have no symbol
   return '';
 }
 

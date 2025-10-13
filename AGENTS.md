@@ -3,8 +3,7 @@
 ## Build/Test Commands
 - **Run all tests**: `bun test`
 - **Run single test file**: `bun test test/parser.test.ts` (replace with specific test file)
-- **Run tests with vitest**: `bun run test:node`
-- **Type check**: `bun run tsc` (if available) or check tsconfig.json for strict mode
+- **Type check**: `bun run tsc`
 
 ## Code Style Guidelines
 
@@ -13,19 +12,19 @@
 - Group imports by source, then alphabetically
 
 ### Types & Naming
-- Use TypeScript strict mode with full type safety
+- TypeScript strict mode with full type safety
 - Interfaces for data structures, enums for constants
 - camelCase for variables/functions, PascalCase for types/enums
 - Non-null assertions (`!!`) in tests only
 
 ### Error Handling
-- Return error arrays in results instead of throwing exceptions
+- Return error arrays instead of throwing exceptions
 - Validate inputs early and collect all errors
 
 ### Formatting
 - 2-space indentation
 - Consistent spacing around operators
-- Line length: reasonable, break long lines logically
+- Reasonable line length, break long lines logically
 
 ### Testing
 - Use vitest with describe/it blocks

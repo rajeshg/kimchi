@@ -24,7 +24,8 @@ export function calculateValence(atom: Atom, bonds: Bond[]): number {
           valence += 4;
           break;
         case BondType.AROMATIC:
-          valence += 1.5; // aromatic bonds contribute 1.5 to valence
+          // Treat aromatic bonds as single for valence calculations to avoid fractional valences
+          valence += 1;
           break;
       }
     }

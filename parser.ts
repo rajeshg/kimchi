@@ -50,9 +50,7 @@ function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: ParseE
 
   while (i < smiles.length) {
     const ch = smiles[i]!;
-    if (trace) {
-      console.warn(`TRACE[${smiles}] i=${i} ch='${ch}' prev=${prevAtomId} pendingType=${pendingBondType} pendingStereo=${pendingBondStereo} branchStack=[${branchStack.join(',')}] bookmarks=${JSON.stringify(Array.from(bookmarks.entries()))}`);
-    }
+
 
     if (ch === ' ') {
       i++;
@@ -113,12 +111,42 @@ function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: ParseE
     if (/[A-Za-z]/.test(ch)) {
       let symbol = ch;
       // Only treat as two-letter element when the first character is uppercase
-      // and the next character is lowercase (e.g., 'Cl', 'Br'). This avoids
-      // combining aromatic lowercase atoms like 'c' + 'c' -> 'cc'.
+      // and the next character is lowercase AND the combination is a valid element
       if (ch === ch.toUpperCase() && i + 1 < smiles.length && /[a-z]/.test(smiles[i + 1]!)) {
-        // two-letter element (e.g., Cl, Br)
-        symbol = ch + smiles[i + 1]!;
-        i += 2;
+        const twoLetter = ch + smiles[i + 1]!;
+        const nextChar = smiles[i + 1]!;
+        const singleLetterUpper = ch.toUpperCase();
+        const twoLetterIsValid = ATOMIC_NUMBERS[twoLetter] !== undefined;
+        
+        // Ambiguous case: "Xy" where both "Xy" and "X" + "y" could be valid
+        // Examples: Cn (Copernicium vs C+n), Sn (tin vs S+n), Cs (cesium vs C+s)
+        //
+        // Rule: Split into "X" + "y" if ALL of the following are true:
+        // 1. "y" is an aromatic organic atom (bcnosp)
+        // 2. "X" alone is a common organic element (C, N, O, S, P, B)
+        // 3. What follows "y" suggests it's a separate atom (ring digit, bond, branch, @, etc.)
+        //
+        // This allows "Cn1ccnc1" -> C + n + ... but "Cs" -> cesium
+        
+        const isNextCharAromaticOrganic = /^[bcnosp]$/.test(nextChar);
+        const isFirstCharCommonOrganic = /^[CNOSPB]$/.test(singleLetterUpper);
+        
+        let shouldSplit = false;
+        if (twoLetterIsValid && isNextCharAromaticOrganic && isFirstCharCommonOrganic) {
+          // Check what follows the second character
+          const charAfterNext = i + 2 < smiles.length ? smiles[i + 2]! : '';
+          // Split if followed by: digit (ring), =/#/$ (bond), @ (chirality), ( (branch)
+          // Do NOT split if at end of string or followed by other characters
+          const followedByAtomContext = charAfterNext !== '' && /^[0-9=\/#$@(]/.test(charAfterNext);
+          shouldSplit = followedByAtomContext;
+        }
+        
+        if (twoLetterIsValid && !shouldSplit) {
+          symbol = twoLetter;
+          i += 2;
+        } else {
+          i++;
+        }
       } else {
         i++;
       }
@@ -205,13 +233,34 @@ function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: ParseE
       } else {
         const d = parseInt(ch);
         const list = bookmarks.get(d) || [];
-        // Always record the bookmark; pairing logic will choose endpoints later
-        list.push({ atomId: prevAtomId, bondType: pendingBondType, bondStereo: pendingBondStereo });
+        let ringBondType = pendingBondType;
+        let ringBondStereo = pendingBondStereo;
+        let nextIdx = i + 1;
+        if (nextIdx < smiles.length) {
+          const nextCh = smiles[nextIdx]!;
+          if (nextCh === '=') {
+            ringBondType = BondType.DOUBLE;
+            nextIdx++;
+          } else if (nextCh === '#') {
+            ringBondType = BondType.TRIPLE;
+            nextIdx++;
+          } else if (nextCh === '$') {
+            ringBondType = BondType.QUADRUPLE;
+            nextIdx++;
+          } else if (nextCh === '/') {
+            ringBondStereo = StereoType.UP;
+            nextIdx++;
+          } else if (nextCh === '\\') {
+            ringBondStereo = StereoType.DOWN;
+            nextIdx++;
+          }
+        }
+        list.push({ atomId: prevAtomId, bondType: ringBondType, bondStereo: ringBondStereo });
         bookmarks.set(d, list);
+        i = nextIdx;
       }
       pendingBondType = BondType.SINGLE;
       pendingBondStereo = StereoType.NONE;
-      i++;
       continue;
     }
     if (ch === '%') {
@@ -223,10 +272,31 @@ function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: ParseE
       if (i + 2 < smiles.length && /[0-9][0-9]/.test(smiles.substr(i + 1, 2))) {
         const d = parseInt(smiles.substr(i + 1, 2));
         const list = bookmarks.get(d) || [];
-        // Always record the bookmark for %nn; pairing chooses endpoints later
-        list.push({ atomId: prevAtomId, bondType: pendingBondType, bondStereo: pendingBondStereo });
+        let ringBondType = pendingBondType;
+        let ringBondStereo = pendingBondStereo;
+        let nextIdx = i + 3;
+        if (nextIdx < smiles.length) {
+          const nextCh = smiles[nextIdx]!;
+          if (nextCh === '=') {
+            ringBondType = BondType.DOUBLE;
+            nextIdx++;
+          } else if (nextCh === '#') {
+            ringBondType = BondType.TRIPLE;
+            nextIdx++;
+          } else if (nextCh === '$') {
+            ringBondType = BondType.QUADRUPLE;
+            nextIdx++;
+          } else if (nextCh === '/') {
+            ringBondStereo = StereoType.UP;
+            nextIdx++;
+          } else if (nextCh === '\\') {
+            ringBondStereo = StereoType.DOWN;
+            nextIdx++;
+          }
+        }
+        list.push({ atomId: prevAtomId, bondType: ringBondType, bondStereo: ringBondStereo });
         bookmarks.set(d, list);
-        i += 3;
+        i = nextIdx;
         pendingBondType = BondType.SINGLE;
         pendingBondStereo = StereoType.NONE;
         continue;
@@ -241,19 +311,9 @@ function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: ParseE
     i++;
   }
 
-  // Debug: print bookmarks before pairing
-  if (bookmarks.size > 0) {
-    console.warn('Ring bookmarks:', Array.from(bookmarks.entries()).map(([d, es]) => [d, es.map(e => e.atomId)]));
-  }
-
   // Post-process ring closures
   for (const [digit, entries] of bookmarks) {
     if (entries.length < 2) {
-      if (entries.length === 1) {
-        console.warn(`Ring closure ${digit} only had one end:`, entries.map(e => e.atomId));
-      } else {
-        console.warn(`Ring closure ${digit} had no entries`);
-      }
       continue;
     }
 
@@ -274,8 +334,25 @@ function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: ParseE
 
     const first = entries[firstIndex]!;
     const second = entries[secondIndex]!;
-    console.warn(`Pairing ring ${digit}: ${first.atomId} - ${second.atomId} (type from second ${second.bondType})`);
-    bonds.push({ atom1: first.atomId, atom2: second.atomId, type: second.bondType, stereo: second.bondStereo });
+    
+    let bondType = BondType.SINGLE;
+    let bondStereo: StereoType = StereoType.NONE;
+    
+    if (first.bondType !== BondType.SINGLE && second.bondType !== BondType.SINGLE) {
+      if (first.bondType !== second.bondType) {
+        errors.push({ message: `Ring closure ${digit} has conflicting bond types`, position: -1 });
+      }
+      bondType = first.bondType;
+      bondStereo = first.bondStereo || second.bondStereo || StereoType.NONE;
+    } else if (first.bondType !== BondType.SINGLE) {
+      bondType = first.bondType;
+      bondStereo = first.bondStereo || StereoType.NONE;
+    } else if (second.bondType !== BondType.SINGLE) {
+      bondType = second.bondType;
+      bondStereo = second.bondStereo || StereoType.NONE;
+    }
+    
+    bonds.push({ atom1: first.atomId, atom2: second.atomId, type: bondType, stereo: bondStereo });
 
     // If more than two distinct endpoints exist, report an error
     const distinct = Array.from(new Set(entries.map(e => e.atomId)));
@@ -283,8 +360,6 @@ function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: ParseE
       errors.push({ message: `Ring closure digit ${digit} used more than twice with endpoints ${distinct.join(',')}`, position: -1 });
     }
   }
-  console.warn('Bonds at end of pairing:', bonds.map(b => `${b.atom1}-${b.atom2}`));
-
   if (branchStack.length > 0) errors.push({ message: 'Unmatched opening parentheses', position: -1 });
 
   // Stereo inference, aromatic bonds, hydrogens
@@ -377,10 +452,10 @@ function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: ParseE
     const failedRings = aromaticErrors.map(e => {
       const match = e.message.match(/Ring ([\d,]+)/);
       if (match) {
-        return match[1].split(',').map(Number);
+        return match[1]!.split(',').map(Number);
       }
       return null;
-    }).filter(r => r !== null && r.length === 5); // Only 5-membered rings
+    }).filter((r): r is number[] => r !== null && r.length === 5);
 
     // For each failed 5-membered ring, try adjusting N/P atoms
     for (const ringIds of failedRings) {
@@ -394,30 +469,41 @@ function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: ParseE
         .filter(a => (a.symbol === 'N' || a.symbol === 'P') && a.hydrogens === 0 && !a.isBracket);
 
       if (adjustableAtoms.length > 0) {
-        // Try giving each N/P atom 1 hydrogen
         const oldHydrogens = adjustableAtoms.map(a => a.hydrogens);
-        adjustableAtoms.forEach(a => a.hydrogens = 1);
-        
-        // Restore original aromatic flags before re-validating
-        ringAtoms.forEach(a => a.aromatic = originalAromaticFlags.get(a.id)!);
+        let success = false;
 
-        // Re-validate aromaticity
-        const testErrors: ParseError[] = [];
-        validateAromaticity(atoms, bonds, testErrors);
+        // Try giving exactly one N/P atom 1 hydrogen (for heterocycles like imidazole)
+        for (let i = 0; i < adjustableAtoms.length; i++) {
+          // Reset all to 0
+          adjustableAtoms.forEach(a => a.hydrogens = 0);
+          // Set only the i-th atom to 1
+          adjustableAtoms[i]!.hydrogens = 1;
+          
+          // Restore original aromatic flags before re-validating
+          ringAtoms.forEach(a => a.aromatic = originalAromaticFlags.get(a.id)!);
 
-        // Check if this specific ring now passes
-        const ringIdStr = ringIds.join(',');
-        const stillFails = testErrors.some(e => e.message.includes(`Ring ${ringIdStr}`));
+          // Re-validate aromaticity
+          const testErrors: ParseError[] = [];
+          validateAromaticity(atoms, bonds, testErrors);
 
-        if (!stillFails) {
-          // Success! Remove the old error for this ring
-          const errorIndex = errors.findIndex(e => e.message.includes(`Ring ${ringIdStr}`));
-          if (errorIndex >= 0) {
-            errors.splice(errorIndex, 1);
+          // Check if this specific ring now passes
+          const ringIdStr = ringIds.join(',');
+          const stillFails = testErrors.some(e => e.message.includes(`Ring ${ringIdStr}`));
+
+          if (!stillFails) {
+            // Success! Remove the old error for this ring
+            const errorIndex = errors.findIndex(e => e.message.includes(`Ring ${ringIdStr}`));
+            if (errorIndex >= 0) {
+              errors.splice(errorIndex, 1);
+            }
+            success = true;
+            break;
           }
-        } else {
+        }
+
+        if (!success) {
           // Revert the changes
-          adjustableAtoms.forEach((a, i) => a.hydrogens = oldHydrogens[i]);
+          adjustableAtoms.forEach((a, i) => a.hydrogens = oldHydrogens[i]!);
         }
       }
     }
