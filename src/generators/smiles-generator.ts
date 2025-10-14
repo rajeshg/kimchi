@@ -52,12 +52,23 @@ export function generateSMILES(input: Molecule | Molecule[], canonical = true): 
     if (bond.type === BondType.DOUBLE) {
       const inSmallRing = isInSmallRing(bond.atom1, bond.atom2, cloned, 8);
       if (inSmallRing) {
+        const ringAtoms = findRingAtoms(bond.atom1, bond.atom2, cloned);
         for (const b of cloned.bonds) {
           if (b.type === BondType.SINGLE && b.stereo && b.stereo !== StereoType.NONE) {
-            b.stereo = StereoType.NONE;
+            const connectsToRingAtom = ringAtoms.has(b.atom1) || ringAtoms.has(b.atom2);
+            if (connectsToRingAtom) {
+              const otherAtom = ringAtoms.has(b.atom1) ? b.atom2 : b.atom1;
+              const partOfExocyclicDoubleBond = cloned.bonds.some(b2 => 
+                b2.type === BondType.DOUBLE && 
+                !isInSmallRing(b2.atom1, b2.atom2, cloned, 8) &&
+                (b2.atom1 === otherAtom || b2.atom2 === otherAtom)
+              );
+              if (!partOfExocyclicDoubleBond) {
+                b.stereo = StereoType.NONE;
+              }
+            }
           }
         }
-        break;
       }
     }
   }
@@ -306,7 +317,7 @@ function generateComponentSMILES(atomIds: number[], molecule: Molecule, useCanon
     // Process all but the last as branches, then process the last as main chain
     for (let i = 0; i < unseenNeighbors.length; i++) {
       const [nid, bond] = unseenNeighbors[i]!;
-      const bondStr = bondSymbolForOutput(bond, nid, subMol, atomId, duplicates);
+      const bondStr = bondSymbolForOutput(bond, nid, subMol, atomId, duplicates, labels);
       
       if (i === unseenNeighbors.length - 1) {
         // Last neighbor: main chain continuation
@@ -323,7 +334,51 @@ function generateComponentSMILES(atomIds: number[], molecule: Molecule, useCanon
 
   visit(root, null);
 
-  return out.join('');
+  let smiles = out.join('');
+  
+  smiles = normalizeOutputStereo(smiles);
+  
+  return smiles;
+}
+
+function normalizeOutputStereo(smiles: string): string {
+  const parts: string[] = [];
+  let i = 0;
+  
+  while (i < smiles.length) {
+    if (smiles[i] === '/' || smiles[i] === '\\') {
+      const marker1 = smiles[i];
+      let j = i + 1;
+      
+      while (j < smiles.length && smiles[j] !== '=' && smiles[j] !== '/' && smiles[j] !== '\\') {
+        j++;
+      }
+      
+      if (j < smiles.length && smiles[j] === '=') {
+        let k = j + 1;
+        while (k < smiles.length && smiles[k] !== '/' && smiles[k] !== '\\') {
+          k++;
+        }
+        
+        if (k < smiles.length && (smiles[k] === '/' || smiles[k] === '\\')) {
+          const marker2 = smiles[k];
+          
+          if (marker1 === '\\' && marker2 === '\\') {
+            parts.push('/');
+            parts.push(smiles.substring(i + 1, k));
+            parts.push('/');
+            i = k + 1;
+            continue;
+          }
+        }
+      }
+    }
+    
+    parts.push(smiles[i]!);
+    i++;
+  }
+  
+  return parts.join('');
 }
 
 function simpleLabels(mol: Molecule): Map<number, string> {
@@ -407,33 +462,111 @@ function bondPriority(b: Bond): number {
   }
 }
 
-function bondSymbolForOutput(bond: Bond, childId: number, molecule: Molecule, parentId: number | null, duplicates: Set<number>): string {
-  if (bond.type === BondType.SINGLE) {
-    // For single bonds, check if they're involved in double bond stereochemistry
-    const hasExplicitStereo = bond.stereo && bond.stereo !== StereoType.NONE;
+function bondSymbolForOutput(bond: Bond, childId: number, molecule: Molecule, parentId: number | null, duplicates: Set<number>, labels: Map<number, string>): string {
+  if (bond.type === BondType.SINGLE && parentId !== null) {
+    // Check if either end of this bond is connected to a double bond
+    const parentDoubleBond = molecule.bonds.find(b => 
+      b.type === BondType.DOUBLE && 
+      (b.atom1 === parentId || b.atom2 === parentId)
+    );
     
-    if (hasExplicitStereo) {
-      // Determine the stereo marker based on traversal direction
-      // The bond connects parentId to childId in our traversal
-      const traversalForward = (bond.atom1 === parentId && bond.atom2 === childId) || 
-                               (bond.atom2 === parentId && bond.atom1 === childId);
+    const childDoubleBond = molecule.bonds.find(b => 
+      b.type === BondType.DOUBLE && 
+      (b.atom1 === childId || b.atom2 === childId)
+    );
+    
+    const doubleBondCarbon = parentDoubleBond ? parentId : (childDoubleBond ? childId : null);
+    const doubleBond = parentDoubleBond || childDoubleBond;
+    
+    if (!doubleBond) {
+      const hasExplicitStereo = bond.stereo && bond.stereo !== StereoType.NONE;
+      if (!hasExplicitStereo) return '';
       
-      if (!traversalForward) {
-        // If bond direction doesn't match traversal, use original stereo
-        return bond.stereo === StereoType.UP ? '/' : '\\';
-      }
-      
-      // Normalize: prefer '/' marker for UP stereo in canonical form
-      // If traversing bond in same direction as stored (atom1->atom2)
       const sameDirection = bond.atom1 === parentId;
       if (sameDirection) {
         return bond.stereo === StereoType.UP ? '/' : '\\';
       } else {
-        // Traversing opposite direction: flip the marker
         return bond.stereo === StereoType.UP ? '\\' : '/';
       }
     }
-    return '';
+    
+    // Get all single-bond substituents on the double-bond carbon (excluding the double bond itself)
+    const allSubstituents = molecule.bonds.filter(b => 
+      b.type === BondType.SINGLE &&
+      (b.atom1 === doubleBondCarbon || b.atom2 === doubleBondCarbon) &&
+      b !== doubleBond
+    );
+    
+    // Check if any substituent has stereo info
+    const hasStereoInfo = allSubstituents.some(b => b.stereo && b.stereo !== StereoType.NONE);
+    if (!hasStereoInfo) {
+      return '';
+    }
+    
+    // If this bond doesn't connect to the double-bond carbon, no stereo
+    const connectsToDoubleBondCarbon = (bond.atom1 === doubleBondCarbon || bond.atom2 === doubleBondCarbon);
+    if (!connectsToDoubleBondCarbon) {
+      return '';
+    }
+    
+    if (allSubstituents.length > 1) {
+      const subs = allSubstituents.map(b => ({
+        bond: b,
+        atom: b.atom1 === doubleBondCarbon ? b.atom2 : b.atom1,
+        hasStereo: b.stereo && b.stereo !== StereoType.NONE
+      }));
+      
+      subs.sort((a, b) => {
+        const la = labels.get(a.atom)!;
+        const lb = labels.get(b.atom)!;
+        return la.localeCompare(lb);
+      });
+      
+      const highestPriority = subs[0]!;
+      
+      if (highestPriority.bond !== bond) {
+        return '';
+      }
+      
+      if (!highestPriority.hasStereo) {
+        const referenceSub = subs.find(s => s.hasStereo);
+        if (!referenceSub) return '';
+        
+        const refBond = referenceSub.bond;
+        const refStereo = refBond.stereo!;
+        
+        const refSameDir = refBond.atom1 === doubleBondCarbon;
+        const ourSameDir = bond.atom1 === doubleBondCarbon;
+        
+        const invertStereo = refSameDir === ourSameDir;
+        const computedStereo = invertStereo 
+          ? (refStereo === StereoType.UP ? StereoType.DOWN : StereoType.UP)
+          : refStereo;
+        
+        const sameDirection = bond.atom1 === parentId;
+        
+        let output;
+        if (sameDirection) {
+          output = computedStereo === StereoType.UP ? '/' : '\\';
+        } else {
+          output = computedStereo === StereoType.UP ? '\\' : '/';
+        }
+        
+        return output;
+      }
+    }
+    
+    const hasExplicitStereo = bond.stereo && bond.stereo !== StereoType.NONE;
+    if (!hasExplicitStereo) return '';
+    
+    const sameDirection = bond.atom1 === parentId;
+    let output;
+    if (sameDirection) {
+      output = bond.stereo === StereoType.UP ? '/' : '\\';
+    } else {
+      output = bond.stereo === StereoType.UP ? '\\' : '/';
+    }
+    return output;
   }
   if (bond.type === BondType.DOUBLE) return '=';
   if (bond.type === BondType.TRIPLE) return '#';
@@ -449,6 +582,35 @@ function getNeighbors(atomId: number, molecule: Molecule): [number, Bond][] {
   return molecule.bonds
     .filter(b => b.atom1 === atomId || b.atom2 === atomId)
     .map(b => [b.atom1 === atomId ? b.atom2 : b.atom1, b]);
+}
+
+function findRingAtoms(atom1: number, atom2: number, molecule: Molecule): Set<number> {
+  const ringAtoms = new Set<number>();
+  const queue: [number, number[]][] = [[atom2, [atom1, atom2]]];
+  const visited = new Set<number>([atom1, atom2]);
+  const directBond = molecule.bonds.find(b => 
+    (b.atom1 === atom1 && b.atom2 === atom2) || (b.atom1 === atom2 && b.atom2 === atom1)
+  );
+  
+  while (queue.length > 0) {
+    const [current, path] = queue.shift()!;
+    
+    for (const [neighbor, bond] of getNeighbors(current, molecule)) {
+      if (bond === directBond) continue;
+      
+      if (neighbor === atom1) {
+        if (path.length >= 2) {
+          path.forEach(a => ringAtoms.add(a));
+          return ringAtoms;
+        }
+      } else if (!visited.has(neighbor)) {
+        visited.add(neighbor);
+        queue.push([neighbor, [...path, neighbor]]);
+      }
+    }
+  }
+  
+  return ringAtoms;
 }
 
 function isInSmallRing(atom1: number, atom2: number, molecule: Molecule, maxSize: number): boolean {
