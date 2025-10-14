@@ -31,6 +31,12 @@ function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: ParseE
   const atoms: Atom[] = [];
   const bonds: Bond[] = [];
   let atomId = 0;
+  const explicitBonds = new Set<string>();
+
+  const bondKey = (a1: number, a2: number) => {
+    const [min, max] = a1 < a2 ? [a1, a2] : [a2, a1];
+    return `${min}-${max}`;
+  };
 
   // Small built-in tracing set for problematic inputs discovered earlier
   const TRACE_SMILES = new Set([
@@ -45,8 +51,9 @@ function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: ParseE
   let prevAtomId: number | null = null;
   let pendingBondType = BondType.SINGLE;
   let pendingBondStereo = StereoType.NONE;
+  let pendingBondExplicit = false;
   const branchStack: number[] = [];
-  const bookmarks = new Map<number, { atomId: number; bondType: BondType; bondStereo: StereoType }[]>();
+  const bookmarks = new Map<number, { atomId: number; bondType: BondType; bondStereo: StereoType; explicit: boolean }[]>();
 
 
   while (i < smiles.length) {
@@ -79,31 +86,37 @@ function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: ParseE
       atoms.push(atom);
       if (prevAtomId !== null) {
         bonds.push({ atom1: prevAtomId, atom2: atom.id, type: pendingBondType, stereo: pendingBondStereo });
+        if (pendingBondExplicit) explicitBonds.add(bondKey(prevAtomId, atom.id));
         pendingBondStereo = StereoType.NONE;
       } else if (branchStack.length > 0) {
         const bp = branchStack[branchStack.length - 1]!;
         bonds.push({ atom1: bp, atom2: atom.id, type: pendingBondType, stereo: pendingBondStereo });
+        if (pendingBondExplicit) explicitBonds.add(bondKey(bp, atom.id));
         pendingBondStereo = StereoType.NONE;
       }
       prevAtomId = atom.id;
       pendingBondType = BondType.SINGLE;
+      pendingBondExplicit = false;
       continue;
     }
 
     // Wildcard atom '*' (can be aromatic or aliphatic)
     if (ch === '*') {
-      const atom = createAtom('*', atomId++, false, false, 0); // '*' is not aromatic by default
+      const atom = createAtom('*', atomId++, false, false, 0);
       atoms.push(atom);
       if (prevAtomId !== null) {
         bonds.push({ atom1: prevAtomId, atom2: atom.id, type: pendingBondType, stereo: pendingBondStereo });
+        if (pendingBondExplicit) explicitBonds.add(bondKey(prevAtomId, atom.id));
         pendingBondStereo = StereoType.NONE;
       } else if (branchStack.length > 0) {
         const bp = branchStack[branchStack.length - 1]!;
         bonds.push({ atom1: bp, atom2: atom.id, type: pendingBondType, stereo: pendingBondStereo });
+        if (pendingBondExplicit) explicitBonds.add(bondKey(bp, atom.id));
         pendingBondStereo = StereoType.NONE;
       }
       prevAtomId = atom.id;
       pendingBondType = BondType.SINGLE;
+      pendingBondExplicit = false;
       i++;
       continue;
     }
@@ -171,41 +184,55 @@ function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: ParseE
 
       if (prevAtomId !== null) {
         bonds.push({ atom1: prevAtomId, atom2: atom.id, type: pendingBondType, stereo: pendingBondStereo });
+        if (pendingBondExplicit) explicitBonds.add(bondKey(prevAtomId, atom.id));
         pendingBondStereo = StereoType.NONE;
       } else if (branchStack.length > 0) {
         const bp = branchStack[branchStack.length - 1]!;
         bonds.push({ atom1: bp, atom2: atom.id, type: pendingBondType, stereo: pendingBondStereo });
+        if (pendingBondExplicit) explicitBonds.add(bondKey(bp, atom.id));
         pendingBondStereo = StereoType.NONE;
       }
 
       prevAtomId = atom.id;
       pendingBondType = BondType.SINGLE;
+      pendingBondExplicit = false;
       continue;
     }
 
     // Bonds
+    if (ch === '-') {
+      pendingBondType = BondType.SINGLE;
+      pendingBondExplicit = true;
+      i++;
+      continue;
+    }
     if (ch === '/') {
       pendingBondStereo = StereoType.UP;
+      pendingBondExplicit = true;
       i++;
       continue;
     }
     if (ch === '\\') {
       pendingBondStereo = StereoType.DOWN;
+      pendingBondExplicit = true;
       i++;
       continue;
     }
     if (ch === '=') {
       pendingBondType = BondType.DOUBLE;
+      pendingBondExplicit = true;
       i++;
       continue;
     }
     if (ch === '#') {
       pendingBondType = BondType.TRIPLE;
+      pendingBondExplicit = true;
       i++;
       continue;
     }
     if (ch === '$') {
       pendingBondType = BondType.QUADRUPLE;
+      pendingBondExplicit = true;
       i++;
       continue;
     }
@@ -234,12 +261,13 @@ function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: ParseE
       } else {
         const d = parseInt(ch);
         const list = bookmarks.get(d) || [];
-        list.push({ atomId: prevAtomId, bondType: pendingBondType, bondStereo: pendingBondStereo });
+        list.push({ atomId: prevAtomId, bondType: pendingBondType, bondStereo: pendingBondStereo, explicit: pendingBondExplicit });
         bookmarks.set(d, list);
         i++;
       }
       pendingBondType = BondType.SINGLE;
       pendingBondStereo = StereoType.NONE;
+      pendingBondExplicit = false;
       continue;
     }
     if (ch === '%') {
@@ -251,11 +279,12 @@ function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: ParseE
       if (i + 2 < smiles.length && /[0-9][0-9]/.test(smiles.substr(i + 1, 2))) {
         const d = parseInt(smiles.substr(i + 1, 2));
         const list = bookmarks.get(d) || [];
-        list.push({ atomId: prevAtomId, bondType: pendingBondType, bondStereo: pendingBondStereo });
+        list.push({ atomId: prevAtomId, bondType: pendingBondType, bondStereo: pendingBondStereo, explicit: pendingBondExplicit });
         bookmarks.set(d, list);
         i += 3;
         pendingBondType = BondType.SINGLE;
         pendingBondStereo = StereoType.NONE;
+        pendingBondExplicit = false;
         continue;
       } else {
         errors.push({ message: 'Invalid % ring closure', position: i });
@@ -294,6 +323,7 @@ function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: ParseE
     
     let bondType = BondType.SINGLE;
     let bondStereo: StereoType = StereoType.NONE;
+    let isExplicit = false;
     
     if (first.bondType !== BondType.SINGLE && second.bondType !== BondType.SINGLE) {
       if (first.bondType !== second.bondType) {
@@ -301,15 +331,22 @@ function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: ParseE
       }
       bondType = first.bondType;
       bondStereo = first.bondStereo || second.bondStereo || StereoType.NONE;
+      isExplicit = first.explicit || second.explicit;
     } else if (first.bondType !== BondType.SINGLE) {
       bondType = first.bondType;
       bondStereo = first.bondStereo || StereoType.NONE;
+      isExplicit = first.explicit;
     } else if (second.bondType !== BondType.SINGLE) {
       bondType = second.bondType;
       bondStereo = second.bondStereo || StereoType.NONE;
+      isExplicit = second.explicit;
+    } else {
+      // Both are SINGLE, check if either is explicit
+      isExplicit = first.explicit || second.explicit;
     }
     
     bonds.push({ atom1: first.atomId, atom2: second.atomId, type: bondType, stereo: bondStereo });
+    if (isExplicit) explicitBonds.add(bondKey(first.atomId, second.atomId));
 
     // If more than two distinct endpoints exist, report an error
     const distinct = Array.from(new Set(entries.map(e => e.atomId)));
@@ -333,7 +370,9 @@ function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: ParseE
   for (const bond of bonds) {
     const a1 = atoms.find(a => a.id === bond.atom1)!;
     const a2 = atoms.find(a => a.id === bond.atom2)!;
-    if (a1.aromatic && a2.aromatic) bond.type = BondType.AROMATIC;
+    if (a1.aromatic && a2.aromatic && !explicitBonds.has(bondKey(bond.atom1, bond.atom2))) {
+      bond.type = BondType.AROMATIC;
+    }
   }
 
   for (const atom of atoms) {
