@@ -154,8 +154,28 @@ function generateComponentSMILES(atomIds: number[], molecule: Molecule, useCanon
     
     const deg = degrees.get(atom.id) || 0;
     const rootDeg = degrees.get(root) || 0;
+    const isTerminal = deg === 1;
+    const rootIsTerminal = rootDeg === 1;
+    if (isTerminal !== rootIsTerminal) {
+      if (isTerminal) {
+        root = atom.id;
+        rootAtom = atom;
+      }
+      continue;
+    }
+    
     if (deg !== rootDeg) {
       if (deg < rootDeg) {
+        root = atom.id;
+        rootAtom = atom;
+      }
+      continue;
+    }
+    
+    const isHetero = atom.atomicNumber !== 6;
+    const rootIsHetero = rootAtom.atomicNumber !== 6;
+    if (isHetero !== rootIsHetero) {
+      if (isHetero) {
         root = atom.id;
         rootAtom = atom;
       }
@@ -468,7 +488,14 @@ function bondSymbolForOutput(bond: Bond, childId: number, molecule: Molecule, pa
     
     if (!doubleBond) {
       const hasExplicitStereo = bond.stereo && bond.stereo !== StereoType.NONE;
-      if (!hasExplicitStereo) return '';
+      if (!hasExplicitStereo) {
+        const parentAtom = molecule.atoms.find(a => a.id === parentId);
+        const childAtom = molecule.atoms.find(a => a.id === childId);
+        if (parentAtom?.aromatic && childAtom?.aromatic) {
+          return '-';
+        }
+        return '';
+      }
       
       const sameDirection = bond.atom1 === parentId;
       if (sameDirection) {

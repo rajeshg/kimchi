@@ -6,11 +6,11 @@ A high-performance, zero-dependency toolkit for parsing and generating SMILES (S
 
 ## Why chemkit?
 
-- **✅ 100% test coverage** — All 328 tests pass, including comprehensive RDKit comparison tests
+- **✅ 100% test coverage** — All 348 tests pass, including comprehensive RDKit comparison tests
 - **✅ RDKit-validated** — Canonical SMILES generation matches RDKit for 100% of tested molecules (325/325 bulk validation)
 - **⚡ Fast & lightweight** — Zero dependencies, pure TypeScript implementation
 - **🎯 Production-ready** — Extensively tested with real-world molecules, commercial drugs, and edge cases
-- **🔬 Feature-complete** — Full stereochemistry, isotopes, and atom class support with E/Z double bond normalization
+- **🔬 Feature-complete** — Full stereochemistry, isotopes, atom class support, and OpenSMILES Standard Form compliance
 
 ## Quick Example
 
@@ -35,12 +35,13 @@ console.log(generateSMILES(aspirin.molecules[0])); // Canonical form
 
 **chemkit achieves full parity with RDKit** — the gold standard in cheminformatics:
 
-- **328/328 tests passing** ✅ including 27 RDKit canonical SMILES comparisons
+- **348/348 tests passing** ✅ including 27 RDKit canonical SMILES comparisons
 - **325 molecule bulk validation** — All molecules successfully parsed and round-tripped (100% success rate)
 - **0 generation mismatches** — All parsed molecules generate valid SMILES
 - **100% RDKit canonical agreement** — All 325 generated canonical SMILES match RDKit's output
 - **Real-world validation** — Includes 25 common commercial drugs (aspirin, ibuprofen, acetaminophen, nicotine, morphine, penicillin, testosterone, diazepam, and more)
 - **Stereo normalization** — E/Z double bond stereochemistry canonicalized to match RDKit
+- **Standard Form compliance** — Implements OpenSMILES 4.3 Standard Form recommendations
 - **Continuous validation** — Every commit is tested against RDKit
 
 Tests compare directly with RDKit's canonical SMILES output. chemkit now produces identical canonical SMILES to RDKit for all tested molecules.

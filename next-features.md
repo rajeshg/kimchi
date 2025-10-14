@@ -56,50 +56,95 @@ Add optional "relaxed" parsing mode for common malformed SMILES:
 - Add comprehensive valence validation tests
 - **Status**: Basic support exists, needs expansion
 
-## Priority 3: Output Quality
+## Priority 3: Output Quality & Standard Form
 
-### 7. Canonical SMILES Generation (Section 4.4)
+### 7. Canonical SMILES Generation (Section 4.4) ✅
 - Implement full canonical ordering algorithm
 - Consistent atom numbering regardless of input order
 - Graph canonicalization using Morgan algorithm or similar
 - Enables use as database key and exact-structure search
-- **Status**: Not implemented (current output is arbitrary)
-- **Complexity**: High - requires graph theory algorithms
+- **Status**: ✅ **COMPLETED** - Modified Morgan algorithm implemented (src/generators/smiles-generator.ts:380-441), achieves 100% RDKit parity (325/325 molecules)
 
-### 8. Standard Form Normalization (Section 4.3)
+### 21. Aromaticity Perception (Section 4.3.5) 🔥
+**Impact**: HIGH - Critical for Standard Form compliance
+- Detect aromatic rings from Kekule forms (alternating double bonds)
+- Apply Hückel's 4n+2 rule (validator exists, need perceiver)
+- Convert `C1=CC=CC=C1` → `c1ccccc1`
+- Mark atoms/bonds as aromatic automatically
+- **Status**: Not implemented - Kekule forms stay as Kekule
+- **Complexity**: MEDIUM
+- **Files**: New `src/utils/aromaticity-perceiver.ts`, modify generator
+- **Prerequisite**: Use existing `src/validators/aromaticity-validator.ts` logic
+
+### 22. Starting Atom Selection (Section 4.3.4) 
+**Impact**: MEDIUM - Improves readability and Standard Form compliance
+- Prefer heteroatoms (O, N, S, etc.) over carbon
+- Prefer terminal atoms (degree 1) over non-terminal  
+- Among ties, use canonical label
+- Example: `CCCO` → `OCCC`
+- **Status**: Not implemented - uses canonical label only
+- **Complexity**: LOW
+- **Files**: `src/generators/smiles-generator.ts:140-187`
+
+### 23. Symmetry Detection for Stereochemistry (Section 4.3.6)
+**Impact**: MEDIUM - Correctness of stereochemistry output
+- Detect identical substituents on chiral centers: `Br[C@H](Br)C` → `BrC(Br)C`
+- Detect geminal groups on double bonds: `F/C(/F)=C/F` → `FC(F)=CF`
+- Use canonical labels or graph isomorphism for symmetry detection
+- **Status**: Partial - removes @ for < 3 neighbors, but no symmetry check
+- **Complexity**: MEDIUM-HIGH
+- **Files**: `src/generators/smiles-generator.ts`, new utility
+
+### 24. Aromatic-Aromatic Single Bonds (Section 4.3.2)
+**Impact**: LOW - Only affects ring-ring connections
+- Write explicit `-` between aromatic rings
+- Example: Biphenyl `c1ccccc1-c2ccccc2`
+- **Status**: Not implemented
+- **Complexity**: LOW
+- **Files**: `src/generators/smiles-generator.ts:453-491` (bondSymbolForOutput)
+
+### 8. Standard Form Normalization (Section 4.3) - SUMMARY
 Improve SMILES output formatting:
 
-**Atoms:**
-- Use organic subset (bare symbols) whenever possible
-- Omit `1` in charges/H-counts: `[CH3-]` not `[CH3-1]`
-- Order properties: chirality, H-count, charge
-- Implicit hydrogens over explicit: `C` not `[H][C]([H])([H])[H]`
+**Atoms (✅ IMPLEMENTED):**
+- ✅ Use organic subset (bare symbols) whenever possible
+- ✅ Omit `1` in charges/H-counts: `[CH3-]` not `[CH3-1]`
+- ✅ Order properties: chirality, H-count, charge
+- ✅ Implicit hydrogens over explicit: `C` not `[H][C]([H])([H])[H]`
 
-**Bonds:**
-- Omit `'-'` except between aromatic atoms
-- Never write `':'` (aromatic bond symbol)
+**Bonds (⚠️ PARTIAL):**
+- ✅ Omit `'-'` except between aromatic atoms (omits correctly)
+- ✅ Never write `':'` (aromatic bond symbol)
+- ❌ **Missing**: Explicit single bond between aromatic rings (e.g., biphenyl should be `c1ccccc1-c2ccccc2`)
 
-**Cycles:**
-- Don't reuse ring-closure digits
-- Begin ring numbering with 1
-- Prefer single bonds for ring closures: `CC1=CCCCC1` not `CC=1CCCCC=1`
-- Avoid starting rings on multi-ring atoms
-- Use single-digit form for rnums < 10
+**Cycles (✅ IMPLEMENTED):**
+- ✅ Don't reuse ring-closure digits
+- ✅ Begin ring numbering with 1
+- ✅ Prefer single bonds for ring closures: `CC1=CCCCC1` not `CC=1CCCCC=1`
+- ✅ Use single-digit form for rnums < 10
 
-**Starting Atom and Branches:**
-- Start on terminal atom if possible
-- Start on heteroatom if possible
-- Longest chains as main branch
-- Only use dots for disconnected components
+**Starting Atom and Branches (❌ NEEDS WORK):**
+- ❌ **Not implemented**: Start on heteroatom if possible (currently starts on canonical label)
+- ❌ **Not implemented**: Start on terminal atom if possible
+- ❌ **Not implemented**: Longest chains as main branch
+- ✅ Only use dots for disconnected components
 
-**Aromaticity:**
-- Prefer aromatic form: `c1ccccc1` over `C1=CC=CC=C1`
+**Aromaticity (❌ CRITICAL MISSING):**
+- ❌ **Not implemented**: Perceive aromatic rings from Kekule form and convert to aromatic notation
+- Currently `C1=CC=CC=C1` stays as Kekule instead of converting to `c1ccccc1`
+- Need aromaticity perception algorithm (Hückel's rule 4n+2)
 
-**Chirality:**
-- Remove chiral markings for non-chiral atoms
-- Remove cis/trans for non-stereogenic bonds
+**Chirality (❌ NEEDS WORK):**
+- ⚠️ Removes chiral markings for atoms with < 3 neighbors (partial)
+- ❌ **Not fully implemented**: Remove `@` from achiral centers (e.g., `Br[C@H](Br)C` has two identical Br groups)
+- ❌ **Not implemented**: Remove `/` `\` from non-stereogenic double bonds (e.g., `F/C(/F)=C/F` has geminal F atoms)
 
-**Status**: Partially implemented, needs comprehensive improvement
+**Status**: 
+- Atoms/Cycles: ✅ Well implemented
+- Bonds: ⚠️ Missing single bond between aromatic atoms
+- Starting atom selection: ❌ Needs complete rewrite to prefer heteroatoms/terminals
+- Aromaticity perception: ❌ Critical missing feature
+- Stereochemistry validation: ❌ Needs symmetry detection
 
 ## Priority 4: Extended Features
 
