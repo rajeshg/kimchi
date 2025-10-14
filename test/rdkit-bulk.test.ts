@@ -123,25 +123,40 @@ const wikipedia = [
 ];
 TEST_SMILES.push(...wikipedia);
 
-// Final fill if needed (ensure exactly 300 entries)
-while (TEST_SMILES.length < 300) {
-  const n = (TEST_SMILES.length % 12) + 1;
-  TEST_SMILES.push('C'.repeat(n));
-}
+// 13) Common commercial drugs
+const drugs = [
+  'CC(=O)Oc1ccccc1C(=O)O',                                      // Aspirin
+  'CC(C)Cc1ccc(cc1)[C@@H](C)C(=O)O',                          // Ibuprofen
+  'CC(=O)Nc1ccc(O)cc1',                                        // Acetaminophen (Paracetamol)
+  'CC(C)(C)NCC(O)c1ccc(O)c(CO)c1',                            // Albuterol
+  'CN(C)CC(c1ccc(OC)cc1)c2ccccn2',                            // Diphenhydramine (Benadryl)
+  'CC(C)NCC(O)COc1ccccc1CC=C',                                // Alprenolol
+  'CC(C)NCC(O)c1ccc(COCCOC)cc1',                              // Atenolol
+  'CN1C(=O)CN=C(c2ccccc2)c3cc(Cl)ccc13',                      // Diazepam (Valium)
+  'COc1ccc2nc(C)c(CCN(C)C)c(C)c2c1',                          // Mefloquine core
+  'CN(C)CCCN1c2ccccc2Sc3ccccc13',                             // Promethazine
+  'CC(C)NCC(O)c1ccc(NS(C)(=O)=O)cc1',                         // Sotalol
+  'CC(=O)Oc1cc2C(C)(CCC3C2CCC4(C)C3CCC4(O)C#C)C(=O)CO1',     // Norethindrone
+  'CC12CCC3C(C1CCC2O)CCC4=CC(=O)CCC34C',                      // Testosterone
+  'CN1CCC[C@H]1c2cccnc2',                                      // Nicotine
+  'CN1CCC23C4C(=O)CCC2(C1Cc5ccc(O)c(O)c35)C4',               // Morphine core
+  'COc1cc2c(C[C@H]3NCCCC3)c[nH]c2cc1',                        // Psilocin core
+  'CC(C)(C)NCC(O)c1ccc(OCCCOC)cc1',                           // Carvedilol core
+  'Cc1ccc(cc1)S(=O)(=O)N',                                     // Toluenesulfonamide
+  'CS(=O)(=O)Nc1ccc(N)cc1',                                    // Sulfanilamide
+  'CC1(C)SC2C(NC(=O)Cc3ccccc3)C(=O)N2C1C(=O)O',              // Penicillin G
+  'COC(=O)C1=C(C)NC(C)=C(C(=O)OC)C1c2ccccc2[N+]([O-])=O',   // Nifedipine
+  'CN1CCCC1c2cccnc2',                                          // Nicotine (simpler form)
+  'Clc1ccc(cc1)C(c2ccc(Cl)cc2)C(Cl)(Cl)Cl',                  // DDT
+  'CC1=C(C(=O)O)N2C(=O)C(NC(=O)Cc3ccccc3)C2SC1',             // Penicillin (simplified)
+  'CC1COc2ccccc2N1',                                           // Morpholine core
+];
+TEST_SMILES.push(...drugs);
 
-// Sanity check
-if (TEST_SMILES.length !== 300) {
-  throw new Error(`TEST_SMILES expected 300 but got ${TEST_SMILES.length}`);
-}
+const EXPECTED_COUNT = TEST_SMILES.length;
 
-// Sanity check
-if (TEST_SMILES.length !== 300) {
-  throw new Error(`TEST_SMILES expected 300 but got ${TEST_SMILES.length}`);
-}
-
-
-describe('RDKit Bulk Comparison (300 SMILES)', () => {
-  it('compares our SMILES generation with RDKit for 300 SMILES', async () => {
+describe(`RDKit Bulk Comparison (${EXPECTED_COUNT} SMILES)`, () => {
+  it(`compares our SMILES generation with RDKit for ${EXPECTED_COUNT} SMILES`, async () => {
     const rdkitModule = await import('@rdkit/rdkit').catch(() => null);
     if (!rdkitModule) {
       console.warn('RDKit not available; skipping bulk RDKit comparison test');
