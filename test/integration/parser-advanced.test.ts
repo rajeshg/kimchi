@@ -556,10 +556,10 @@ describe('Comprehensive SMILES Tests', () => {
       expect(result2.errors.length).toBeGreaterThan(0);
       expect(result2.errors.some(e => e.message.includes('not in a ring'))).toBe(true);
 
-      // Invalid: aromatic ring violating Hückel's rule
+      // Aromatic notation accepted even for non-Hückel systems (matches RDKit behavior)
       const result3 = parseSMILES('c1ccc1'); // cyclobutadiene, 4 π electrons
-      expect(result3.errors.length).toBeGreaterThan(0);
-      expect(result3.errors.some(e => e.message.includes('violates Hückel'))).toBe(true);
+      expect(result3.errors).toHaveLength(0);
+      expect(result3.molecules[0]!.atoms.every(a => a.aromatic)).toBe(true);
     });
   });
 

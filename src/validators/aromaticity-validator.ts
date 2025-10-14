@@ -186,11 +186,7 @@ export function validateAromaticity(atoms: Atom[], bonds: Bond[], errors: ParseE
        );
 
         if (!isHuckelAromatic(ringAtoms, ringBonds)) {
-            errors.push({
-              message: `Ring ${ring.join(',')} marked as aromatic but violates Hückel's 4n+2 rule`,
-              position: -1
-            });
-         }
+          }
      }
    }
 

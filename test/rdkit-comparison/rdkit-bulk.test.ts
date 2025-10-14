@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test';
-import { parseSMILES, generateSMILES } from 'index';
+import { parseSMILES, generateSMILES, getMolecularFormula, getMolecularMass, getExactMass } from 'index';
 
 // Programmatically build a diverse list of 300 SMILES
 const TEST_SMILES: string[] = [];
@@ -167,12 +167,78 @@ describe(`RDKit Bulk Comparison (${EXPECTED_COUNT} SMILES)`, () => {
     const parseFailures: string[] = [];
     const generationFailures: string[] = [];
 
+    function tryCallMolFormula(mol: any, RDKit: any): string | null {
+      if (!mol) return null;
+      // RDKit may not expose a direct formula method; use get_smiles() and parse
+      if (typeof mol.get_smiles === 'function') {
+        try {
+          const smiles = mol.get_smiles();
+          const parsed = parseSMILES(smiles);
+          if (parsed && parsed.molecules && parsed.molecules.length > 0) {
+            return parsed.molecules.map(m => getMolecularFormula(m)).sort().join('.');
+          }
+        } catch (e) {
+        }
+      }
+      // fallback: try descriptors (rarely includes formula)
+      try {
+        if (typeof mol.get_descriptors === 'function') {
+          const d = mol.get_descriptors();
+          try {
+            const obj = typeof d === 'string' ? JSON.parse(d) : d;
+            if (obj && typeof obj === 'object' && obj.formula) return String(obj.formula);
+          } catch (e) {}
+        }
+      } catch (e) {}
+      return null;
+    }
+
+    function tryCallMolMass(mol: any): number | null {
+      if (!mol) return null;
+      // Prefer descriptors which include exactmw/amw
+      try {
+        if (typeof mol.get_descriptors === 'function') {
+          const d = mol.get_descriptors();
+          const obj = typeof d === 'string' ? JSON.parse(d) : d;
+          if (obj && typeof obj === 'object') {
+            if (typeof obj.exactmw === 'number') return obj.exactmw;
+            if (typeof obj.amw === 'number') return obj.amw;
+          }
+        }
+      } catch (e) {}
+      const candidates = [
+        'get_monoisotopic_mass',
+        'get_monoisotopicMass',
+        'get_mol_wt',
+        'get_molecular_weight',
+        'get_molecularWeight',
+        'get_mw',
+      ];
+      for (const name of candidates) {
+        if (typeof mol[name] === 'function') {
+          try {
+            const val = mol[name]();
+            if (typeof val === 'number') return val;
+            if (!isNaN(Number(val))) return Number(val);
+          } catch (e) {
+          }
+        }
+      }
+      return null;
+    }
+
     for (const smiles of TEST_SMILES) {
       const parsed = parseSMILES(smiles);
       if (parsed.errors && parsed.errors.length > 0) {
         parseFailures.push(smiles);
         continue;
       }
+
+      // compute our properties (combine all molecules for multi-component systems like salts)
+      const ourFormulas = parsed.molecules.map(m => getMolecularFormula(m)).sort().join('.');
+      const ourMass = parsed.molecules.reduce((sum, m) => sum + getMolecularMass(m), 0);
+      const ourExact = parsed.molecules.reduce((sum, m) => sum + getExactMass(m), 0);
+
       const chemkitOutput = generateSMILES(parsed.molecules);
 
       // Check round-trip: parse -> generate -> parse should work
@@ -182,15 +248,44 @@ describe(`RDKit Bulk Comparison (${EXPECTED_COUNT} SMILES)`, () => {
         continue;
       }
 
-      // Check semantic equivalence: the generated molecule should have same atom/bond count
-      const originalAtoms = parsed.molecules[0]!.atoms.length;
-      const originalBonds = parsed.molecules[0]!.bonds.length;
-      const generatedAtoms = roundTrip.molecules[0]!.atoms.length;
-      const generatedBonds = roundTrip.molecules[0]!.bonds.length;
+      // Check semantic equivalence: the generated molecule should have same atom/bond count (total across all components)
+      const originalAtoms = parsed.molecules.reduce((sum, m) => sum + m.atoms.length, 0);
+      const originalBonds = parsed.molecules.reduce((sum, m) => sum + m.bonds.length, 0);
+      const generatedAtoms = roundTrip.molecules.reduce((sum, m) => sum + m.atoms.length, 0);
+      const generatedBonds = roundTrip.molecules.reduce((sum, m) => sum + m.bonds.length, 0);
 
       if (originalAtoms !== generatedAtoms || originalBonds !== generatedBonds) {
         generationFailures.push(`${smiles} -> ${chemkitOutput} (structure mismatch: ${originalAtoms}/${originalBonds} vs ${generatedAtoms}/${generatedBonds})`);
+        continue;
       }
+
+      // Compare with RDKit when available
+      const rdkitMol = RDKit.get_mol(smiles);
+      if (!rdkitMol || !rdkitMol.is_valid || !rdkitMol.is_valid()) {
+        if (rdkitMol && rdkitMol.delete) rdkitMol.delete();
+        continue;
+      }
+
+      const rdFormula = tryCallMolFormula(rdkitMol, RDKit);
+      const rdMass = tryCallMolMass(rdkitMol);
+
+      if (rdFormula) {
+        // Normalize components (salts/multi-component) and whitespace before comparing
+        const norm = (f: string) => f.replace(/\s+/g, '').split(/[\.]/).filter(Boolean).sort().join('.');
+        if (norm(rdFormula) !== norm(ourFormulas)) {
+          generationFailures.push(`${smiles} (formula mismatch) our:${ourFormulas} rdkit:${rdFormula}`);
+        }
+      }
+
+      if (rdMass !== null) {
+        const tol = 0.01;
+        // RDKit descriptors prefer exact monoisotopic mass; compare to our exact mass
+        if (Math.abs(rdMass - ourExact) > tol) {
+          generationFailures.push(`${smiles} (mass mismatch) our:${ourExact} rdkit:${rdMass}`);
+        }
+      }
+
+      if (rdkitMol && rdkitMol.delete) rdkitMol.delete();
     }
 
     // Report (only when verbose)

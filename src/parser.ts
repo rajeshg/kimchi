@@ -438,76 +438,8 @@ function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: ParseE
     }
   }
 
-  // Store original aromatic flags before validation (for two-pass hydrogen calculation)
-  const originalAromaticFlags = new Map(atoms.map(a => [a.id, a.aromatic]));
-
-  // Validate aromaticity (first pass)
+  // Validate aromaticity
   validateAromaticity(atoms, bonds, errors);
-
-  // Two-pass hydrogen calculation for 5-membered aromatic rings
-  // If aromaticity validation failed, try adjusting N/P atoms to have +1 H
-  const aromaticErrors = errors.filter(e => e.message.includes("Hückel's 4n+2 rule"));
-  if (aromaticErrors.length > 0) {
-    // Extract ring atom IDs from error messages
-    const failedRings = aromaticErrors.map(e => {
-      const match = e.message.match(/Ring ([\d,]+)/);
-      if (match) {
-        return match[1]!.split(',').map(Number);
-      }
-      return null;
-    }).filter((r): r is number[] => r !== null && r.length === 5);
-
-    // For each failed 5-membered ring, try adjusting N/P atoms
-    for (const ringIds of failedRings) {
-      if (!ringIds) continue;
-      
-      // Get ring atoms
-      const ringAtoms = ringIds.map(id => atoms.find(a => a.id === id)!);
-      
-      // Find N/P atoms in the ring with 0 hydrogens
-      const adjustableAtoms = ringAtoms
-        .filter(a => (a.symbol === 'N' || a.symbol === 'P') && a.hydrogens === 0 && !a.isBracket);
-
-      if (adjustableAtoms.length > 0) {
-        const oldHydrogens = adjustableAtoms.map(a => a.hydrogens);
-        let success = false;
-
-        // Try giving exactly one N/P atom 1 hydrogen (for heterocycles like imidazole)
-        for (let i = 0; i < adjustableAtoms.length; i++) {
-          // Reset all to 0
-          adjustableAtoms.forEach(a => a.hydrogens = 0);
-          // Set only the i-th atom to 1
-          adjustableAtoms[i]!.hydrogens = 1;
-          
-          // Restore original aromatic flags before re-validating
-          ringAtoms.forEach(a => a.aromatic = originalAromaticFlags.get(a.id)!);
-
-          // Re-validate aromaticity
-          const testErrors: ParseError[] = [];
-          validateAromaticity(atoms, bonds, testErrors);
-
-          // Check if this specific ring now passes
-          const ringIdStr = ringIds.join(',');
-          const stillFails = testErrors.some(e => e.message.includes(`Ring ${ringIdStr}`));
-
-          if (!stillFails) {
-            // Success! Remove the old error for this ring
-            const errorIndex = errors.findIndex(e => e.message.includes(`Ring ${ringIdStr}`));
-            if (errorIndex >= 0) {
-              errors.splice(errorIndex, 1);
-            }
-            success = true;
-            break;
-          }
-        }
-
-        if (!success) {
-          // Revert the changes
-          adjustableAtoms.forEach((a, i) => a.hydrogens = oldHydrogens[i]!);
-        }
-      }
-    }
-  }
 
   // Validate valences
   validateValences(atoms, bonds, errors);
