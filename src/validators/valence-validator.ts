@@ -16,6 +16,10 @@ export function validateValences(atoms: Atom[], bonds: Bond[], errors: ParseErro
       continue;
     }
 
+    if (atom.chiral && (atom.chiral.startsWith('@SP') || atom.chiral.startsWith('@TB') || atom.chiral.startsWith('@OH'))) {
+      continue;
+    }
+
     // Check if atom has a double/triple bond (sp2/sp hybridization)
     const atomBonds = bonds.filter(b => b.atom1 === atom.id || b.atom2 === atom.id);
     const hasMultipleBond = atomBonds.some(b => b.type === 'double' || b.type === 'triple');

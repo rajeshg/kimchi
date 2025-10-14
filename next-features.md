@@ -22,7 +22,7 @@ Based on the OpenSMILES specification (smiles.md), here are the recommended next
 - Update bond order type to include quadruple bonds
 - **Status**: ✅ **COMPLETED** - Parser supports `$` for quadruple bonds
 
-### 4. Extended Stereo Support (Sections 3.8.5-3.8.7)
+### 4. Extended Stereo Support (Sections 3.8.5-3.8.7) ✅
 - **Square Planar** (`@SP1`, `@SP2`, `@SP3`)
   - Three shapes: U, 4, Z
   - For tetravalent stereocenters
@@ -32,7 +32,7 @@ Based on the OpenSMILES specification (smiles.md), here are the recommended next
 - **Octahedral** (`@OH1` through `@OH30`)
   - For hexavalent stereocenters (e.g., `C[Co@](F)(Cl)(Br)(I)S`)
   - 30 primitives for all axis/shape combinations
-- **Status**: Currently only tetrahedral (`@`, `@@`) is supported
+- **Status**: ✅ **COMPLETED** - All extended stereo forms fully supported with parsing, generation, validation, and comprehensive tests (35/35 pass)
 
 ## Priority 2: Robustness & Standards Compliance
 
