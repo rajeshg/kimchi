@@ -14,7 +14,7 @@
   - `src/*` → `src/*` (e.g., `import { isOrganicAtom } from 'src/utils/atom-utils'`)
   - `test/*` → `test/*` (e.g., `import { helper } from 'test/utils/test-helper'`)
   - `types` → `types.ts` (e.g., `import { BondType } from 'types'`)
-  - `parser` → `parser.ts` (e.g., `import { parseSMILES } from 'parser'`)
+  - `parser` → `src/parser.ts` (e.g., `import { parseSMILES } from 'parser'`)
   - `index` → `index.ts` (e.g., `import { parseSMILES, generateSMILES } from 'index'`)
 
 ### Types & Naming

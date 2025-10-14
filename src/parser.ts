@@ -1,13 +1,13 @@
-import type { Atom, Bond, Molecule, ParseResult, ParseError } from './types';
-import { BondType, StereoType } from './types';
-import { ATOMIC_NUMBERS, DEFAULT_VALENCES, AROMATIC_VALENCES } from './src/constants';
-import { calculateValence } from './src/utils/valence-calculator';
-import { findRings } from './src/utils/ring-finder';
-import { createAtom, isOrganicAtom } from './src/utils/atom-utils';
-import { validateAromaticity } from './src/validators/aromaticity-validator';
-import { validateValences } from './src/validators/valence-validator';
-import { validateStereochemistry } from './src/validators/stereo-validator';
-import { parseBracketAtom } from './src/parsers/bracket-parser';
+import type { Atom, Bond, Molecule, ParseResult, ParseError } from '../types';
+import { BondType, StereoType } from '../types';
+import { ATOMIC_NUMBERS, DEFAULT_VALENCES, AROMATIC_VALENCES } from './constants';
+import { calculateValence } from './utils/valence-calculator';
+import { findRings } from './utils/ring-finder';
+import { createAtom, isOrganicAtom } from './utils/atom-utils';
+import { validateAromaticity } from './validators/aromaticity-validator';
+import { validateValences } from './validators/valence-validator';
+import { validateStereochemistry } from './validators/stereo-validator';
+import { parseBracketAtom } from './parsers/bracket-parser';
 import { maxBy, sortBy, uniq } from 'es-toolkit';
 
 export function parseSMILES(smiles: string): ParseResult {

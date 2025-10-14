@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { calculateValence } from '../../../src/utils/valence-calculator';
+import { calculateValence } from 'src/utils/valence-calculator';
 import { BondType } from 'types';
 
 describe('Valence calculator', () => {

@@ -6,7 +6,7 @@ A high-performance, zero-dependency toolkit for parsing and generating SMILES (S
 
 ## Why chemkit?
 
-- **✅ 100% test coverage** — All 348 tests pass, including comprehensive RDKit comparison tests
+- **✅ 100% test coverage** — All 442 tests pass, including comprehensive RDKit comparison tests
 - **✅ RDKit-validated** — Canonical SMILES generation matches RDKit for 100% of tested molecules (325/325 bulk validation)
 - **⚡ Fast & lightweight** — Zero dependencies, pure TypeScript implementation
 - **🎯 Production-ready** — Extensively tested with real-world molecules, commercial drugs, and edge cases
@@ -35,7 +35,7 @@ console.log(generateSMILES(aspirin.molecules[0])); // Canonical form
 
 **chemkit achieves full parity with RDKit** — the gold standard in cheminformatics:
 
-- **348/348 tests passing** ✅ including 27 RDKit canonical SMILES comparisons
+- **442/442 tests passing** ✅ including 27 RDKit canonical SMILES comparisons
 - **325 molecule bulk validation** — All molecules successfully parsed and round-tripped (100% success rate)
 - **0 generation mismatches** — All parsed molecules generate valid SMILES
 - **100% RDKit canonical agreement** — All 325 generated canonical SMILES match RDKit's output
@@ -84,7 +84,7 @@ chemkit handles the full SMILES specification:
 ## Validation Results
 
 ```
-Test Suite: 328/328 passing ✅
+Test Suite: 442/442 passing ✅
 ├─ Parser tests: 18/18 ✅
 ├─ Comprehensive tests: 99/99 ✅
 ├─ Isotope tests: 23/23 ✅
@@ -366,7 +366,7 @@ This implementation achieves 100% agreement with RDKit's canonical output across
 
 We welcome contributions! chemkit maintains strict quality standards:
 
-1. **All tests must pass** — 328/328 required
+1. **All tests must pass** — 442/442 required
 2. **RDKit parity required** — Canonical SMILES must match RDKit output exactly
 3. **Add tests for new features** — Test coverage is mandatory
 4. **Follow TypeScript conventions** — See `AGENTS.md` for guidelines
