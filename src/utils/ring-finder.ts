@@ -1,4 +1,5 @@
 import type { Atom, Bond } from 'types';
+import { intersection, sortBy } from 'es-toolkit';
 
 /**
  * Find all rings in a molecule using DFS with improved cycle detection
@@ -71,7 +72,7 @@ export function findAtomRings(atoms: Atom[], bonds: Bond[]): Map<number, number[
  * Check if two rings share atoms (for fused/spiro systems)
  */
 export function ringsShareAtoms(ring1: number[], ring2: number[]): boolean {
-  return ring1.some(id => ring2.includes(id));
+  return intersection(ring1, ring2).length > 0;
 }
 
 /**
@@ -99,7 +100,7 @@ export function classifyRingSystems(atoms: Atom[], bonds: Bond[]): {
     for (let j = i + 1; j < rings.length; j++) {
       const ring2 = rings[j];
       if (!ring2) continue;
-      const shared = ring1.filter(id => ring2.includes(id));
+      const shared = intersection(ring1, ring2);
 
       if (shared.length > 0) {
         sharedCount++;

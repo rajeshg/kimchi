@@ -1,6 +1,27 @@
 import { describe, expect, it } from 'bun:test';
 import { parseSMILES, generateSMILES } from 'index';
 
+// Initialize RDKit once for the entire test file
+let rdkitInstance: any = null;
+let rdkitInitialized = false;
+
+async function initializeRDKit(): Promise<any> {
+  if (rdkitInitialized) return rdkitInstance;
+  
+  try {
+    const rdkitModule = await import('@rdkit/rdkit').catch(() => null);
+    if (!rdkitModule) {
+      throw new Error('RDKit is not available. Install with: npm install @rdkit/rdkit');
+    }
+    const initRDKitModule = rdkitModule.default;
+    rdkitInstance = await (initRDKitModule as any)();
+    rdkitInitialized = true;
+    return rdkitInstance;
+  } catch (e) {
+    throw new Error('Failed to initialize RDKit');
+  }
+}
+
 const cases: Array<{ input: string; desc: string; expectedErrors?: number }> = [
   // Edge branched alkenes and ordering
   { input: 'CC(C)C(/C)=C(/C)C(C)C', desc: 'heavily branched alkene (variant A)' },
@@ -36,16 +57,9 @@ describe('Additional Stereo Tests', () => {
 
       const our = generateSMILES(parsed.molecules);
 
-      const rdkitModule = await import('@rdkit/rdkit').catch(() => null);
-      if (!rdkitModule) {
-        console.warn('RDKit not available — skipping exact-match check for', input);
-        return;
-      }
-
-      const initRDKitModule = rdkitModule.default;
-      const RDKit: any = await (initRDKitModule as any)();
       let rdkitCanonical = '';
       try {
+        const RDKit = await initializeRDKit();
         const mol = RDKit.get_mol(input);
         if (mol && mol.is_valid()) rdkitCanonical = mol.get_smiles();
       } catch (e) {

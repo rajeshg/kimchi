@@ -8,7 +8,7 @@ import { validateAromaticity } from './src/validators/aromaticity-validator';
 import { validateValences } from './src/validators/valence-validator';
 import { validateStereochemistry } from './src/validators/stereo-validator';
 import { parseBracketAtom } from './src/parsers/bracket-parser';
-import { maxBy, sortBy } from 'es-toolkit';
+import { maxBy, sortBy, uniq } from 'es-toolkit';
 
 export function parseSMILES(smiles: string): ParseResult {
   const errors: ParseError[] = [];
@@ -349,7 +349,7 @@ function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: ParseE
     if (isExplicit) explicitBonds.add(bondKey(first.atomId, second.atomId));
 
     // If more than two distinct endpoints exist, report an error
-    const distinct = Array.from(new Set(entries.map(e => e.atomId)));
+    const distinct = uniq(entries.map(e => e.atomId));
     if (distinct.length > 2) {
       errors.push({ message: `Ring closure digit ${digit} used more than twice with endpoints ${distinct.join(',')}`, position: -1 });
     }

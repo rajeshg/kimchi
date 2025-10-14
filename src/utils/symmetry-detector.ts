@@ -1,5 +1,6 @@
 import type { Bond, Molecule } from 'types';
 import { BondType, StereoType } from 'types';
+import { uniq } from 'es-toolkit';
 import { findRings } from './ring-finder';
 
 function getNeighbors(atomId: number, molecule: Molecule): Array<[number, Bond]> {
@@ -41,15 +42,15 @@ function computeCanonicalLabels(mol: Molecule): Map<number, string> {
       newLabels.set(a.id, combined);
     }
 
-    const uniq = new Map<string, number>();
+    const labelMap = new Map<string, number>();
     let counter = 1;
-    const uniqueLabels = Array.from(new Set(mol.atoms.map(a => newLabels.get(a.id)!)));
+    const uniqueLabels = uniq(mol.atoms.map(a => newLabels.get(a.id)!));
     uniqueLabels.sort();
     for (const lbl of uniqueLabels) {
-      uniq.set(lbl, counter++);
+      labelMap.set(lbl, counter++);
     }
     const normalized = new Map<number, string>();
-    for (const a of mol.atoms) normalized.set(a.id, String(uniq.get(newLabels.get(a.id)!)!));
+    for (const a of mol.atoms) normalized.set(a.id, String(labelMap.get(newLabels.get(a.id)!)!));
 
     let same = true;
     for (const a of mol.atoms) {
