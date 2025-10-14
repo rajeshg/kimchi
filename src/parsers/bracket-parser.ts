@@ -60,40 +60,52 @@ export function parseBracketAtom(content: string, id: number): Atom | null {
     if (c === 'H') {
       j++;
       if (j < content.length && content[j]! >= '0' && content[j]! <= '9') {
-        hydrogens = parseInt(content[j]!);
-        j++;
+        let hStr = '';
+        while (j < content.length && content[j]! >= '0' && content[j]! <= '9') {
+          hStr += content[j]!;
+          j++;
+        }
+        hydrogens = parseInt(hStr);
       } else {
         hydrogens = 1;
       }
     } else if (c === '+') {
       j++;
-      // Check for multiple + signs (++, +++, etc.)
-      let chargeCount = 1;
+      // Count consecutive + signs (++, +++ -> equivalent to numeric count)
+      let plusCount = 1;
       while (j < content.length && content[j]! === '+') {
-        chargeCount++;
+        plusCount++;
         j++;
       }
-      // If there's a digit after the + signs, use that instead
-      if (j < content.length && content[j]! >= '0' && content[j]! <= '9') {
-        charge = parseInt(content[j]!);
-        j++;
+      // If there's a numeric value after the plus signs, parse full number
+      if (j < content.length && /[0-9]/.test(content[j]!)) {
+        let numStr = '';
+        while (j < content.length && /[0-9]/.test(content[j]!)) {
+          numStr += content[j]!;
+          j++;
+        }
+        charge = parseInt(numStr);
       } else {
-        charge = chargeCount;
+        charge = plusCount;
       }
     } else if (c === '-') {
       j++;
-      // Check for multiple - signs (--, ---, etc.)
-      let chargeCount = 1;
+      // Count consecutive - signs
+      let minusCount = 1;
       while (j < content.length && content[j]! === '-') {
-        chargeCount++;
+        minusCount++;
         j++;
       }
-      // If there's a digit after the - signs, use that instead
-      if (j < content.length && content[j]! >= '0' && content[j]! <= '9') {
-        charge = -parseInt(content[j]!);
-        j++;
+      // If there's a numeric value after the minus signs, parse full number
+      if (j < content.length && /[0-9]/.test(content[j]!)) {
+        let numStr = '';
+        while (j < content.length && /[0-9]/.test(content[j]!)) {
+          numStr += content[j]!;
+          j++;
+        }
+        charge = -parseInt(numStr);
       } else {
-        charge = -chargeCount;
+        charge = -minusCount;
       }
     } else if (c === '@') {
       chiral = '@';
