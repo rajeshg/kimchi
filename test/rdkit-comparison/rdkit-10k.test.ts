@@ -4,9 +4,10 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 
 describe('RDKit 10k SMILES Comparison', () => {
-  const runFull = !!process.env.RUN_RDKIT_10K;
+  // Gate long-running RDKit tests behind RUN_RDKIT_BULK
+  const runFull = !!process.env.RUN_RDKIT_BULK;
   if (!runFull) {
-    it('skipped (set RUN_RDKIT_10K=1 to run)', () => {
+    it('skipped (set RUN_RDKIT_BULK=1 to run)', () => {
       // Long-running RDKit 10k test skipped by default
     });
     return;

@@ -136,6 +136,19 @@ pnpm add chemkit
 
 ### Basic Parsing
 
+
+### Running heavy RDKit comparisons
+
+The repository contains two long-running RDKit comparison tests (the 10k SMILES suite and the bulk 300-SMILES suite). These tests are skipped by default to keep regular test runs fast.
+
+To run them set the `RUN_RDKIT_BULK` environment variable:
+
+```bash
+# Run heavy RDKit comparisons (rdkit-10k and rdkit-bulk)
+RUN_RDKIT_BULK=1 bun test
+```
+
+Add `RUN_VERBOSE=1` for more detailed RDKit reporting during the run.
 ```typescript
 import { parseSMILES } from 'chemkit';
 

@@ -156,6 +156,15 @@ TEST_SMILES.push(...drugs);
 const EXPECTED_COUNT = TEST_SMILES.length;
 
 describe(`RDKit Bulk Comparison (${EXPECTED_COUNT} SMILES)`, () => {
+  // Gate long-running RDKit tests behind RUN_RDKIT_BULK
+  const runFull = !!process.env.RUN_RDKIT_BULK;
+  if (!runFull) {
+    it('skipped (set RUN_RDKIT_BULK=1 to run)', () => {
+      // Long-running RDKit bulk test skipped by default
+    });
+    return;
+  }
+
   it(`compares our SMILES generation with RDKit for ${EXPECTED_COUNT} SMILES`, async () => {
     const rdkitModule = await import('@rdkit/rdkit').catch(() => null);
     if (!rdkitModule) {
