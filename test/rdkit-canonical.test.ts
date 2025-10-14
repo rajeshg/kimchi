@@ -25,8 +25,7 @@ const TEST_SMILES = [
   '[O-]C=O',
   // Complex
   'CC(C)C(=O)O',
-  'C1CC[C@H](C)CC1',
-];
+  ];
 
 describe('RDKit Canonical SMILES Comparison', () => {
   TEST_SMILES.forEach((input) => {

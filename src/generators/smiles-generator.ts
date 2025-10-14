@@ -34,15 +34,14 @@ export function generateSMILES(input: Molecule | Molecule[], canonical = true): 
     }
   }
 
-  // For canonical SMILES we remove stereochemical markers and unnecessary
-  // bracket notation for organic subset atoms so the output matches RDKit's
-  // canonicalization (tests expect no chiral markers and minimized brackets).
+  // For canonical SMILES, preserve stereochemistry but normalize bracket
+  // notation for organic subset atoms when they are not chiral. Do not
+  // globally clear stereochemical markers here; chiral atoms are kept and
+  // already had impossible chiral flags removed earlier.
   if (canonical) {
     for (const atom of cloned.atoms) {
-      atom.chiral = null;
-      // If atom is part of the organic subset and has no isotope/charge,
-      // prefer the non-bracket form with implicit hydrogens where possible.
-      if (isOrganicAtom(atom.symbol) && atom.isBracket && !atom.isotope && (atom.charge === 0 || atom.charge === undefined)) {
+      // Only minimize brackets for non-chiral organic atoms with no isotope/charge
+      if (!atom.chiral && isOrganicAtom(atom.symbol) && atom.isBracket && !atom.isotope && (atom.charge === 0 || atom.charge === undefined)) {
         atom.isBracket = false;
         atom.hydrogens = 0;
       }
@@ -102,7 +101,9 @@ function generateComponentSMILES(atomIds: number[], molecule: Molecule, useCanon
   const subMol: Molecule = { atoms: componentAtoms, bonds: componentBonds };
   
   // Canonical numbering: compute unique labels for each atom using iterative refinement
-  const labels = useCanonical ? canonicalLabels(subMol) : simpleLabels(subMol);
+  const canonicalInfo = useCanonical ? canonicalLabels(subMol) : { labels: simpleLabels(subMol), duplicates: new Set<number>() };
+  const labels = canonicalInfo.labels;
+  const duplicates = canonicalInfo.duplicates;
 
   const atomsSorted = [...componentAtoms].sort((a, b) => {
     const la = labels.get(a.id)!;
@@ -225,7 +226,8 @@ function generateComponentSMILES(atomIds: number[], molecule: Molecule, useCanon
     if (atom.isBracket) out.push('[');
     if (atom.isotope) out.push(atom.isotope.toString());
     out.push(sym);
-    if (atom.chiral) out.push(atom.chiral);
+    // Emit chiral marker only if atom is marked chiral and is unique in canonical labeling
+    if (atom.chiral && !duplicates.has(atomId)) out.push(atom.chiral);
     if (atom.isBracket && atom.hydrogens > 0) {
       out.push('H');
       if (atom.hydrogens > 1) out.push(atom.hydrogens.toString());
@@ -298,7 +300,7 @@ function generateComponentSMILES(atomIds: number[], molecule: Molecule, useCanon
     // Process all but the last as branches, then process the last as main chain
     for (let i = 0; i < unseenNeighbors.length; i++) {
       const [nid, bond] = unseenNeighbors[i]!;
-      const bondStr = bondSymbolForOutput(bond, nid, subMol);
+      const bondStr = bondSymbolForOutput(bond, nid, subMol, atomId, duplicates);
       
       if (i === unseenNeighbors.length - 1) {
         // Last neighbor: main chain continuation
@@ -326,12 +328,12 @@ function simpleLabels(mol: Molecule): Map<number, string> {
   return labels;
 }
 
-function canonicalLabels(mol: Molecule): Map<number, string> {
+function canonicalLabels(mol: Molecule): { labels: Map<number, string>, duplicates: Set<number> } {
   const labels = new Map<number, string>();
   for (const a of mol.atoms) {
     const deg = getNeighbors(a.id, mol).length;
     const absCharge = Math.abs(a.charge || 0);
-    const lbl = [deg, a.atomicNumber, a.aromatic ? 'ar' : 'al', a.isotope || 0, absCharge, a.chiral || '', a.hydrogens || 0].join('|');
+    const lbl = [deg, a.atomicNumber, a.aromatic ? 'ar' : 'al', a.isotope || 0, absCharge, a.hydrogens || 0].join('|');
     labels.set(a.id, lbl);
   }
 
@@ -340,7 +342,7 @@ function canonicalLabels(mol: Molecule): Map<number, string> {
     const newLabels = new Map<number, string>();
     for (const a of mol.atoms) {
       const neigh = getNeighbors(a.id, mol)
-        .map(([nid, b]) => `${b.type}:${labels.get(nid)}:${b.stereo}`)
+        .map(([nid, b]) => `${b.type}:${labels.get(nid)}`)
         .sort();
       const combined = labels.get(a.id)! + '|' + neigh.join(',');
       newLabels.set(a.id, combined);
@@ -368,7 +370,18 @@ function canonicalLabels(mol: Molecule): Map<number, string> {
     if (same) break;
   }
 
-  return labels;
+  // Detect duplicate labels (equivalence classes with size > 1)
+  const counts = new Map<string, number>();
+  for (const a of mol.atoms) {
+    const l = labels.get(a.id)!;
+    counts.set(l, (counts.get(l) || 0) + 1);
+  }
+  const duplicates = new Set<number>();
+  for (const a of mol.atoms) {
+    if ((counts.get(labels.get(a.id)!) || 0) > 1) duplicates.add(a.id);
+  }
+
+  return { labels, duplicates };
 }
 
 function bondPriority(b: Bond): number {
@@ -381,7 +394,7 @@ function bondPriority(b: Bond): number {
   }
 }
 
-function bondSymbolForOutput(bond: Bond, childId: number, molecule: Molecule): string {
+function bondSymbolForOutput(bond: Bond, childId: number, molecule: Molecule, parentId: number | null, duplicates: Set<number>): string {
   if (bond.type === BondType.SINGLE) {
     if (bond.stereo && bond.stereo !== StereoType.NONE) return bond.stereo === StereoType.UP ? '/' : '\\';
     const dbl = molecule.bonds.find(x => x.type === BondType.DOUBLE && x.stereo && x.stereo !== StereoType.NONE && (x.atom1 === childId || x.atom2 === childId));
