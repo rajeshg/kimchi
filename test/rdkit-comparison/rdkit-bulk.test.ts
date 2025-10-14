@@ -193,14 +193,16 @@ describe(`RDKit Bulk Comparison (${EXPECTED_COUNT} SMILES)`, () => {
       }
     }
 
-    // Report
-    console.log('\nChemkit Bulk Test Report');
-    console.log('Total SMILES:', TEST_SMILES.length);
-    console.log('Parse failures:', parseFailures.length);
-    console.log('Generation/round-trip failures:', generationFailures.length);
+    // Report (only when verbose)
+    if (process.env.RUN_VERBOSE) {
+      console.log('\nChemkit Bulk Test Report');
+      console.log('Total SMILES:', TEST_SMILES.length);
+      console.log('Parse failures:', parseFailures.length);
+      console.log('Generation/round-trip failures:', generationFailures.length);
 
-    if (parseFailures.length > 0) console.log('First parse failures:', parseFailures.slice(0,5));
-    if (generationFailures.length > 0) console.log('First generation failures:', generationFailures.slice(0,5));
+      if (parseFailures.length > 0) console.log('First parse failures:', parseFailures.slice(0,5));
+      if (generationFailures.length > 0) console.log('First generation failures:', generationFailures.slice(0,5));
+    }
 
     // Fail the test if chemkit cannot properly parse or generate SMILES
     expect(generationFailures.length).toBe(0);

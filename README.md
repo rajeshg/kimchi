@@ -353,12 +353,30 @@ chemkit implements RDKit-compatible canonical SMILES generation:
    - Degree, isotope, charge
    - Neighbor properties
 
-2. **Stereo Normalization**: E/Z double bond stereochemistry is normalized to a canonical form:
+2. **Starting Atom Selection** (RDKit-compatible):
+   - **Primary criterion**: Canonical label (lowest rank wins)
+   - **Tie-breakers** (in order): Heteroatom preference → Terminal atom → Lower degree → Lower charge
+   - **Design choice**: Prioritizes canonical labels over heteroatom preference for deterministic output
+   - **Note**: The OpenSMILES specification (Section 4.3.4) recommends starting on heteroatoms first (e.g., `OCCC` over `CCCO`), but RDKit prioritizes canonical ordering for deterministic behavior
+   - **Result**: Both approaches are chemically equivalent; chemkit follows RDKit for maximum interoperability
+
+3. **Stereo Normalization**: E/Z double bond stereochemistry is normalized to a canonical form:
    - Trans (E) alkenes: Both markers pointing up (`/`) - e.g., `C/C=C/C`
    - Cis (Z) alkenes: Opposing markers (`/` and `\`) - e.g., `C/C=C\C`
    - Ensures equivalent stereo representations canonicalize identically
 
-3. **Deterministic Output**: Same molecule always produces the same canonical SMILES, enabling reliable structure comparison and database storage.
+4. **Deterministic Output**: Same molecule always produces the same canonical SMILES, enabling reliable structure comparison and database storage.
+
+**Example of RDKit-compatible behavior**:
+```typescript
+// Both inputs represent the same molecule (hydrogen cyanide)
+parseSMILES('C#N');  // → canonical: "C#N" (carbon first)
+parseSMILES('N#C');  // → canonical: "C#N" (canonical labels prioritized)
+
+// Both inputs represent the same molecule (propanol)
+parseSMILES('OCCC'); // → canonical: "CCCO" (canonical labels prioritized)
+parseSMILES('CCCO'); // → canonical: "CCCO"
+```
 
 This implementation achieves 100% agreement with RDKit's canonical output across 325 diverse test molecules including 25 commercial pharmaceutical drugs.
 

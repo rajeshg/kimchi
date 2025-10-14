@@ -105,59 +105,83 @@ export function perceiveAromaticity(atoms: Atom[], bonds: Bond[]): void {
   });
 
   const aromaticRings: number[][] = [];
-
-  for (const ring of rings) {
-    if (ring.length < 5 || ring.length > 7) continue;
-
-    const ringAtoms = ring.map(id => atoms.find(a => a.id === id)!);
-    const ringBonds = bonds.filter(b =>
-      ring.includes(b.atom1) && ring.includes(b.atom2)
-    );
-
-    if (!hasConjugatedSystem(ring, atoms, bonds)) continue;
-
-    if (isHuckelAromatic(ringAtoms, ringBonds)) {
-      aromaticRings.push(ring);
-    }
+ 
+  // preserve original bond types so we can restore when needed
+  const originalBondTypes: Record<string, Bond['type']> = {};
+  for (const b of bonds) {
+    const key = `${Math.min(b.atom1, b.atom2)}-${Math.max(b.atom1, b.atom2)}`;
+    originalBondTypes[key] = b.type;
   }
-
-  for (const ring of aromaticRings) {
-    for (const atomId of ring) {
-      const atom = atoms.find(a => a.id === atomId);
-      if (atom) {
-        atom.aromatic = true;
-      }
-    }
-
-    const ringBonds = bonds.filter(b =>
-      ring.includes(b.atom1) && ring.includes(b.atom2)
-    );
-    for (const bond of ringBonds) {
-      bond.type = BondType.AROMATIC;
-    }
-  }
-
-  for (const ring of aromaticRings) {
-    const ringAtoms = ring.map(id => atoms.find(a => a.id === id)!);
-    
-    for (const atom of ringAtoms) {
-      const atomBonds = bonds.filter(b => b.atom1 === atom.id || b.atom2 === atom.id);
-      const exoDouble = atomBonds.find(b => {
-        const otherAtomId = b.atom1 === atom.id ? b.atom2 : b.atom1;
-        return b.type === BondType.DOUBLE && !ring.includes(otherAtomId);
-      });
-
-      if (exoDouble) {
-        atom.aromatic = false;
-        
-        const ringBonds = bonds.filter(b =>
-          ring.includes(b.atom1) && ring.includes(b.atom2) &&
-          (b.atom1 === atom.id || b.atom2 === atom.id)
-        );
-        for (const bond of ringBonds) {
-          bond.type = BondType.SINGLE;
-        }
-      }
-    }
-  }
+ 
+   for (const ring of rings) {
+     if (ring.length < 5 || ring.length > 7) continue;
+ 
+     const ringAtoms = ring.map(id => atoms.find(a => a.id === id)!);
+     const ringBonds = bonds.filter(b =>
+       ring.includes(b.atom1) && ring.includes(b.atom2)
+     );
+ 
+     if (!hasConjugatedSystem(ring, atoms, bonds)) continue;
+ 
+     if (isHuckelAromatic(ringAtoms, ringBonds)) {
+       aromaticRings.push(ring);
+     }
+   }
+ 
+   // helper to get bond key
+   const bondKey = (b: Bond) => `${Math.min(b.atom1, b.atom2)}-${Math.max(b.atom1, b.atom2)}`;
+ 
+   // compute how many aromatic rings each bond participates in
+   const bondAromaticCount: Record<string, number> = {};
+   for (const ring of aromaticRings) {
+     const ringBonds = bonds.filter(b => ring.includes(b.atom1) && ring.includes(b.atom2));
+     for (const b of ringBonds) {
+       const k = bondKey(b);
+       bondAromaticCount[k] = (bondAromaticCount[k] || 0) + 1;
+     }
+   }
+ 
+   for (const ring of aromaticRings) {
+     for (const atomId of ring) {
+       const atom = atoms.find(a => a.id === atomId);
+       if (atom) {
+         atom.aromatic = true;
+       }
+     }
+ 
+     const ringBonds = bonds.filter(b =>
+       ring.includes(b.atom1) && ring.includes(b.atom2)
+     );
+     for (const bond of ringBonds) {
+       bond.type = BondType.AROMATIC;
+     }
+   }
+ 
+   for (const ring of aromaticRings) {
+     const ringAtoms = ring.map(id => atoms.find(a => a.id === id)!);
+     
+     for (const atom of ringAtoms) {
+       const atomBonds = bonds.filter(b => b.atom1 === atom.id || b.atom2 === atom.id);
+       const exoDouble = atomBonds.find(b => {
+         const otherAtomId = b.atom1 === atom.id ? b.atom2 : b.atom1;
+         return b.type === BondType.DOUBLE && !ring.includes(otherAtomId);
+       });
+ 
+       if (exoDouble) {
+         atom.aromatic = false;
+         
+         const ringBonds = bonds.filter(b =>
+           ring.includes(b.atom1) && ring.includes(b.atom2) &&
+           (b.atom1 === atom.id || b.atom2 === atom.id)
+         );
+         for (const bond of ringBonds) {
+           const k = bondKey(bond);
+           // if this bond participates in more than one aromatic ring, leave it aromatic
+           if ((bondAromaticCount[k] || 0) > 1) continue;
+           // otherwise restore original bond type
+           bond.type = originalBondTypes[k] ?? BondType.SINGLE;
+         }
+       }
+     }
+   }
 }

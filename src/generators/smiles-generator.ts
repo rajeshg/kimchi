@@ -144,12 +144,19 @@ function generateComponentSMILES(atomIds: number[], molecule: Molecule, useCanon
   }
 
   // Select root atom deterministically using canonical labels for canonical SMILES
+  // Priority (RDKit-compatible):
+  // 1. Prefer lower canonical label (deterministic, primary factor)
+  // 2. Prefer heteroatoms (non-carbon) over carbon as tie-breaker
+  // 3. Prefer terminal atoms (degree 1) over non-terminal as tie-breaker
+  // 4. Prefer lower degree over higher degree
+  // 5. Prefer lower absolute charge
   let root = atomsSorted[0]!.id;
   let rootAtom = componentAtoms.find(a => a.id === root)!;
   for (const atom of componentAtoms) {
     const currentLabel = labels.get(atom.id)!;
     const rootLabel = labels.get(root)!;
     
+    // Check canonical label first (primary factor for RDKit compatibility)
     if (currentLabel !== rootLabel) {
       if (currentLabel < rootLabel) {
         root = atom.id;
@@ -158,6 +165,18 @@ function generateComponentSMILES(atomIds: number[], molecule: Molecule, useCanon
       continue;
     }
     
+    // Check heteroatom preference as tie-breaker
+    const isHetero = atom.atomicNumber !== 6;
+    const rootIsHetero = rootAtom.atomicNumber !== 6;
+    if (isHetero !== rootIsHetero) {
+      if (isHetero) {
+        root = atom.id;
+        rootAtom = atom;
+      }
+      continue;
+    }
+    
+    // Check terminal atom preference
     const deg = degrees.get(atom.id) || 0;
     const rootDeg = degrees.get(root) || 0;
     const isTerminal = deg === 1;
@@ -170,6 +189,7 @@ function generateComponentSMILES(atomIds: number[], molecule: Molecule, useCanon
       continue;
     }
     
+    // Check degree preference (lower is better)
     if (deg !== rootDeg) {
       if (deg < rootDeg) {
         root = atom.id;
@@ -178,16 +198,7 @@ function generateComponentSMILES(atomIds: number[], molecule: Molecule, useCanon
       continue;
     }
     
-    const isHetero = atom.atomicNumber !== 6;
-    const rootIsHetero = rootAtom.atomicNumber !== 6;
-    if (isHetero !== rootIsHetero) {
-      if (isHetero) {
-        root = atom.id;
-        rootAtom = atom;
-      }
-      continue;
-    }
-    
+    // Check absolute charge (lower is better)
     const absCharge = Math.abs(atom.charge || 0);
     const rootAbsCharge = Math.abs(rootAtom.charge || 0);
     if (absCharge !== rootAbsCharge) {
@@ -198,6 +209,7 @@ function generateComponentSMILES(atomIds: number[], molecule: Molecule, useCanon
       continue;
     }
     
+    // Check hydrogen count (lower is better)
     if (atom.hydrogens !== rootAtom.hydrogens) {
       if (atom.hydrogens < rootAtom.hydrogens) {
         root = atom.id;
@@ -206,6 +218,7 @@ function generateComponentSMILES(atomIds: number[], molecule: Molecule, useCanon
       continue;
     }
     
+    // Final tie-breaker: atom ID
     if (atom.id < root) {
       root = atom.id;
       rootAtom = atom;

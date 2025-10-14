@@ -299,60 +299,64 @@ function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: ParseE
 
   // Post-process ring closures
   for (const [digit, entries] of bookmarks) {
-    if (entries.length < 2) {
-      continue;
-    }
+    if (entries.length < 2) continue;
 
-    // Find the first two entries with distinct atomIds (chronological order)
-    let firstIndex = 0;
-    let secondIndex = -1;
-    for (let j = 1; j < entries.length; j++) {
-      if (entries[j]!.atomId !== entries[firstIndex]!.atomId) {
-        secondIndex = j;
-        break;
+    // Pair up endpoints in chronological order, but never pair an atom with itself.
+    const used = new Array(entries.length).fill(false);
+    for (let i = 0; i < entries.length; i++) {
+      if (used[i]) continue;
+      const first = entries[i]!;
+      // find next unused entry with a different atomId
+      let pairedIndex = -1;
+      for (let j = i + 1; j < entries.length; j++) {
+        if (used[j]) continue;
+        if (entries[j]!.atomId !== first.atomId) {
+          pairedIndex = j;
+          break;
+        }
       }
-    }
-    if (secondIndex === -1) {
-      // All recorded endpoints are the same atom — cannot form a valid ring bond
-      errors.push({ message: `Ring closure digit ${digit} endpoints identical: ${entries.map(e => e.atomId).join(',')}`, position: -1 });
-      continue;
-    }
 
-    const first = entries[firstIndex]!;
-    const second = entries[secondIndex]!;
-    
-    let bondType = BondType.SINGLE;
-    let bondStereo: StereoType = StereoType.NONE;
-    let isExplicit = false;
-    
-    if (first.bondType !== BondType.SINGLE && second.bondType !== BondType.SINGLE) {
-      if (first.bondType !== second.bondType) {
-        errors.push({ message: `Ring closure ${digit} has conflicting bond types`, position: -1 });
+      if (pairedIndex === -1) {
+        // No pair found for this endpoint; record an error and skip
+        errors.push({ message: `Ring closure digit ${digit} has unmatched endpoint atom ${first.atomId}`, position: -1 });
+        used[i] = true;
+        continue;
       }
-      bondType = first.bondType;
-      bondStereo = first.bondStereo || second.bondStereo || StereoType.NONE;
-      isExplicit = first.explicit || second.explicit;
-    } else if (first.bondType !== BondType.SINGLE) {
-      bondType = first.bondType;
-      bondStereo = first.bondStereo || StereoType.NONE;
-      isExplicit = first.explicit;
-    } else if (second.bondType !== BondType.SINGLE) {
-      bondType = second.bondType;
-      bondStereo = second.bondStereo || StereoType.NONE;
-      isExplicit = second.explicit;
-    } else {
-      // Both are SINGLE, check if either is explicit
-      isExplicit = first.explicit || second.explicit;
-    }
-    
-    bonds.push({ atom1: first.atomId, atom2: second.atomId, type: bondType, stereo: bondStereo });
-    if (isExplicit) explicitBonds.add(bondKey(first.atomId, second.atomId));
 
-    // If more than two distinct endpoints exist, report an error
-    const distinct = uniq(entries.map(e => e.atomId));
-    if (distinct.length > 2) {
-      errors.push({ message: `Ring closure digit ${digit} used more than twice with endpoints ${distinct.join(',')}`, position: -1 });
+      const second = entries[pairedIndex]!;
+
+      let bondType = BondType.SINGLE;
+      let bondStereo: StereoType = StereoType.NONE;
+      let isExplicit = false;
+
+      if (first.bondType !== BondType.SINGLE && second.bondType !== BondType.SINGLE) {
+        if (first.bondType !== second.bondType) {
+          errors.push({ message: `Ring closure ${digit} has conflicting bond types`, position: -1 });
+        }
+        bondType = first.bondType;
+        bondStereo = first.bondStereo || second.bondStereo || StereoType.NONE;
+        isExplicit = first.explicit || second.explicit;
+      } else if (first.bondType !== BondType.SINGLE) {
+        bondType = first.bondType;
+        bondStereo = first.bondStereo || StereoType.NONE;
+        isExplicit = first.explicit;
+      } else if (second.bondType !== BondType.SINGLE) {
+        bondType = second.bondType;
+        bondStereo = second.bondStereo || StereoType.NONE;
+        isExplicit = second.explicit;
+      } else {
+        // Both are SINGLE, check if either is explicit
+        isExplicit = first.explicit || second.explicit;
+      }
+
+      bonds.push({ atom1: first.atomId, atom2: second.atomId, type: bondType, stereo: bondStereo });
+      if (isExplicit) explicitBonds.add(bondKey(first.atomId, second.atomId));
+
+      used[i] = true;
+      used[pairedIndex] = true;
     }
+
+    // Note: Allowing more than two endpoints for compatibility with RDKit
   }
   if (branchStack.length > 0) errors.push({ message: 'Unmatched opening parentheses', position: -1 });
 
