@@ -159,8 +159,7 @@ describe(`RDKit Bulk Comparison (${EXPECTED_COUNT} SMILES)`, () => {
   it(`compares our SMILES generation with RDKit for ${EXPECTED_COUNT} SMILES`, async () => {
     const rdkitModule = await import('@rdkit/rdkit').catch(() => null);
     if (!rdkitModule) {
-      console.warn('RDKit not available; skipping bulk RDKit comparison test');
-      return;
+      throw new Error('RDKit is not available. Install with: npm install @rdkit/rdkit');
     }
     const initRDKitModule = rdkitModule.default;
     const RDKit: any = await (initRDKitModule as any)();

@@ -443,15 +443,14 @@ describe('Comprehensive SMILES Tests', () => {
       expect(canonical).not.toMatch(/^\[O-\]/);
     });
 
-    it('canonicalizes methylcyclohexane preserving stereochemistry', () => {
+    it('canonicalizes methylcyclohexane removing invalid stereochemistry', () => {
       const result1 = parseSMILES('C1CC[C@H](C)CC1');
       const result2 = parseSMILES('CC1CCCCC1');
       const canonical1 = generateSMILES(result1.molecules);
       const canonical2 = generateSMILES(result2.molecules);
-      // Stereo-aware canonicalization should preserve the chiral marker for the
-      // stereocenter while the achiral molecule remains the simple canonical form.
-      expect(canonical1).not.toBe(canonical2);
-      expect(canonical1).toContain('@');
+      // Single substituent on ring has no reference point, stereo should be removed
+      expect(canonical1).toBe(canonical2);
+      expect(canonical1).not.toContain('@');
       expect(canonical2).toBe('CC1CCCCC1');
     });
   });

@@ -2,6 +2,7 @@ import type { Molecule, Bond } from '../../types';
 import { BondType, StereoType } from '../../types';
 import { isOrganicAtom } from '../utils/atom-utils';
 import { perceiveAromaticity } from '../utils/aromaticity-perceiver';
+import { removeInvalidStereo } from '../utils/symmetry-detector';
 
 // SMILES generation strategy:
 // - For simple SMILES: treat molecule as a graph and use DFS traversal
@@ -22,6 +23,7 @@ export function generateSMILES(input: Molecule | Molecule[], canonical = true): 
 
   if (canonical) {
     perceiveAromaticity(cloned.atoms, cloned.bonds);
+    removeInvalidStereo(cloned);
   }
 
   for (const atom of cloned.atoms) {
@@ -268,8 +270,8 @@ function generateComponentSMILES(atomIds: number[], molecule: Molecule, useCanon
     if (needsBracket) out.push('[');
     if (atom.isotope) out.push(atom.isotope.toString());
     out.push(sym);
-    // Emit chiral marker only if atom is marked chiral and is unique in canonical labeling
-    if (atom.chiral && !duplicates.has(atomId)) out.push(atom.chiral);
+    // Emit chiral marker if atom is marked chiral (removeInvalidStereo already validated it)
+    if (atom.chiral) out.push(atom.chiral);
     if (needsBracket && atom.hydrogens > 0) {
       out.push('H');
       if (atom.hydrogens > 1) out.push(atom.hydrogens.toString());

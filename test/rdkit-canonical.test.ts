@@ -45,8 +45,7 @@ describe('RDKit Canonical SMILES Comparison', () => {
     it(`matches RDKit canonical SMILES for ${input}`, async () => {
       const rdkitModule = await import('@rdkit/rdkit').catch(() => null);
       if (!rdkitModule) {
-        console.warn(`RDKit not available for ${input}`);
-        return;
+        throw new Error('RDKit is not available. Install with: npm install @rdkit/rdkit');
       }
       const initRDKitModule = rdkitModule.default;
       const RDKit: any = await (initRDKitModule as any)();
@@ -64,8 +63,7 @@ describe('RDKit Canonical SMILES Comparison', () => {
         rdkitCanonical = '';
       }
       if (!rdkitCanonical) {
-        console.warn(`RDKit failed to parse ${input}`);
-        return;
+        throw new Error(`RDKit failed to parse ${input}`);
       }
       expect(ours).toBe(rdkitCanonical);
     });

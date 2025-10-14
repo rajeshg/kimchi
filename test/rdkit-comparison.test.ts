@@ -6,8 +6,7 @@ describe('RDKit Comparison', () => {
   it('compares CC with rdkit', async () => {
     const rdkitModule = await import('@rdkit/rdkit').catch(() => null);
     if (!rdkitModule) {
-      console.warn('RDKit not available for CC');
-      return;
+      throw new Error('RDKit is not available. Install with: npm install @rdkit/rdkit');
     }
     const initRDKitModule = rdkitModule.default;
     const RDKit: any = await (initRDKitModule as any)();
@@ -24,8 +23,7 @@ describe('RDKit Comparison', () => {
   it('compares C1CCCCC1 with rdkit', async () => {
     const rdkitModule = await import('@rdkit/rdkit').catch(() => null);
     if (!rdkitModule) {
-      console.warn('RDKit not available for C1CCCCC1');
-      return;
+      throw new Error('RDKit is not available. Install with: npm install @rdkit/rdkit');
     }
     const initRDKitModule = rdkitModule.default;
     const RDKit: any = await (initRDKitModule as any)();
