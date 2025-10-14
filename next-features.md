@@ -10,11 +10,11 @@ Based on the OpenSMILES specification (smiles.md), here are the recommended next
 - Store isotope information in Atom type
 - **Status**: ✅ **COMPLETED** - Isotope support fully implemented with comprehensive tests
 
-### 2. Atom Class Support (Section 3.1.7)
+### 2. Atom Class Support (Section 3.1.7) ✅
 - Parse atom class notation (e.g., `[CH4:2]`, `[NH4+:005]`)
 - Store atom class as arbitrary integer in Atom type
 - Output atom class information in generated SMILES
-- **Status**: Currently missing from implementation
+- **Status**: ✅ **COMPLETED** - Atom class support fully implemented with 36 comprehensive tests
 
 ### 3. Quadruple Bonds (Section 3.2) ✅
 - Add support for `$` bond symbol
