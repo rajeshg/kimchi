@@ -1,33 +1,43 @@
 import { describe, it, expect } from 'vitest';
-import { parseSMILES } from '../parser';
-import { generateSMILES } from '../src/generators/smiles-generator';
-import { execSync } from 'child_process';
+import { parseSMILES } from 'parser';
+import { generateSMILES } from 'src/generators/smiles-generator';
 
-let rdkitAvailable: boolean | null = null;
+// Initialize RDKit once for the entire test file
+let rdkitInstance: any = null;
+let rdkitInitialized = false;
 
-function checkRDKitAvailable(): boolean {
-  if (rdkitAvailable !== null) return rdkitAvailable;
+async function initializeRDKit(): Promise<any> {
+  if (rdkitInitialized) return rdkitInstance;
+  
   try {
-    execSync('python3 -c "from rdkit import Chem"', { encoding: 'utf-8', timeout: 2000 });
-    rdkitAvailable = true;
-    return true;
+    const rdkitModule = await import('@rdkit/rdkit').catch(() => null);
+    if (!rdkitModule) {
+      throw new Error('RDKit is not available. Install with: npm install @rdkit/rdkit');
+    }
+    const initRDKitModule = rdkitModule.default;
+    rdkitInstance = await (initRDKitModule as any)();
+    rdkitInitialized = true;
+    return rdkitInstance;
   } catch (e) {
-    rdkitAvailable = false;
-    return false;
+    throw new Error('Failed to initialize RDKit');
   }
 }
 
-function getRDKitCanonical(smiles: string): string {
-  if (!checkRDKitAvailable()) return 'RDKIT_UNAVAILABLE';
-  try {
-    const result = execSync(
-      `python3 -c "from rdkit import Chem; mol = Chem.MolFromSmiles('${smiles}'); print(Chem.MolToSmiles(mol) if mol else 'PARSE_ERROR')"`,
-      { encoding: 'utf-8', timeout: 5000 }
-    );
-    return result.trim();
-  } catch (e) {
-    return 'RDKIT_ERROR';
-  }
+function getRDKitCanonical(smiles: string): Promise<string> {
+  return new Promise(async (resolve) => {
+    try {
+      const RDKit = await initializeRDKit();
+      
+      const mol = RDKit.get_mol(smiles);
+      if (mol && mol.is_valid()) {
+        resolve(mol.get_smiles());
+      } else {
+        resolve('PARSE_ERROR');
+      }
+    } catch (e) {
+      resolve('RDKIT_ERROR');
+    }
+  });
 }
 
 describe('RDKit Symmetry Detection Validation', () => {
@@ -51,7 +61,7 @@ describe('RDKit Symmetry Detection Validation', () => {
     ];
 
     testCases.forEach(({ name, smiles }) => {
-      it(`should match RDKit for ${name}: ${smiles}`, () => {
+      it(`should match RDKit for ${name}: ${smiles}`, async () => {
         const result = parseSMILES(smiles);
         expect(result.errors).toHaveLength(0);
         
@@ -60,10 +70,10 @@ describe('RDKit Symmetry Detection Validation', () => {
         // Our implementation should not contain chirality
         expect(ourCanonical).not.toContain('@');
         
-        const rdkitCanonical = getRDKitCanonical(smiles);
+        const rdkitCanonical = await getRDKitCanonical(smiles);
         
         if (rdkitCanonical === 'RDKIT_UNAVAILABLE') {
-          throw new Error('RDKit is not available. Install with: pip3 install rdkit');
+          throw new Error('RDKit is not available. Install with: npm install @rdkit/rdkit');
         }
         
         expect(rdkitCanonical).not.toBe('PARSE_ERROR');
@@ -94,7 +104,7 @@ describe('RDKit Symmetry Detection Validation', () => {
     ];
 
     testCases.forEach(({ name, smiles }) => {
-      it(`should match RDKit for ${name}: ${smiles}`, () => {
+      it(`should match RDKit for ${name}: ${smiles}`, async () => {
         const result = parseSMILES(smiles);
         expect(result.errors).toHaveLength(0);
         
@@ -103,10 +113,10 @@ describe('RDKit Symmetry Detection Validation', () => {
         // Our implementation should preserve chirality
         expect(ourCanonical).toContain('@');
         
-        const rdkitCanonical = getRDKitCanonical(smiles);
+        const rdkitCanonical = await getRDKitCanonical(smiles);
         
         if (rdkitCanonical === 'RDKIT_UNAVAILABLE') {
-          throw new Error('RDKit is not available. Install with: pip3 install rdkit');
+          throw new Error('RDKit is not available. Install with: npm install @rdkit/rdkit');
         }
         
         expect(rdkitCanonical).not.toBe('PARSE_ERROR');
@@ -132,7 +142,7 @@ describe('RDKit Symmetry Detection Validation', () => {
     ];
 
     testCases.forEach(({ name, smiles, shouldHaveStereo }) => {
-      it(`should match RDKit for ${name}: ${smiles}`, () => {
+      it(`should match RDKit for ${name}: ${smiles}`, async () => {
         const result = parseSMILES(smiles);
         expect(result.errors).toHaveLength(0);
         
@@ -142,10 +152,10 @@ describe('RDKit Symmetry Detection Validation', () => {
         // Check our implementation matches expected
         expect(ourHasStereo).toBe(shouldHaveStereo);
         
-        const rdkitCanonical = getRDKitCanonical(smiles);
+        const rdkitCanonical = await getRDKitCanonical(smiles);
         
         if (rdkitCanonical === 'RDKIT_UNAVAILABLE') {
-          throw new Error('RDKit is not available. Install with: pip3 install rdkit');
+          throw new Error('RDKit is not available. Install with: npm install @rdkit/rdkit');
         }
         
         expect(rdkitCanonical).not.toBe('PARSE_ERROR');
@@ -172,7 +182,7 @@ describe('RDKit Symmetry Detection Validation', () => {
     ];
 
     testCases.forEach(({ name, smiles, shouldHaveStereo }) => {
-      it(`should match RDKit for ${name}: ${smiles}`, () => {
+      it(`should match RDKit for ${name}: ${smiles}`, async () => {
         const result = parseSMILES(smiles);
         expect(result.errors).toHaveLength(0);
         
@@ -182,10 +192,10 @@ describe('RDKit Symmetry Detection Validation', () => {
         // Check our implementation matches expected
         expect(ourHasStereo).toBe(shouldHaveStereo);
         
-        const rdkitCanonical = getRDKitCanonical(smiles);
+        const rdkitCanonical = await getRDKitCanonical(smiles);
         
         if (rdkitCanonical === 'RDKIT_UNAVAILABLE') {
-          throw new Error('RDKit is not available. Install with: pip3 install rdkit');
+          throw new Error('RDKit is not available. Install with: npm install @rdkit/rdkit');
         }
         
         expect(rdkitCanonical).not.toBe('PARSE_ERROR');
@@ -211,7 +221,7 @@ describe('RDKit Symmetry Detection Validation', () => {
     ];
 
     testCases.forEach(({ name, smiles, shouldHaveStereo }) => {
-      it(`should match RDKit for ${name}: ${smiles}`, () => {
+      it(`should match RDKit for ${name}: ${smiles}`, async () => {
         const result = parseSMILES(smiles);
         expect(result.errors).toHaveLength(0);
         
@@ -221,10 +231,10 @@ describe('RDKit Symmetry Detection Validation', () => {
         // Check our implementation matches expected
         expect(ourHasStereo).toBe(shouldHaveStereo);
         
-        const rdkitCanonical = getRDKitCanonical(smiles);
+        const rdkitCanonical = await getRDKitCanonical(smiles);
         
         if (rdkitCanonical === 'RDKIT_UNAVAILABLE') {
-          throw new Error('RDKit is not available. Install with: pip3 install rdkit');
+          throw new Error('RDKit is not available. Install with: npm install @rdkit/rdkit');
         }
         
         expect(rdkitCanonical).not.toBe('PARSE_ERROR');

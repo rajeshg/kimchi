@@ -10,6 +10,12 @@
 ### Imports
 - Separate type imports: `import type { Atom, Bond } from './types';`
 - Group imports by source, then alphabetically
+- Use path aliases for cleaner imports:
+  - `src/*` → `src/*` (e.g., `import { isOrganicAtom } from 'src/utils/atom-utils'`)
+  - `test/*` → `test/*` (e.g., `import { helper } from 'test/utils/test-helper'`)
+  - `types` → `types.ts` (e.g., `import { BondType } from 'types'`)
+  - `parser` → `parser.ts` (e.g., `import { parseSMILES } from 'parser'`)
+  - `index` → `index.ts` (e.g., `import { parseSMILES, generateSMILES } from 'index'`)
 
 ### Types & Naming
 - TypeScript strict mode with full type safety

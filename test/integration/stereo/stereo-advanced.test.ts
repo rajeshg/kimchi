@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { parseSMILES, generateSMILES } from '../index';
+import { parseSMILES, generateSMILES } from 'index';
 
 const cases: Array<{ input: string; desc: string; expectedErrors?: number }> = [
   // Edge branched alkenes and ordering

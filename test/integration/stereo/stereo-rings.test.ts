@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { parseSMILES, generateSMILES } from '../index';
-import { BondType, StereoType } from '../types';
+import { parseSMILES, generateSMILES } from 'index';
+import { BondType, StereoType } from 'types';
 
 describe('Ring Stereochemistry Handling', () => {
   describe('Small rings with double bonds - stereo clearing', () => {

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { parseSMILES } from '../parser';
-import { generateSMILES } from '../src/generators/smiles-generator';
+import { parseSMILES } from 'parser';
+import { generateSMILES } from 'src/generators/smiles-generator';
 
 describe('Symmetry Detection for Stereochemistry', () => {
   describe('Chiral centers with symmetric substituents', () => {

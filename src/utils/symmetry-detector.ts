@@ -1,5 +1,5 @@
-import type { Bond, Molecule } from '../../types';
-import { BondType, StereoType } from '../../types';
+import type { Bond, Molecule } from 'types';
+import { BondType, StereoType } from 'types';
 import { findRings } from './ring-finder';
 
 function getNeighbors(atomId: number, molecule: Molecule): Array<[number, Bond]> {

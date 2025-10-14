@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test';
-import { parseSMILES } from '../index';
+import { parseSMILES } from 'parser';
 
 describe('OpenSMILES Edge Cases', () => {
   it('handles 3-digit isotopes', () => {

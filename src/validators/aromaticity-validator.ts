@@ -1,7 +1,7 @@
-import type { Atom, Bond, ParseError } from '../../types';
-import { BondType } from '../../types';
-import { findRings } from '../utils/ring-finder';
-import { calculateValence } from '../utils/valence-calculator';
+import type { Atom, Bond, ParseError } from 'types';
+import { BondType } from 'types';
+import { findRings } from 'src/utils/ring-finder';
+import { calculateValence } from 'src/utils/valence-calculator';
 
 /**
  * Count π electrons contributed by an atom in an aromatic system

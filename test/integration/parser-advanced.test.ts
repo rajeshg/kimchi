@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'bun:test';
-import { parseSMILES, generateSMILES } from '../index';
-import { BondType } from '../types';
+import { parseSMILES, generateSMILES } from 'index';
+import { BondType } from 'types';
 
 describe('Comprehensive SMILES Tests', () => {
   describe('Charged Atoms', () => {

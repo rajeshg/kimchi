@@ -1,8 +1,8 @@
-import type { Molecule, Bond } from '../../types';
-import { BondType, StereoType } from '../../types';
-import { isOrganicAtom } from '../utils/atom-utils';
-import { perceiveAromaticity } from '../utils/aromaticity-perceiver';
-import { removeInvalidStereo } from '../utils/symmetry-detector';
+import type { Molecule, Bond } from 'types';
+import { BondType, StereoType } from 'types';
+import { isOrganicAtom } from 'src/utils/atom-utils';
+import { perceiveAromaticity } from 'src/utils/aromaticity-perceiver';
+import { removeInvalidStereo } from 'src/utils/symmetry-detector';
 
 // SMILES generation strategy:
 // - For simple SMILES: treat molecule as a graph and use DFS traversal

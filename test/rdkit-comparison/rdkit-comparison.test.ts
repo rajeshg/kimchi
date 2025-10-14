@@ -1,15 +1,31 @@
 import { describe, expect, it } from 'bun:test';
-import { parseSMILES, generateSMILES } from '../index';
+import { parseSMILES, generateSMILES } from 'index';
 // RDKit's module export typing is not callable in this environment; cast to any where used
 
-describe('RDKit Comparison', () => {
-  it('compares CC with rdkit', async () => {
+// Initialize RDKit once for the entire test file
+let rdkitInstance: any = null;
+let rdkitInitialized = false;
+
+async function initializeRDKit(): Promise<any> {
+  if (rdkitInitialized) return rdkitInstance;
+  
+  try {
     const rdkitModule = await import('@rdkit/rdkit').catch(() => null);
     if (!rdkitModule) {
       throw new Error('RDKit is not available. Install with: npm install @rdkit/rdkit');
     }
     const initRDKitModule = rdkitModule.default;
-    const RDKit: any = await (initRDKitModule as any)();
+    rdkitInstance = await (initRDKitModule as any)();
+    rdkitInitialized = true;
+    return rdkitInstance;
+  } catch (e) {
+    throw new Error('Failed to initialize RDKit');
+  }
+}
+
+describe('RDKit Comparison', () => {
+  it('compares CC with rdkit', async () => {
+    const RDKit = await initializeRDKit();
     const mol = RDKit.get_mol('CC');
     expect(mol.get_num_atoms()).toBe(2);
     expect(mol.get_num_bonds()).toBe(1);
@@ -21,12 +37,7 @@ describe('RDKit Comparison', () => {
   });
 
   it('compares C1CCCCC1 with rdkit', async () => {
-    const rdkitModule = await import('@rdkit/rdkit').catch(() => null);
-    if (!rdkitModule) {
-      throw new Error('RDKit is not available. Install with: npm install @rdkit/rdkit');
-    }
-    const initRDKitModule = rdkitModule.default;
-    const RDKit: any = await (initRDKitModule as any)();
+    const RDKit = await initializeRDKit();
     const mol = RDKit.get_mol('C1CCCCC1');
     expect(mol.get_num_atoms()).toBe(6);
     expect(mol.get_num_bonds()).toBe(6);

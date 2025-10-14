@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { calculateValence } from '../src/utils/valence-calculator';
-import { BondType } from '../types';
+import { calculateValence } from '../../../src/utils/valence-calculator';
+import { BondType } from 'types';
 
 describe('Valence calculator', () => {
   it('counts single, double, triple and aromatic correctly with hydrogens', () => {

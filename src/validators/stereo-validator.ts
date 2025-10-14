@@ -1,4 +1,4 @@
-import type { Atom, Bond, ParseError } from '../../types';
+import type { Atom, Bond, ParseError } from 'types';
 
 /**
  * Get the number of substituents (bonds + explicit hydrogens) for an atom

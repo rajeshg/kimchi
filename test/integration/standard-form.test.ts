@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test';
-import { parseSMILES, generateSMILES } from '../index';
+import { parseSMILES, generateSMILES } from 'index';
 
 describe('Standard Form Compliance (OpenSMILES 4.3)', () => {
   describe('Starting Atom Selection (4.3.4)', () => {

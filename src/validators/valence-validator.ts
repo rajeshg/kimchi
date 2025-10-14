@@ -1,6 +1,6 @@
-import type { Atom, Bond, ParseError } from '../../types';
-import { calculateValence } from '../utils/valence-calculator';
-import { DEFAULT_VALENCES } from '../constants';
+import type { Atom, Bond, ParseError } from 'types';
+import { calculateValence } from 'src/utils/valence-calculator';
+import { DEFAULT_VALENCES } from 'src/constants';
 import { maxBy } from 'es-toolkit';
 
 /**

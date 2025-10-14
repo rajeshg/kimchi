@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'bun:test';
-import { parseSMILES } from '../parser';
-import { generateSMILES } from '../src/generators/smiles-generator';
+import { parseSMILES } from 'parser';
+import { generateSMILES } from 'src/generators/smiles-generator';
 
 describe('Atom Class Support', () => {
   describe('Parsing atom classes', () => {

@@ -1,5 +1,5 @@
-import type { Atom, Bond } from '../../types';
-import { BondType } from '../../types';
+import type { Atom, Bond } from 'types';
+import { BondType } from 'types';
 
 /**
  * Calculate the valence of an atom based on its bonds and charge

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { findRings, findAtomRings, ringsShareAtoms, classifyRingSystems } from '../src/utils/ring-finder';
+import { findRings, findAtomRings, ringsShareAtoms, classifyRingSystems } from 'src/utils/ring-finder';
 
 describe('Ring finder utilities', () => {
   it('finds a 3-membered ring', () => {

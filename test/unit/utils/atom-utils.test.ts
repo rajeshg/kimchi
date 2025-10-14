@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isOrganicAtom, createAtom } from '../src/utils/atom-utils';
+import { isOrganicAtom, createAtom } from 'src/utils/atom-utils';
 
 describe('Atom utils', () => {
   it('isOrganicAtom recognizes common organic atoms (case-insensitive)', () => {

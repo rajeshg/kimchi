@@ -1,5 +1,5 @@
-import type { Atom } from '../../types';
-import { ATOMIC_NUMBERS } from '../constants';
+import type { Atom } from 'types';
+import { ATOMIC_NUMBERS } from 'src/constants';
 
 /**
  * Check if a character represents an organic subset atom

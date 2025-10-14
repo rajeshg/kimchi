@@ -1,5 +1,5 @@
-import type { Atom, Bond } from '../../types';
-import { BondType } from '../../types';
+import type { Atom, Bond } from 'types';
+import { BondType } from 'types';
 import { findRings } from './ring-finder';
 
 function countPiElectrons(atom: Atom, bonds: Bond[]): number {

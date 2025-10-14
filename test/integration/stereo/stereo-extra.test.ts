@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { parseSMILES, generateSMILES } from '../index';
-import { BondType, StereoType } from '../types';
+import { parseSMILES, generateSMILES } from 'index';
+import { BondType, StereoType } from 'types';
 
 // Additional stereo tests: ring-closure stereo and token-placement variants
 describe('SMILES Stereo Extras', () => {

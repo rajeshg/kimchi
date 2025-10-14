@@ -1,4 +1,4 @@
-import type { Atom, Bond } from '../../types';
+import type { Atom, Bond } from 'types';
 
 /**
  * Find all rings in a molecule using DFS with improved cycle detection

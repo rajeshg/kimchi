@@ -1,5 +1,26 @@
 import { describe, expect, it } from 'bun:test';
-import { parseSMILES, generateSMILES } from '../index';
+import { parseSMILES, generateSMILES } from 'index';
+
+// Initialize RDKit once for the entire test file
+let rdkitInstance: any = null;
+let rdkitInitialized = false;
+
+async function initializeRDKit(): Promise<any> {
+  if (rdkitInitialized) return rdkitInstance;
+  
+  try {
+    const rdkitModule = await import('@rdkit/rdkit').catch(() => null);
+    if (!rdkitModule) {
+      throw new Error('RDKit is not available. Install with: npm install @rdkit/rdkit');
+    }
+    const initRDKitModule = rdkitModule.default;
+    rdkitInstance = await (initRDKitModule as any)();
+    rdkitInitialized = true;
+    return rdkitInstance;
+  } catch (e) {
+    throw new Error('Failed to initialize RDKit');
+  }
+}
 
 const testCases = [
   // Stereo normalization - equivalent representations
@@ -49,13 +70,7 @@ const testCases = [
 describe('RDKit Stereo SMILES Comparison', () => {
   testCases.forEach(({ input, description }) => {
     it(`matches RDKit canonical SMILES for ${description}: ${input}`, async () => {
-      const rdkitModule = await import('@rdkit/rdkit').catch(() => null);
-      if (!rdkitModule) {
-        throw new Error('RDKit is not available. Install with: npm install @rdkit/rdkit');
-      }
-      
-      const initRDKitModule = rdkitModule.default;
-      const RDKit: any = await (initRDKitModule as any)();
+      const RDKit = await initializeRDKit();
       
       // Parse with chemkit
       const result = parseSMILES(input);

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test';
-import { parseSMILES, generateSMILES } from '../index';
+import { parseSMILES, generateSMILES } from 'index';
 
 // Programmatically build a diverse list of 300 SMILES
 const TEST_SMILES: string[] = [];

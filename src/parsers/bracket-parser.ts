@@ -1,5 +1,5 @@
-import type { Atom } from '../../types';
-import { ATOMIC_NUMBERS } from '../constants';
+import type { Atom } from 'types';
+import { ATOMIC_NUMBERS } from 'src/constants';
 
 /**
  * Parse bracket atom notation like [C], [NH4+], [13CH3@TH1:2]

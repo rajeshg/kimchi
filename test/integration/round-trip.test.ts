@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { parseSMILES } from '../parser';
-import { generateSMILES } from '../src/generators/smiles-generator';
-import type { Bond } from '../types';
+import { parseSMILES } from 'parser';
+import { generateSMILES } from 'src/generators/smiles-generator';
+import type { Bond } from '../../types';
 
 describe('Quick Wins - Already Supported Features', () => {
   describe('Wildcard atom *', () => {
