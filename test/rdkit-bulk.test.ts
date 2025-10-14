@@ -191,4 +191,27 @@ describe('RDKit Bulk Comparison (300 SMILES)', () => {
     // Fail the test if chemkit cannot properly parse or generate SMILES
     expect(generationFailures.length).toBe(0);
   }, 600000);
+
+  it('regression: complex fused ring with aromatic/double bond mix', () => {
+    const smiles = 'O1C=C[C@H]([C@H]1O2)c3c2cc(OC)c4c3OC(=O)C5=C4CCC(=O)5';
+    
+    const parsed = parseSMILES(smiles);
+    expect(parsed.errors).toHaveLength(0);
+    expect(parsed.molecules).toHaveLength(1);
+    
+    const generated = generateSMILES(parsed.molecules[0]!);
+    expect(generated).toBeTruthy();
+    
+    const roundTrip = parseSMILES(generated);
+    expect(roundTrip.errors).toHaveLength(0);
+    expect(roundTrip.molecules).toHaveLength(1);
+    
+    const originalAtoms = parsed.molecules[0]!.atoms.length;
+    const originalBonds = parsed.molecules[0]!.bonds.length;
+    const roundTripAtoms = roundTrip.molecules[0]!.atoms.length;
+    const roundTripBonds = roundTrip.molecules[0]!.bonds.length;
+    
+    expect(roundTripAtoms).toBe(originalAtoms);
+    expect(roundTripBonds).toBe(originalBonds);
+  });
 });

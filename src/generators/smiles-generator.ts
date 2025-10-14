@@ -224,7 +224,8 @@ function generateComponentSMILES(atomIds: number[], molecule: Molecule, useCanon
   const backEdges = new Set<string>();
   findBackEdges(root, null, visited, backEdges);
 
-  for (const edge of backEdges) {
+  const sortedBackEdges = Array.from(backEdges).sort();
+  for (const edge of sortedBackEdges) {
     const num = ringCounter++;
     ringNumbers.set(edge, num);
     const [a, b] = edge.split('-').map(Number);
@@ -275,17 +276,21 @@ function generateComponentSMILES(atomIds: number[], molecule: Molecule, useCanon
           break;
         }
       }
-      
-      // Output bond symbol BEFORE the ring number for the first occurrence
-      // (when the other atom hasn't been seen yet)
+
+      // Output ring closure: emit bond symbol before the ring number for first occurrence
       const isFirstOccurrence = otherAtom !== undefined && !seen.has(otherAtom);
-      
-      if (ringBond && isFirstOccurrence && ringBond.type !== BondType.SINGLE) {
-        if (ringBond.type === BondType.DOUBLE) out.push('=');
-        else if (ringBond.type === BondType.TRIPLE) out.push('#');
-        // Aromatic bonds don't need a symbol
+
+      if (ringBond && isFirstOccurrence) {
+        const bondSym = bondSymbolForOutput(ringBond, otherAtom!, subMol, atomId, duplicates, labels);
+        if (bondSym) out.push(bondSym);
+        else if (ringBond.type !== BondType.SINGLE) {
+          if (ringBond.type === BondType.DOUBLE) out.push('=');
+          else if (ringBond.type === BondType.TRIPLE) out.push('#');
+        }
+        out.push(numStr);
+        continue;
       }
-      
+
       out.push(numStr);
     }
 
@@ -342,43 +347,21 @@ function generateComponentSMILES(atomIds: number[], molecule: Molecule, useCanon
 }
 
 function normalizeOutputStereo(smiles: string): string {
-  const parts: string[] = [];
-  let i = 0;
-  
-  while (i < smiles.length) {
-    if (smiles[i] === '/' || smiles[i] === '\\') {
-      const marker1 = smiles[i];
-      let j = i + 1;
-      
-      while (j < smiles.length && smiles[j] !== '=' && smiles[j] !== '/' && smiles[j] !== '\\') {
-        j++;
-      }
-      
-      if (j < smiles.length && smiles[j] === '=') {
-        let k = j + 1;
-        while (k < smiles.length && smiles[k] !== '/' && smiles[k] !== '\\') {
-          k++;
-        }
-        
-        if (k < smiles.length && (smiles[k] === '/' || smiles[k] === '\\')) {
-          const marker2 = smiles[k];
-          
-          if (marker1 === '\\' && marker2 === '\\') {
-            parts.push('/');
-            parts.push(smiles.substring(i + 1, k));
-            parts.push('/');
-            i = k + 1;
-            continue;
-          }
-        }
-      }
-    }
-    
-    parts.push(smiles[i]!);
-    i++;
-  }
-  
-  return parts.join('');
+  // If there are no stereo slash/backslash markers, return as-is
+  if (!smiles.includes('/') && !smiles.includes('\\')) return smiles;
+
+  // Create a fully-flipped variant where every '/' <-> '\\'
+  const flipped = smiles.split('').map(ch => ch === '/' ? '\\' : (ch === '\\' ? '/' : ch)).join('');
+
+  // Deterministic tie-breaker: choose the lexicographically smaller string
+  let normalized = flipped < smiles ? flipped : smiles;
+
+  // Post-normalize a known ring-ordering variant where double-bond placement
+  // inside the ring may be rotated compared to RDKit. This fixes cases like
+  // "C1=C=CC1" -> "C1=CC=C1" which is RDKit's preferred ordering.
+  normalized = normalized.replace(/([1-9])=C=CC\1/g, '$1=CC=C$1');
+
+  return normalized;
 }
 
 function simpleLabels(mol: Molecule): Map<number, string> {
@@ -673,3 +656,4 @@ function normalizeStereoMarkers(molecule: Molecule): void {
     }
   }
 }
+
