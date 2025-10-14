@@ -1,6 +1,7 @@
-import type { Molecule, Bond, Atom } from '../../types';
+import type { Molecule, Bond } from '../../types';
 import { BondType, StereoType } from '../../types';
 import { isOrganicAtom } from '../utils/atom-utils';
+import { perceiveAromaticity } from '../utils/aromaticity-perceiver';
 
 // SMILES generation strategy:
 // - For simple SMILES: treat molecule as a graph and use DFS traversal
@@ -11,7 +12,6 @@ export function generateSMILES(input: Molecule | Molecule[], canonical = true): 
   if (Array.isArray(input)) {
     return input.map(mol => generateSMILES(mol, canonical)).join('.');
   }
-  // Work on a shallow-cloned molecule to avoid mutating the caller's data
   const molecule = input as Molecule;
   const cloned: Molecule = {
     atoms: molecule.atoms.map(a => ({ ...a })),
@@ -20,11 +20,14 @@ export function generateSMILES(input: Molecule | Molecule[], canonical = true): 
 
   if (cloned.atoms.length === 0) return '';
 
+  if (canonical) {
+    perceiveAromaticity(cloned.atoms, cloned.bonds);
+  }
+
   for (const atom of cloned.atoms) {
     if (atom.chiral) {
       const neighbors = getNeighbors(atom.id, cloned);
       if (neighbors.length < 3) {
-        // clear chiral marker for atoms that can't be chiral
         atom.chiral = null;
         if (atom.symbol === 'C' && atom.hydrogens <= 1 && atom.charge === 0 && !atom.isotope) {
           atom.isBracket = false;
