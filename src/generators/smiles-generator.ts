@@ -40,8 +40,8 @@ export function generateSMILES(input: Molecule | Molecule[], canonical = true): 
   // already had impossible chiral flags removed earlier.
   if (canonical) {
     for (const atom of cloned.atoms) {
-      // Only minimize brackets for non-chiral organic atoms with no isotope/charge
-      if (!atom.chiral && isOrganicAtom(atom.symbol) && atom.isBracket && !atom.isotope && (atom.charge === 0 || atom.charge === undefined)) {
+      // Only minimize brackets for non-chiral organic atoms with no isotope/charge/atomClass
+      if (!atom.chiral && isOrganicAtom(atom.symbol) && atom.isBracket && !atom.isotope && (atom.charge === 0 || atom.charge === undefined) && atom.atomClass === 0) {
         atom.isBracket = false;
         atom.hydrogens = 0;
       }
@@ -241,23 +241,28 @@ function generateComponentSMILES(atomIds: number[], molecule: Molecule, useCanon
     const atom = componentAtoms.find(a => a.id === atomId)!;
     const sym = atom.aromatic ? atom.symbol.toLowerCase() : atom.symbol;
 
-    if (atom.isBracket) out.push('[');
+    const needsBracket = atom.isBracket || atom.atomClass > 0;
+    if (needsBracket) out.push('[');
     if (atom.isotope) out.push(atom.isotope.toString());
     out.push(sym);
     // Emit chiral marker only if atom is marked chiral and is unique in canonical labeling
     if (atom.chiral && !duplicates.has(atomId)) out.push(atom.chiral);
-    if (atom.isBracket && atom.hydrogens > 0) {
+    if (needsBracket && atom.hydrogens > 0) {
       out.push('H');
       if (atom.hydrogens > 1) out.push(atom.hydrogens.toString());
     }
-    if (atom.isBracket && atom.charge > 0) {
+    if (needsBracket && atom.charge > 0) {
       out.push('+');
       if (atom.charge > 1) out.push(atom.charge.toString());
-    } else if (atom.isBracket && atom.charge < 0) {
+    } else if (needsBracket && atom.charge < 0) {
       out.push('-');
       if (atom.charge < -1) out.push((-atom.charge).toString());
     }
-    if (atom.isBracket) out.push(']');
+    if (needsBracket && atom.atomClass > 0) {
+      out.push(':');
+      out.push(atom.atomClass.toString());
+    }
+    if (needsBracket) out.push(']');
 
     const ringNums = atomRingNumbers.get(atomId) || [];
     for (const num of ringNums) {
