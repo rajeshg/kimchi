@@ -234,31 +234,9 @@ function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: ParseE
       } else {
         const d = parseInt(ch);
         const list = bookmarks.get(d) || [];
-        let ringBondType = pendingBondType;
-        let ringBondStereo = pendingBondStereo;
-        let nextIdx = i + 1;
-        if (nextIdx < smiles.length) {
-          const nextCh = smiles[nextIdx]!;
-          if (nextCh === '=') {
-            ringBondType = BondType.DOUBLE;
-            nextIdx++;
-          } else if (nextCh === '#') {
-            ringBondType = BondType.TRIPLE;
-            nextIdx++;
-          } else if (nextCh === '$') {
-            ringBondType = BondType.QUADRUPLE;
-            nextIdx++;
-          } else if (nextCh === '/') {
-            ringBondStereo = StereoType.UP;
-            nextIdx++;
-          } else if (nextCh === '\\') {
-            ringBondStereo = StereoType.DOWN;
-            nextIdx++;
-          }
-        }
-        list.push({ atomId: prevAtomId, bondType: ringBondType, bondStereo: ringBondStereo });
+        list.push({ atomId: prevAtomId, bondType: pendingBondType, bondStereo: pendingBondStereo });
         bookmarks.set(d, list);
-        i = nextIdx;
+        i++;
       }
       pendingBondType = BondType.SINGLE;
       pendingBondStereo = StereoType.NONE;
@@ -273,31 +251,9 @@ function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: ParseE
       if (i + 2 < smiles.length && /[0-9][0-9]/.test(smiles.substr(i + 1, 2))) {
         const d = parseInt(smiles.substr(i + 1, 2));
         const list = bookmarks.get(d) || [];
-        let ringBondType = pendingBondType;
-        let ringBondStereo = pendingBondStereo;
-        let nextIdx = i + 3;
-        if (nextIdx < smiles.length) {
-          const nextCh = smiles[nextIdx]!;
-          if (nextCh === '=') {
-            ringBondType = BondType.DOUBLE;
-            nextIdx++;
-          } else if (nextCh === '#') {
-            ringBondType = BondType.TRIPLE;
-            nextIdx++;
-          } else if (nextCh === '$') {
-            ringBondType = BondType.QUADRUPLE;
-            nextIdx++;
-          } else if (nextCh === '/') {
-            ringBondStereo = StereoType.UP;
-            nextIdx++;
-          } else if (nextCh === '\\') {
-            ringBondStereo = StereoType.DOWN;
-            nextIdx++;
-          }
-        }
-        list.push({ atomId: prevAtomId, bondType: ringBondType, bondStereo: ringBondStereo });
+        list.push({ atomId: prevAtomId, bondType: pendingBondType, bondStereo: pendingBondStereo });
         bookmarks.set(d, list);
-        i = nextIdx;
+        i += 3;
         pendingBondType = BondType.SINGLE;
         pendingBondStereo = StereoType.NONE;
         continue;

@@ -855,9 +855,9 @@
       "errors": [],
       "moleculesPresent": true
     },
-    "ours": "O=C(O)c(ccccc)c",
+    "ours": "O=C(O)c1ccccc1",
     "rdkitOriginal": "O=C(O)c1ccccc1",
-    "rdkitOurs": null
+    "rdkitOurs": "O=C(O)c1ccccc1"
   },
   {
     "input": "c1ccccc1F",
@@ -984,23 +984,23 @@
     "parsed": {
       "errors": [
         {
-          "message": "Ring 0,1,6,7 violates Hückel's 4n+2 rule for aromaticity",
+          "message": "Ring 0,1,6,7 marked as aromatic but violates Hückel's 4n+2 rule",
           "position": -1
         },
         {
-          "message": "Atom C (id: 1) has invalid valence 4.5, maximum allowed is 4",
+          "message": "Ring 0,1,2,3,4,5,6,7 marked as aromatic but violates Hückel's 4n+2 rule",
           "position": -1
         },
         {
-          "message": "Atom C (id: 6) has invalid valence 4.5, maximum allowed is 4",
+          "message": "Aromatic ring 0,1,2,3,4,5,6,7 has inconsistent bond types",
           "position": -1
         }
       ],
       "moleculesPresent": true
     },
-    "ours": "C1NC2ccccC12",
+    "ours": "c1ccc2ncc2c1",
     "rdkitOriginal": "C1=c2ccccc2=N1",
-    "rdkitOurs": "C1=CC2CNC2C=C1"
+    "rdkitOurs": "C1=Nc2ccccc21"
   },
   {
     "input": "n1cccc1",
@@ -1025,47 +1025,32 @@
   {
     "input": "c1nccn1",
     "parsed": {
-      "errors": [
-        {
-          "message": "Ring 0,1,2,3,4 violates Hückel's 4n+2 rule for aromaticity",
-          "position": -1
-        }
-      ],
+      "errors": [],
       "moleculesPresent": true
     },
-    "ours": "C1CNCN1",
+    "ours": "c1cncn1",
     "rdkitOriginal": null,
-    "rdkitOurs": "C1CNCN1"
+    "rdkitOurs": null
   },
   {
     "input": "c1nccn1O",
     "parsed": {
-      "errors": [
-        {
-          "message": "Ring 0,1,2,3,4 violates Hückel's 4n+2 rule for aromaticity",
-          "position": -1
-        }
-      ],
+      "errors": [],
       "moleculesPresent": true
     },
-    "ours": "ON1CCNC1",
+    "ours": "On1ccnc1",
     "rdkitOriginal": "On1ccnc1",
-    "rdkitOurs": "ON1CCNC1"
+    "rdkitOurs": "On1ccnc1"
   },
   {
     "input": "c1nccn1C",
     "parsed": {
-      "errors": [
-        {
-          "message": "Ring 0,1,2,3,4 violates Hückel's 4n+2 rule for aromaticity",
-          "position": -1
-        }
-      ],
+      "errors": [],
       "moleculesPresent": true
     },
-    "ours": "CN1CCNC1",
+    "ours": "Cn1ccnc1",
     "rdkitOriginal": "Cn1ccnc1",
-    "rdkitOurs": "CN1CCNC1"
+    "rdkitOurs": "Cn1ccnc1"
   },
   {
     "input": "c1cc[nH]c1C",
@@ -1082,49 +1067,45 @@
     "parsed": {
       "errors": [
         {
-          "message": "Ring 0,1,2,3,4,5 violates Hückel's 4n+2 rule for aromaticity",
-          "position": -1
-        },
-        {
-          "message": "Atom O (id: 0) has invalid valence 3, maximum allowed is 2",
+          "message": "Ring 0,1,2,3,4,5 marked as aromatic but violates Hückel's 4n+2 rule",
           "position": -1
         }
       ],
       "moleculesPresent": true
     },
-    "ours": "OC1CCCCO1",
+    "ours": "Oc1cccco1",
     "rdkitOriginal": null,
-    "rdkitOurs": "OC1CCCCO1"
+    "rdkitOurs": null
   },
   {
     "input": "s1ccccc1",
     "parsed": {
       "errors": [
         {
-          "message": "Ring 0,1,2,3,4,5 violates Hückel's 4n+2 rule for aromaticity",
+          "message": "Ring 0,1,2,3,4,5 marked as aromatic but violates Hückel's 4n+2 rule",
           "position": -1
         }
       ],
       "moleculesPresent": true
     },
-    "ours": "S1CCCCC1",
+    "ours": "s1ccccc1",
     "rdkitOriginal": null,
-    "rdkitOurs": "C1CCSCC1"
+    "rdkitOurs": null
   },
   {
     "input": "c1csc(cc1)O",
     "parsed": {
       "errors": [
         {
-          "message": "Ring 0,1,2,3,4,5 violates Hückel's 4n+2 rule for aromaticity",
+          "message": "Ring 0,1,2,3,4,5 marked as aromatic but violates Hückel's 4n+2 rule",
           "position": -1
         }
       ],
       "moleculesPresent": true
     },
-    "ours": "OC1SCCCC1",
+    "ours": "Oc1scccc1",
     "rdkitOriginal": null,
-    "rdkitOurs": "OC1CCCCS1"
+    "rdkitOurs": null
   },
   {
     "input": "c1c[nH]cc1",
@@ -1139,21 +1120,12 @@
   {
     "input": "n1c(=O)ccn1",
     "parsed": {
-      "errors": [
-        {
-          "message": "Ring 0,1,3,4,5 violates Hückel's 4n+2 rule for aromaticity",
-          "position": -1
-        },
-        {
-          "message": "Atom C (id: 1) has invalid valence 5, maximum allowed is 4",
-          "position": -1
-        }
-      ],
+      "errors": [],
       "moleculesPresent": true
     },
-    "ours": "O=C1CCNN1",
+    "ours": "O=c1ccnn1",
     "rdkitOriginal": "O=C1C=CN=N1",
-    "rdkitOurs": "O=C1CCNN1"
+    "rdkitOurs": "O=C1C=CN=N1"
   },
   {
     "input": "CCO",
@@ -1491,9 +1463,9 @@
       "errors": [],
       "moleculesPresent": true
     },
-    "ours": "C1=CC=CC=C1",
+    "ours": "C1==CC=CCC1",
     "rdkitOriginal": "c1ccccc1",
-    "rdkitOurs": "c1ccccc1"
+    "rdkitOurs": null
   },
   {
     "input": "C1=CC=C(O)C=C1",
@@ -1501,9 +1473,9 @@
       "errors": [],
       "moleculesPresent": true
     },
-    "ours": "OC1C=CC=CC1",
+    "ours": "OC1=C=C=CCC1",
     "rdkitOriginal": "Oc1ccccc1",
-    "rdkitOurs": "OC1C=CC=CC1"
+    "rdkitOurs": "OC1=C=C=CCC1"
   },
   {
     "input": "C1=CC=CN=C1",
@@ -1511,9 +1483,9 @@
       "errors": [],
       "moleculesPresent": true
     },
-    "ours": "C1=CC=NC=C1",
+    "ours": "C1==CCC=CN1",
     "rdkitOriginal": "c1ccncc1",
-    "rdkitOurs": "c1ccncc1"
+    "rdkitOurs": null
   },
   {
     "input": "CC(=O)N1CCCC1",
@@ -1521,9 +1493,9 @@
       "errors": [],
       "moleculesPresent": true
     },
-    "ours": "CC(=O)N(CCCC)C",
+    "ours": "CC(=O)N1CCCC1",
     "rdkitOriginal": "CC(=O)N1CCCC1",
-    "rdkitOurs": "CCCCN(C)C(C)=O"
+    "rdkitOurs": "CC(=O)N1CCCC1"
   },
   {
     "input": "CCN(CC)CC",
@@ -2461,9 +2433,9 @@
       "errors": [],
       "moleculesPresent": true
     },
-    "ours": "[C13H4]",
+    "ours": "[13CH4]",
     "rdkitOriginal": "[13CH4]",
-    "rdkitOurs": null
+    "rdkitOurs": "[13CH4]"
   },
   {
     "input": "[2H]O",
@@ -2471,9 +2443,9 @@
       "errors": [],
       "moleculesPresent": true
     },
-    "ours": "[H2]O",
+    "ours": "[2H]O",
     "rdkitOriginal": "[2H]O",
-    "rdkitOurs": null
+    "rdkitOurs": "[2H]O"
   },
   {
     "input": "[13C]C(=O)O",
@@ -2481,9 +2453,9 @@
       "errors": [],
       "moleculesPresent": true
     },
-    "ours": "[C13]C(=O)O",
+    "ours": "[13C]C(=O)O",
     "rdkitOriginal": "[13C]C(=O)O",
-    "rdkitOurs": null
+    "rdkitOurs": "[13C]C(=O)O"
   },
   {
     "input": "[14NH4+]",
@@ -2491,9 +2463,9 @@
       "errors": [],
       "moleculesPresent": true
     },
-    "ours": "[N14H4+]",
+    "ours": "[14NH4+]",
     "rdkitOriginal": "[14NH4+]",
-    "rdkitOurs": null
+    "rdkitOurs": "[14NH4+]"
   },
   {
     "input": "[15N]N",
@@ -2501,9 +2473,9 @@
       "errors": [],
       "moleculesPresent": true
     },
-    "ours": "N[N15]",
+    "ours": "N[15N]",
     "rdkitOriginal": "N[15N]",
-    "rdkitOurs": null
+    "rdkitOurs": "N[15N]"
   },
   {
     "input": "[13CH3]Cl",
@@ -2511,9 +2483,9 @@
       "errors": [],
       "moleculesPresent": true
     },
-    "ours": "Cl[C13H3]",
+    "ours": "Cl[13CH3]",
     "rdkitOriginal": "[13CH3]Cl",
-    "rdkitOurs": null
+    "rdkitOurs": "[13CH3]Cl"
   },
   {
     "input": "[2H]C(=O)O",
@@ -2521,9 +2493,9 @@
       "errors": [],
       "moleculesPresent": true
     },
-    "ours": "[H2]C(=O)O",
+    "ours": "[2H]C(=O)O",
     "rdkitOriginal": "[2H]C(=O)O",
-    "rdkitOurs": null
+    "rdkitOurs": "[2H]C(=O)O"
   },
   {
     "input": "[13C]C",
@@ -2531,9 +2503,9 @@
       "errors": [],
       "moleculesPresent": true
     },
-    "ours": "C[C13]",
+    "ours": "C[13C]",
     "rdkitOriginal": "C[13C]",
-    "rdkitOurs": null
+    "rdkitOurs": "C[13C]"
   },
   {
     "input": "[2H]OC",
@@ -2541,9 +2513,9 @@
       "errors": [],
       "moleculesPresent": true
     },
-    "ours": "[H2]OC",
+    "ours": "[2H]OC",
     "rdkitOriginal": "[2H]OC",
-    "rdkitOurs": null
+    "rdkitOurs": "[2H]OC"
   },
   {
     "input": "[13CH2]O",
@@ -2551,9 +2523,9 @@
       "errors": [],
       "moleculesPresent": true
     },
-    "ours": "[C13H2]O",
+    "ours": "[13CH2]O",
     "rdkitOriginal": "[13CH2]O",
-    "rdkitOurs": null
+    "rdkitOurs": "[13CH2]O"
   },
   {
     "input": "[13C]C(Cl)C",
@@ -2561,9 +2533,9 @@
       "errors": [],
       "moleculesPresent": true
     },
-    "ours": "ClC(C)[C13]",
+    "ours": "ClC(C)[13C]",
     "rdkitOriginal": "CC([13C])Cl",
-    "rdkitOurs": null
+    "rdkitOurs": "CC([13C])Cl"
   },
   {
     "input": "[2H]CCO",
@@ -2571,9 +2543,9 @@
       "errors": [],
       "moleculesPresent": true
     },
-    "ours": "[H2]CCO",
+    "ours": "[2H]CCO",
     "rdkitOriginal": "[2H]CCO",
-    "rdkitOurs": null
+    "rdkitOurs": "[2H]CCO"
   },
   {
     "input": "[13C]O",
@@ -2581,9 +2553,9 @@
       "errors": [],
       "moleculesPresent": true
     },
-    "ours": "[C13]O",
+    "ours": "[13C]O",
     "rdkitOriginal": "[13C]O",
-    "rdkitOurs": null
+    "rdkitOurs": "[13C]O"
   },
   {
     "input": "[2H]N",
@@ -2591,9 +2563,9 @@
       "errors": [],
       "moleculesPresent": true
     },
-    "ours": "[H2]N",
+    "ours": "[2H]N",
     "rdkitOriginal": "[2H]N",
-    "rdkitOurs": null
+    "rdkitOurs": "[2H]N"
   },
   {
     "input": "[13C]N",
@@ -2601,9 +2573,9 @@
       "errors": [],
       "moleculesPresent": true
     },
-    "ours": "[C13]N",
+    "ours": "[13C]N",
     "rdkitOriginal": "[13C]N",
-    "rdkitOurs": null
+    "rdkitOurs": "[13C]N"
   },
   {
     "input": "[2H]C",
@@ -2611,9 +2583,9 @@
       "errors": [],
       "moleculesPresent": true
     },
-    "ours": "[H2]C",
+    "ours": "[2H]C",
     "rdkitOriginal": "[2H]C",
-    "rdkitOurs": null
+    "rdkitOurs": "[2H]C"
   },
   {
     "input": "[13C](=O)O",
@@ -2621,9 +2593,9 @@
       "errors": [],
       "moleculesPresent": true
     },
-    "ours": "O=[C13]O",
+    "ours": "O=[13C]O",
     "rdkitOriginal": "O=[13C]O",
-    "rdkitOurs": null
+    "rdkitOurs": "O=[13C]O"
   },
   {
     "input": "[2H]CO",
@@ -2631,9 +2603,9 @@
       "errors": [],
       "moleculesPresent": true
     },
-    "ours": "[H2]CO",
+    "ours": "[2H]CO",
     "rdkitOriginal": "[2H]CO",
-    "rdkitOurs": null
+    "rdkitOurs": "[2H]CO"
   },
   {
     "input": "[13C]C(=O)N",
@@ -2641,9 +2613,9 @@
       "errors": [],
       "moleculesPresent": true
     },
-    "ours": "[C13]C(N)=O",
+    "ours": "[13C]C(N)=O",
     "rdkitOriginal": "[13C]C(N)=O",
-    "rdkitOurs": null
+    "rdkitOurs": "[13C]C(N)=O"
   },
   {
     "input": "[2H]C(=O)O",
@@ -2651,9 +2623,9 @@
       "errors": [],
       "moleculesPresent": true
     },
-    "ours": "[H2]C(=O)O",
+    "ours": "[2H]C(=O)O",
     "rdkitOriginal": "[2H]C(=O)O",
-    "rdkitOurs": null
+    "rdkitOurs": "[2H]C(=O)O"
   },
   {
     "input": "NCC(=O)O",
@@ -2731,9 +2703,9 @@
       "errors": [],
       "moleculesPresent": true
     },
-    "ours": "OC(COC(O)CO)C",
+    "ours": "OC1COC(O)C1O",
     "rdkitOriginal": "OC1COC(O)C1O",
-    "rdkitOurs": "CC(O)COC(O)CO"
+    "rdkitOurs": "OC1COC(O)C1O"
   },
   {
     "input": "C(C(=O)O)N(C)C",
@@ -2751,9 +2723,9 @@
       "errors": [],
       "moleculesPresent": true
     },
-    "ours": "C1=CC(=CC=C1)NC(C)=O",
+    "ours": "C1=C=C(CC=C1)NC(C)=O",
     "rdkitOriginal": "CC(=O)Nc1ccccc1",
-    "rdkitOurs": "CC(=O)Nc1ccccc1"
+    "rdkitOurs": "CC(=O)NC1=C=CC=CC1"
   },
   {
     "input": "CC(=O)NCC(=O)O",
@@ -2841,9 +2813,9 @@
       "errors": [],
       "moleculesPresent": true
     },
-    "ours": "C1C=CC=C(C1)CC(C(O)=O)N",
+    "ours": "C1==CC=CCC1CC(N)C(=O)O",
     "rdkitOriginal": "N[C@@H](Cc1ccccc1)C(=O)O",
-    "rdkitOurs": "NC(CC1=CC=CCC1)C(=O)O"
+    "rdkitOurs": null
   },
   {
     "input": "CC(O)C(=O)O",

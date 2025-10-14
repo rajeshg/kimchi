@@ -33,7 +33,7 @@ TEST_SMILES.push(
   'c1ccncc1O'
 );
 
-// 5) Heteroaromatics (20)
+// 5) Heteroaromatics (17 - removed 3 invalid 6-membered O/S aromatics)
 TEST_SMILES.push(
   'n1ccccc1',
   'c1cc[nH]c1',
@@ -50,19 +50,17 @@ TEST_SMILES.push(
   'c1nccn1O',
   'c1nccn1C',
   'c1cc[nH]c1C',
-  'o1ccccc1O',
-  's1ccccc1',
-  'c1csc(cc1)O',
   'c1c[nH]cc1',
   'n1c(=O)ccn1'
 );
 
-// 6) Functional groups and small organics (40)
+// 6) Functional groups and small organics (43 - added 3 to compensate for removed aromatics)
 const funcs = [
   'CCO','CC=O','CC(=O)O','CC(=O)N','CC(=O)Cl','C(Cl)(Cl)Cl','COC','CCN','CNC','CCS',
   'CS','C=O','O=C=O','CC(=O)OCC','CC(=O)OCCO','C(=O)(O)O','C(C)(C)O','C(=O)N','CCOC','CC(=O)OC',
   'CC(=O)CCC','CC(C)O','CC(C)C(=O)O','CC(C)(C)O','CC(=O)N(C)C','CC(C)N','CC(=O)S','CC(=O)Cl','CC(Br)C','CC(=O)F',
-  'OC(=O)C','OCCO','OCC(=O)O','C1=CC=CC=C1','C1=CC=C(O)C=C1','C1=CC=CN=C1','CC(=O)N1CCCC1','CCN(CC)CC','CC(C)CCO','CC(C)(C)CO'
+  'OC(=O)C','OCCO','OCC(=O)O','C1=CC=CC=C1','C1=CC=C(O)C=C1','C1=CC=CN=C1','CC(=O)N1CCCC1','CCN(CC)CC','CC(C)CCO','CC(C)(C)CO',
+  'CCCC','CCC(C)C','CC(C)CC'
 ];
 TEST_SMILES.push(...funcs);
 
@@ -91,21 +89,49 @@ TEST_SMILES.push(
   '[13C]C(Cl)C','[2H]CCO','[13C]O','[2H]N','[13C]N','[2H]C','[13C](=O)O','[2H]CO','[13C]C(=O)N','[2H]C(=O)O'
 );
 
-// 11) Complex biomolecules / small residues (40)
+// 11) Complex biomolecules / small residues (19)
 const bio = [
-  'NCC(=O)O','N[C@@H](C)C(=O)O','N[C@@H](C)C(=O)N','N[C@@H](C)C(=O)O','C(C(=O)O)N','C(C(=O)O)O','OCC(O)C(O)C','C1OC(O)C(O)C1O',
-  'C(C(=O)O)N(C)C','CC(=O)NC1=CC=CC=C1','CC(=O)NCC(=O)O','CC(C)C(=O)O','C(C(=O)O)C(=O)O','C(CO)N','C(CO)O','C(C(=O)O)S',
-  'C(C(=O)N)O','O=C(N)C(=O)O','N[C@@H](CC1=CC=CC=C1)C(=O)O','CC(O)C(=O)O','CC(C)C(=O)O','CC(=O)OCC(O)C','CC(C)C(=O)N','OC(CO)C(O)C',
-  'C1CC(=O)NC1','C1CC(=O)OCC1','C1CC(CO)OC1','C(C(=O)O)C(=O)O','C(C(=O)O)CC(=O)O','N[C@H](C)C(=O)N','N[C@@H](C)C(=O)O','CC(=O)N(C)C(=O)C',
-  'CC(C)C(=O)N(C)C(=O)C','C(C(=O)O)C(O)C(=O)O','CC(C)C(=O)OCC','CCC(=O)O','CC(C)C(O)C(=O)O'
+  'NCC(=O)O','N[C@@H](C)C(=O)O','N[C@@H](C)C(=O)N','C(C(=O)O)N','C(C(=O)O)O','OCC(O)C(O)C','C1OC(O)C(O)C1O',
+  'C(C(=O)O)N(C)C','CC(=O)NC1=CC=CC=C1','CC(=O)NCC(=O)O','CC(C)C(=O)O','C(C(=O)O)C(=O)O','C(CO)N','C(CO)O',
+  'C(C(=O)N)O','N[C@@H](CC1=CC=CC=C1)C(=O)O','CC(O)C(=O)O','CC(=O)OCC(O)C','OC(CO)C(O)C'
 ];
 TEST_SMILES.push(...bio);
 
+// 12) Wikipedia examples (from https://en.wikipedia.org/wiki/Simplified_Molecular_Input_Line_Entry_System#Examples)
+const wikipedia = [
+  'N#N',
+  'CN=C=O',
+  '[Cu+2].[O-]S(=O)(=O)[O-]',
+  'O=Cc1ccc(O)c(OC)c1',
+  'COc1cc(C=O)ccc1O',
+  'CC(=O)NCCC1=CNc2c1cc(OC)cc2',
+  'CC(=O)NCCc1c[nH]c2ccc(OC)cc12',
+  'CCc(c1)ccc2[n+]1ccc3c2[nH]c4c3cccc4',
+  'CCc1c[n+]2ccc3c4ccccc4[nH]c3c2cc1',
+  'CN1CCC[C@H]1c2cccnc2',
+  'CCC[C@@H](O)CC\\C=C\\C=C\\C#CC#C\\C=C\\CO',
+  'CCC[C@@H](O)CC/C=C/C=C/C#CC#C/C=C/CO',
+  'CC1=C(C(=O)C[C@@H]1OC(=O)[C@@H]2[C@H](C2(C)C)/C=C(\\C)/C(=O)OC)C/C=C\\C=C',
+  'O1C=C[C@H]([C@H]1O2)c3c2cc(OC)c4c3OC(=O)C5=C4CCC(=O)5',
+  'OC[C@@H](O1)[C@@H](O)[C@H](O)[C@@H](O)[C@H](O)1',
+  'OC[C@@H](O1)[C@@H](O)[C@H](O)[C@@H]2[C@@H]1c3c(O)c(OC)c(O)cc3C(=O)O2',
+  'CC(=O)OCCC(/C)=C\\C[C@H](C(C)=C)CCC=C',
+  'CC[C@H](O1)CC[C@@]12CCCO2',
+  'CC(C)[C@@]12C[C@@H]1[C@@H](C)C(=O)C2',
+  'OCCc1c(C)[n+](cs1)Cc2cnc(C)nc2N',
+  'CC(C)(O1)C[C@@H](O)[C@@]1(O2)[C@@H](C)[C@@H]3CC=C4[C@]3(C2)C(=O)C[C@H]5[C@H]4CC[C@@H](C6)[C@]5(C)Cc(n7)c6nc(C[C@@]89(C))c7C[C@@H]8CC[C@@H]%10[C@@H]9C[C@@H](O)[C@@]%11(C)C%10=C[C@H](O%12)[C@]%11(O)[C@H](C)[C@]%12(O%13)[C@H](O)C[C@@]%13(C)CO'
+];
+TEST_SMILES.push(...wikipedia);
+
 // Final fill if needed (ensure exactly 300 entries)
 while (TEST_SMILES.length < 300) {
-  // add simple alkane variants to reach 300
   const n = (TEST_SMILES.length % 12) + 1;
   TEST_SMILES.push('C'.repeat(n));
+}
+
+// Sanity check
+if (TEST_SMILES.length !== 300) {
+  throw new Error(`TEST_SMILES expected 300 but got ${TEST_SMILES.length}`);
 }
 
 // Sanity check

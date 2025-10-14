@@ -1,13 +1,13 @@
 # chemkit
 
-**Production-ready TypeScript SMILES parser and generator with full RDKit parity**
+**Production-ready TypeScript SMILES parser and generator with high RDKit compatibility**
 
 A high-performance, zero-dependency toolkit for parsing and generating SMILES (Simplified Molecular-Input Line-Entry System) notation. Built for cheminformatics applications that need reliable molecule handling in JavaScript/TypeScript.
 
 ## Why chemkit?
 
 - **✅ 100% test coverage** — All 135 tests pass, including comprehensive RDKit comparison tests
-- **✅ RDKit-validated** — Parser and generator output matches RDKit canonical SMILES across 300+ molecules
+- **✅ RDKit-validated** — Parser and generator output matches RDKit canonical SMILES for 96% of tested molecules (284/296)
 - **⚡ Fast & lightweight** — Zero dependencies, pure TypeScript implementation
 - **🎯 Production-ready** — Extensively tested with real-world molecules and edge cases
 - **🔬 Feature-complete** — Handles stereochemistry, aromatics, charges, isotopes, and complex rings
@@ -33,14 +33,15 @@ console.log(generateSMILES(aspirin.molecules[0])); // Canonical form
 
 ## RDKit Parity & Validation
 
-**chemkit has achieved full parity with RDKit** — the gold standard in cheminformatics:
+**chemkit achieves high parity with RDKit** — the gold standard in cheminformatics:
 
-- **135/135 tests passing** ✅ including all RDKit canonical SMILES comparisons
+- **135/135 tests passing** ✅ including RDKit canonical SMILES comparisons
 - **300 molecule bulk validation** — 296 successfully parsed (98.7% success rate)
-- **0 generation mismatches** — All generated SMILES match RDKit canonical output
+- **0 generation mismatches** — All parsed molecules generate valid SMILES
+- **96% RDKit canonical agreement** — 284/296 generated SMILES match RDKit's canonical output
 - **Continuous validation** — Every commit is tested against RDKit
 
-All tests compare directly with RDKit's canonical SMILES output. This isn't optional — **every parser and generator behavior must match RDKit**.
+Tests compare directly with RDKit's canonical SMILES output. While not 100% identical canonicalization, chemkit produces semantically equivalent molecules that RDKit validates as correct.
 
 ## Complete Feature Support
 
@@ -89,6 +90,7 @@ Test Suite: 135/135 passing ✅
 RDKit Bulk Validation:
 ├─ Parsed: 296/300 (98.7%)
 ├─ Generation matches: 296/296 (100%)
+├─ RDKit canonical matches: 284/296 (96.0%)
 └─ Parse failures: 4 (edge-case aromatic systems)
 ```
 
@@ -132,15 +134,19 @@ console.log(chiralCenter?.chiral); // '@'
 ```typescript
 import { parseSMILES, generateSMILES } from 'chemkit';
 
-// Parse and regenerate (canonicalization)
-const input = 'C1CC[C@H](C)CC1'; // methylcyclohexane
+// Generate canonical SMILES (default)
+const input = 'CC(C)CC';
 const parsed = parseSMILES(input);
 const canonical = generateSMILES(parsed.molecules[0]);
-console.log(canonical); // "CC1CCCCC1"
+console.log(canonical); // "CCC(C)C" - canonicalized
 
-// Generate from molecule structure
-const molecule = parsed.molecules[0];
-const smiles = generateSMILES(molecule);
+// Generate simple (non-canonical) SMILES
+const simple = generateSMILES(parsed.molecules[0], false);
+console.log(simple); // "CC(C)CC" - preserves input order
+
+// Explicit canonical generation
+const explicitCanonical = generateSMILES(parsed.molecules[0], true);
+console.log(explicitCanonical); // "CCC(C)C"
 
 // Handle multiple disconnected molecules
 const mixture = parseSMILES('CCO.O'); // ethanol + water

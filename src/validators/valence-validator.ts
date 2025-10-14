@@ -16,7 +16,36 @@ export function validateValences(atoms: Atom[], bonds: Bond[], errors: ParseErro
       continue;
     }
 
-    const valence = calculateValence(atom, bonds);
+    // Check if atom has a double/triple bond (sp2/sp hybridization)
+    const atomBonds = bonds.filter(b => b.atom1 === atom.id || b.atom2 === atom.id);
+    const hasMultipleBond = atomBonds.some(b => b.type === 'double' || b.type === 'triple');
+    
+    // If atom has chirality AND a multiple bond, the chirality is invalid
+    // (sp2/sp carbons cannot be chiral). Treat explicit H as 0 for valence calculation.
+    const effectiveHydrogens = (atom.chiral && hasMultipleBond) ? 0 : atom.hydrogens;
+    
+    // Calculate valence with adjusted hydrogen count
+    let valence = effectiveHydrogens || 0;
+    for (const bond of atomBonds) {
+      switch (bond.type) {
+        case 'single':
+          valence += 1;
+          break;
+        case 'double':
+          valence += 2;
+          break;
+        case 'triple':
+          valence += 3;
+          break;
+        case 'quadruple':
+          valence += 4;
+          break;
+        case 'aromatic':
+          valence += 1;
+          break;
+      }
+    }
+
     const allowedValences = DEFAULT_VALENCES[atom.symbol];
 
     if (!allowedValences) {

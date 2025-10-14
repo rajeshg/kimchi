@@ -72,7 +72,8 @@ while (TEST_SMILES.length < 300) {
       entry.oursError = e instanceof Error ? e.message : String(e);
     }
 
-    // RDKit parse original
+    // RDKit parse original: Get canonical SMILES from RDKit parsing the original input
+    // This serves as the reference canonical form for comparison
     try {
       const mol = RDKit.get_mol(smiles);
       entry.rdkitOriginal = (mol && mol.is_valid()) ? mol.get_smiles() : null;
@@ -81,7 +82,8 @@ while (TEST_SMILES.length < 300) {
       entry.rdkitOriginalError = e instanceof Error ? e.message : String(e);
     }
 
-    // RDKit parse ours
+    // RDKit parse ours: Get canonical SMILES from RDKit parsing chemkit's generated SMILES
+    // If rdkitOriginal === rdkitOurs, chemkit's parsing/generation is semantically equivalent to RDKit
     if (entry.ours) {
       try {
         const mol2 = RDKit.get_mol(entry.ours);

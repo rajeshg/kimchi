@@ -17,11 +17,12 @@ function countPiElectrons(atom: Atom, bonds: Bond[]): number {
       return 1;
     case 'N':
       // Nitrogen can contribute 1 or 2 π electrons.
-      // Conservative rules:
-      // - Positively charged N cannot contribute its lone pair (0)
+      // Rules:
+      // - Positively charged N in aromatic ring (e.g., pyridinium, thiazolium): contributes 1
       // - If N has a double bond in the ring, treat as pyridine-like (1)
       // - If N has an explicit H and no double bond, treat as pyrrole-like (2)
-      if (atom.charge > 0) return 0;
+      // - Otherwise pyridine-like (1)
+      if (atom.charge > 0) return 1; // N+ still contributes 1 π electron in aromatic systems
       if (hasDouble) return 1;
       if (atom.hydrogens > 0) return 2;
       return 1;
@@ -104,21 +105,52 @@ function detectAromaticRings(atoms: Atom[], bonds: Bond[], rings: number[][]): v
 }
 
 /**
+ * Check if a ring is a composite of smaller rings (for fused systems)
+ */
+function isCompositeRing(ring: number[], smallerRings: number[][]): boolean {
+  for (let i = 0; i < smallerRings.length; i++) {
+    for (let j = i + 1; j < smallerRings.length; j++) {
+      const ring1 = smallerRings[i]!;
+      const ring2 = smallerRings[j]!;
+      const combined = new Set([...ring1, ...ring2]);
+      if (combined.size === ring.length && ring.every(id => combined.has(id))) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+/**
+ * Check if a ring is part of a fused ring system (shares 2+ atoms with another ring)
+ */
+function isPartOfFusedSystem(ring: number[], allRings: number[][]): boolean {
+  for (const otherRing of allRings) {
+    if (otherRing === ring) continue;
+    const sharedAtoms = ring.filter(id => otherRing.includes(id));
+    if (sharedAtoms.length >= 2) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Validate aromaticity rules in a molecule using Hückel's 4n+2 rule
  */
 export function validateAromaticity(atoms: Atom[], bonds: Bond[], errors: ParseError[]): void {
   // Find all rings in the molecule
-  const rings = findRings(atoms, bonds);
+  const allRings = findRings(atoms, bonds);
 
   // First, detect potential aromatic rings from Kekule forms
-  detectAromaticRings(atoms, bonds, rings);
+  detectAromaticRings(atoms, bonds, allRings);
 
   const aromaticAtoms = atoms.filter(a => a.aromatic);
   if (aromaticAtoms.length === 0) return;
 
   // First pass: Check that aromatic atoms are in rings
   for (const atom of aromaticAtoms) {
-    const atomInRing = rings.some(ring =>
+    const atomInRing = allRings.some(ring =>
       ring.some(ringAtomId => ringAtomId === atom.id)
     );
 
@@ -131,21 +163,29 @@ export function validateAromaticity(atoms: Atom[], bonds: Bond[], errors: ParseE
     }
   }
 
+  // Filter to only elementary rings (SSSR), excluding composite fused rings
+  const rings = allRings.filter(ring => {
+    const smallerRings = allRings.filter(r => r.length < ring.length);
+    return !isCompositeRing(ring, smallerRings);
+  });
+
    // Second pass: Validate aromatic rings using Hückel's rule
+   // Skip validation for rings that are part of fused systems (they share π electrons)
    for (const ring of rings) {
      const ringAtoms = ring.map(id => atoms.find(a => a.id === id)!);
      const allAromatic = ringAtoms.every(a => a.aromatic);
 
-     if (allAromatic) { // Check all aromatic rings
+     if (allAromatic) {
+       // Skip Hückel validation for rings in fused systems
+       if (isPartOfFusedSystem(ring, rings)) {
+         continue;
+       }
+
        const ringBonds = bonds.filter(b =>
          ring.includes(b.atom1) && ring.includes(b.atom2)
        );
 
-        // Check Hückel's 4n+2 rule
-         if (!isHuckelAromatic(ringAtoms, ringBonds)) {
-           // For SMILES parsing, trust the input's aromatic designation rather than
-           // strictly enforcing Hückel's rule, as SMILES may represent aromatic systems
-           // that don't perfectly follow the rule. Just log a warning.
+        if (!isHuckelAromatic(ringAtoms, ringBonds)) {
             errors.push({
               message: `Ring ${ring.join(',')} marked as aromatic but violates Hückel's 4n+2 rule`,
               position: -1

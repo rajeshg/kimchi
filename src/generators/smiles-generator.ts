@@ -1,18 +1,18 @@
 import type { Molecule, Bond, Atom } from '../../types';
 import { BondType, StereoType } from '../../types';
 
-// Internal canonical-ish SMILES generator using iterative atom invariants+
-// deterministic traversal to approximate RDKit's canonical SMILES for common cases.
+// SMILES generation strategy:
+// - For simple SMILES: treat molecule as a graph and use DFS traversal
+// - For canonical SMILES: implement canonical numbering (iterative atom invariants),
+//   then use DFS with deterministic ordering based on canonical labels
 
-export function generateSMILES(input: Molecule | Molecule[]): string {
+export function generateSMILES(input: Molecule | Molecule[], canonical = true): string {
   if (Array.isArray(input)) {
-    return input.map(mol => generateSMILES(mol)).join('.');
+    return input.map(mol => generateSMILES(mol, canonical)).join('.');
   }
   const molecule = input;
   if (molecule.atoms.length === 0) return '';
 
-  // For SMILES generation, preserve stereochemistry as specified in input
-  // Only remove stereo for atoms with insufficient neighbors or in simple rings
   for (const atom of molecule.atoms) {
     if (atom.chiral) {
       const neighbors = getNeighbors(atom.id, molecule);
@@ -23,56 +23,32 @@ export function generateSMILES(input: Molecule | Molecule[]): string {
           atom.hydrogens = 0;
         }
       }
-      // Also remove chirality if atom is in a saturated ring (simplified heuristic)
-      // Check if the atom is part of a ring by seeing if any two neighbors form a ring
-      if (atom.chiral && neighbors.length >= 2) {
-        for (let i = 0; i < neighbors.length; i++) {
-          for (let j = i + 1; j < neighbors.length; j++) {
-            const [n1] = neighbors[i]!;
-            const [n2] = neighbors[j]!;
-            if (isInSmallRing(n1, n2, molecule, 8)) {
-              // Atom is in a ring - remove chirality as a simplification
-              atom.chiral = null;
-              if (atom.symbol === 'C' && atom.hydrogens <= 1 && atom.charge === 0 && !atom.isotope) {
-                atom.isBracket = false;
-                atom.hydrogens = 0;
-              }
-              break;
-            }
-          }
-          if (!atom.chiral) break;
-        }
-      }
     }
   }
 
-  // Drop double bond stereo if in a small ring
-  // When a double bond is in a small ring, clear all single bond stereo markers
-  // that could be related to that double bond's stereochemistry
   for (const bond of molecule.bonds) {
     if (bond.type === BondType.DOUBLE) {
       const inSmallRing = isInSmallRing(bond.atom1, bond.atom2, molecule, 8);
       if (inSmallRing) {
-        // Clear ALL stereo on single bonds in the molecule
-        // (this is a simplification; could be more targeted)
         for (const b of molecule.bonds) {
           if (b.type === BondType.SINGLE && b.stereo && b.stereo !== StereoType.NONE) {
             b.stereo = StereoType.NONE;
           }
         }
-        break; // Only need to do this once
+        break;
       }
     }
   }
 
   const components = findConnectedComponents(molecule);
   if (components.length > 1) {
-    return components.map(comp => generateComponentSMILES(comp, molecule)).join('.');
+    return components.map(comp => generateComponentSMILES(comp, molecule, canonical)).join('.');
   }
 
-  return generateComponentSMILES(molecule.atoms.map(a => a.id), molecule);
+  return generateComponentSMILES(molecule.atoms.map(a => a.id), molecule, canonical);
 }
 
+// Treat the molecule as a graph: use BFS to find disconnected components
 function findConnectedComponents(molecule: Molecule): number[][] {
   const visited = new Set<number>();
   const components: number[][] = [];
@@ -96,12 +72,14 @@ function findConnectedComponents(molecule: Molecule): number[][] {
   return components;
 }
 
-function generateComponentSMILES(atomIds: number[], molecule: Molecule): string {
+function generateComponentSMILES(atomIds: number[], molecule: Molecule, useCanonical = true): string {
   const componentAtoms = atomIds.map(id => molecule.atoms.find(a => a.id === id)!);
   const componentBonds = molecule.bonds.filter(b => atomIds.includes(b.atom1) && atomIds.includes(b.atom2));
   
   const subMol: Molecule = { atoms: componentAtoms, bonds: componentBonds };
-  const labels = canonicalLabels(subMol);
+  
+  // Canonical numbering: compute unique labels for each atom using iterative refinement
+  const labels = useCanonical ? canonicalLabels(subMol) : simpleLabels(subMol);
 
   const atomsSorted = [...componentAtoms].sort((a, b) => {
     const la = labels.get(a.id)!;
@@ -118,6 +96,7 @@ function generateComponentSMILES(atomIds: number[], molecule: Molecule): string 
     degrees.set(bond.atom2, (degrees.get(bond.atom2) || 0) + 1);
   }
 
+  // Select root atom deterministically using canonical labels for canonical SMILES
   let root = atomsSorted[0]!.id;
   let rootAtom = componentAtoms.find(a => a.id === root)!;
   for (const atom of componentAtoms) {
@@ -172,10 +151,12 @@ function generateComponentSMILES(atomIds: number[], molecule: Molecule): string 
   const atomRingNumbers = new Map<number, number[]>();
   const out: string[] = [];
 
+  // DFS traversal: identify ring closures (back edges) in the molecular graph
   const findBackEdges = (atomId: number, parentId: number | null, visited: Set<number>, backEdges: Set<string>) => {
     visited.add(atomId);
     const neighbors = getNeighbors(atomId, subMol).filter(([nid]) => nid !== parentId);
 
+    // Sort neighbors by canonical labels for deterministic traversal order
     neighbors.sort((x, y) => {
       const [aId, aBond] = x;
       const [bId, bBond] = y;
@@ -190,6 +171,7 @@ function generateComponentSMILES(atomIds: number[], molecule: Molecule): string 
 
     for (const [nid] of neighbors) {
       if (visited.has(nid)) {
+        // Back edge detected: this forms a ring closure
         backEdges.add(bondKey(atomId, nid));
       } else {
         findBackEdges(nid, atomId, visited, backEdges);
@@ -237,7 +219,6 @@ function generateComponentSMILES(atomIds: number[], molecule: Molecule): string 
     const ringNums = atomRingNumbers.get(atomId) || [];
     for (const num of ringNums) {
       const numStr = num < 10 ? String(num) : `%${String(num).padStart(2, '0')}`;
-      out.push(numStr);
       
       // Find the ring closure bond and the other atom for this ring number
       let ringBond: Bond | undefined;
@@ -253,7 +234,7 @@ function generateComponentSMILES(atomIds: number[], molecule: Molecule): string 
         }
       }
       
-      // Output bond symbol AFTER the ring number for the first occurrence
+      // Output bond symbol BEFORE the ring number for the first occurrence
       // (when the other atom hasn't been seen yet)
       const isFirstOccurrence = otherAtom !== undefined && !seen.has(otherAtom);
       
@@ -262,6 +243,8 @@ function generateComponentSMILES(atomIds: number[], molecule: Molecule): string 
         else if (ringBond.type === BondType.TRIPLE) out.push('#');
         // Aromatic bonds don't need a symbol
       }
+      
+      out.push(numStr);
     }
 
     seen.add(atomId);
@@ -310,6 +293,14 @@ function generateComponentSMILES(atomIds: number[], molecule: Molecule): string 
   visit(root, null);
 
   return out.join('');
+}
+
+function simpleLabels(mol: Molecule): Map<number, string> {
+  const labels = new Map<number, string>();
+  for (const a of mol.atoms) {
+    labels.set(a.id, String(a.id));
+  }
+  return labels;
 }
 
 function canonicalLabels(mol: Molecule): Map<number, string> {
