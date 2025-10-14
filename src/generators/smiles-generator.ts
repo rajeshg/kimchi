@@ -62,6 +62,11 @@ export function generateSMILES(input: Molecule | Molecule[], canonical = true): 
     }
   }
 
+  // Normalize stereo markers for canonical SMILES
+  if (canonical) {
+    normalizeStereoMarkers(cloned);
+  }
+
   const components = findConnectedComponents(cloned);
   if (components.length > 1) {
     return components.map(comp => generateComponentSMILES(comp, cloned, canonical)).join('.');
@@ -110,6 +115,7 @@ function generateComponentSMILES(atomIds: number[], molecule: Molecule, useCanon
     const lb = labels.get(b.id)!;
     if (la < lb) return -1;
     if (la > lb) return 1;
+    if (a.atomicNumber !== b.atomicNumber) return a.atomicNumber - b.atomicNumber;
     if (a.charge !== b.charge) return (a.charge || 0) - (b.charge || 0);
     return a.id - b.id;
   });
@@ -333,7 +339,14 @@ function canonicalLabels(mol: Molecule): { labels: Map<number, string>, duplicat
   for (const a of mol.atoms) {
     const deg = getNeighbors(a.id, mol).length;
     const absCharge = Math.abs(a.charge || 0);
-    const lbl = [deg, a.atomicNumber, a.aromatic ? 'ar' : 'al', a.isotope || 0, absCharge, a.hydrogens || 0].join('|');
+    const lbl = [
+      String(deg).padStart(3, '0'),
+      String(a.atomicNumber).padStart(3, '0'),
+      a.aromatic ? 'ar' : 'al',
+      String(a.isotope || 0).padStart(3, '0'),
+      String(absCharge).padStart(3, '0'),
+      String(a.hydrogens || 0).padStart(3, '0')
+    ].join('|');
     labels.set(a.id, lbl);
   }
 
@@ -396,9 +409,30 @@ function bondPriority(b: Bond): number {
 
 function bondSymbolForOutput(bond: Bond, childId: number, molecule: Molecule, parentId: number | null, duplicates: Set<number>): string {
   if (bond.type === BondType.SINGLE) {
-    if (bond.stereo && bond.stereo !== StereoType.NONE) return bond.stereo === StereoType.UP ? '/' : '\\';
-    const dbl = molecule.bonds.find(x => x.type === BondType.DOUBLE && x.stereo && x.stereo !== StereoType.NONE && (x.atom1 === childId || x.atom2 === childId));
-    if (dbl) return dbl.stereo === StereoType.UP ? '/' : '\\';
+    // For single bonds, check if they're involved in double bond stereochemistry
+    const hasExplicitStereo = bond.stereo && bond.stereo !== StereoType.NONE;
+    
+    if (hasExplicitStereo) {
+      // Determine the stereo marker based on traversal direction
+      // The bond connects parentId to childId in our traversal
+      const traversalForward = (bond.atom1 === parentId && bond.atom2 === childId) || 
+                               (bond.atom2 === parentId && bond.atom1 === childId);
+      
+      if (!traversalForward) {
+        // If bond direction doesn't match traversal, use original stereo
+        return bond.stereo === StereoType.UP ? '/' : '\\';
+      }
+      
+      // Normalize: prefer '/' marker for UP stereo in canonical form
+      // If traversing bond in same direction as stored (atom1->atom2)
+      const sameDirection = bond.atom1 === parentId;
+      if (sameDirection) {
+        return bond.stereo === StereoType.UP ? '/' : '\\';
+      } else {
+        // Traversing opposite direction: flip the marker
+        return bond.stereo === StereoType.UP ? '\\' : '/';
+      }
+    }
     return '';
   }
   if (bond.type === BondType.DOUBLE) return '=';
@@ -438,4 +472,42 @@ function isInSmallRing(atom1: number, atom2: number, molecule: Molecule, maxSize
   }
   
   return false;
+}
+
+// Normalize stereo markers to canonical form
+// For equivalent representations (e.g., F/C=C/F vs F\C=C\F), prefer UP markers
+function normalizeStereoMarkers(molecule: Molecule): void {
+  for (const bond of molecule.bonds) {
+    if (bond.type !== BondType.DOUBLE) continue;
+    
+    // Find all single bonds attached to the double bond atoms
+    const bondsOnAtom1 = molecule.bonds.filter(b => 
+      b.type === BondType.SINGLE && 
+      (b.atom1 === bond.atom1 || b.atom2 === bond.atom1) &&
+      b.stereo && b.stereo !== StereoType.NONE
+    );
+    const bondsOnAtom2 = molecule.bonds.filter(b => 
+      b.type === BondType.SINGLE && 
+      (b.atom1 === bond.atom2 || b.atom2 === bond.atom2) &&
+      b.stereo && b.stereo !== StereoType.NONE
+    );
+    
+    if (bondsOnAtom1.length === 0 || bondsOnAtom2.length === 0) continue;
+    
+    // Check if all stereo markers are the same (all UP or all DOWN)
+    const allUp = bondsOnAtom1.every(b => b.stereo === StereoType.UP) && 
+                  bondsOnAtom2.every(b => b.stereo === StereoType.UP);
+    const allDown = bondsOnAtom1.every(b => b.stereo === StereoType.DOWN) && 
+                    bondsOnAtom2.every(b => b.stereo === StereoType.DOWN);
+    
+    // If all DOWN, convert to all UP (canonical form)
+    if (allDown) {
+      for (const b of bondsOnAtom1) {
+        b.stereo = StereoType.UP;
+      }
+      for (const b of bondsOnAtom2) {
+        b.stereo = StereoType.UP;
+      }
+    }
+  }
 }

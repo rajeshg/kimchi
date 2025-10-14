@@ -140,7 +140,61 @@ describe('SMILES Parser', () => {
     expect(dbl).toBeDefined();
     expect(dbl!.stereo).toBe(StereoType.DOWN);
     const gen = generateSMILES(mol);
-    expect(gen).toBe('F\\C=C\\F');
+    expect(gen).toBe('F/C=C/F');
+  });
+
+  it('parses mixed stereo markers F/C=C\\F (opposite sides)', () => {
+    const result = parseSMILES('F/C=C\\F');
+    expect(result.errors).toHaveLength(0);
+    const mol = result.molecules[0]!;
+    expect(mol.atoms).toHaveLength(4);
+    expect(mol.bonds).toHaveLength(3);
+    const gen = generateSMILES(mol);
+    expect(gen).toBe('F/C=C\\F');
+  });
+
+  it('parses tri-substituted alkene with stereo Cl/C=C(\\F)Br', () => {
+    const result = parseSMILES('Cl/C=C(\\F)Br');
+    expect(result.errors).toHaveLength(0);
+    const mol = result.molecules[0]!;
+    expect(mol.atoms).toHaveLength(5);
+    const dbl = mol.bonds.find(b => b.type === 'double');
+    expect(dbl).toBeDefined();
+    const gen = generateSMILES(mol);
+    // Should preserve stereo markers
+    expect(gen).toContain('=');
+    expect(gen.match(/[/\\]/g)).toBeTruthy();
+  });
+
+  it('parses tetra-substituted alkene Cl/C(F)=C(\\Br)I', () => {
+    const result = parseSMILES('Cl/C(F)=C(\\Br)I');
+    expect(result.errors).toHaveLength(0);
+    const mol = result.molecules[0]!;
+    expect(mol.atoms).toHaveLength(6);
+    const dbl = mol.bonds.find(b => b.type === 'double');
+    expect(dbl).toBeDefined();
+    const gen = generateSMILES(mol);
+    expect(gen).toContain('=');
+  });
+
+  it('parses conjugated diene with multiple stereo centers', () => {
+    const result = parseSMILES('F/C=C/C=C/F');
+    expect(result.errors).toHaveLength(0);
+    const mol = result.molecules[0]!;
+    expect(mol.atoms).toHaveLength(6);
+    const doubles = mol.bonds.filter(b => b.type === 'double');
+    expect(doubles).toHaveLength(2);
+    const gen = generateSMILES(mol);
+    expect(gen).toBe('F/C=C/C=C/F');
+  });
+
+  it('preserves stereo in branched structures', () => {
+    const result = parseSMILES('C(/C)=C/C');
+    expect(result.errors).toHaveLength(0);
+    const mol = result.molecules[0]!;
+    const gen = generateSMILES(mol);
+    // Should preserve the stereo information
+    expect(gen).toMatch(/[/\\]/);
   });
 });
 

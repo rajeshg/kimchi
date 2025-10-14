@@ -12,9 +12,22 @@ const TEST_SMILES = [
   '[OH-]',
   'c1ccccc1',
   'C[C@H]',
-  // Stereo
+  // Stereo - cis/trans alkenes
   'F/C=C/F',
   'F\C=C\F',
+  'F/C=C\\F',
+  'C/C=C/C',
+  'C\\C=C\\C',
+  'C/C=C\\C',
+  // Stereo - tri/tetra-substituted
+  'Cl/C=C(\\F)Br',
+  'Br/C=C/I',
+  // Stereo - conjugated systems
+  'F/C=C/C=C/F',
+  'C/C=C\\C=C/C',
+  // Stereo - heteroatoms
+  'N/C=C/O',
+  '[O-]/C=C/[O-]',
   // Ring closure stereo
   'F/C1=CCC1/F',
   // Branches/aromatic
