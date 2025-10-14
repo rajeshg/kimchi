@@ -118,6 +118,14 @@ describe('Symmetry Detection for Stereochemistry', () => {
       const canonical = generateSMILES(result.molecules[0]!, true);
       expect(canonical).not.toContain('@');
     });
+
+    it('should remove stereochemistry from phosphorus', () => {
+      const result = parseSMILES('C[C@H](P)C');
+      expect(result.errors).toHaveLength(0);
+      const canonical = generateSMILES(result.molecules[0]!, true);
+      expect(canonical).not.toContain('@');
+      expect(canonical).toBe('CC(C)P');
+    });
   });
 
   describe('Ring systems with stereochemistry', () => {
@@ -125,7 +133,6 @@ describe('Symmetry Detection for Stereochemistry', () => {
       const result = parseSMILES('C1C[C@H](Br)CC1');
       expect(result.errors).toHaveLength(0);
       const canonical = generateSMILES(result.molecules[0]!, true);
-      // Single substituent has no reference point, stereo should be removed
       expect(canonical).not.toContain('@');
     });
 
@@ -137,6 +144,13 @@ describe('Symmetry Detection for Stereochemistry', () => {
       if (hasSymmetricCyclopropyl) {
         expect(canonical).not.toContain('@');
       }
+    });
+
+    it('should remove stereo from bridgehead carbon in fused rings', () => {
+      const result = parseSMILES('C1CC2CC[C@H](Br)C2C1');
+      expect(result.errors).toHaveLength(0);
+      const canonical = generateSMILES(result.molecules[0]!, true);
+      expect(canonical).not.toContain('@');
     });
   });
 });

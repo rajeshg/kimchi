@@ -141,7 +141,7 @@ export function removeInvalidStereo(molecule: Molecule): void {
 
   for (const atom of molecule.atoms) {
     if (atom.chiral && (atom.chiral === '@' || atom.chiral === '@@')) {
-      if (atom.atomicNumber === 7) {
+      if (atom.atomicNumber === 7 || atom.atomicNumber === 15) {
         atom.chiral = null;
         atom.isBracket = false;
       } else if (atom.atomicNumber === 6 && (atom.hydrogens === 0 || atom.hydrogens === undefined)) {
