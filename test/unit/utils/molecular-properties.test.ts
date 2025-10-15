@@ -1,6 +1,17 @@
 import { describe, it, expect } from 'bun:test';
 import { parseSMILES } from 'parser';
-import { getMolecularFormula, getMolecularMass } from 'src/utils/molecular-properties';
+import {
+  getMolecularFormula,
+  getMolecularMass,
+  getExactMass,
+  getHeavyAtomCount,
+  getHeteroAtomCount,
+  getRingCount,
+  getAromaticRingCount,
+  getFractionCSP3,
+  getHBondAcceptorCount,
+  getHBondDonorCount,
+} from 'src/utils/molecular-properties';
 
 async function initRDKit() {
   const rdkitModule = await import('@rdkit/rdkit').catch(() => null);
@@ -116,5 +127,148 @@ describe('molecular properties', () => {
 
       if (rdkitMol && rdkitMol.delete) rdkitMol.delete();
     }
+  });
+
+  describe('Basic atom counting', () => {
+    it('should count heavy atoms in ethanol', () => {
+      const result = parseSMILES('CCO');
+      expect(result.errors).toEqual([]);
+      expect(getHeavyAtomCount(result.molecules[0]!)).toBe(3);
+    });
+
+    it('should count heavy atoms in benzene', () => {
+      const result = parseSMILES('c1ccccc1');
+      expect(result.errors).toEqual([]);
+      expect(getHeavyAtomCount(result.molecules[0]!)).toBe(6);
+    });
+
+    it('should count heteroatoms in ethanol', () => {
+      const result = parseSMILES('CCO');
+      expect(result.errors).toEqual([]);
+      expect(getHeteroAtomCount(result.molecules[0]!)).toBe(1);
+    });
+
+    it('should count heteroatoms in pyridine', () => {
+      const result = parseSMILES('c1ccncc1');
+      expect(result.errors).toEqual([]);
+      expect(getHeteroAtomCount(result.molecules[0]!)).toBe(1);
+    });
+
+    it('should count heteroatoms in acetamide', () => {
+      const result = parseSMILES('CC(=O)N');
+      expect(result.errors).toEqual([]);
+      expect(getHeteroAtomCount(result.molecules[0]!)).toBe(2);
+    });
+  });
+
+  describe('Ring counting', () => {
+    it('should count rings in benzene', () => {
+      const result = parseSMILES('c1ccccc1');
+      expect(result.errors).toEqual([]);
+      expect(getRingCount(result.molecules[0]!)).toBe(1);
+    });
+
+    it('should count rings in naphthalene', () => {
+      const result = parseSMILES('c1ccc2ccccc2c1');
+      expect(result.errors).toEqual([]);
+      expect(getRingCount(result.molecules[0]!)).toBe(3);
+    });
+
+    it('should count no rings in ethane', () => {
+      const result = parseSMILES('CC');
+      expect(result.errors).toEqual([]);
+      expect(getRingCount(result.molecules[0]!)).toBe(0);
+    });
+
+    it('should count aromatic rings in benzene', () => {
+      const result = parseSMILES('c1ccccc1');
+      expect(result.errors).toEqual([]);
+      expect(getAromaticRingCount(result.molecules[0]!)).toBe(1);
+    });
+
+    it('should count aromatic rings in naphthalene', () => {
+      const result = parseSMILES('c1ccc2ccccc2c1');
+      expect(result.errors).toEqual([]);
+      expect(getAromaticRingCount(result.molecules[0]!)).toBe(3);
+    });
+
+    it('should count no aromatic rings in cyclohexane', () => {
+      const result = parseSMILES('C1CCCCC1');
+      expect(result.errors).toEqual([]);
+      expect(getAromaticRingCount(result.molecules[0]!)).toBe(0);
+    });
+  });
+
+  describe('Fraction CSP3', () => {
+    it('should calculate 1.0 for ethane (all sp3)', () => {
+      const result = parseSMILES('CC');
+      expect(result.errors).toEqual([]);
+      expect(getFractionCSP3(result.molecules[0]!)).toBe(1.0);
+    });
+
+    it('should calculate 0.0 for benzene (all aromatic)', () => {
+      const result = parseSMILES('c1ccccc1');
+      expect(result.errors).toEqual([]);
+      expect(getFractionCSP3(result.molecules[0]!)).toBe(0.0);
+    });
+
+    it('should calculate 0.0 for ethylene (sp2)', () => {
+      const result = parseSMILES('C=C');
+      expect(result.errors).toEqual([]);
+      expect(getFractionCSP3(result.molecules[0]!)).toBe(0.0);
+    });
+
+    it('should calculate 0.333 for propene (1 sp3, 2 sp2)', () => {
+      const result = parseSMILES('CC=C');
+      expect(result.errors).toEqual([]);
+      const frac = getFractionCSP3(result.molecules[0]!);
+      expect(frac).toBeCloseTo(0.333, 2);
+    });
+
+    it('should handle molecules with no carbons', () => {
+      const result = parseSMILES('O');
+      expect(result.errors).toEqual([]);
+      expect(getFractionCSP3(result.molecules[0]!)).toBe(0);
+    });
+  });
+
+  describe('Hydrogen bond donors and acceptors', () => {
+    it('should count HBA in water', () => {
+      const result = parseSMILES('O');
+      expect(result.errors).toEqual([]);
+      expect(getHBondAcceptorCount(result.molecules[0]!)).toBe(1);
+    });
+
+    it('should count HBD in water', () => {
+      const result = parseSMILES('O');
+      expect(result.errors).toEqual([]);
+      expect(getHBondDonorCount(result.molecules[0]!)).toBe(2);
+    });
+
+    it('should count HBA in ethanol', () => {
+      const result = parseSMILES('CCO');
+      expect(result.errors).toEqual([]);
+      expect(getHBondAcceptorCount(result.molecules[0]!)).toBe(1);
+    });
+
+    it('should count HBD in ethanol', () => {
+      const result = parseSMILES('CCO');
+      expect(result.errors).toEqual([]);
+      expect(getHBondDonorCount(result.molecules[0]!)).toBe(1);
+    });
+
+    it('should count HBA/HBD in urea', () => {
+      const result = parseSMILES('NC(=O)N');
+      expect(result.errors).toEqual([]);
+      expect(getHBondAcceptorCount(result.molecules[0]!)).toBe(3);
+      expect(getHBondDonorCount(result.molecules[0]!)).toBe(4);
+    });
+
+    it('should count HBA in pyridine (no HBD)', () => {
+      const result = parseSMILES('c1ccncc1');
+      expect(result.errors).toEqual([]);
+      expect(getHBondAcceptorCount(result.molecules[0]!)).toBe(1);
+      expect(getHBondDonorCount(result.molecules[0]!)).toBe(0);
+    });
   });
 });

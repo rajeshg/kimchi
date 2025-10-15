@@ -1,5 +1,6 @@
 import type { Molecule } from 'types';
 import { MONOISOTOPIC_MASSES, ISOTOPE_MASSES } from 'src/constants';
+import { findRings } from 'src/utils/ring-finder';
 
 export interface MolecularOptions {
   includeImplicitH?: boolean; // default true
@@ -101,4 +102,65 @@ function getAtomMass(symbol: string, isotope: number | null): number {
   const base = MONOISOTOPIC_MASSES[symbol];
   if (base !== undefined) return base;
   return Math.max(1, Math.round((symbol.length > 0 ? symbol.charCodeAt(0) % 100 : 12)));
+}
+
+export function getHeavyAtomCount(mol: Molecule): number {
+  return mol.atoms.filter(a => a.symbol !== 'H' && a.symbol !== '*').length;
+}
+
+export function getHeteroAtomCount(mol: Molecule): number {
+  return mol.atoms.filter(a => {
+    const sym = a.symbol;
+    return sym !== 'C' && sym !== 'H' && sym !== '*';
+  }).length;
+}
+
+export function getRingCount(mol: Molecule): number {
+  const rings = findRings(mol.atoms, mol.bonds);
+  return rings.length;
+}
+
+export function getAromaticRingCount(mol: Molecule): number {
+  const rings = findRings(mol.atoms, mol.bonds);
+  return rings.filter((ring: number[]) => {
+    return ring.every((atomId: number) => {
+      const atom = mol.atoms.find(a => a.id === atomId);
+      return atom?.aromatic === true;
+    });
+  }).length;
+}
+
+export function getFractionCSP3(mol: Molecule): number {
+  const carbons = mol.atoms.filter(a => a.symbol === 'C');
+  if (carbons.length === 0) return 0;
+  
+  const sp3Carbons = carbons.filter(c => {
+    if (c.aromatic) return false;
+    
+    const bonds = mol.bonds.filter(b => b.atom1 === c.id || b.atom2 === c.id);
+    const hasMultipleBond = bonds.some(b => b.type === 'double' || b.type === 'triple');
+    
+    if (hasMultipleBond) return false;
+    
+    const explicitBonds = bonds.length;
+    const totalValence = explicitBonds + (c.hydrogens ?? 0);
+    
+    return totalValence === 4;
+  });
+  
+  return sp3Carbons.length / carbons.length;
+}
+
+export function getHBondAcceptorCount(mol: Molecule): number {
+  return mol.atoms.filter(a => a.symbol === 'N' || a.symbol === 'O').length;
+}
+
+export function getHBondDonorCount(mol: Molecule): number {
+  let count = 0;
+  for (const atom of mol.atoms) {
+    if (atom.symbol === 'N' || atom.symbol === 'O') {
+      count += atom.hydrogens ?? 0;
+    }
+  }
+  return count;
 }

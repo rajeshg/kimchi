@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "test": "bun test",
-    "test:full": "RUN_RDKIT_10K=1 bun test"
+    "test:full": "RUN_RDKIT_BULK=1 bun test"
   },
   "devDependencies": {
     "@rdkit/rdkit": "latest",
