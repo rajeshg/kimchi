@@ -36,3 +36,30 @@
 - Use vitest with describe/it blocks
 - Test both success and error cases
 - Compare with RDKit where possible for validation
+
+## File Locations
+
+### Core Functionality
+- **SMILES Parser**: `src/parser.ts`
+- **SMILES Generator**: `src/generators/smiles-generator.ts`
+- **MOL Generator**: `src/generators/mol-generator.ts`
+- **Types**: `types.ts`
+
+### Utilities
+- **Atom utilities**: `src/utils/atom-utils.ts`
+- **Bond utilities**: `src/utils/bond-utils.ts`
+- **Molecular properties**: `src/utils/molecular-properties.ts`
+- **Ring analysis**: `src/utils/ring-utils.ts`
+- **Ring finding**: `src/utils/ring-finder.ts`
+- **Aromaticity perception**: `src/utils/aromaticity-perceiver.ts`
+- **Symmetry detection**: `src/utils/symmetry-detector.ts`
+- **Valence calculation**: `src/utils/valence-calculator.ts`
+
+### Validators
+- **Aromaticity validator**: `src/validators/aromaticity-validator.ts`
+- **Stereo validator**: `src/validators/stereo-validator.ts`
+- **Valence validator**: `src/validators/valence-validator.ts`
+
+### Generators
+- **SMILES generator**: `src/generators/smiles-generator.ts`
+- **MOL generator**: `src/generators/mol-generator.ts`

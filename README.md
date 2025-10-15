@@ -395,6 +395,37 @@ Generates SMILES from molecule structure(s).
 - Deterministic output for identical molecules
 - Preserves tetrahedral and double bond stereochemistry
 
+### `generateMolfile(molecule: Molecule, options?: MolGeneratorOptions): string`
+
+Generates a MOL file (V2000 format) from a molecule structure. Matches RDKit's output structure for compatibility with cheminformatics tools.
+
+**Parameters**:
+- `molecule` — Molecule structure to convert
+- `options` — Optional configuration:
+  - `title?: string` — Molecule title (default: empty)
+  - `programName?: string` — Program name in header (default: "chemkit")
+  - `dimensionality?: '2D' | '3D'` — Coordinate system (default: "2D")
+  - `comment?: string` — Comment line (default: empty)
+
+**Returns**: MOL file content as string with V2000 format
+
+**Features**:
+- V2000 MOL format compatible with RDKit and other tools
+- 2D coordinate generation using circular layout
+- Proper atom/bond type mapping (aromatic, charged, isotopic)
+- Stereochemistry support (chiral centers, E/Z double bonds)
+- Fixed-width formatting matching RDKit output
+
+**Example**:
+```typescript
+import { parseSMILES, generateMolfile } from 'chemkit';
+
+const result = parseSMILES('CCO');
+const molfile = generateMolfile(result.molecules[0]);
+console.log(molfile);
+// Output: MOL file with header, atom coordinates, bond connectivity, etc.
+```
+
 ### Molecular Property Functions
 
 #### Basic Properties
