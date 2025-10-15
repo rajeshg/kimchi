@@ -164,3 +164,104 @@ export function getHBondDonorCount(mol: Molecule): number {
   }
   return count;
 }
+
+export function getTPSA(mol: Molecule): number {
+  let tpsa = 0;
+  
+  for (const atom of mol.atoms) {
+    const symbol = atom.symbol;
+    if (symbol !== 'N' && symbol !== 'O' && symbol !== 'S' && symbol !== 'P') {
+      continue;
+    }
+    
+    const hydrogens = atom.hydrogens ?? 0;
+    const bonds = mol.bonds.filter(b => b.atom1 === atom.id || b.atom2 === atom.id);
+    const heavyNeighbors = bonds.length;
+    
+    const doubleBonds = bonds.filter(b => b.type === 'double').length;
+    const tripleBonds = bonds.filter(b => b.type === 'triple').length;
+    
+    const contribution = getTPSAContribution(
+      symbol,
+      hydrogens,
+      heavyNeighbors,
+      doubleBonds,
+      tripleBonds,
+      atom.aromatic ?? false
+    );
+    
+    tpsa += contribution;
+  }
+  
+  return Math.round(tpsa * 100) / 100;
+}
+
+function getTPSAContribution(
+  symbol: string,
+  hydrogens: number,
+  heavyNeighbors: number,
+  doubleBonds: number,
+  tripleBonds: number,
+  aromatic: boolean
+): number {
+  if (symbol === 'N') {
+    if (aromatic) {
+      if (hydrogens === 1) return 15.79;
+      if (hydrogens === 0) return 12.89;
+    }
+    
+    if (tripleBonds === 1) {
+      return 23.79;
+    }
+    
+    if (doubleBonds >= 1) {
+      if (hydrogens === 0 && heavyNeighbors === 1) return 23.79;
+      if (hydrogens === 0 && heavyNeighbors === 2) return 12.36;
+    }
+    
+    if (hydrogens === 3) return 26.02;
+    if (hydrogens === 2) return 26.02;
+    if (hydrogens === 1) return 12.03;
+    if (hydrogens === 0 && heavyNeighbors === 3) return 3.24;
+    if (hydrogens === 0) return 12.03;
+    
+    return 12.03;
+  }
+  
+  if (symbol === 'O') {
+    if (aromatic) {
+      return 13.14;
+    }
+    
+    if (doubleBonds === 1) {
+      return 17.07;
+    }
+    
+    if (hydrogens >= 1) return 20.23;
+    if (hydrogens === 0 && heavyNeighbors === 2) return 9.23;
+    
+    return 17.07;
+  }
+  
+  if (symbol === 'S') {
+    if (doubleBonds >= 2) {
+      return 32.09;
+    }
+    if (doubleBonds === 1) {
+      return 25.30;
+    }
+    if (hydrogens === 1) return 38.80;
+    if (hydrogens === 0) return 25.30;
+    
+    return 25.30;
+  }
+  
+  if (symbol === 'P') {
+    if (doubleBonds === 1) {
+      return 34.14;
+    }
+    return 13.59;
+  }
+  
+  return 0;
+}

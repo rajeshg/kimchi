@@ -3,7 +3,6 @@ import { parseSMILES } from 'parser';
 import {
   getMolecularFormula,
   getMolecularMass,
-  getExactMass,
   getHeavyAtomCount,
   getHeteroAtomCount,
   getRingCount,
@@ -11,6 +10,7 @@ import {
   getFractionCSP3,
   getHBondAcceptorCount,
   getHBondDonorCount,
+  getTPSA,
 } from 'src/utils/molecular-properties';
 
 async function initRDKit() {
@@ -269,6 +269,86 @@ describe('molecular properties', () => {
       expect(result.errors).toEqual([]);
       expect(getHBondAcceptorCount(result.molecules[0]!)).toBe(1);
       expect(getHBondDonorCount(result.molecules[0]!)).toBe(0);
+    });
+  });
+
+  describe('TPSA (Topological Polar Surface Area)', () => {
+    it('should calculate TPSA for water', () => {
+      const result = parseSMILES('O');
+      expect(result.errors).toEqual([]);
+      expect(getTPSA(result.molecules[0]!)).toBeCloseTo(20.23, 1);
+    });
+
+    it('should calculate TPSA for ethanol', () => {
+      const result = parseSMILES('CCO');
+      expect(result.errors).toEqual([]);
+      expect(getTPSA(result.molecules[0]!)).toBeCloseTo(20.23, 1);
+    });
+
+    it('should calculate TPSA for dimethyl ether', () => {
+      const result = parseSMILES('COC');
+      expect(result.errors).toEqual([]);
+      expect(getTPSA(result.molecules[0]!)).toBeCloseTo(9.23, 1);
+    });
+
+    it('should calculate TPSA for acetone', () => {
+      const result = parseSMILES('CC(=O)C');
+      expect(result.errors).toEqual([]);
+      expect(getTPSA(result.molecules[0]!)).toBeCloseTo(17.07, 1);
+    });
+
+    it('should calculate TPSA for acetic acid', () => {
+      const result = parseSMILES('CC(=O)O');
+      expect(result.errors).toEqual([]);
+      expect(getTPSA(result.molecules[0]!)).toBeCloseTo(37.30, 1);
+    });
+
+    it('should calculate TPSA for methylamine', () => {
+      const result = parseSMILES('CN');
+      expect(result.errors).toEqual([]);
+      expect(getTPSA(result.molecules[0]!)).toBeCloseTo(26.02, 1);
+    });
+
+    it('should calculate TPSA for pyridine', () => {
+      const result = parseSMILES('c1ccncc1');
+      expect(result.errors).toEqual([]);
+      expect(getTPSA(result.molecules[0]!)).toBeCloseTo(12.89, 1);
+    });
+
+    it('should calculate TPSA for pyrrole', () => {
+      const result = parseSMILES('c1cc[nH]c1');
+      expect(result.errors).toEqual([]);
+      expect(getTPSA(result.molecules[0]!)).toBeCloseTo(15.79, 1);
+    });
+
+    it('should calculate TPSA for urea', () => {
+      const result = parseSMILES('NC(=O)N');
+      expect(result.errors).toEqual([]);
+      expect(getTPSA(result.molecules[0]!)).toBeCloseTo(69.11, 1);
+    });
+
+    it('should calculate TPSA for acetamide', () => {
+      const result = parseSMILES('CC(=O)N');
+      expect(result.errors).toEqual([]);
+      expect(getTPSA(result.molecules[0]!)).toBeCloseTo(43.09, 1);
+    });
+
+    it('should calculate TPSA for acetonitrile', () => {
+      const result = parseSMILES('CC#N');
+      expect(result.errors).toEqual([]);
+      expect(getTPSA(result.molecules[0]!)).toBeCloseTo(23.79, 1);
+    });
+
+    it('should calculate 0 TPSA for hydrocarbons', () => {
+      const result = parseSMILES('CC');
+      expect(result.errors).toEqual([]);
+      expect(getTPSA(result.molecules[0]!)).toBe(0);
+    });
+
+    it('should calculate 0 TPSA for benzene', () => {
+      const result = parseSMILES('c1ccccc1');
+      expect(result.errors).toEqual([]);
+      expect(getTPSA(result.molecules[0]!)).toBe(0);
     });
   });
 });
