@@ -26,6 +26,10 @@ export interface Atom {
   chiral: string | null; // e.g., '@', '@@', '@TH1', etc.
   isBracket: boolean; // true if parsed from bracket
   atomClass: number; // atom class for application-specific marking (default 0)
+  degree?: number; // heavy atom neighbor count (cached)
+  isInRing?: boolean; // true if atom is in any ring (cached)
+  ringIds?: number[]; // IDs of rings this atom belongs to (cached)
+  hybridization?: 'sp' | 'sp2' | 'sp3' | 'other'; // hybridization state (cached)
 }
 
 export interface Bond {
@@ -33,12 +37,22 @@ export interface Bond {
   atom2: number; // atom id
   type: BondType;
   stereo: StereoType; // for double bonds
+  isInRing?: boolean; // true if bond is in any ring (cached)
+  ringIds?: number[]; // IDs of rings this bond belongs to (cached)
+  isRotatable?: boolean; // true if single, non-ring, non-terminal bond (cached)
 }
 
 export interface Molecule {
   atoms: Atom[];
   bonds: Bond[];
-  // Additional properties can be added later, e.g., rings, properties
+  rings?: number[][]; // cached ring information (atom IDs)
+  ringInfo?: RingInfo; // cached detailed ring analysis
+}
+
+export interface RingInfo {
+  atomRings: Map<number, Set<number>>; // atom ID -> set of ring IDs
+  bondRings: Map<string, Set<number>>; // bond key -> set of ring IDs
+  rings: number[][]; // all rings (atom IDs)
 }
 
 export interface ParseError {

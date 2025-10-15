@@ -1,18 +1,12 @@
 import type { Bond, Molecule } from 'types';
 import { BondType, StereoType } from 'types';
 import { uniq } from 'es-toolkit';
-import { findRings } from './ring-finder';
+import { analyzeRings } from './ring-utils';
+import { getBondsForAtom, getOtherAtomId } from './bond-utils';
 
 function getNeighbors(atomId: number, molecule: Molecule): Array<[number, Bond]> {
-  const neighbors: Array<[number, Bond]> = [];
-  for (const bond of molecule.bonds) {
-    if (bond.atom1 === atomId) {
-      neighbors.push([bond.atom2, bond]);
-    } else if (bond.atom2 === atomId) {
-      neighbors.push([bond.atom1, bond]);
-    }
-  }
-  return neighbors;
+  const bonds = getBondsForAtom(molecule.bonds, atomId);
+  return bonds.map((bond: Bond) => [getOtherAtomId(bond, atomId), bond]);
 }
 
 function computeCanonicalLabels(mol: Molecule): Map<number, string> {
@@ -77,7 +71,7 @@ function hasSymmetricSubstituents(atomId: number, molecule: Molecule, labels: Ma
   
   if (uniqueLabels.size >= neighborLabels.length) return false;
 
-  const rings = findRings(molecule.atoms, molecule.bonds);
+  const { rings } = analyzeRings(molecule.atoms, molecule.bonds);
   
   for (let i = 0; i < neighbors.length; i++) {
     for (let j = i + 1; j < neighbors.length; j++) {
@@ -85,7 +79,7 @@ function hasSymmetricSubstituents(atomId: number, molecule: Molecule, labels: Ma
         const [nid1] = neighbors[i]!;
         const [nid2] = neighbors[j]!;
         
-        const inSameRing = rings.some(ring =>
+        const inSameRing = rings.some((ring: number[]) =>
           ring.includes(nid1) && ring.includes(nid2) && ring.includes(atomId)
         );
         
@@ -138,7 +132,7 @@ function hasGeminalIdenticalGroups(bond: Bond, molecule: Molecule, labels: Map<n
 
 export function removeInvalidStereo(molecule: Molecule): void {
   const labels = computeCanonicalLabels(molecule);
-  const rings = findRings(molecule.atoms, molecule.bonds);
+  const { rings } = analyzeRings(molecule.atoms, molecule.bonds);
 
   for (const atom of molecule.atoms) {
     if (atom.chiral && (atom.chiral === '@' || atom.chiral === '@@')) {
@@ -156,16 +150,16 @@ export function removeInvalidStereo(molecule: Molecule): void {
           }
         }
       } else {
-        const inRings = rings.filter(ring => ring.includes(atom.id));
+        const inRings = rings.filter((ring: number[]) => ring.includes(atom.id));
         if (inRings.length > 0) {
           const neighbors = getNeighbors(atom.id, molecule);
           const outsideRingNeighbors = neighbors.filter(([nid]) =>
-            !inRings.some(ring => ring.includes(nid) && ring.includes(atom.id))
+            !inRings.some((ring: number[]) => ring.includes(nid) && ring.includes(atom.id))
           );
           
           if (outsideRingNeighbors.length <= 1) {
-            const otherChiralInRing = inRings.some(ring =>
-              ring.some(ringAtomId => {
+            const otherChiralInRing = inRings.some((ring: number[]) =>
+              ring.some((ringAtomId: number) => {
                 if (ringAtomId === atom.id) return false;
                 const ringAtom = molecule.atoms.find(a => a.id === ringAtomId);
                 return ringAtom && ringAtom.chiral && (ringAtom.chiral === '@' || ringAtom.chiral === '@@');

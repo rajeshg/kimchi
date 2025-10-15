@@ -1,7 +1,7 @@
 import type { Atom, Bond, ParseError } from 'types';
-import { calculateValence } from 'src/utils/valence-calculator';
 import { DEFAULT_VALENCES } from 'src/constants';
 import { maxBy } from 'es-toolkit';
+import { getBondsForAtom, hasMultipleBond } from 'src/utils/bond-utils';
 
 /**
  * Validate that all atoms have valid valences according to their element
@@ -20,15 +20,11 @@ export function validateValences(atoms: Atom[], bonds: Bond[], errors: ParseErro
       continue;
     }
 
-    // Check if atom has a double/triple bond (sp2/sp hybridization)
-    const atomBonds = bonds.filter(b => b.atom1 === atom.id || b.atom2 === atom.id);
-    const hasMultipleBond = atomBonds.some(b => b.type === 'double' || b.type === 'triple');
+    const atomBonds = getBondsForAtom(bonds, atom.id);
+    const hasMultiple = hasMultipleBond(bonds, atom.id);
     
-    // If atom has chirality AND a multiple bond, the chirality is invalid
-    // (sp2/sp carbons cannot be chiral). Treat explicit H as 0 for valence calculation.
-    const effectiveHydrogens = (atom.chiral && hasMultipleBond) ? 0 : atom.hydrogens;
+    const effectiveHydrogens = (atom.chiral && hasMultiple) ? 0 : atom.hydrogens;
     
-    // Calculate valence with adjusted hydrogen count
     let valence = effectiveHydrogens || 0;
     for (const bond of atomBonds) {
       switch (bond.type) {

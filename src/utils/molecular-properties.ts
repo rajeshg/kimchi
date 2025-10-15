@@ -1,6 +1,7 @@
 import type { Molecule } from 'types';
 import { MONOISOTOPIC_MASSES, ISOTOPE_MASSES } from 'src/constants';
-import { findRings } from 'src/utils/ring-finder';
+import { analyzeRings } from 'src/utils/ring-utils';
+import { getBondsForAtom, getHeavyNeighborCount, hasMultipleBond, hasTripleBond, hasDoubleBond, hasCarbonylBond } from 'src/utils/bond-utils';
 
 export interface MolecularOptions {
   includeImplicitH?: boolean; // default true
@@ -116,13 +117,24 @@ export function getHeteroAtomCount(mol: Molecule): number {
 }
 
 export function getRingCount(mol: Molecule): number {
-  const rings = findRings(mol.atoms, mol.bonds);
-  return rings.length;
+  if (mol.rings) {
+    return mol.rings.length;
+  }
+  const ringInfo = analyzeRings(mol.atoms, mol.bonds);
+  return ringInfo.rings.length;
 }
 
 export function getAromaticRingCount(mol: Molecule): number {
-  const rings = findRings(mol.atoms, mol.bonds);
-  return rings.filter((ring: number[]) => {
+  if (mol.rings) {
+    return mol.rings.filter((ring: number[]) => {
+      return ring.every((atomId: number) => {
+        const atom = mol.atoms.find(a => a.id === atomId);
+        return atom?.aromatic === true;
+      });
+    }).length;
+  }
+  const ringInfo = analyzeRings(mol.atoms, mol.bonds);
+  return ringInfo.rings.filter((ring: number[]) => {
     return ring.every((atomId: number) => {
       const atom = mol.atoms.find(a => a.id === atomId);
       return atom?.aromatic === true;
@@ -135,12 +147,16 @@ export function getFractionCSP3(mol: Molecule): number {
   if (carbons.length === 0) return 0;
   
   const sp3Carbons = carbons.filter(c => {
+    if (c.hybridization) {
+      return c.hybridization === 'sp3';
+    }
+    
     if (c.aromatic) return false;
     
-    const bonds = mol.bonds.filter(b => b.atom1 === c.id || b.atom2 === c.id);
-    const hasMultipleBond = bonds.some(b => b.type === 'double' || b.type === 'triple');
+    const bonds = getBondsForAtom(mol.bonds, c.id);
+    const hasMultiple = hasMultipleBond(mol.bonds, c.id);
     
-    if (hasMultipleBond) return false;
+    if (hasMultiple) return false;
     
     const explicitBonds = bonds.length;
     const totalValence = explicitBonds + (c.hydrogens ?? 0);
@@ -175,7 +191,7 @@ export function getTPSA(mol: Molecule): number {
     }
     
     const hydrogens = atom.hydrogens ?? 0;
-    const bonds = mol.bonds.filter(b => b.atom1 === atom.id || b.atom2 === atom.id);
+    const bonds = getBondsForAtom(mol.bonds, atom.id);
     const heavyNeighbors = bonds.length;
     
     const doubleBonds = bonds.filter(b => b.type === 'double').length;
@@ -267,43 +283,18 @@ function getTPSAContribution(
 }
 
 export function getRotatableBondCount(mol: Molecule): number {
+  if (mol.bonds.some(b => b.isRotatable !== undefined)) {
+    return mol.bonds.filter(b => b.isRotatable).length;
+  }
+  
   let count = 0;
   
-  const rings = findRings(mol.atoms, mol.bonds);
-  const ringAtomSet = new Set<number>();
-  
-  for (const ring of rings) {
-    for (const atomId of ring) {
-      ringAtomSet.add(atomId!);
-    }
-  }
-  
-  const ringBondSet = new Set<string>();
-  
-  for (const bond of mol.bonds) {
-    let inSameRing = false;
-    
-    for (const ring of rings) {
-      const atom1InThisRing = ring.includes(bond.atom1);
-      const atom2InThisRing = ring.includes(bond.atom2);
-      
-      if (atom1InThisRing && atom2InThisRing) {
-        inSameRing = true;
-        break;
-      }
-    }
-    
-    if (inSameRing) {
-      const key = `${Math.min(bond.atom1, bond.atom2)}-${Math.max(bond.atom1, bond.atom2)}`;
-      ringBondSet.add(key);
-    }
-  }
+  const ringInfo = analyzeRings(mol.atoms, mol.bonds);
   
   for (const bond of mol.bonds) {
     if (bond.type !== 'single') continue;
     
-    const bondKey = `${Math.min(bond.atom1, bond.atom2)}-${Math.max(bond.atom1, bond.atom2)}`;
-    if (ringBondSet.has(bondKey)) continue;
+    if (ringInfo.isBondInRing(bond.atom1, bond.atom2)) continue;
     
     const atom1 = mol.atoms.find(a => a.id === bond.atom1)!;
     const atom2 = mol.atoms.find(a => a.id === bond.atom2)!;
@@ -311,52 +302,26 @@ export function getRotatableBondCount(mol: Molecule): number {
     if (atom1.symbol === 'H' && !atom1.isotope) continue;
     if (atom2.symbol === 'H' && !atom2.isotope) continue;
     
-    const bondsAtom1 = mol.bonds.filter(b => b.atom1 === atom1.id || b.atom2 === atom1.id);
-    const bondsAtom2 = mol.bonds.filter(b => b.atom1 === atom2.id || b.atom2 === atom2.id);
-    
-    const heavyNeighbors1 = bondsAtom1.filter(b => {
-      const otherId = b.atom1 === atom1.id ? b.atom2 : b.atom1;
-      const other = mol.atoms.find(a => a.id === otherId)!;
-      return other.symbol !== 'H' || other.isotope;
-    }).length;
-    
-    const heavyNeighbors2 = bondsAtom2.filter(b => {
-      const otherId = b.atom1 === atom2.id ? b.atom2 : b.atom1;
-      const other = mol.atoms.find(a => a.id === otherId)!;
-      return other.symbol !== 'H' || other.isotope;
-    }).length;
+    const heavyNeighbors1 = getHeavyNeighborCount(mol.bonds, atom1.id, mol.atoms);
+    const heavyNeighbors2 = getHeavyNeighborCount(mol.bonds, atom2.id, mol.atoms);
     
     if (heavyNeighbors1 < 2 || heavyNeighbors2 < 2) continue;
     
-    const atom1InRing = ringAtomSet.has(atom1.id);
-    const atom2InRing = ringAtomSet.has(atom2.id);
+    const atom1InRing = ringInfo.isAtomInRing(atom1.id);
+    const atom2InRing = ringInfo.isAtomInRing(atom2.id);
     
     if ((atom1InRing && heavyNeighbors2 === 1) || (atom2InRing && heavyNeighbors1 === 1)) continue;
     
-    const hasTripleBond1 = bondsAtom1.some(b => b.type === 'triple');
-    const hasTripleBond2 = bondsAtom2.some(b => b.type === 'triple');
+    if (hasTripleBond(mol.bonds, atom1.id) || hasTripleBond(mol.bonds, atom2.id)) continue;
     
-    if (hasTripleBond1 || hasTripleBond2) continue;
-    
-    const hasDoubleBond1 = !atom1.aromatic && bondsAtom1.some(b => b.type === 'double');
-    const hasDoubleBond2 = !atom2.aromatic && bondsAtom2.some(b => b.type === 'double');
+    const hasDoubleBond1 = !atom1.aromatic && hasDoubleBond(mol.bonds, atom1.id);
+    const hasDoubleBond2 = !atom2.aromatic && hasDoubleBond(mol.bonds, atom2.id);
     
     if (heavyNeighbors1 >= 4 && !atom1InRing && !hasDoubleBond1) continue;
     if (heavyNeighbors2 >= 4 && !atom2InRing && !hasDoubleBond2) continue;
     
-    const hasCarbonyl1 = !atom1.aromatic && atom1.symbol === 'C' && bondsAtom1.some(b => {
-      if (b.type !== 'double') return false;
-      const otherId = b.atom1 === atom1.id ? b.atom2 : b.atom1;
-      const other = mol.atoms.find(a => a.id === otherId);
-      return other?.symbol === 'O';
-    });
-    
-    const hasCarbonyl2 = !atom2.aromatic && atom2.symbol === 'C' && bondsAtom2.some(b => {
-      if (b.type !== 'double') return false;
-      const otherId = b.atom1 === atom2.id ? b.atom2 : b.atom1;
-      const other = mol.atoms.find(a => a.id === otherId);
-      return other?.symbol === 'O';
-    });
+    const hasCarbonyl1 = hasCarbonylBond(mol.bonds, atom1.id, mol.atoms);
+    const hasCarbonyl2 = hasCarbonylBond(mol.bonds, atom2.id, mol.atoms);
     
     const isHeteroatom1 = atom1.symbol !== 'C' && atom1.symbol !== 'H';
     const isHeteroatom2 = atom2.symbol !== 'C' && atom2.symbol !== 'H';

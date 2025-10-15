@@ -4,6 +4,7 @@ import { uniq } from 'es-toolkit';
 import { isOrganicAtom } from 'src/utils/atom-utils';
 import { perceiveAromaticity } from 'src/utils/aromaticity-perceiver';
 import { removeInvalidStereo } from 'src/utils/symmetry-detector';
+import { getBondsForAtom, getOtherAtomId, bondKey as utilBondKey } from 'src/utils/bond-utils';
 
 // SMILES generation strategy:
 // - For simple SMILES: treat molecule as a graph and use DFS traversal
@@ -609,13 +610,12 @@ function bondSymbolForOutput(bond: Bond, childId: number, molecule: Molecule, pa
 }
 
 function bondKey(a: number, b: number): string {
-  return a < b ? `${a}-${b}` : `${b}-${a}`;
+  return utilBondKey(a, b);
 }
 
 function getNeighbors(atomId: number, molecule: Molecule): [number, Bond][] {
-  return molecule.bonds
-    .filter(b => b.atom1 === atomId || b.atom2 === atomId)
-    .map(b => [b.atom1 === atomId ? b.atom2 : b.atom1, b]);
+  const bonds = getBondsForAtom(molecule.bonds, atomId);
+  return bonds.map((bond: Bond) => [getOtherAtomId(bond, atomId), bond]);
 }
 
 function findRingAtoms(atom1: number, atom2: number, molecule: Molecule): Set<number> {

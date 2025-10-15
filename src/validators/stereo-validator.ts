@@ -1,11 +1,9 @@
 import type { Atom, Bond, ParseError } from 'types';
+import { getBondsForAtom } from 'src/utils/bond-utils';
 
-/**
- * Get the number of substituents (bonds + explicit hydrogens) for an atom
- */
 function getSubstituentCount(atomId: number, atoms: Atom[], bonds: Bond[]): number {
   const atom = atoms.find(a => a.id === atomId)!;
-  const bondCount = bonds.filter(b => b.atom1 === atomId || b.atom2 === atomId).length;
+  const bondCount = getBondsForAtom(bonds, atomId).length;
   return bondCount + (atom.hydrogens || 0);
 }
 

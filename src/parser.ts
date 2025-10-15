@@ -1,14 +1,13 @@
 import type { Atom, Bond, Molecule, ParseResult, ParseError } from '../types';
 import { BondType, StereoType } from '../types';
 import { ATOMIC_NUMBERS, DEFAULT_VALENCES, AROMATIC_VALENCES } from './constants';
-import { calculateValence } from './utils/valence-calculator';
-import { findRings } from './utils/ring-finder';
-import { createAtom, isOrganicAtom } from './utils/atom-utils';
+import { createAtom } from './utils/atom-utils';
 import { validateAromaticity } from './validators/aromaticity-validator';
 import { validateValences } from './validators/valence-validator';
 import { validateStereochemistry } from './validators/stereo-validator';
 import { parseBracketAtom } from './parsers/bracket-parser';
-import { maxBy, sortBy, uniq } from 'es-toolkit';
+import { maxBy } from 'es-toolkit';
+import { enrichMolecule } from './utils/molecule-enrichment';
 
 export function parseSMILES(smiles: string): ParseResult {
   const errors: ParseError[] = [];
@@ -447,7 +446,11 @@ function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: ParseE
   // Validate stereochemistry
   validateStereochemistry(atoms, bonds, errors);
 
-  return { molecule: { atoms, bonds }, errors };
+  const molecule: Molecule = { atoms, bonds };
+  
+  enrichMolecule(molecule);
+
+  return { molecule, errors };
 }
 
 
