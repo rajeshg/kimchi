@@ -49,25 +49,28 @@ export function generateMolfile(molecule: Molecule, options?: MolGeneratorOption
   const propertiesBlock = formatPropertiesBlock(molecule.atoms, atomIndexMap);
 
   // Combine all sections
-  return [
-    ...header,
-    counts,
-    ...atomBlock,
-    ...bondBlock,
-    ...propertiesBlock,
-    'M  END',
-    '',
-  ].join('\n');
+  // Build string directly, line by line, to avoid leading newline from empty title
+  let result = '';
+  result += (header[0] ?? '') + '\n';
+  result += (header[1] ?? '') + '\n';
+  result += (header[2] ?? '') + '\n';
+  result += counts + '\n';
+  if (atomBlock.length > 0) result += atomBlock.join('\n') + '\n';
+  if (bondBlock.length > 0) result += bondBlock.join('\n') + '\n';
+  if (propertiesBlock.length > 0) result += propertiesBlock.join('\n') + '\n';
+  result += 'M  END\n';
+  return result;
 }
 
 function generateEmptyMolfile(options: MolGeneratorOptions): string {
   const header = formatHeader(options);
-  return [
-    ...header,
-    '  0  0  0  0  0  0  0  0  0  0999 V2000',
-    'M  END',
-    '',
-  ].join('\n');
+  let result = '';
+  result += (header[0] ?? '') + '\n';
+  result += (header[1] ?? '') + '\n';
+  result += (header[2] ?? '') + '\n';
+  result += '  0  0  0  0  0  0  0  0  0  0999 V2000\n';
+  result += 'M  END\n';
+  return result;
 }
 
 /**
