@@ -1,13 +1,13 @@
-import type { Atom, Bond, Molecule, ParseResult, ParseError } from '../types';
-import { BondType, StereoType } from '../types';
-import { ATOMIC_NUMBERS, DEFAULT_VALENCES, AROMATIC_VALENCES } from './constants';
-import { createAtom } from './utils/atom-utils';
-import { validateAromaticity } from './validators/aromaticity-validator';
-import { validateValences } from './validators/valence-validator';
-import { validateStereochemistry } from './validators/stereo-validator';
-import { parseBracketAtom } from './parsers/bracket-parser';
+import type { Atom, Bond, Molecule, ParseResult, ParseError } from '../../types';
+import { BondType, StereoType } from '../../types';
+import { ATOMIC_NUMBERS, DEFAULT_VALENCES, AROMATIC_VALENCES } from '../constants';
+import { createAtom } from '../utils/atom-utils';
+import { validateAromaticity } from '../validators/aromaticity-validator';
+import { validateValences } from '../validators/valence-validator';
+import { validateStereochemistry } from '../validators/stereo-validator';
+import { parseBracketAtom } from './bracket-parser';
 import { maxBy } from 'es-toolkit';
-import { enrichMolecule } from './utils/molecule-enrichment';
+import { enrichMolecule } from '../utils/molecule-enrichment';
 
 export function parseSMILES(smiles: string): ParseResult {
   const errors: ParseError[] = [];

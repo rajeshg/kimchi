@@ -1,7 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'bun:test';
 import { parseMolfile } from 'src/parsers/molfile-parser';
 import { generateSMILES } from 'src/generators/smiles-generator';
-import { parseSMILES } from 'parser';
+import { parseSMILES } from 'index';
 
 describe('molfile round-trip tests', () => {
   it('round-trips benzene V2000 → SMILES → internal model', () => {

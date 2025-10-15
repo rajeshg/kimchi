@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { parseSMILES } from 'parser';
+import { parseSMILES } from 'index';
 import { generateSMILES } from 'src/generators/smiles-generator';
 
 describe('Extended Stereochemistry', () => {

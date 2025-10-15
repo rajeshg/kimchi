@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test';
-import { parseSMILES } from 'parser';
+import { parseSMILES } from 'index';
 import { generateSMILES } from 'src/generators/smiles-generator';
 import { BondType } from 'types';
 import type { Bond } from 'types';

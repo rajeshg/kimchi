@@ -26,7 +26,6 @@
       "src/*": ["src/*"],
       "test/*": ["test/*"],
       "types": ["types.ts"],
-      "parser": ["src/parser.ts"],
       "index": ["index.ts"]
     }
   }

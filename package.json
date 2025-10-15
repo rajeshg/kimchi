@@ -5,7 +5,8 @@
   "private": true,
   "scripts": {
     "test": "bun test",
-    "test:full": "RUN_RDKIT_BULK=1 bun test"
+    "test:full": "RUN_RDKIT_BULK=1 bun test",
+    "typecheck": "bun run tsc --noEmit"
   },
   "devDependencies": {
     "@rdkit/rdkit": "latest",

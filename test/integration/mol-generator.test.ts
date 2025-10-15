@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test';
-import { parseSMILES } from 'parser';
+import { parseSMILES } from 'index';
 import { generateMolfile } from 'src/generators/mol-generator';
 
 describe('MOL Generator', () => {
