@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'bun:test';
 import { parseSMILES } from 'parser';
 import { generateSMILES } from 'src/generators/smiles-generator';
 

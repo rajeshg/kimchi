@@ -1,6 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'bun:test';
 import { parseSMILES } from 'parser';
 import { generateSMILES } from 'src/generators/smiles-generator';
+import { BondType } from 'types';
 import type { Bond } from 'types';
 
 describe('Quick Wins - Already Supported Features', () => {
@@ -35,8 +36,8 @@ describe('Quick Wins - Already Supported Features', () => {
       expect(result.errors).toEqual([]);
       const mol = result.molecules[0]!;
       expect(mol.atoms).toHaveLength(3);
-      expect(mol.bonds[0]!.type).toBe('single');
-      expect(mol.bonds[1]!.type).toBe('double');
+      expect(mol.bonds[0]!.type).toBe(BondType.SINGLE);
+      expect(mol.bonds[1]!.type).toBe(BondType.DOUBLE);
     });
 
     it('should round-trip wildcard atoms', () => {
@@ -61,7 +62,7 @@ describe('Quick Wins - Already Supported Features', () => {
         (b.atom1 === 5 && b.atom2 === 6) ||
         (b.atom1 === 6 && b.atom2 === 5)
       );
-      expect(bond?.type).toBe('single');
+      expect(bond?.type).toBe(BondType.SINGLE);
     });
 
     it('should parse aromatic chains with explicit single bonds', () => {
@@ -70,7 +71,7 @@ describe('Quick Wins - Already Supported Features', () => {
       const mol = result.molecules[0]!;
       expect(mol.atoms).toHaveLength(4);
       mol.bonds.forEach((bond: Bond) => {
-        expect(bond.type).toBe('single');
+        expect(bond.type).toBe(BondType.SINGLE);
       });
     });
 
@@ -89,7 +90,7 @@ describe('Quick Wins - Already Supported Features', () => {
         (b.atom1 === 5 && b.atom2 === 6) ||
         (b.atom1 === 6 && b.atom2 === 5)
       );
-      expect(bond?.type).toBe('aromatic');
+      expect(bond?.type).toBe(BondType.AROMATIC);
     });
   });
 
@@ -123,7 +124,7 @@ describe('Quick Wins - Already Supported Features', () => {
         (b.atom1 === 0 && b.atom2 === 4) ||
         (b.atom1 === 4 && b.atom2 === 0)
       );
-      expect(ringBond?.type).toBe('double');
+      expect(ringBond?.type).toBe(BondType.DOUBLE);
     });
 
     it('should round-trip structures with 0', () => {
@@ -177,7 +178,7 @@ describe('Quick Wins - Already Supported Features', () => {
         (b.atom1 === 0 && b.atom2 === 4) ||
         (b.atom1 === 4 && b.atom2 === 0)
       );
-      expect(ringBond?.type).toBe('double');
+      expect(ringBond?.type).toBe(BondType.DOUBLE);
     });
 
     it('should handle complex structures with %nn', () => {

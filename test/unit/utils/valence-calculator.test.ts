@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'bun:test';
 import { calculateValence } from 'src/utils/valence-calculator';
 import { BondType } from 'types';
 
