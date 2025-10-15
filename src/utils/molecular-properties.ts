@@ -265,3 +265,129 @@ function getTPSAContribution(
   
   return 0;
 }
+
+export function getRotatableBondCount(mol: Molecule): number {
+  let count = 0;
+  
+  for (const bond of mol.bonds) {
+    if (bond.type !== 'single') continue;
+    
+    const atom1 = mol.atoms.find(a => a.id === bond.atom1)!;
+    const atom2 = mol.atoms.find(a => a.id === bond.atom2)!;
+    
+    if (atom1.symbol === 'H' || atom2.symbol === 'H') continue;
+    
+    const bondsAtom1 = mol.bonds.filter(b => b.atom1 === atom1.id || b.atom2 === atom1.id);
+    const bondsAtom2 = mol.bonds.filter(b => b.atom1 === atom2.id || b.atom2 === atom2.id);
+    
+    const heavyNeighbors1 = bondsAtom1.filter(b => {
+      const otherId = b.atom1 === atom1.id ? b.atom2 : b.atom1;
+      const other = mol.atoms.find(a => a.id === otherId)!;
+      return other.symbol !== 'H';
+    }).length;
+    
+    const heavyNeighbors2 = bondsAtom2.filter(b => {
+      const otherId = b.atom1 === atom2.id ? b.atom2 : b.atom1;
+      const other = mol.atoms.find(a => a.id === otherId)!;
+      return other.symbol !== 'H';
+    }).length;
+    
+    if (heavyNeighbors1 < 2 || heavyNeighbors2 < 2) continue;
+    
+    const hasMultipleBond1 = bondsAtom1.some(b => b.type === 'double' || b.type === 'triple');
+    const hasMultipleBond2 = bondsAtom2.some(b => b.type === 'double' || b.type === 'triple');
+    
+    if (hasMultipleBond1 && hasMultipleBond2) continue;
+    
+    count++;
+  }
+  
+  return count;
+}
+
+export interface LipinskiResult {
+  passes: boolean;
+  violations: string[];
+  properties: {
+    molecularWeight: number;
+    hbondDonors: number;
+    hbondAcceptors: number;
+  };
+}
+
+export function checkLipinskiRuleOfFive(mol: Molecule): LipinskiResult {
+  const mw = getMolecularMass(mol);
+  const donors = getHBondDonorCount(mol);
+  const acceptors = getHBondAcceptorCount(mol);
+  
+  const violations: string[] = [];
+  
+  if (mw > 500) {
+    violations.push(`Molecular weight ${mw.toFixed(2)} > 500 Da`);
+  }
+  
+  if (donors > 5) {
+    violations.push(`H-bond donors ${donors} > 5`);
+  }
+  
+  if (acceptors > 10) {
+    violations.push(`H-bond acceptors ${acceptors} > 10`);
+  }
+  
+  return {
+    passes: violations.length === 0,
+    violations,
+    properties: {
+      molecularWeight: mw,
+      hbondDonors: donors,
+      hbondAcceptors: acceptors,
+    },
+  };
+}
+
+export interface VeberResult {
+  passes: boolean;
+  violations: string[];
+  properties: {
+    rotatableBonds: number;
+    tpsa: number;
+  };
+}
+
+export function checkVeberRules(mol: Molecule): VeberResult {
+  const rotatableBonds = getRotatableBondCount(mol);
+  const tpsa = getTPSA(mol);
+  
+  const violations: string[] = [];
+  
+  if (rotatableBonds > 10) {
+    violations.push(`Rotatable bonds ${rotatableBonds} > 10`);
+  }
+  
+  if (tpsa > 140) {
+    violations.push(`TPSA ${tpsa.toFixed(2)} Ų > 140 Ų`);
+  }
+  
+  return {
+    passes: violations.length === 0,
+    violations,
+    properties: {
+      rotatableBonds,
+      tpsa,
+    },
+  };
+}
+
+export interface BBBResult {
+  likelyPenetration: boolean;
+  tpsa: number;
+}
+
+export function checkBBBPenetration(mol: Molecule): BBBResult {
+  const tpsa = getTPSA(mol);
+  
+  return {
+    likelyPenetration: tpsa < 90,
+    tpsa,
+  };
+}

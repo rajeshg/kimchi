@@ -12,5 +12,14 @@ export {
   getHBondAcceptorCount,
   getHBondDonorCount,
   getTPSA,
+  getRotatableBondCount,
+  checkLipinskiRuleOfFive,
+  checkVeberRules,
+  checkBBBPenetration,
+} from './src/utils/molecular-properties';
+export type { 
+  LipinskiResult,
+  VeberResult,
+  BBBResult,
 } from './src/utils/molecular-properties';
 export type { Atom, Bond, Molecule, ParseResult } from './types';

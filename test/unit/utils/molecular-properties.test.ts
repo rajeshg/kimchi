@@ -11,6 +11,10 @@ import {
   getHBondAcceptorCount,
   getHBondDonorCount,
   getTPSA,
+  getRotatableBondCount,
+  checkLipinskiRuleOfFive,
+  checkVeberRules,
+  checkBBBPenetration,
 } from 'src/utils/molecular-properties';
 
 async function initRDKit() {
@@ -349,6 +353,99 @@ describe('molecular properties', () => {
       const result = parseSMILES('c1ccccc1');
       expect(result.errors).toEqual([]);
       expect(getTPSA(result.molecules[0]!)).toBe(0);
+    });
+  });
+
+  describe('Rotatable Bond Count', () => {
+    it('should count 0 rotatable bonds in ethane', () => {
+      const result = parseSMILES('CC');
+      expect(result.errors).toEqual([]);
+      expect(getRotatableBondCount(result.molecules[0]!)).toBe(0);
+    });
+
+    it('should count 0 rotatable bonds in propane', () => {
+      const result = parseSMILES('CCC');
+      expect(result.errors).toEqual([]);
+      expect(getRotatableBondCount(result.molecules[0]!)).toBe(0);
+    });
+
+    it('should count 1 rotatable bond in butane', () => {
+      const result = parseSMILES('CCCC');
+      expect(result.errors).toEqual([]);
+      expect(getRotatableBondCount(result.molecules[0]!)).toBe(1);
+    });
+
+    it('should count 0 rotatable bonds in benzene', () => {
+      const result = parseSMILES('c1ccccc1');
+      expect(result.errors).toEqual([]);
+      expect(getRotatableBondCount(result.molecules[0]!)).toBe(0);
+    });
+
+    it('should count 4 rotatable bonds in ibuprofen', () => {
+      const result = parseSMILES('CC(C)Cc1ccc(cc1)C(C)C(=O)O');
+      expect(result.errors).toEqual([]);
+      expect(getRotatableBondCount(result.molecules[0]!)).toBe(4);
+    });
+  });
+
+  describe('Lipinski Rule of Five', () => {
+    it('should pass for aspirin', () => {
+      const result = parseSMILES('CC(=O)Oc1ccccc1C(=O)O');
+      expect(result.errors).toEqual([]);
+      const lipinski = checkLipinskiRuleOfFive(result.molecules[0]!);
+      expect(lipinski.passes).toBe(true);
+      expect(lipinski.violations).toEqual([]);
+    });
+
+    it('should pass for ibuprofen', () => {
+      const result = parseSMILES('CC(C)Cc1ccc(cc1)C(C)C(=O)O');
+      expect(result.errors).toEqual([]);
+      const lipinski = checkLipinskiRuleOfFive(result.molecules[0]!);
+      expect(lipinski.passes).toBe(true);
+      expect(lipinski.violations).toEqual([]);
+    });
+
+    it('should fail for molecule with high MW', () => {
+      const result = parseSMILES('CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC(=O)O');
+      expect(result.errors).toEqual([]);
+      const lipinski = checkLipinskiRuleOfFive(result.molecules[0]!);
+      expect(lipinski.passes).toBe(false);
+      expect(lipinski.violations.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('Veber Rules', () => {
+    it('should pass for aspirin', () => {
+      const result = parseSMILES('CC(=O)Oc1ccccc1C(=O)O');
+      expect(result.errors).toEqual([]);
+      const veber = checkVeberRules(result.molecules[0]!);
+      expect(veber.passes).toBe(true);
+      expect(veber.violations).toEqual([]);
+    });
+
+    it('should pass for ibuprofen', () => {
+      const result = parseSMILES('CC(C)Cc1ccc(cc1)C(C)C(=O)O');
+      expect(result.errors).toEqual([]);
+      const veber = checkVeberRules(result.molecules[0]!);
+      expect(veber.passes).toBe(true);
+      expect(veber.violations).toEqual([]);
+    });
+  });
+
+  describe('BBB Penetration', () => {
+    it('should predict penetration for caffeine', () => {
+      const result = parseSMILES('CN1C=NC2=C1C(=O)N(C(=O)N2C)C');
+      expect(result.errors).toEqual([]);
+      const bbb = checkBBBPenetration(result.molecules[0]!);
+      expect(bbb.likelyPenetration).toBe(true);
+      expect(bbb.tpsa).toBeLessThan(90);
+    });
+
+    it('should predict no penetration for aspirin', () => {
+      const result = parseSMILES('CC(=O)Oc1ccccc1C(=O)O');
+      expect(result.errors).toEqual([]);
+      const bbb = checkBBBPenetration(result.molecules[0]!);
+      expect(bbb.likelyPenetration).toBe(true);
     });
   });
 });

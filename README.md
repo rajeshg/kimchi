@@ -170,23 +170,132 @@ console.log(chiralCenter?.chiral); // '@'
 
 ### Molecular Properties
 
+chemkit provides comprehensive molecular property calculations for drug discovery and cheminformatics applications.
+
+#### Basic Properties
+
 ```typescript
-import { parseSMILES, getMolecularFormula, getMolecularMass, getExactMass } from 'chemkit';
+import { 
+  parseSMILES, 
+  getMolecularFormula, 
+  getMolecularMass, 
+  getExactMass 
+} from 'chemkit';
 
 const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O');
 const mol = aspirin.molecules[0];
 
-// Get molecular formula
+// Get molecular formula (Hill notation)
 const formula = getMolecularFormula(mol);
 console.log(formula); // "C9H8O4"
 
 // Get molecular mass (average atomic masses)
 const mass = getMolecularMass(mol);
-console.log(mass); // 180.04225...
+console.log(mass); // 180.042
 
 // Get exact mass (most abundant isotope)
 const exactMass = getExactMass(mol);
-console.log(exactMass); // 180.04225...
+console.log(exactMass); // 180.042
+```
+
+#### Atom Counts and Structure
+
+```typescript
+import { 
+  parseSMILES,
+  getHeavyAtomCount,
+  getHeteroAtomCount,
+  getRingCount,
+  getAromaticRingCount
+} from 'chemkit';
+
+const ibuprofen = parseSMILES('CC(C)Cc1ccc(cc1)C(C)C(=O)O');
+const mol = ibuprofen.molecules[0];
+
+// Count heavy atoms (non-hydrogen)
+console.log(getHeavyAtomCount(mol)); // 13
+
+// Count heteroatoms (N, O, S, P, halogens, etc.)
+console.log(getHeteroAtomCount(mol)); // 2
+
+// Count total rings
+console.log(getRingCount(mol)); // 1
+
+// Count aromatic rings
+console.log(getAromaticRingCount(mol)); // 1
+```
+
+#### Drug-Likeness Properties
+
+```typescript
+import { 
+  parseSMILES,
+  getFractionCSP3,
+  getHBondDonorCount,
+  getHBondAcceptorCount,
+  getTPSA
+} from 'chemkit';
+
+const caffeine = parseSMILES('CN1C=NC2=C1C(=O)N(C(=O)N2C)C');
+const mol = caffeine.molecules[0];
+
+// Fraction of sp3 carbons (structural complexity)
+console.log(getFractionCSP3(mol)); // 0.25
+
+// H-bond donors (N-H, O-H)
+console.log(getHBondDonorCount(mol)); // 0
+
+// H-bond acceptors (N, O atoms)
+console.log(getHBondAcceptorCount(mol)); // 6
+
+// Topological polar surface area (Ų)
+// Critical for predicting oral bioavailability and BBB penetration
+console.log(getTPSA(mol)); // 61.82
+```
+
+#### TPSA for Drug Design
+
+TPSA (Topological Polar Surface Area) is essential for predicting drug properties:
+
+```typescript
+import { parseSMILES, getTPSA } from 'chemkit';
+
+// Oral bioavailability: TPSA < 140 Ų
+const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O');
+console.log(getTPSA(aspirin.molecules[0])); // 63.60 ✓ Good oral availability
+
+// Blood-brain barrier penetration: TPSA < 90 Ų
+const morphine = parseSMILES('CN1CC[C@]23[C@@H]4[C@H]1CC5=C2C(=C(C=C5)O)O[C@H]3[C@H](C=C4)O');
+console.log(getTPSA(morphine.molecules[0])); // 52.93 ✓ CNS-active
+```
+
+#### Drug-Likeness Rule Checkers
+
+```typescript
+import { 
+  parseSMILES, 
+  checkLipinskiRuleOfFive, 
+  checkVeberRules, 
+  checkBBBPenetration 
+} from 'chemkit';
+
+// Lipinski's Rule of Five (oral drug-likeness)
+const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O');
+const lipinski = checkLipinskiRuleOfFive(aspirin.molecules[0]);
+console.log(lipinski.passes); // true
+console.log(lipinski.properties);
+// { molecularWeight: 180.04, hbondDonors: 1, hbondAcceptors: 4 }
+
+// Veber Rules (oral bioavailability)
+const veber = checkVeberRules(aspirin.molecules[0]);
+console.log(veber.passes); // true
+console.log(veber.properties);
+// { rotatableBonds: 3, tpsa: 63.60 }
+
+// Blood-brain barrier penetration prediction
+const caffeine = parseSMILES('CN1C=NC2=C1C(=O)N(C(=O)N2C)C');
+const bbb = checkBBBPenetration(caffeine.molecules[0]);
+console.log(bbb.likelyPenetration); // true (TPSA: 61.82 < 90)
 ```
 
 ### Generating SMILES
@@ -286,23 +395,124 @@ Generates SMILES from molecule structure(s).
 - Deterministic output for identical molecules
 - Preserves tetrahedral and double bond stereochemistry
 
-### `getMolecularFormula(molecule: Molecule): string`
+### Molecular Property Functions
+
+#### Basic Properties
+
+**`getMolecularFormula(molecule: Molecule): string`**
 
 Returns the molecular formula in Hill notation (C first, then H, then alphabetical).
 
 **Example**: `C9H8O4` for aspirin
 
-### `getMolecularMass(molecule: Molecule): number`
+**`getMolecularMass(molecule: Molecule): number`**
 
 Returns the molecular mass using average atomic masses from the periodic table.
 
 **Example**: `180.042` for aspirin
 
-### `getExactMass(molecule: Molecule): number`
+**`getExactMass(molecule: Molecule): number`**
 
 Returns the exact mass using the most abundant isotope for each element.
 
 **Example**: `180.042` for aspirin
+
+#### Atom and Structure Counts
+
+**`getHeavyAtomCount(molecule: Molecule): number`**
+
+Returns the count of non-hydrogen atoms.
+
+**Example**: `13` for ibuprofen
+
+**`getHeteroAtomCount(molecule: Molecule): number`**
+
+Returns the count of heteroatoms (any atom except C and H). Includes N, O, S, P, halogens, etc.
+
+**Example**: `2` for aspirin (2 oxygen atoms in COOH group)
+
+**`getRingCount(molecule: Molecule): number`**
+
+Returns the total number of rings in the molecule using cycle detection.
+
+**Example**: `2` for naphthalene (2 fused rings)
+
+**`getAromaticRingCount(molecule: Molecule): number`**
+
+Returns the number of aromatic rings.
+
+**Example**: `1` for benzene, `2` for naphthalene
+
+**`getFractionCSP3(molecule: Molecule): number`**
+
+Returns the fraction of sp³-hybridized carbons (saturated carbons) relative to total carbons. Higher values indicate greater structural complexity and 3D character. Range: 0.0 to 1.0.
+
+**Example**: `0.25` for caffeine, `0.67` for ibuprofen
+
+#### Hydrogen Bonding
+
+**`getHBondDonorCount(molecule: Molecule): number`**
+
+Returns the count of hydrogen bond donors (N-H and O-H groups).
+
+**Example**: `1` for aspirin (carboxylic acid O-H), `0` for caffeine
+
+**`getHBondAcceptorCount(molecule: Molecule): number`**
+
+Returns the count of hydrogen bond acceptors (N and O atoms).
+
+**Example**: `4` for aspirin, `6` for caffeine
+
+#### Polar Surface Area
+
+**`getTPSA(molecule: Molecule): number`**
+
+Returns the Topological Polar Surface Area in Ų (square Ångströms) using the Ertl et al. fragment-based algorithm. TPSA is a key descriptor for predicting drug absorption and bioavailability.
+
+**Guidelines**:
+- TPSA < 140 Ų: Good oral bioavailability
+- TPSA < 90 Ų: Likely blood-brain barrier penetration
+- TPSA > 140 Ų: Poor membrane permeability
+
+**Example**: `63.60` for aspirin (good oral availability), `52.93` for morphine (CNS-active)
+
+**`getRotatableBondCount(molecule: Molecule): number`**
+
+Returns the count of rotatable bonds (single non-ring bonds between non-terminal heavy atoms). Used in Veber rules for predicting oral bioavailability.
+
+**Example**: `3` for aspirin, `4` for ibuprofen
+
+#### Drug-Likeness Checkers
+
+**`checkLipinskiRuleOfFive(molecule: Molecule): LipinskiResult`**
+
+Evaluates Lipinski's Rule of Five for oral drug-likeness. Returns result object with:
+- `passes`: boolean indicating if all rules pass
+- `violations`: array of violation messages
+- `properties`: { molecularWeight, hbondDonors, hbondAcceptors }
+
+**Rules**:
+- Molecular weight ≤ 500 Da
+- H-bond donors ≤ 5
+- H-bond acceptors ≤ 10
+- LogP ≤ 5 (not yet implemented)
+
+**`checkVeberRules(molecule: Molecule): VeberResult`**
+
+Evaluates Veber rules for oral bioavailability. Returns result object with:
+- `passes`: boolean indicating if all rules pass
+- `violations`: array of violation messages
+- `properties`: { rotatableBonds, tpsa }
+
+**Rules**:
+- Rotatable bonds ≤ 10
+- TPSA ≤ 140 Ų
+
+**`checkBBBPenetration(molecule: Molecule): BBBResult`**
+
+Predicts blood-brain barrier penetration. Returns result object with:
+- `likelyPenetration`: boolean (true if TPSA < 90 Ų)
+- `tpsa`: TPSA value
 
 ### Types
 
