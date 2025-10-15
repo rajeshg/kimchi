@@ -15,6 +15,11 @@ export enum StereoType {
   EITHER = 'either',
 }
 
+/**
+ * Atom in a molecule.
+ * After parsing, all atoms are enriched with pre-computed properties.
+ * Molecules are immutable post-parse - never mutate atoms directly.
+ */
 export interface Atom {
   id: number; // unique identifier
   symbol: string; // e.g., 'C', 'N', '[Fe]'
@@ -26,27 +31,37 @@ export interface Atom {
   chiral: string | null; // e.g., '@', '@@', '@TH1', etc.
   isBracket: boolean; // true if parsed from bracket
   atomClass: number; // atom class for application-specific marking (default 0)
-  degree?: number; // heavy atom neighbor count (cached)
-  isInRing?: boolean; // true if atom is in any ring (cached)
-  ringIds?: number[]; // IDs of rings this atom belongs to (cached)
-  hybridization?: 'sp' | 'sp2' | 'sp3' | 'other'; // hybridization state (cached)
+  degree?: number; // heavy atom neighbor count (pre-computed after enrichment)
+  isInRing?: boolean; // true if atom is in any ring (pre-computed after enrichment)
+  ringIds?: number[]; // IDs of rings this atom belongs to (pre-computed after enrichment)
+  hybridization?: 'sp' | 'sp2' | 'sp3' | 'other'; // hybridization state (pre-computed after enrichment)
 }
 
+/**
+ * Bond between two atoms.
+ * After parsing, all bonds are enriched with pre-computed properties.
+ * Molecules are immutable post-parse - never mutate bonds directly.
+ */
 export interface Bond {
   atom1: number; // atom id
   atom2: number; // atom id
   type: BondType;
   stereo: StereoType; // for double bonds
-  isInRing?: boolean; // true if bond is in any ring (cached)
-  ringIds?: number[]; // IDs of rings this bond belongs to (cached)
-  isRotatable?: boolean; // true if single, non-ring, non-terminal bond (cached)
+  isInRing?: boolean; // true if bond is in any ring (pre-computed after enrichment)
+  ringIds?: number[]; // IDs of rings this bond belongs to (pre-computed after enrichment)
+  isRotatable?: boolean; // true if single, non-ring, non-terminal bond (pre-computed after enrichment)
 }
 
+/**
+ * Molecule representation.
+ * After parsing, all molecules are enriched with ring analysis.
+ * Molecules are immutable post-parse - create new molecules instead of mutating.
+ */
 export interface Molecule {
   atoms: Atom[];
   bonds: Bond[];
-  rings?: number[][]; // cached ring information (atom IDs)
-  ringInfo?: RingInfo; // cached detailed ring analysis
+  rings?: number[][]; // ring information (atom IDs) (pre-computed after enrichment)
+  ringInfo?: RingInfo; // detailed ring analysis (pre-computed after enrichment)
 }
 
 export interface RingInfo {
