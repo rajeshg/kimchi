@@ -6,7 +6,7 @@ A high-performance, zero-dependency toolkit for parsing and generating SMILES (S
 
 ## Why chemkit?
 
-- **✅ 100% test coverage** — All 482 tests pass, including comprehensive RDKit comparison tests
+- **✅ 100% test coverage** — All 610 tests pass, including comprehensive RDKit comparison tests
 - **✅ RDKit-validated** — Canonical SMILES generation matches RDKit for 100% of tested molecules (325/325 bulk validation)
 - **⚡ Fast & lightweight** — Zero dependencies, pure TypeScript implementation
 - **🎯 Production-ready** — Extensively tested with real-world molecules, commercial drugs, and edge cases
@@ -15,7 +15,7 @@ A high-performance, zero-dependency toolkit for parsing and generating SMILES (S
 ## Quick Example
 
 ```typescript
-import { parseSMILES, generateSMILES, parseMolfile, generateMolfile } from 'chemkit';
+import { parseSMILES, generateSMILES, parseMolfile, generateMolfile, writeSDF } from 'chemkit';
 
 // Parse SMILES into molecule structure
 const result = parseSMILES('CC(=O)O'); // acetic acid
@@ -54,7 +54,7 @@ console.log(molfile); // Full MOL file with coordinates
 
 **chemkit achieves full parity with RDKit** — the gold standard in cheminformatics:
 
-- **482/482 tests passing** ✅ including comprehensive RDKit comparison tests
+- **610/610 tests passing** ✅ including comprehensive RDKit comparison tests
 - **325 molecule bulk validation** — All molecules successfully parsed and round-tripped (100% success rate)
 - **0 generation mismatches** — All parsed molecules generate valid SMILES
 - **100% RDKit canonical agreement** — All 325 generated canonical SMILES match RDKit's output
@@ -103,19 +103,34 @@ chemkit handles the full SMILES specification:
 ## Validation Results
 
 ```
-Test Suite: 482/482 passing ✅
+Test Suite: 610/610 passing ✅
 ├─ Parser tests: 18/18 ✅
 ├─ Comprehensive tests: 99/99 ✅
 ├─ Isotope tests: 23/23 ✅
-├─ Atom class tests: 36/36 ✅
-├─ Stereo extras: 11/11 ✅
+├─ Bracket parser tests: 36/36 ✅
+├─ Extended stereo: 35/35 ✅
+├─ Stereo extras: 19/19 ✅
 ├─ Additional stereo: 12/12 ✅
+├─ Ring stereo: 28/28 ✅
 ├─ Edge cases: 6/6 ✅
+├─ Round-trip tests: 23/23 ✅
+├─ Standard form: 20/20 ✅
+├─ MOL generator: 7/7 ✅
+├─ MOL file parser: 26/26 ✅
+├─ MOL file roundtrip: 4/4 ✅
+├─ SDF writer: 23/23 ✅ (7 integration + 16 unit)
+├─ Molecular properties: 48/48 ✅
+├─ Aromaticity perceiver: 22/22 ✅
+├─ Ring finder: 5/5 ✅
+├─ Symmetry detector: 19/19 ✅
+├─ Valence calculator: 2/2 ✅
+├─ Atom utils: 5/5 ✅
 ├─ RDKit comparison: 2/2 ✅
 ├─ RDKit canonical: 27/27 ✅
-├─ RDKit stereo: 11/11 ✅
-├─ Ring stereo: 28/28 ✅
-├─ RDKit symmetry: 54/54 ✅
+├─ RDKit stereo: 21/21 ✅
+├─ RDKit symmetry: 53/53 ✅
+├─ RDKit MOL comparison: 7/7 ✅
+├─ RDKit MOL file: 15/15 ✅
 └─ RDKit bulk: 325 molecules ✅
 
 RDKit Bulk Validation:
@@ -390,7 +405,45 @@ bun test test/parser.test.ts
 
 ## API Reference
 
-### `parseSMILES(smiles: string): ParseResult`
+### Quick Reference
+
+chemkit provides **20 functions** organized into 4 categories:
+
+**Parsing & Generation (5)**
+- `parseSMILES` - Parse SMILES strings
+- `generateSMILES` - Generate canonical/non-canonical SMILES
+- `parseMolfile` - Parse MOL files (V2000/V3000)
+- `generateMolfile` - Generate MOL files (V2000)
+- `writeSDF` - Write SDF files with properties
+
+**Basic Properties (3)**
+- `getMolecularFormula` - Hill notation formula
+- `getMolecularMass` - Average molecular mass
+- `getExactMass` - Exact mass (monoisotopic)
+
+**Structural Properties (7)**
+- `getHeavyAtomCount` - Non-hydrogen atom count
+- `getHeteroAtomCount` - Heteroatom count (N, O, S, etc.)
+- `getRingCount` - Total ring count
+- `getAromaticRingCount` - Aromatic ring count
+- `getFractionCSP3` - sp³ carbon fraction
+- `getHBondDonorCount` - H-bond donor count
+- `getHBondAcceptorCount` - H-bond acceptor count
+
+**Drug-Likeness (5)**
+- `getTPSA` - Topological polar surface area
+- `getRotatableBondCount` - Rotatable bond count
+- `checkLipinskiRuleOfFive` - Lipinski's Rule of Five
+- `checkVeberRules` - Veber rules for bioavailability
+- `checkBBBPenetration` - Blood-brain barrier prediction
+
+---
+
+### Detailed API Documentation
+
+#### Parsing & Generation (5 functions)
+
+##### `parseSMILES(smiles: string): ParseResult`
 
 Parses a SMILES string into molecule structures.
 
@@ -398,7 +451,7 @@ Parses a SMILES string into molecule structures.
 - `molecules: Molecule[]` — Array of parsed molecules
 - `errors: string[]` — Parse/validation errors (empty if successful)
 
-### `generateSMILES(input: Molecule | Molecule[], canonical?: boolean): string`
+##### `generateSMILES(input: Molecule | Molecule[], canonical?: boolean): string`
 
 Generates SMILES from molecule structure(s).
 
@@ -414,7 +467,7 @@ Generates SMILES from molecule structure(s).
 - Deterministic output for identical molecules
 - Preserves tetrahedral and double bond stereochemistry
 
-### `generateMolfile(molecule: Molecule, options?: MolGeneratorOptions): string`
+##### `generateMolfile(molecule: Molecule, options?: MolGeneratorOptions): string`
 
 Generates a MOL file (V2000 format) from a molecule structure. Matches RDKit's output structure for compatibility with cheminformatics tools.
 
@@ -445,7 +498,7 @@ console.log(molfile);
 // Output: MOL file with header, atom coordinates, bond connectivity, etc.
 ```
 
-### `parseMolfile(input: string): MolfileParseResult`
+##### `parseMolfile(input: string): MolfileParseResult`
 
 Parses a MOL file (MDL Molfile format) into a molecule structure. Supports both V2000 and V3000 formats with comprehensive validation.
 
@@ -528,77 +581,163 @@ const roundtrip = generateSMILES(parsed.molecule!);
 console.log(roundtrip); // "CC(=O)O"
 ```
 
-### Molecular Property Functions
+##### `writeSDF(records: SDFRecord | SDFRecord[], options?: SDFWriterOptions): SDFWriterResult`
 
-#### Basic Properties
+Writes molecules to SDF (Structure-Data File) format. Supports single or multiple records with optional property data. SDF files are commonly used for storing chemical databases and transferring molecular data between cheminformatics tools.
 
-**`getMolecularFormula(molecule: Molecule): string`**
+**Parameters**:
+- `records` — Single record or array of records to write
+- `options` — Optional configuration (same as `MolGeneratorOptions`):
+  - `title?: string` — Default title for records (default: empty)
+  - `programName?: string` — Program name in headers (default: "chemkit")
+  - `dimensionality?: '2D' | '3D'` — Coordinate system (default: "2D")
+  - `comment?: string` — Default comment (default: empty)
+
+**Returns**: `SDFWriterResult` containing:
+- `sdf: string` — Complete SDF file content
+- `errors: string[]` — Any errors encountered (empty if successful)
+
+**Record format**:
+```typescript
+interface SDFRecord {
+  molecule: Molecule;
+  properties?: Record<string, string | number | boolean>;
+}
+```
+
+**SDF structure**:
+- MOL block (V2000 format) for each molecule
+- Property fields (`>  <NAME>`, value, blank line)
+- Record separator (`$$$$`)
+
+**Example (single molecule)**:
+```typescript
+import { parseSMILES, writeSDF } from 'chemkit';
+
+const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O');
+const result = writeSDF({
+  molecule: aspirin.molecules[0],
+  properties: {
+    NAME: 'aspirin',
+    MOLECULAR_FORMULA: 'C9H8O4',
+    MOLECULAR_WEIGHT: 180.042
+  }
+});
+
+console.log(result.sdf);
+// Output: SDF file with MOL block + properties + $$$$
+```
+
+**Example (multiple molecules)**:
+```typescript
+import { parseSMILES, writeSDF } from 'chemkit';
+
+const drugs = [
+  { smiles: 'CC(=O)Oc1ccccc1C(=O)O', name: 'aspirin' },
+  { smiles: 'CC(C)Cc1ccc(cc1)C(C)C(=O)O', name: 'ibuprofen' },
+  { smiles: 'CC(=O)Nc1ccc(O)cc1', name: 'acetaminophen' }
+];
+
+const records = drugs.map(drug => {
+  const mol = parseSMILES(drug.smiles).molecules[0];
+  return {
+    molecule: mol,
+    properties: {
+      NAME: drug.name,
+      SMILES: drug.smiles
+    }
+  };
+});
+
+const result = writeSDF(records, { programName: 'my-drug-tool' });
+console.log(result.sdf);
+// Output: Multi-record SDF with all 3 molecules
+```
+
+**Property formatting**:
+- Strings: Written as-is
+- Numbers: Converted to strings
+- Booleans: `"true"` or `"false"`
+- Property names are case-sensitive
+
+**Compatibility**:
+- Output compatible with RDKit, OpenBabel, ChemDraw, and other tools
+- Standard SDF format (V2000 MOL blocks)
+- Properties follow MDL SDF specification
+
+---
+
+#### Basic Properties (3 functions)
+
+##### `getMolecularFormula(molecule: Molecule): string`
 
 Returns the molecular formula in Hill notation (C first, then H, then alphabetical).
 
 **Example**: `C9H8O4` for aspirin
 
-**`getMolecularMass(molecule: Molecule): number`**
+##### `getMolecularMass(molecule: Molecule): number`
 
 Returns the molecular mass using average atomic masses from the periodic table.
 
 **Example**: `180.042` for aspirin
 
-**`getExactMass(molecule: Molecule): number`**
+##### `getExactMass(molecule: Molecule): number`
 
 Returns the exact mass using the most abundant isotope for each element.
 
 **Example**: `180.042` for aspirin
 
-#### Atom and Structure Counts
+---
 
-**`getHeavyAtomCount(molecule: Molecule): number`**
+#### Structural Properties (7 functions)
+
+##### `getHeavyAtomCount(molecule: Molecule): number`
 
 Returns the count of non-hydrogen atoms.
 
 **Example**: `13` for ibuprofen
 
-**`getHeteroAtomCount(molecule: Molecule): number`**
+##### `getHeteroAtomCount(molecule: Molecule): number`
 
 Returns the count of heteroatoms (any atom except C and H). Includes N, O, S, P, halogens, etc.
 
 **Example**: `2` for aspirin (2 oxygen atoms in COOH group)
 
-**`getRingCount(molecule: Molecule): number`**
+##### `getRingCount(molecule: Molecule): number`
 
 Returns the total number of rings in the molecule using cycle detection.
 
 **Example**: `2` for naphthalene (2 fused rings)
 
-**`getAromaticRingCount(molecule: Molecule): number`**
+##### `getAromaticRingCount(molecule: Molecule): number`
 
 Returns the number of aromatic rings.
 
 **Example**: `1` for benzene, `2` for naphthalene
 
-**`getFractionCSP3(molecule: Molecule): number`**
+##### `getFractionCSP3(molecule: Molecule): number`
 
 Returns the fraction of sp³-hybridized carbons (saturated carbons) relative to total carbons. Higher values indicate greater structural complexity and 3D character. Range: 0.0 to 1.0.
 
 **Example**: `0.25` for caffeine, `0.67` for ibuprofen
 
-#### Hydrogen Bonding
-
-**`getHBondDonorCount(molecule: Molecule): number`**
+##### `getHBondDonorCount(molecule: Molecule): number`
 
 Returns the count of hydrogen bond donors (N-H and O-H groups).
 
 **Example**: `1` for aspirin (carboxylic acid O-H), `0` for caffeine
 
-**`getHBondAcceptorCount(molecule: Molecule): number`**
+##### `getHBondAcceptorCount(molecule: Molecule): number`
 
 Returns the count of hydrogen bond acceptors (N and O atoms).
 
 **Example**: `4` for aspirin, `6` for caffeine
 
-#### Polar Surface Area
+---
 
-**`getTPSA(molecule: Molecule): number`**
+#### Drug-Likeness Properties (5 functions)
+
+##### `getTPSA(molecule: Molecule): number`
 
 Returns the Topological Polar Surface Area in Ų (square Ångströms) using the Ertl et al. fragment-based algorithm. TPSA is a key descriptor for predicting drug absorption and bioavailability.
 
@@ -609,15 +748,13 @@ Returns the Topological Polar Surface Area in Ų (square Ångströms) using the 
 
 **Example**: `63.60` for aspirin (good oral availability), `52.93` for morphine (CNS-active)
 
-**`getRotatableBondCount(molecule: Molecule): number`**
+##### `getRotatableBondCount(molecule: Molecule): number`
 
 Returns the count of rotatable bonds (single non-ring bonds between non-terminal heavy atoms). Used in Veber rules for predicting oral bioavailability.
 
 **Example**: `3` for aspirin, `4` for ibuprofen
 
-#### Drug-Likeness Checkers
-
-**`checkLipinskiRuleOfFive(molecule: Molecule): LipinskiResult`**
+##### `checkLipinskiRuleOfFive(molecule: Molecule): LipinskiResult`
 
 Evaluates Lipinski's Rule of Five for oral drug-likeness. Returns result object with:
 - `passes`: boolean indicating if all rules pass
@@ -630,7 +767,7 @@ Evaluates Lipinski's Rule of Five for oral drug-likeness. Returns result object 
 - H-bond acceptors ≤ 10
 - LogP ≤ 5 (not yet implemented)
 
-**`checkVeberRules(molecule: Molecule): VeberResult`**
+##### `checkVeberRules(molecule: Molecule): VeberResult`
 
 Evaluates Veber rules for oral bioavailability. Returns result object with:
 - `passes`: boolean indicating if all rules pass
@@ -641,13 +778,15 @@ Evaluates Veber rules for oral bioavailability. Returns result object with:
 - Rotatable bonds ≤ 10
 - TPSA ≤ 140 Ų
 
-**`checkBBBPenetration(molecule: Molecule): BBBResult`**
+##### `checkBBBPenetration(molecule: Molecule): BBBResult`
 
 Predicts blood-brain barrier penetration. Returns result object with:
 - `likelyPenetration`: boolean (true if TPSA < 90 Ų)
 - `tpsa`: TPSA value
 
-### Types
+---
+
+### TypeScript Types
 
 ```typescript
 interface Molecule {
@@ -811,28 +950,80 @@ All deviations are deliberate choices to maximize **real-world interoperability*
 
 ```
 chemkit/
-├── parser.ts              # SMILES parser with validation
 ├── src/
-│   ├── generators/        # Canonical SMILES generator
-│   ├── validators/        # Aromaticity, valence, stereo validation
-│   ├── parsers/           # Bracket notation parser
-│   └── utils/             # Ring finding, atom utilities
-├── types.ts               # TypeScript type definitions
-├── index.ts               # Public API exports
-├── test/                  # Comprehensive test suite
-│   ├── parser.test.ts     # Basic parsing tests (18 tests)
-│   ├── comprehensive.test.ts  # Full feature tests (99 tests)
-│   ├── isotope.test.ts    # Isotope support (23 tests)
-│   ├── atom-class.test.ts # Atom class support (36 tests)
-│   ├── stereo-extra.test.ts   # Stereo edge cases (11 tests)
-│   ├── stereo-additional.test.ts # Additional stereo tests (12 tests)
-│   ├── edge-cases.test.ts     # OpenSMILES edge cases (6 tests)
-│   ├── rdkit-comparison.test.ts # RDKit validation (2 tests)
-│   ├── rdkit-canonical.test.ts # RDKit canonical (27 tests)
-│   ├── rdkit-stereo.test.ts   # RDKit stereo comparison (11 tests)
-│   ├── ring-stereo.test.ts    # Ring stereo validation (10 tests)
-│   └── rdkit-bulk.test.ts     # Bulk validation (325 molecules, includes 25 drugs)
-└── rdkit-bulk-report.json # Validation results
+│   ├── generators/
+│   │   ├── mol-generator.ts         # MOL file generation
+│   │   ├── sdf-writer.ts            # SDF file writing
+│   │   └── smiles-generator.ts      # Canonical SMILES generation
+│   ├── parsers/
+│   │   ├── bracket-parser.ts        # Bracket notation parser
+│   │   ├── molfile-parser.ts        # MOL file parser
+│   │   └── smiles-parser.ts         # SMILES parser
+│   ├── utils/
+│   │   ├── aromaticity-perceiver.ts # Aromaticity detection
+│   │   ├── atom-utils.ts            # Atom helper functions
+│   │   ├── bond-utils.ts            # Bond helper functions
+│   │   ├── molecular-properties.ts  # Property calculations
+│   │   ├── molecule-enrichment.ts   # Post-processing enrichment
+│   │   ├── ring-finder.ts           # Ring detection algorithm
+│   │   ├── ring-utils.ts            # Ring utilities
+│   │   ├── symmetry-detector.ts     # Symmetry analysis
+│   │   └── valence-calculator.ts    # Valence validation
+│   ├── validators/
+│   │   ├── aromaticity-validator.ts # Aromaticity validation
+│   │   ├── stereo-validator.ts      # Stereochemistry validation
+│   │   └── valence-validator.ts     # Valence checking
+│   └── constants.ts                 # Element data and constants
+├── test/
+│   ├── smiles/                      # SMILES tests (213 tests)
+│   │   ├── stereo/                  # Stereo tests (59 tests)
+│   │   │   ├── stereo-advanced.test.ts
+│   │   │   ├── stereo-extra.test.ts
+│   │   │   └── stereo-rings.test.ts
+│   │   ├── rdkit-comparison/        # RDKit validation (229 tests)
+│   │   │   ├── bond-mismatch-debug.test.ts
+│   │   │   ├── failing-cases.test.ts
+│   │   │   ├── rdkit-10k.test.ts
+│   │   │   ├── rdkit-bulk.test.ts
+│   │   │   ├── rdkit-canonical.test.ts
+│   │   │   ├── rdkit-comparison.test.ts
+│   │   │   ├── rdkit-stereo.test.ts
+│   │   │   ├── rdkit-symmetry.test.ts
+│   │   │   └── smiles-10k.txt
+│   │   ├── smiles-bracket-parser.test.ts
+│   │   ├── smiles-extended-stereo.test.ts
+│   │   ├── smiles-isotope.test.ts
+│   │   ├── smiles-parser-advanced.test.ts
+│   │   ├── smiles-parser-basic.test.ts
+│   │   ├── smiles-parser-edge-cases.test.ts
+│   │   ├── smiles-round-trip.test.ts
+│   │   └── smiles-standard-form.test.ts
+│   ├── molfile/                     # MOL file tests (57 tests)
+│   │   ├── mol-generator.test.ts
+│   │   ├── molfile-parser.test.ts
+│   │   ├── molfile-roundtrip.test.ts
+│   │   ├── rdkit-mol-comparison.test.ts
+│   │   └── rdkit-molfile.test.ts
+│   ├── sdf/                         # SDF tests (23 tests)
+│   │   ├── sdf-writer-integration.test.ts
+│   │   └── sdf-writer-unit.test.ts
+│   ├── unit/
+│   │   ├── utils/                   # Utility tests (101 tests)
+│   │   │   ├── aromaticity-perceiver.test.ts
+│   │   │   ├── atom-utils.test.ts
+│   │   │   ├── molecular-properties.test.ts
+│   │   │   ├── ring-finder.test.ts
+│   │   │   ├── symmetry-detector.test.ts
+│   │   │   └── valence-calculator.test.ts
+│   │   └── validators/              # Validator tests (not yet created)
+│   └── rdkit-comparison/
+│       └── rdkit-api-inspect.test.ts # RDKit API inspection (1 test)
+├── types.ts                         # TypeScript type definitions
+├── index.ts                         # Public API exports
+├── package.json
+├── tsconfig.json
+├── AGENTS.md                        # Agent guidelines
+└── README.md
 ```
 
 ## Key Implementation Features
@@ -878,7 +1069,7 @@ This implementation achieves 100% agreement with RDKit's canonical output across
 
 We welcome contributions! chemkit maintains strict quality standards:
 
-1. **All tests must pass** — 482/482 required
+1. **All tests must pass** — 610/610 required
 2. **RDKit parity required** — Canonical SMILES must match RDKit output exactly
 3. **Add tests for new features** — Test coverage is mandatory
 4. **Follow TypeScript conventions** — See `AGENTS.md` for guidelines

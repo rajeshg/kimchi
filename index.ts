@@ -2,6 +2,7 @@ export { parseSMILES } from './src/parsers/smiles-parser';
 export { generateSMILES } from './src/generators/smiles-generator';
 export { generateMolfile, type MolGeneratorOptions } from './src/generators/mol-generator';
 export { parseMolfile, type MolfileParseResult, type MolfileData, MolfileVersion } from './src/parsers/molfile-parser';
+export { writeSDF, type SDFWriterOptions, type SDFRecord, type SDFWriterResult } from './src/generators/sdf-writer';
 export {
   getMolecularFormula,
   getMolecularMass,
