@@ -269,13 +269,47 @@ function getTPSAContribution(
 export function getRotatableBondCount(mol: Molecule): number {
   let count = 0;
   
+  const rings = findRings(mol.atoms, mol.bonds);
+  const ringAtomSet = new Set<number>();
+  
+  for (const ring of rings) {
+    for (const atomId of ring) {
+      ringAtomSet.add(atomId!);
+    }
+  }
+  
+  const ringBondSet = new Set<string>();
+  
+  for (const bond of mol.bonds) {
+    let inSameRing = false;
+    
+    for (const ring of rings) {
+      const atom1InThisRing = ring.includes(bond.atom1);
+      const atom2InThisRing = ring.includes(bond.atom2);
+      
+      if (atom1InThisRing && atom2InThisRing) {
+        inSameRing = true;
+        break;
+      }
+    }
+    
+    if (inSameRing) {
+      const key = `${Math.min(bond.atom1, bond.atom2)}-${Math.max(bond.atom1, bond.atom2)}`;
+      ringBondSet.add(key);
+    }
+  }
+  
   for (const bond of mol.bonds) {
     if (bond.type !== 'single') continue;
+    
+    const bondKey = `${Math.min(bond.atom1, bond.atom2)}-${Math.max(bond.atom1, bond.atom2)}`;
+    if (ringBondSet.has(bondKey)) continue;
     
     const atom1 = mol.atoms.find(a => a.id === bond.atom1)!;
     const atom2 = mol.atoms.find(a => a.id === bond.atom2)!;
     
-    if (atom1.symbol === 'H' || atom2.symbol === 'H') continue;
+    if (atom1.symbol === 'H' && !atom1.isotope) continue;
+    if (atom2.symbol === 'H' && !atom2.isotope) continue;
     
     const bondsAtom1 = mol.bonds.filter(b => b.atom1 === atom1.id || b.atom2 === atom1.id);
     const bondsAtom2 = mol.bonds.filter(b => b.atom1 === atom2.id || b.atom2 === atom2.id);
@@ -283,21 +317,51 @@ export function getRotatableBondCount(mol: Molecule): number {
     const heavyNeighbors1 = bondsAtom1.filter(b => {
       const otherId = b.atom1 === atom1.id ? b.atom2 : b.atom1;
       const other = mol.atoms.find(a => a.id === otherId)!;
-      return other.symbol !== 'H';
+      return other.symbol !== 'H' || other.isotope;
     }).length;
     
     const heavyNeighbors2 = bondsAtom2.filter(b => {
       const otherId = b.atom1 === atom2.id ? b.atom2 : b.atom1;
       const other = mol.atoms.find(a => a.id === otherId)!;
-      return other.symbol !== 'H';
+      return other.symbol !== 'H' || other.isotope;
     }).length;
     
     if (heavyNeighbors1 < 2 || heavyNeighbors2 < 2) continue;
     
-    const hasMultipleBond1 = bondsAtom1.some(b => b.type === 'double' || b.type === 'triple');
-    const hasMultipleBond2 = bondsAtom2.some(b => b.type === 'double' || b.type === 'triple');
+    const atom1InRing = ringAtomSet.has(atom1.id);
+    const atom2InRing = ringAtomSet.has(atom2.id);
     
-    if (hasMultipleBond1 && hasMultipleBond2) continue;
+    if ((atom1InRing && heavyNeighbors2 === 1) || (atom2InRing && heavyNeighbors1 === 1)) continue;
+    
+    const hasTripleBond1 = bondsAtom1.some(b => b.type === 'triple');
+    const hasTripleBond2 = bondsAtom2.some(b => b.type === 'triple');
+    
+    if (hasTripleBond1 || hasTripleBond2) continue;
+    
+    const hasDoubleBond1 = !atom1.aromatic && bondsAtom1.some(b => b.type === 'double');
+    const hasDoubleBond2 = !atom2.aromatic && bondsAtom2.some(b => b.type === 'double');
+    
+    if (heavyNeighbors1 >= 4 && !atom1InRing && !hasDoubleBond1) continue;
+    if (heavyNeighbors2 >= 4 && !atom2InRing && !hasDoubleBond2) continue;
+    
+    const hasCarbonyl1 = !atom1.aromatic && atom1.symbol === 'C' && bondsAtom1.some(b => {
+      if (b.type !== 'double') return false;
+      const otherId = b.atom1 === atom1.id ? b.atom2 : b.atom1;
+      const other = mol.atoms.find(a => a.id === otherId);
+      return other?.symbol === 'O';
+    });
+    
+    const hasCarbonyl2 = !atom2.aromatic && atom2.symbol === 'C' && bondsAtom2.some(b => {
+      if (b.type !== 'double') return false;
+      const otherId = b.atom1 === atom2.id ? b.atom2 : b.atom1;
+      const other = mol.atoms.find(a => a.id === otherId);
+      return other?.symbol === 'O';
+    });
+    
+    const isHeteroatom1 = atom1.symbol !== 'C' && atom1.symbol !== 'H';
+    const isHeteroatom2 = atom2.symbol !== 'C' && atom2.symbol !== 'H';
+    
+    if ((hasCarbonyl1 && isHeteroatom2) || (hasCarbonyl2 && isHeteroatom1)) continue;
     
     count++;
   }

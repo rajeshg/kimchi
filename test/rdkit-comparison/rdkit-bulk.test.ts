@@ -1,5 +1,15 @@
 import { describe, it, expect } from 'bun:test';
-import { parseSMILES, generateSMILES, getMolecularFormula, getMolecularMass, getExactMass } from 'index';
+import { 
+  parseSMILES, 
+  generateSMILES, 
+  getMolecularFormula, 
+  getMolecularMass, 
+  getExactMass,
+  getHBondDonorCount,
+  getHBondAcceptorCount,
+  getRotatableBondCount,
+  getTPSA,
+} from 'index';
 
 // Programmatically build a diverse list of 300 SMILES
 const TEST_SMILES: string[] = [];
@@ -236,6 +246,17 @@ describe(`RDKit Bulk Comparison (${EXPECTED_COUNT} SMILES)`, () => {
       return null;
     }
 
+    function tryGetDescriptors(mol: any): any {
+      if (!mol) return null;
+      try {
+        if (typeof mol.get_descriptors === 'function') {
+          const d = mol.get_descriptors();
+          return typeof d === 'string' ? JSON.parse(d) : d;
+        }
+      } catch (e) {}
+      return null;
+    }
+
     for (const smiles of TEST_SMILES) {
       const parsed = parseSMILES(smiles);
       if (parsed.errors && parsed.errors.length > 0) {
@@ -291,6 +312,45 @@ describe(`RDKit Bulk Comparison (${EXPECTED_COUNT} SMILES)`, () => {
         // RDKit descriptors prefer exact monoisotopic mass; compare to our exact mass
         if (Math.abs(rdMass - ourExact) > tol) {
           generationFailures.push(`${smiles} (mass mismatch) our:${ourExact} rdkit:${rdMass}`);
+        }
+      }
+
+      // Compare molecular properties with RDKit descriptors
+      const descriptors = tryGetDescriptors(rdkitMol);
+      if (descriptors && parsed.molecules.length === 1) {
+        const mol = parsed.molecules[0]!;
+        
+        // H-bond donors
+        if (typeof descriptors.NumHDonors === 'number') {
+          const ourDonors = getHBondDonorCount(mol);
+          if (descriptors.NumHDonors !== ourDonors) {
+            generationFailures.push(`${smiles} (HBD mismatch) our:${ourDonors} rdkit:${descriptors.NumHDonors}`);
+          }
+        }
+        
+        // H-bond acceptors
+        if (typeof descriptors.NumHAcceptors === 'number') {
+          const ourAcceptors = getHBondAcceptorCount(mol);
+          if (descriptors.NumHAcceptors !== ourAcceptors) {
+            generationFailures.push(`${smiles} (HBA mismatch) our:${ourAcceptors} rdkit:${descriptors.NumHAcceptors}`);
+          }
+        }
+        
+        // Rotatable bonds
+        if (typeof descriptors.NumRotatableBonds === 'number') {
+          const ourRotBonds = getRotatableBondCount(mol);
+          if (descriptors.NumRotatableBonds !== ourRotBonds) {
+            generationFailures.push(`${smiles} (RotBonds mismatch) our:${ourRotBonds} rdkit:${descriptors.NumRotatableBonds}`);
+          }
+        }
+        
+        // TPSA (allow small tolerance for floating point)
+        if (typeof descriptors.TPSA === 'number') {
+          const ourTPSA = getTPSA(mol);
+          const tpsaTol = 0.1;
+          if (Math.abs(descriptors.TPSA - ourTPSA) > tpsaTol) {
+            generationFailures.push(`${smiles} (TPSA mismatch) our:${ourTPSA.toFixed(2)} rdkit:${descriptors.TPSA.toFixed(2)}`);
+          }
         }
       }
 
