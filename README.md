@@ -15,7 +15,7 @@ A high-performance, zero-dependency toolkit for parsing and generating SMILES (S
 ## Quick Example
 
 ```typescript
-import { parseSMILES, generateSMILES } from 'chemkit';
+import { parseSMILES, generateSMILES, parseMolfile, generateMolfile } from 'chemkit';
 
 // Parse SMILES into molecule structure
 const result = parseSMILES('CC(=O)O'); // acetic acid
@@ -26,9 +26,28 @@ console.log(result.molecules[0].bonds.length); // 3 bonds
 const canonical = generateSMILES(result.molecules[0]);
 console.log(canonical); // "CC(=O)O"
 
-// Round-trip complex molecules
+// Parse MOL file
+const molContent = `
+acetic acid
+  chemkit
+
+  4  3  0  0  0  0  0  0  0  0999 V2000
+    0.0000    0.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    1.5000    0.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    2.2500    1.2990    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0
+    2.2500   -1.2990    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0
+  1  2  1  0  0  0  0
+  2  3  2  0  0  0  0
+  2  4  1  0  0  0  0
+M  END
+`;
+const molResult = parseMolfile(molContent);
+console.log(generateSMILES(molResult.molecule!)); // "CC(=O)O"
+
+// Generate MOL file from SMILES
 const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O');
-console.log(generateSMILES(aspirin.molecules[0])); // Canonical form
+const molfile = generateMolfile(aspirin.molecules[0], { title: 'aspirin' });
+console.log(molfile); // Full MOL file with coordinates
 ```
 
 ## RDKit Parity & Validation
@@ -424,6 +443,89 @@ const result = parseSMILES('CCO');
 const molfile = generateMolfile(result.molecules[0]);
 console.log(molfile);
 // Output: MOL file with header, atom coordinates, bond connectivity, etc.
+```
+
+### `parseMolfile(input: string): MolfileParseResult`
+
+Parses a MOL file (MDL Molfile format) into a molecule structure. Supports both V2000 and V3000 formats with comprehensive validation.
+
+**Parameters**:
+- `input` — MOL file content as a string
+
+**Returns**: `MolfileParseResult` containing:
+- `molfile: MolfileData | null` — Raw MOL file data structure (or null on critical errors)
+- `molecule: Molecule | null` — Parsed molecule with enriched properties (or null on errors)
+- `errors: ParseError[]` — Array of parse/validation errors (empty if successful)
+
+**Supported formats**:
+- **V2000**: Classic fixed-width format (most common)
+- **V3000**: Extended format with additional features
+
+**Validation features**:
+- Validates atom/bond counts match declared values
+- Checks bond references point to valid atoms
+- Validates numeric fields (coordinates, counts, bond types)
+- Detects malformed data (NaN, negative counts, invalid types)
+- Returns errors without throwing exceptions
+
+**Parsed features**:
+- Atom coordinates (2D/3D)
+- Element symbols (organic and periodic table)
+- Charges (both atom block and M CHG property)
+- Isotopes (both mass diff and M ISO property)
+- Bond types (single, double, triple, aromatic)
+- Stereochemistry (bond wedges, chiral centers)
+- Atom mapping (reaction mapping)
+
+**Limitations**:
+- SGroups are parsed but not converted to molecule structure
+- Query atoms/bonds not supported
+
+**Example**:
+```typescript
+import { parseMolfile, generateSMILES } from 'chemkit';
+
+const molContent = `
+ethanol
+  chemkit
+
+  3  2  0  0  0  0  0  0  0  0999 V2000
+    0.0000    0.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    1.5000    0.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    2.2500    1.2990    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0
+  1  2  1  0  0  0  0
+  2  3  1  0  0  0  0
+M  END
+`;
+
+const result = parseMolfile(molContent);
+if (result.errors.length === 0) {
+  console.log(result.molecule?.atoms.length); // 3
+  console.log(result.molecule?.bonds.length); // 2
+  
+  // Convert to SMILES
+  const smiles = generateSMILES(result.molecule!);
+  console.log(smiles); // "CCO"
+}
+
+// Error handling
+const invalid = parseMolfile('invalid content');
+if (invalid.errors.length > 0) {
+  console.error('Parse errors:', invalid.errors);
+}
+```
+
+**Round-trip workflow**:
+```typescript
+import { parseSMILES, generateMolfile, parseMolfile, generateSMILES } from 'chemkit';
+
+// SMILES → MOL → SMILES round-trip
+const original = 'CC(=O)O'; // acetic acid
+const mol = parseSMILES(original).molecules[0];
+const molfile = generateMolfile(mol);
+const parsed = parseMolfile(molfile);
+const roundtrip = generateSMILES(parsed.molecule!);
+console.log(roundtrip); // "CC(=O)O"
 ```
 
 ### Molecular Property Functions

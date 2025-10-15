@@ -1,6 +1,7 @@
 export { parseSMILES } from './src/parser';
 export { generateSMILES } from './src/generators/smiles-generator';
 export { generateMolfile, type MolGeneratorOptions } from './src/generators/mol-generator';
+export { parseMolfile, type MolfileParseResult, type MolfileData, MolfileVersion } from './src/parsers/molfile-parser';
 export {
   getMolecularFormula,
   getMolecularMass,
