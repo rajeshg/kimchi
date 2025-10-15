@@ -1,4 +1,5 @@
-import { parseSMILES, writeSDF, type SDFRecord } from './index';
+import { parseSMILES, writeSDF } from './index';
+import type { SDFRecord } from './src/generators/sdf-writer';
 
 const drugMolecules = [
   { smiles: 'CC(C)CC1=CC=C(C=C1)C(C)C(=O)O', name: 'Ibuprofen', mw: 206.28 },
@@ -30,9 +31,9 @@ for (const drug of drugMolecules) {
     properties: {
       NAME: drug.name,
       SMILES: drug.smiles,
-      MW: drug.mw,
-      ATOMS: molecule.atoms.length,
-      BONDS: molecule.bonds.length,
+      MW: drug.mw.toString(),
+      ATOMS: molecule.atoms.length.toString(),
+      BONDS: molecule.bonds.length.toString(),
     },
   });
 

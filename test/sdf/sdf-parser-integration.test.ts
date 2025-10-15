@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'bun:test';
 import { parseSDF, writeSDF, parseSMILES } from '../../index';
 
 describe('SDF Parser - Integration Tests', () => {

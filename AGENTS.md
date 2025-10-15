@@ -33,16 +33,23 @@
 - Reasonable line length, break long lines logically
 
 ### Testing
-- Use vitest with describe/it blocks
+- Use bun:test with describe/it blocks
 - Test both success and error cases
 - Compare with RDKit where possible for validation
+
+### Comments
+- DO NOT ADD COMMENTS unless explicitly requested
+- Code should be self-documenting with clear naming
 
 ## File Locations
 
 ### Core Functionality
-- **SMILES Parser**: `src/parser.ts`
+- **SMILES Parser**: `src/parsers/smiles-parser.ts`
 - **SMILES Generator**: `src/generators/smiles-generator.ts`
 - **MOL Generator**: `src/generators/mol-generator.ts`
+- **MOL Parser**: `src/parsers/molfile-parser.ts`
+- **SDF Parser**: `src/parsers/sdf-parser.ts`
+- **SDF Writer**: `src/generators/sdf-writer.ts`
 - **Types**: `types.ts`
 
 ### Utilities
