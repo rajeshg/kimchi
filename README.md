@@ -6,7 +6,7 @@ A high-performance, zero-dependency toolkit for parsing and generating SMILES (S
 
 ## Why chemkit?
 
-- **✅ 100% test coverage** — All 610 tests pass, including comprehensive RDKit comparison tests
+- **✅ 100% test coverage** — All 649 tests pass, including comprehensive RDKit comparison tests
 - **✅ RDKit-validated** — Canonical SMILES generation matches RDKit for 100% of tested molecules (325/325 bulk validation)
 - **⚡ Fast & lightweight** — Zero dependencies, pure TypeScript implementation
 - **🎯 Production-ready** — Extensively tested with real-world molecules, commercial drugs, and edge cases
@@ -15,7 +15,7 @@ A high-performance, zero-dependency toolkit for parsing and generating SMILES (S
 ## Quick Example
 
 ```typescript
-import { parseSMILES, generateSMILES, parseMolfile, generateMolfile, writeSDF } from 'chemkit';
+import { parseSMILES, generateSMILES, parseMolfile, generateMolfile, parseSDF, writeSDF } from 'chemkit';
 
 // Parse SMILES into molecule structure
 const result = parseSMILES('CC(=O)O'); // acetic acid
@@ -48,13 +48,37 @@ console.log(generateSMILES(molResult.molecule!)); // "CC(=O)O"
 const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O');
 const molfile = generateMolfile(aspirin.molecules[0], { title: 'aspirin' });
 console.log(molfile); // Full MOL file with coordinates
+
+// Parse SDF file
+const sdfContent = `
+  Mrv2311 02102409422D          
+
+
+  3  2  0  0  0  0            999 V2000
+    0.0000    0.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    1.5000    0.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    2.2500    1.2990    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0
+  1  2  1  0  0  0  0
+  2  3  1  0  0  0  0
+M  END
+>  <ID>
+MOL001
+
+>  <NAME>
+Ethanol
+
+$$$$
+`;
+const sdfResult = parseSDF(sdfContent);
+console.log(sdfResult.records[0].molecule?.atoms.length); // 3
+console.log(sdfResult.records[0].properties.NAME); // "Ethanol"
 ```
 
 ## RDKit Parity & Validation
 
 **chemkit achieves full parity with RDKit** — the gold standard in cheminformatics:
 
-- **610/610 tests passing** ✅ including comprehensive RDKit comparison tests
+- **649/649 tests passing** ✅ including comprehensive RDKit comparison tests
 - **325 molecule bulk validation** — All molecules successfully parsed and round-tripped (100% success rate)
 - **0 generation mismatches** — All parsed molecules generate valid SMILES
 - **100% RDKit canonical agreement** — All 325 generated canonical SMILES match RDKit's output
@@ -103,7 +127,7 @@ chemkit handles the full SMILES specification:
 ## Validation Results
 
 ```
-Test Suite: 610/610 passing ✅
+Test Suite: 649/649 passing ✅
 ├─ Parser tests: 18/18 ✅
 ├─ Comprehensive tests: 99/99 ✅
 ├─ Isotope tests: 23/23 ✅
@@ -119,6 +143,7 @@ Test Suite: 610/610 passing ✅
 ├─ MOL file parser: 26/26 ✅
 ├─ MOL file roundtrip: 4/4 ✅
 ├─ SDF writer: 23/23 ✅ (7 integration + 16 unit)
+├─ SDF parser: 39/39 ✅ (5 integration + 34 unit)
 ├─ Molecular properties: 48/48 ✅
 ├─ Aromaticity perceiver: 22/22 ✅
 ├─ Ring finder: 5/5 ✅
@@ -407,13 +432,14 @@ bun test test/parser.test.ts
 
 ### Quick Reference
 
-chemkit provides **20 functions** organized into 4 categories:
+chemkit provides **21 functions** organized into 4 categories:
 
-**Parsing & Generation (5)**
+**Parsing & Generation (6)**
 - `parseSMILES` - Parse SMILES strings
 - `generateSMILES` - Generate canonical/non-canonical SMILES
 - `parseMolfile` - Parse MOL files (V2000/V3000)
 - `generateMolfile` - Generate MOL files (V2000)
+- `parseSDF` - Parse SDF files with properties
 - `writeSDF` - Write SDF files with properties
 
 **Basic Properties (3)**
@@ -441,7 +467,7 @@ chemkit provides **20 functions** organized into 4 categories:
 
 ### Detailed API Documentation
 
-#### Parsing & Generation (5 functions)
+#### Parsing & Generation (6 functions)
 
 ##### `parseSMILES(smiles: string): ParseResult`
 
@@ -579,6 +605,136 @@ const molfile = generateMolfile(mol);
 const parsed = parseMolfile(molfile);
 const roundtrip = generateSMILES(parsed.molecule!);
 console.log(roundtrip); // "CC(=O)O"
+```
+
+##### `parseSDF(input: string): SDFParseResult`
+
+Parses an SDF (Structure-Data File) into molecule structures with associated properties. SDF files can contain multiple molecules, each with a MOL block and optional property fields.
+
+**Parameters**:
+- `input` — SDF file content as a string
+
+**Returns**: `SDFParseResult` containing:
+- `records: SDFRecord[]` — Array of parsed records
+- `errors: ParseError[]` — Global parse errors (empty if successful)
+
+**Record structure** (`SDFRecord`):
+- `molecule: Molecule | null` — Parsed molecule (null on parse errors)
+- `molfile: MolfileData | null` — Raw MOL file data (null on parse errors)
+- `properties: Record<string, string>` — Property name-value pairs
+- `errors: ParseError[]` — Record-specific errors (empty if successful)
+
+**Features**:
+- Multi-record parsing (splits on `$$$$` delimiter)
+- Property block parsing (`>  <NAME>` format)
+- Multi-line property values with blank line handling
+- Empty property names and values
+- Windows (CRLF) and Unix (LF) line endings
+- Tolerant parsing: continues after invalid records
+
+**Example (single record)**:
+```typescript
+import { parseSDF, generateSMILES } from 'chemkit';
+
+const sdfContent = `
+  Mrv2311 02102409422D          
+
+
+  3  2  0  0  0  0            999 V2000
+    0.0000    0.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    1.5000    0.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    2.2500    1.2990    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0
+  1  2  1  0  0  0  0
+  2  3  1  0  0  0  0
+M  END
+>  <ID>
+MOL001
+
+>  <NAME>
+Ethanol
+
+>  <FORMULA>
+C2H6O
+
+$$$$
+`;
+
+const result = parseSDF(sdfContent);
+if (result.errors.length === 0) {
+  const record = result.records[0];
+  console.log(record.molecule?.atoms.length); // 3
+  console.log(record.properties.ID); // "MOL001"
+  console.log(record.properties.NAME); // "Ethanol"
+  console.log(record.properties.FORMULA); // "C2H6O"
+  
+  // Convert to SMILES
+  const smiles = generateSMILES(record.molecule!);
+  console.log(smiles); // "CCO"
+}
+
+// Error handling
+if (result.records[0].errors.length > 0) {
+  console.error('Record errors:', result.records[0].errors);
+}
+```
+
+**Example (multiple records)**:
+```typescript
+import { parseSDF } from 'chemkit';
+
+const multiRecordSDF = `
+  Mrv2311 02102409422D          
+
+
+  1  0  0  0  0  0            999 V2000
+    0.0000    0.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+M  END
+>  <ID>
+1
+
+>  <NAME>
+Methane
+
+$$$$
+
+  Mrv2311 02102409422D          
+
+
+  2  1  0  0  0  0            999 V2000
+    0.0000    0.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    1.5000    0.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+  1  2  1  0  0  0  0
+M  END
+>  <ID>
+2
+
+>  <NAME>
+Ethane
+
+$$$$
+`;
+
+const result = parseSDF(multiRecordSDF);
+console.log(result.records.length); // 2
+console.log(result.records[0].properties.NAME); // "Methane"
+console.log(result.records[1].properties.NAME); // "Ethane"
+```
+
+**Round-trip workflow**:
+```typescript
+import { parseSMILES, writeSDF, parseSDF, generateSMILES } from 'chemkit';
+
+// SMILES → SDF → SMILES round-trip
+const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O').molecules[0];
+const sdfResult = writeSDF({
+  molecule: aspirin,
+  properties: { NAME: 'aspirin', FORMULA: 'C9H8O4' }
+});
+
+const parsed = parseSDF(sdfResult.sdf);
+const roundtrip = generateSMILES(parsed.records[0].molecule!);
+console.log(roundtrip); // "CC(=O)Oc1ccccc1C(=O)O"
+console.log(parsed.records[0].properties.NAME); // "aspirin"
 ```
 
 ##### `writeSDF(records: SDFRecord | SDFRecord[], options?: SDFWriterOptions): SDFWriterResult`
@@ -958,6 +1114,7 @@ chemkit/
 │   ├── parsers/
 │   │   ├── bracket-parser.ts        # Bracket notation parser
 │   │   ├── molfile-parser.ts        # MOL file parser
+│   │   ├── sdf-parser.ts            # SDF file parser
 │   │   └── smiles-parser.ts         # SMILES parser
 │   ├── utils/
 │   │   ├── aromaticity-perceiver.ts # Aromaticity detection
@@ -1004,7 +1161,9 @@ chemkit/
 │   │   ├── molfile-roundtrip.test.ts
 │   │   ├── rdkit-mol-comparison.test.ts
 │   │   └── rdkit-molfile.test.ts
-│   ├── sdf/                         # SDF tests (23 tests)
+│   ├── sdf/                         # SDF tests (62 tests)
+│   │   ├── sdf-parser-integration.test.ts
+│   │   ├── sdf-parser-unit.test.ts
 │   │   ├── sdf-writer-integration.test.ts
 │   │   └── sdf-writer-unit.test.ts
 │   ├── unit/
