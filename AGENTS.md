@@ -2,26 +2,27 @@
 
 ## Build/Test Commands
 - **Run all tests**: `bun test`
-- **Run single test file**: `bun test test/parser.test.ts` (replace with specific test file)
-- **Type check**: `bun run tsc`
+- **Run single test file**: `bun test test/smiles/smiles-parser-basic.test.ts` (replace with specific test file)
+- **Run full test suite with RDKit**: `bun test:full` or `RUN_RDKIT_BULK=1 bun test`
+- **Type check**: `bun run tsc --noEmit`
 
 ## Code Style Guidelines
 
 ### Imports
-- Separate type imports: `import type { Atom, Bond } from './types';`
-- Group imports by source, then alphabetically
-- Use path aliases for cleaner imports:
-  - `src/*` → `src/*` (e.g., `import { isOrganicAtom } from 'src/utils/atom-utils'`)
-  - `test/*` → `test/*` (e.g., `import { helper } from 'test/utils/test-helper'`)
-  - `types` → `types.ts` (e.g., `import { BondType } from 'types'`)
-  - `parser` → `src/parsers/smiles-parser.ts` (e.g., `import { parseSMILES } from 'parser'`)
-  - `index` → `index.ts` (e.g., `import { parseSMILES, generateSMILES } from 'index'`)
+- Separate type imports: `import type { Atom, Bond } from 'types';`
+- Group imports: types first, then external packages, then internal modules
+- **Use path aliases** (not relative paths):
+  - `types` for `types.ts` (e.g., `import { BondType } from 'types'`)
+  - `index` for `index.ts` (e.g., `import { parseSMILES } from 'index'`)
+  - `src/*` for source files (e.g., `import { isOrganicAtom } from 'src/utils/atom-utils'`)
+  - `test/*` for test utilities (e.g., `import { helper } from 'test/utils/helper'`)
+- Note: Codebase currently has mixed usage; prefer aliases for new code
 
 ### Types & Naming
-- TypeScript strict mode with full type safety
+- TypeScript strict mode with full type safety (`noUncheckedIndexedAccess`, `noImplicitOverride`)
 - Interfaces for data structures, enums for constants
 - camelCase for variables/functions, PascalCase for types/enums
-- Non-null assertions (`!!`) in tests only
+- Non-null assertions (`!`) used judiciously in tests when type safety is guaranteed
 
 ### Error Handling
 - Return error arrays instead of throwing exceptions
@@ -70,3 +71,8 @@
 ### Generators
 - **SMILES generator**: `src/generators/smiles-generator.ts`
 - **MOL generator**: `src/generators/mol-generator.ts`
+
+## Dependencies
+- **Runtime**: `es-toolkit` for utility functions (prefer over lodash)
+- **Dev/Testing**: `bun:test` for testing, `@rdkit/rdkit` for validation
+- Avoid adding new dependencies without explicit need

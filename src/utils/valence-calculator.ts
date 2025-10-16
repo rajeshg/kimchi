@@ -7,7 +7,6 @@ import { BondType } from 'types';
 export function calculateValence(atom: Atom, bonds: Bond[]): number {
   let valence = 0;
 
-  // Add bond contributions
   for (const bond of bonds) {
     if (bond.atom1 === atom.id || bond.atom2 === atom.id) {
       switch (bond.type) {
@@ -24,14 +23,12 @@ export function calculateValence(atom: Atom, bonds: Bond[]): number {
           valence += 4;
           break;
         case BondType.AROMATIC:
-          // Treat aromatic bonds as single for valence calculations to avoid fractional valences
-          valence += 1;
+          valence += 1.5;
           break;
       }
     }
   }
 
-  // Add hydrogen contributions
   valence += atom.hydrogens || 0;
 
   return valence;

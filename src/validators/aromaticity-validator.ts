@@ -68,13 +68,13 @@ function detectAromaticRings(atoms: Atom[], bonds: Bond[], rings: number[][]): v
     });
 
     const allAromatic = ringAtoms.every(atom => atom.aromatic);
-    if (allAromatic && hasAlternatingBonds && ringBonds.some(b => b.type === BondType.DOUBLE)) {
+    if (allAromatic && hasAlternatingBonds) {
       ringBonds.forEach(bond => bond.type = BondType.AROMATIC);
     }
   }
 }
 
-export function validateAromaticity(atoms: Atom[], bonds: Bond[], errors: ParseError[]): void {
+export function validateAromaticity(atoms: Atom[], bonds: Bond[], errors: ParseError[], explicitBonds?: Set<string>): void {
   const ringInfo = analyzeRings(atoms, bonds);
   const allRings = ringInfo.rings;
 
@@ -109,7 +109,23 @@ export function validateAromaticity(atoms: Atom[], bonds: Bond[], errors: ParseE
       const ringBonds = getRingBonds(ring, bonds);
 
       if (!isHuckelAromatic(ringAtoms, ringBonds)) {
-        // Empty block - validation happens but no error
+        const bondKey = (a1: number, a2: number) => {
+          const [min, max] = a1 < a2 ? [a1, a2] : [a2, a1];
+          return `${min}-${max}`;
+        };
+        
+        const hasExplicitBondTypes = explicitBonds 
+          ? ringBonds.some(b => explicitBonds.has(bondKey(b.atom1, b.atom2)))
+          : false;
+        
+        if (hasExplicitBondTypes) {
+          ringAtoms.forEach((a: Atom) => a.aromatic = false);
+          ringBonds.forEach((b: Bond) => {
+            if (b.type === BondType.AROMATIC) {
+              b.type = BondType.SINGLE;
+            }
+          });
+        }
       }
     }
   }

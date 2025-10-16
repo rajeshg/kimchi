@@ -1,7 +1,7 @@
 import type { Bond, Molecule } from 'types';
 import { BondType, StereoType } from 'types';
 import { uniq } from 'es-toolkit';
-import { analyzeRings } from './ring-utils';
+import { findRings } from './ring-finder';
 import { getBondsForAtom, getOtherAtomId } from './bond-utils';
 
 function getNeighbors(atomId: number, molecule: Molecule): Array<[number, Bond]> {
@@ -71,7 +71,7 @@ function hasSymmetricSubstituents(atomId: number, molecule: Molecule, labels: Ma
   
   if (uniqueLabels.size >= neighborLabels.length) return false;
 
-  const { rings } = analyzeRings(molecule.atoms, molecule.bonds);
+  const rings = findRings(molecule.atoms, molecule.bonds);
   
   for (let i = 0; i < neighbors.length; i++) {
     for (let j = i + 1; j < neighbors.length; j++) {
@@ -132,7 +132,7 @@ function hasGeminalIdenticalGroups(bond: Bond, molecule: Molecule, labels: Map<n
 
 export function removeInvalidStereo(molecule: Molecule): void {
   const labels = computeCanonicalLabels(molecule);
-  const { rings } = analyzeRings(molecule.atoms, molecule.bonds);
+  const rings = findRings(molecule.atoms, molecule.bonds);
 
   for (const atom of molecule.atoms) {
     if (atom.chiral && (atom.chiral === '@' || atom.chiral === '@@')) {

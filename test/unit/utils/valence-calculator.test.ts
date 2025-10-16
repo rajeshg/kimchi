@@ -13,9 +13,9 @@ describe('Valence calculator', () => {
       { atom1: 1, atom2: 7, type: BondType.AROMATIC },
     ];
 
-    // contributions: single(1) + double(2) + triple(3) + aromatic(1) + hydrogens(1) = 8
+    // contributions: single(1) + double(2) + triple(3) + aromatic(1.5) + hydrogens(1) = 8.5
     const val = calculateValence(atom, bonds as any);
-    expect(val).toBe(8);
+    expect(val).toBe(8.5);
   });
 
   it('returns 0 if no bonds and no hydrogens', () => {

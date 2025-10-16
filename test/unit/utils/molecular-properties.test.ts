@@ -175,7 +175,7 @@ describe('molecular properties', () => {
     it('should count rings in naphthalene', () => {
       const result = parseSMILES('c1ccc2ccccc2c1');
       expect(result.errors).toEqual([]);
-      expect(getRingCount(result.molecules[0]!)).toBe(3);
+      expect(getRingCount(result.molecules[0]!)).toBe(2);
     });
 
     it('should count no rings in ethane', () => {
@@ -193,7 +193,7 @@ describe('molecular properties', () => {
     it('should count aromatic rings in naphthalene', () => {
       const result = parseSMILES('c1ccc2ccccc2c1');
       expect(result.errors).toEqual([]);
-      expect(getAromaticRingCount(result.molecules[0]!)).toBe(3);
+      expect(getAromaticRingCount(result.molecules[0]!)).toBe(2);
     });
 
     it('should count no aromatic rings in cyclohexane', () => {

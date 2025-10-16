@@ -1,5 +1,5 @@
 import type { Atom, Bond } from 'types';
-import { findRings } from './ring-finder';
+import { findMCB } from './ring-finder';
 import { bondKey } from './bond-utils';
 
 export interface RingInfo {
@@ -13,7 +13,7 @@ export interface RingInfo {
 }
 
 export function analyzeRings(atoms: Atom[], bonds: Bond[]): RingInfo {
-  const rings = findRings(atoms, bonds);
+  const rings = findMCB(atoms, bonds);
   const ringAtomSet = new Set<number>();
   const ringBondSet = new Set<string>();
   

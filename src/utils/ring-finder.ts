@@ -75,22 +75,116 @@ export function ringsShareAtoms(ring1: number[], ring2: number[]): boolean {
   return intersection(ring1, ring2).length > 0;
 }
 
-/**
- * Classify ring systems (isolated, fused, spiro, bridged)
- */
+export function findSSSR(atoms: Atom[], bonds: Bond[]): number[][] {
+  const allRings = findRings(atoms, bonds);
+  
+  const nodeCount = atoms.length;
+  const edgeCount = bonds.length;
+  const connectedComponents = countConnectedComponents(atoms, bonds);
+  const expectedSSSRSize = edgeCount - nodeCount + connectedComponents;
+  
+  if (allRings.length <= expectedSSSRSize) {
+    return allRings;
+  }
+  
+  const sortedRings = sortBy(allRings, [(r: number[]) => r.length]);
+  
+  const sssr: number[][] = [];
+  const usedEdges = new Set<string>();
+  
+  for (const ring of sortedRings) {
+    if (sssr.length >= expectedSSSRSize) {
+      break;
+    }
+    
+    const ringEdges = getRingEdges(ring);
+    const hasNewEdge = ringEdges.some(edge => !usedEdges.has(edge));
+    
+    if (hasNewEdge || sssr.length < expectedSSSRSize) {
+      sssr.push(ring);
+      for (const edge of ringEdges) {
+        usedEdges.add(edge);
+      }
+    }
+  }
+  
+  return sssr;
+}
+
+export function findMCB(atoms: Atom[], bonds: Bond[]): number[][] {
+  const allRings = findRings(atoms, bonds);
+  
+  if (allRings.length === 0) {
+    return [];
+  }
+  
+  const nodeCount = atoms.length;
+  const edgeCount = bonds.length;
+  const connectedComponents = countConnectedComponents(atoms, bonds);
+  const expectedSSSRSize = edgeCount - nodeCount + connectedComponents;
+  
+  const sortedRings = sortBy(allRings, [(r: number[]) => r.length]);
+  
+  const minSize = sortedRings[0]!.length;
+  const smallestRings = sortedRings.filter(r => r.length === minSize);
+  
+  if (smallestRings.length <= expectedSSSRSize) {
+    return sortedRings.slice(0, expectedSSSRSize);
+  }
+  
+  return smallestRings;
+}
+
+function countConnectedComponents(atoms: Atom[], bonds: Bond[]): number {
+  const visited = new Set<number>();
+  let components = 0;
+  
+  function dfsVisit(atomId: number): void {
+    visited.add(atomId);
+    const neighbors = bonds
+      .filter(b => b.atom1 === atomId || b.atom2 === atomId)
+      .map(b => b.atom1 === atomId ? b.atom2 : b.atom1);
+    
+    for (const neighbor of neighbors) {
+      if (!visited.has(neighbor)) {
+        dfsVisit(neighbor);
+      }
+    }
+  }
+  
+  for (const atom of atoms) {
+    if (!visited.has(atom.id)) {
+      components++;
+      dfsVisit(atom.id);
+    }
+  }
+  
+  return components;
+}
+
+function getRingEdges(ring: number[]): string[] {
+  const edges: string[] = [];
+  for (let i = 0; i < ring.length; i++) {
+    const atom1 = ring[i]!;
+    const atom2 = ring[(i + 1) % ring.length]!;
+    const edge = `${Math.min(atom1, atom2)}-${Math.max(atom1, atom2)}`;
+    edges.push(edge);
+  }
+  return edges;
+}
+
 export function classifyRingSystems(atoms: Atom[], bonds: Bond[]): {
   isolated: number[][];
   fused: number[][];
   spiro: number[][];
   bridged: number[][];
 } {
-  const rings = findRings(atoms, bonds);
+  const rings = findSSSR(atoms, bonds);
   const isolated: number[][] = [];
   const fused: number[][] = [];
   const spiro: number[][] = [];
   const bridged: number[][] = [];
 
-  // Simple classification based on shared atoms
   for (let i = 0; i < rings.length; i++) {
     const ring1 = rings[i];
     if (!ring1) continue;

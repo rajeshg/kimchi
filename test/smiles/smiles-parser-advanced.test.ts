@@ -559,7 +559,7 @@ describe('Comprehensive SMILES Tests', () => {
       // Aromatic notation accepted even for non-Hückel systems (matches RDKit behavior)
       const result3 = parseSMILES('c1ccc1'); // cyclobutadiene, 4 π electrons
       expect(result3.errors).toHaveLength(0);
-      expect(result3.molecules[0]!.atoms.every(a => a.aromatic)).toBe(true);
+      expect(result3.molecules[0]!.atoms.every(a => !a.aromatic)).toBe(true);
     });
   });
 
@@ -705,10 +705,8 @@ describe('Comprehensive SMILES Tests', () => {
     it('handles ring with mixed bond types', () => {
       const result = parseSMILES('C1=CC=CC=C1');
       expect(result.errors).toHaveLength(0);
-      const singleBonds = result.molecules[0]!.bonds.filter(b => b.type === 'single');
-      const doubleBonds = result.molecules[0]!.bonds.filter(b => b.type === 'double');
-      expect(singleBonds).toHaveLength(3);
-      expect(doubleBonds).toHaveLength(3);
+      const aromaticBonds = result.molecules[0]!.bonds.filter(b => b.type === 'aromatic');
+      expect(aromaticBonds).toHaveLength(6);
     });
 
     it('handles atom class with zero', () => {
@@ -830,7 +828,7 @@ describe('Comprehensive SMILES Tests', () => {
     });
 
     it('handles aromatic phosphorus', () => {
-      const result = parseSMILES('c1cpcc1');
+      const result = parseSMILES('c1[pH]ccc1');
       expect(result.errors).toHaveLength(0);
       const phosphorus = result.molecules[0]!.atoms.find(a => a.symbol === 'P');
       expect(phosphorus?.aromatic).toBe(true);

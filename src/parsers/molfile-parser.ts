@@ -1,8 +1,8 @@
-import type { Atom, Bond, BondType, Molecule, ParseError, StereoType } from '../../types';
-import { BondType as BT, StereoType as ST } from '../../types';
-import { ATOMIC_NUMBERS } from '../constants';
-import { enrichMolecule } from '../utils/molecule-enrichment';
-import { validateValences } from '../validators/valence-validator';
+import type { Atom, Bond, BondType, Molecule, ParseError, StereoType } from 'types';
+import { BondType as BT, StereoType as ST } from 'types';
+import { ATOMIC_NUMBERS } from 'src/constants';
+import { enrichMolecule } from 'src/utils/molecule-enrichment';
+import { validateValences } from 'src/validators/valence-validator';
 
 export enum MolfileVersion {
   V2000 = 'V2000',

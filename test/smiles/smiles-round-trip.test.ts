@@ -90,7 +90,7 @@ describe('Quick Wins - Already Supported Features', () => {
         (b.atom1 === 5 && b.atom2 === 6) ||
         (b.atom1 === 6 && b.atom2 === 5)
       );
-      expect(bond?.type).toBe(BondType.AROMATIC);
+      expect(bond?.type).toBe(BondType.SINGLE);
     });
   });
 

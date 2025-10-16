@@ -4,6 +4,8 @@ export { generateMolfile, type MolGeneratorOptions } from './src/generators/mol-
 export { parseMolfile, type MolfileParseResult, type MolfileData, MolfileVersion } from './src/parsers/molfile-parser';
 export { parseSDF, type SDFParseResult, type SDFRecord } from './src/parsers/sdf-parser';
 export { writeSDF, type SDFWriterOptions, type SDFWriterResult } from './src/generators/sdf-writer';
+export { parseSMARTS } from './src/parsers/smarts-parser';
+export { matchSMARTS } from './src/matchers/smarts-matcher';
 export {
   getMolecularFormula,
   getMolecularMass,
@@ -26,4 +28,5 @@ export type {
   VeberResult,
   BBBResult,
 } from './src/utils/molecular-properties';
+export type { SMARTSPattern, MatchResult, Match, AtomMatch } from './src/types/smarts-types';
 export type { Atom, Bond, Molecule, ParseResult } from './types';

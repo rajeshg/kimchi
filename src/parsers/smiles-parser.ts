@@ -1,13 +1,14 @@
-import type { Atom, Bond, Molecule, ParseResult, ParseError } from '../../types';
-import { BondType, StereoType } from '../../types';
-import { ATOMIC_NUMBERS, DEFAULT_VALENCES, AROMATIC_VALENCES } from '../constants';
-import { createAtom } from '../utils/atom-utils';
-import { validateAromaticity } from '../validators/aromaticity-validator';
-import { validateValences } from '../validators/valence-validator';
-import { validateStereochemistry } from '../validators/stereo-validator';
-import { parseBracketAtom } from './bracket-parser';
+import type { Atom, Bond, Molecule, ParseResult, ParseError } from 'types';
+import { BondType, StereoType } from 'types';
+import { ATOMIC_NUMBERS, DEFAULT_VALENCES, AROMATIC_VALENCES } from 'src/constants';
+import { createAtom } from 'src/utils/atom-utils';
+import { validateAromaticity } from 'src/validators/aromaticity-validator';
+import { validateValences } from 'src/validators/valence-validator';
+import { validateStereochemistry } from 'src/validators/stereo-validator';
+import { parseBracketAtom } from 'src/parsers/bracket-parser';
 import { maxBy } from 'es-toolkit';
-import { enrichMolecule } from '../utils/molecule-enrichment';
+import { enrichMolecule } from 'src/utils/molecule-enrichment';
+import { perceiveAromaticity } from 'src/utils/aromaticity-perceiver';
 
 export function parseSMILES(smiles: string): ParseResult {
   const errors: ParseError[] = [];
@@ -43,6 +44,7 @@ function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: ParseE
     'F/C1=CCC1/F',
     'c1ccncc1',
     'C1CC[C@H](C)CC1',
+    'c1nccn1O',
   ]);
   const trace = TRACE_SMILES.has(smiles);
 
@@ -438,15 +440,15 @@ function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: ParseE
   }
 
   // Validate aromaticity
-  validateAromaticity(atoms, bonds, errors);
+  validateAromaticity(atoms, bonds, errors, explicitBonds);
 
-  // Validate valences
   validateValences(atoms, bonds, errors);
 
-  // Validate stereochemistry
   validateStereochemistry(atoms, bonds, errors);
 
   const molecule: Molecule = { atoms, bonds };
+  
+  perceiveAromaticity(molecule.atoms, molecule.bonds);
   
   enrichMolecule(molecule);
 

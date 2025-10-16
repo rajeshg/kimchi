@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test';
-import { parseSDF } from '../../index';
+import { parseSDF } from 'index';
 
 describe('SDF Parser - Unit Tests', () => {
   describe('Single record parsing', () => {

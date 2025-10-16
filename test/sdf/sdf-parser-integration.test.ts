@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test';
-import { parseSDF, writeSDF, parseSMILES } from '../../index';
+import { parseSDF, writeSDF, parseSMILES } from 'index';
 
 describe('SDF Parser - Integration Tests', () => {
   describe('Round-trip parsing', () => {
