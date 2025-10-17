@@ -15,6 +15,8 @@ The LogP calculation is implemented in `src/utils/logp.ts` using the Wildman-Cri
 ### Key Functions
 
 - `computeLogP(mol, includeHs)` - Computes total LogP for a molecule
+- **Aliases**: `logP(mol, includeHs)` and `crippenLogP(mol, includeHs)` for convenience and clarity
+- **RDKit Mapping**: Corresponds to RDKit's `CrippenClogP` descriptor (from `rdkit.Chem.Crippen.MolLogP`)
 - `getCrippenAtomContribs(mol, includeHs)` - Returns per-atom LogP and MR contributions
 - `calcCrippenDescriptors(mol, includeHs)` - Returns both LogP and molar refractivity
 

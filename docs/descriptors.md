@@ -69,18 +69,22 @@ const desc2 = computeDescriptors(mol, { includeIsotopes: true, includeImplicitH:
 The module also provides Crippen LogP (octanol-water partition coefficient) calculation via `src/utils/logp.ts`:
 
 - `computeLogP(mol, includeHs?)` - Returns the Wildman-Crippen LogP estimate
+- `logP(mol, includeHs?)` - Alias for `computeLogP` (convenience)
+- `crippenLogP(mol, includeHs?)` - Alias for `computeLogP` (method-explicit)
 - `getCrippenAtomContribs(mol, includeHs?)` - Returns per-atom LogP and MR contributions
 - `calcCrippenDescriptors(mol, includeHs?)` - Returns both LogP and molar refractivity
 
 ### Usage
 
 ```typescript
-import { parseSMILES } from 'index';
-import { computeLogP } from 'src/utils/logp';
+import { parseSMILES, computeLogP, logP, crippenLogP } from 'index';
 
 const res = parseSMILES('CCO');
 const mol = res.molecules[0];
-const logp = computeLogP(mol, true);  // includes implicit hydrogens
+const logp1 = computeLogP(mol, true);  // canonical name
+const logp2 = logP(mol, true);         // short alias
+const logp3 = crippenLogP(mol, true);  // method-explicit alias
+// All three return the same value
 ```
 
 ### Implementation Notes

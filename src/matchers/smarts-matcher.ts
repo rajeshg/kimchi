@@ -637,7 +637,8 @@ function checkAtomPrimitive(primitive: AtomPrimitive, atom: Atom, molecule: Mole
     
     case 'connectivity':
       const connectivityBonds = molecule.bonds.filter(b => b.atom1 === atom.id || b.atom2 === atom.id);
-      return connectivityBonds.length === primitive.value;
+      const totalConnectivity = connectivityBonds.length + (atom.hydrogens ?? 0);
+      return totalConnectivity === primitive.value;
     
     case 'total_h':
       const implicitH = atom.hydrogens ?? 0;

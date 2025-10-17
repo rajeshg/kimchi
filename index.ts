@@ -23,7 +23,7 @@ export {
   checkVeberRules,
   checkBBBPenetration,
 } from './src/utils/molecular-properties';
-export { computeLogP } from './src/utils/logp';
+export { computeLogP, computeLogP as logP, computeLogP as crippenLogP } from './src/utils/logp';
 export type {
   LipinskiResult,
   VeberResult,
