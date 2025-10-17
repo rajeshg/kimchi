@@ -78,8 +78,12 @@ describe('Crippen logP estimator', () => {
   });
 
   it('compares against RDKit for 200 diverse molecules from bulk test', async () => {
-    const RDKit = await import('@rdkit/rdkit');
-    const rdkit = await RDKit.default();
+    const rdkitModule = await import('@rdkit/rdkit').catch(() => null);
+    if (!rdkitModule) {
+      throw new Error('RDKit is not available. Install with: npm install @rdkit/rdkit');
+    }
+    const initRDKitModule = rdkitModule.default;
+    const rdkit: any = await (initRDKitModule as any)();
 
     const testCases = [
       'C1CC(OC1)CN2C(=O)C3=CC=CC=C3N=C2SCC(=O)NC4=CC(=CC(=C4)Cl)Cl',
