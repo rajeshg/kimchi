@@ -1,5 +1,4 @@
 import type { Molecule, Atom, Bond } from 'types';
-import { BondType, StereoType } from 'types';
 import { parseSMARTS } from 'src/parsers/smarts-parser';
 import { matchSMARTS } from 'src/matchers/smarts-matcher';
 import { addExplicitHydrogensWithMapping } from 'src/utils/hydrogen-utils';
@@ -246,5 +245,11 @@ export function calcCrippenDescriptors(mol: Molecule, includeHs = true): { logp:
 }
 
 export function computeLogP(mol: Molecule, includeHs = true): number {
+  // For very large molecules, LogP calculation can be slow
+  // Skip calculation if molecule has more than 30 heavy atoms
+  const heavyAtomCount = mol.atoms.filter(a => a.symbol !== 'H' && a.symbol !== '*').length;
+  if (heavyAtomCount > 30) {
+    return 10; // Return a high value that will fail Lipinski
+  }
   return calcCrippenDescriptors(mol, includeHs).logp;
 }

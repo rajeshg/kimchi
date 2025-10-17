@@ -68,6 +68,12 @@
 - **Stereo validator**: `src/validators/stereo-validator.ts`
 - **Valence validator**: `src/validators/valence-validator.ts`
 
+### Drug-Likeness Assessment
+- **Lipinski Rule of Five**: `checkLipinskiRuleOfFive()` in `src/utils/molecular-properties.ts`
+- **Veber Rules**: `checkVeberRules()` in `src/utils/molecular-properties.ts`
+- **BBB Penetration**: `checkBBBPenetration()` in `src/utils/molecular-properties.ts`
+- **LogP Calculation**: `computeLogP()` in `src/utils/logp.ts`
+
 ### Generators
 - **SMILES generator**: `src/generators/smiles-generator.ts`
 - **MOL generator**: `src/generators/mol-generator.ts`

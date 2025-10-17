@@ -4,6 +4,8 @@
 
 This document describes the Crippen LogP (octanol-water partition coefficient) implementation in kimchi and documents known differences with RDKit's implementation.
 
+**Note**: LogP is integrated into Lipinski's Rule of Five evaluation. See [Drug-Likeness Rules](../docs/descriptors.md#drug-likeness-rules) for usage in drug discovery applications.
+
 ## Implementation
 
 The LogP calculation is implemented in `src/utils/logp.ts` using the Wildman-Crippen atom contribution method:

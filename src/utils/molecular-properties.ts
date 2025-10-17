@@ -1,8 +1,9 @@
- import type { Molecule } from 'types';
- import { MONOISOTOPIC_MASSES, ISOTOPE_MASSES } from 'src/constants';
- import { analyzeRings } from 'src/utils/ring-analysis';
- import { getBondsForAtom, getHeavyNeighborCount, hasMultipleBond, hasTripleBond, hasDoubleBond, hasCarbonylBond } from 'src/utils/bond-utils';
- import { MoleculeGraph } from 'src/utils/molecular-graph';
+import type { Molecule } from 'types';
+import { MONOISOTOPIC_MASSES, ISOTOPE_MASSES } from 'src/constants';
+import { analyzeRings } from 'src/utils/ring-analysis';
+import { getBondsForAtom, getHeavyNeighborCount, hasMultipleBond, hasTripleBond, hasDoubleBond, hasCarbonylBond } from 'src/utils/bond-utils';
+import { MoleculeGraph } from 'src/utils/molecular-graph';
+import { computeLogP } from 'src/utils/logp';
 
 export interface MolecularOptions {
   includeImplicitH?: boolean; // default true
@@ -344,6 +345,7 @@ export interface LipinskiResult {
     molecularWeight: number;
     hbondDonors: number;
     hbondAcceptors: number;
+    logP: number;
   };
 }
 
@@ -351,21 +353,26 @@ export function checkLipinskiRuleOfFive(mol: Molecule): LipinskiResult {
   const mw = getMolecularMass(mol);
   const donors = getHBondDonorCount(mol);
   const acceptors = getHBondAcceptorCount(mol);
-  
+  const logP = computeLogP(mol);
+
   const violations: string[] = [];
-  
+
   if (mw > 500) {
     violations.push(`Molecular weight ${mw.toFixed(2)} > 500 Da`);
   }
-  
+
   if (donors > 5) {
     violations.push(`H-bond donors ${donors} > 5`);
   }
-  
+
   if (acceptors > 10) {
     violations.push(`H-bond acceptors ${acceptors} > 10`);
   }
-  
+
+  if (logP > 5) {
+    violations.push(`LogP ${logP.toFixed(2)} > 5`);
+  }
+
   return {
     passes: violations.length === 0,
     violations,
@@ -373,6 +380,7 @@ export function checkLipinskiRuleOfFive(mol: Molecule): LipinskiResult {
       molecularWeight: mw,
       hbondDonors: donors,
       hbondAcceptors: acceptors,
+      logP,
     },
   };
 }

@@ -93,6 +93,92 @@ Our LogP implementation uses the published Wildman-Crippen parameters exactly as
 
 For detailed information about validation results, known differences with RDKit, and accuracy assessment, see [LogP Implementation Notes](./logp-implementation-notes.md).
 
+## Drug-Likeness Rules
+
+kimchi provides comprehensive drug-likeness assessment functions that evaluate molecules against established pharmaceutical rules:
+
+### Lipinski's Rule of Five
+
+`checkLipinskiRuleOfFive(mol)` evaluates Lipinski's Rule of Five for oral bioavailability:
+
+**Rules:**
+- Molecular weight ≤ 500 Da
+- H-bond donors ≤ 5 (N-H, O-H groups)
+- H-bond acceptors ≤ 10 (N, O atoms)
+- LogP ≤ 5 (Crippen LogP estimate)
+
+**Returns:**
+```typescript
+{
+  passes: boolean,           // true if all rules pass
+  violations: string[],      // array of violation messages
+  properties: {
+    molecularWeight: number,
+    hbondDonors: number,
+    hbondAcceptors: number,
+    logP: number
+  }
+}
+```
+
+**Usage:**
+```typescript
+import { parseSMILES, checkLipinskiRuleOfFive } from 'index';
+
+const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O');
+const result = checkLipinskiRuleOfFive(aspirin.molecules[0]);
+
+if (result.passes) {
+  console.log('Passes Lipinski rules');
+} else {
+  console.log('Violations:', result.violations);
+}
+```
+
+### Veber Rules
+
+`checkVeberRules(mol)` evaluates Veber rules for oral bioavailability:
+
+**Rules:**
+- Rotatable bonds ≤ 10
+- TPSA ≤ 140 Å²
+
+**Returns:**
+```typescript
+{
+  passes: boolean,
+  violations: string[],
+  properties: {
+    rotatableBonds: number,
+    tpsa: number
+  }
+}
+```
+
+### Blood-Brain Barrier Penetration
+
+`checkBBBPenetration(mol)` predicts blood-brain barrier penetration:
+
+**Rule:**
+- Likely penetration if TPSA < 90 Å²
+
+**Returns:**
+```typescript
+{
+  likelyPenetration: boolean,
+  tpsa: number
+}
+```
+
+### Implementation Details
+
+- **LogP**: Uses Crippen's atom contribution method (see LogP section above)
+- **TPSA**: Uses Ertl et al. fragment-based algorithm
+- **H-bond donors/acceptors**: Standard definitions (N-H/O-H for donors, N/O for acceptors)
+- **Rotatable bonds**: Single bonds between heavy atoms, excluding ring bonds and terminal groups
+
+These rules are widely used in drug discovery for filtering compound libraries and prioritizing molecules for synthesis and testing.
+
 Testing and further work
 
 - Tests: unit tests are under `test/unit/utils/` and include `molecular-descriptors.test.ts` plus extra edge-case files added during work.

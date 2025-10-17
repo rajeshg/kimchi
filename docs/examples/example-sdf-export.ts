@@ -1,4 +1,4 @@
-import { parseSMILES, writeSDF, computeDescriptors } from './index';
+import { parseSMILES, writeSDF, computeDescriptors, computeLogP, checkLipinskiRuleOfFive } from './index';
 import type { SDFRecord } from './src/generators/sdf-writer';
 
 const drugMolecules = [
@@ -26,25 +26,32 @@ for (const drug of drugMolecules) {
     continue;
   }
 
-  const descriptors = computeDescriptors(molecule);
+   const descriptors = computeDescriptors(molecule);
+   const logP = computeLogP(molecule);
+   const lipinski = checkLipinskiRuleOfFive(molecule);
 
-  records.push({
-    molecule,
-    properties: {
-      NAME: drug.name,
-      SMILES: drug.smiles,
-      MW: drug.mw.toString(),
-      ATOMS: molecule.atoms.length.toString(),
-      BONDS: molecule.bonds.length.toString(),
-      FORMAL_CHARGE: descriptors.formalCharge.toString(),
-      HEAVY_ATOM_FRACTION: descriptors.heavyAtomFraction.toString(),
-      ELEMENT_COUNTS: JSON.stringify(descriptors.elementCounts),
-    },
-  });
+   records.push({
+     molecule,
+     properties: {
+       NAME: drug.name,
+       SMILES: drug.smiles,
+       MW: drug.mw.toString(),
+       ATOMS: molecule.atoms.length.toString(),
+       BONDS: molecule.bonds.length.toString(),
+       FORMAL_CHARGE: descriptors.formalCharge.toString(),
+       HEAVY_ATOM_FRACTION: descriptors.heavyAtomFraction.toString(),
+       ELEMENT_COUNTS: JSON.stringify(descriptors.elementCounts),
+       LOGP: logP.toFixed(3),
+       LIPINSKI_PASSES: lipinski.passes.toString(),
+       LIPINSKI_VIOLATIONS: lipinski.violations.join('; ') || 'None',
+     },
+   });
 
-  console.log(`✓ Parsed ${drug.name}: ${molecule.atoms.length} atoms, ${molecule.bonds.length} bonds`);
-  console.log(`  Heavy atom fraction: ${(descriptors.heavyAtomFraction * 100).toFixed(1)}%`);
-  console.log(`  Formal charge: ${descriptors.formalCharge}`);
+   console.log(`✓ Parsed ${drug.name}: ${molecule.atoms.length} atoms, ${molecule.bonds.length} bonds`);
+   console.log(`  Heavy atom fraction: ${(descriptors.heavyAtomFraction * 100).toFixed(1)}%`);
+   console.log(`  Formal charge: ${descriptors.formalCharge}`);
+   console.log(`  LogP: ${logP.toFixed(3)}`);
+   console.log(`  Lipinski: ${lipinski.passes ? 'PASS' : 'FAIL'} (${lipinski.violations.length} violations)`);
 }
 
 console.log('\nGenerating SDF file...\n');

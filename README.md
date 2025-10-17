@@ -343,7 +343,7 @@ const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O');
 const lipinski = checkLipinskiRuleOfFive(aspirin.molecules[0]);
 console.log(lipinski.passes); // true
 console.log(lipinski.properties);
-// { molecularWeight: 180.04, hbondDonors: 1, hbondAcceptors: 4 }
+// { molecularWeight: 180.04, hbondDonors: 1, hbondAcceptors: 4, logP: 1.31 }
 
 // Veber Rules (oral bioavailability)
 const veber = checkVeberRules(aspirin.molecules[0]);
@@ -915,13 +915,13 @@ Returns the count of rotatable bonds (single non-ring bonds between non-terminal
 Evaluates Lipinski's Rule of Five for oral drug-likeness. Returns result object with:
 - `passes`: boolean indicating if all rules pass
 - `violations`: array of violation messages
-- `properties`: { molecularWeight, hbondDonors, hbondAcceptors }
+- `properties`: { molecularWeight, hbondDonors, hbondAcceptors, logP }
 
 **Rules**:
 - Molecular weight ≤ 500 Da
 - H-bond donors ≤ 5
 - H-bond acceptors ≤ 10
-- LogP ≤ 5 (not yet implemented)
+- LogP ≤ 5
 
 ##### `checkVeberRules(molecule: Molecule): VeberResult`
 

@@ -412,6 +412,70 @@ describe('molecular properties', () => {
       expect(lipinski.passes).toBe(false);
       expect(lipinski.violations.length).toBeGreaterThan(0);
     });
+
+    it('should fail for molecule with high LogP', () => {
+      // Use a highly lipophilic molecule (long hydrocarbon chain)
+      const result = parseSMILES('CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC');
+      expect(result.errors).toEqual([]);
+      const lipinski = checkLipinskiRuleOfFive(result.molecules[0]!);
+      expect(lipinski.passes).toBe(false);
+      expect(lipinski.violations.some(v => v.includes('LogP'))).toBe(true);
+      expect(lipinski.properties.logP).toBeGreaterThan(5);
+    });
+
+    it('should fail for molecule with too many H-bond donors', () => {
+      // Molecule with many OH groups (violates HBD ≤ 5)
+      const result = parseSMILES('OCC(O)C(O)C(O)C(O)C(O)C(O)C(O)CO'); // long chain with many OH groups
+      expect(result.errors).toEqual([]);
+      const lipinski = checkLipinskiRuleOfFive(result.molecules[0]!);
+      expect(lipinski.passes).toBe(false);
+      expect(lipinski.violations.some(v => v.includes('H-bond donors'))).toBe(true);
+      expect(lipinski.properties.hbondDonors).toBeGreaterThan(5);
+    });
+
+    it('should fail for molecule with too many H-bond acceptors', () => {
+      // Molecule with many N/O atoms (violates HBA ≤ 10)
+      // Use a large molecule with many amide groups
+      const result = parseSMILES('CC(=O)NC(CC(=O)NC(CC(=O)NC(CC(=O)NC(CC(=O)NC(CC(=O)O)C)C)C)C)C'); // peptide-like with many carbonyls
+      expect(result.errors).toEqual([]);
+      const lipinski = checkLipinskiRuleOfFive(result.molecules[0]!);
+      expect(lipinski.passes).toBe(false);
+      expect(lipinski.violations.some(v => v.includes('H-bond acceptors'))).toBe(true);
+      expect(lipinski.properties.hbondAcceptors).toBeGreaterThan(10);
+    });
+
+    it('should include logP in properties', () => {
+      const result = parseSMILES('CCO'); // ethanol
+      expect(result.errors).toEqual([]);
+      const lipinski = checkLipinskiRuleOfFive(result.molecules[0]!);
+      expect(lipinski.properties).toHaveProperty('logP');
+      expect(typeof lipinski.properties.logP).toBe('number');
+      expect(lipinski.properties.logP).toBeCloseTo(-0.0014, 2);
+    });
+
+    it('should handle molecules with borderline values', () => {
+      // Caffeine: MW=194, HBD=0, HBA=6, LogP=0.07 (should pass)
+      const result = parseSMILES('CN1C=NC2=C1C(=O)N(C(=O)N2C)C');
+      expect(result.errors).toEqual([]);
+      const lipinski = checkLipinskiRuleOfFive(result.molecules[0]!);
+      expect(lipinski.passes).toBe(true);
+      expect(lipinski.violations).toEqual([]);
+      expect(lipinski.properties.molecularWeight).toBeLessThanOrEqual(500);
+      expect(lipinski.properties.hbondDonors).toBeLessThanOrEqual(5);
+      expect(lipinski.properties.hbondAcceptors).toBeLessThanOrEqual(10);
+      expect(lipinski.properties.logP).toBeLessThanOrEqual(5);
+    });
+
+    it('should fail multiple rules simultaneously', () => {
+      // Large molecule with many polar groups
+      const result = parseSMILES('CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC(=O)O');
+      expect(result.errors).toEqual([]);
+      const lipinski = checkLipinskiRuleOfFive(result.molecules[0]!);
+      expect(lipinski.passes).toBe(false);
+      expect(lipinski.violations.length).toBeGreaterThan(1);
+      expect(lipinski.violations.some(v => v.includes('Molecular weight'))).toBe(true);
+      expect(lipinski.violations.some(v => v.includes('LogP'))).toBe(true);
+    });
   });
 
   describe('Veber Rules', () => {
