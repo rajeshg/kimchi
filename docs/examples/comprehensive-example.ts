@@ -20,7 +20,7 @@ import {
   getAromaticRingCount,
   getFractionCSP3,
   computeDescriptors,
-} from './index';
+} from 'index';
 
 console.log('Kimchi Comprehensive Capabilities Demo');
 console.log('=====================================\n');

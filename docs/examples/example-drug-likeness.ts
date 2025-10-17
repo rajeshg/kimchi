@@ -1,4 +1,4 @@
-import { parseSMILES, checkLipinskiRuleOfFive, checkVeberRules, checkBBBPenetration, computeLogP } from './index';
+import { parseSMILES, checkLipinskiRuleOfFive, checkVeberRules, checkBBBPenetration, computeLogP } from 'index';
 
 console.log('kimchi Drug-Likeness Assessment Examples');
 console.log('=========================================\n');

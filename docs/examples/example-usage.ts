@@ -1,4 +1,4 @@
-import { parseSMILES, generateSMILES } from './index';
+import { parseSMILES, generateSMILES } from 'index';
 
 console.log('kimchi SMILES Generation Examples');
 console.log('===================================\n');
