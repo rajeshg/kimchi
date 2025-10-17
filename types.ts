@@ -79,3 +79,17 @@ export interface ParseResult {
   molecules: Molecule[];
   errors: ParseError[]; // any parsing errors with position info
 }
+
+// Molecular descriptors
+export interface DescriptorOptions {
+  includeImplicitH?: boolean;
+  includeIsotopes?: boolean;
+}
+
+export interface DescriptorResult {
+  atomCount: number;
+  bondCount: number;
+  formalCharge: number;
+  elementCounts: Record<string, number>;
+  heavyAtomFraction: number;
+}

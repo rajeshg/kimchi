@@ -1,4 +1,4 @@
-import { parseSMILES, writeSDF } from './index';
+import { parseSMILES, writeSDF, computeDescriptors } from './index';
 import type { SDFRecord } from './src/generators/sdf-writer';
 
 const drugMolecules = [
@@ -14,7 +14,7 @@ const records: SDFRecord[] = [];
 
 for (const drug of drugMolecules) {
   const result = parseSMILES(drug.smiles);
-  
+
   if (result.errors.length > 0) {
     console.error(`Error parsing ${drug.name}:`, result.errors);
     continue;
@@ -26,6 +26,8 @@ for (const drug of drugMolecules) {
     continue;
   }
 
+  const descriptors = computeDescriptors(molecule);
+
   records.push({
     molecule,
     properties: {
@@ -34,10 +36,15 @@ for (const drug of drugMolecules) {
       MW: drug.mw.toString(),
       ATOMS: molecule.atoms.length.toString(),
       BONDS: molecule.bonds.length.toString(),
+      FORMAL_CHARGE: descriptors.formalCharge.toString(),
+      HEAVY_ATOM_FRACTION: descriptors.heavyAtomFraction.toString(),
+      ELEMENT_COUNTS: JSON.stringify(descriptors.elementCounts),
     },
   });
 
   console.log(`✓ Parsed ${drug.name}: ${molecule.atoms.length} atoms, ${molecule.bonds.length} bonds`);
+  console.log(`  Heavy atom fraction: ${(descriptors.heavyAtomFraction * 100).toFixed(1)}%`);
+  console.log(`  Formal charge: ${descriptors.formalCharge}`);
 }
 
 console.log('\nGenerating SDF file...\n');

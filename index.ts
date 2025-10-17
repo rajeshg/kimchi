@@ -23,10 +23,19 @@ export {
   checkVeberRules,
   checkBBBPenetration,
 } from './src/utils/molecular-properties';
-export type { 
+export type {
   LipinskiResult,
   VeberResult,
   BBBResult,
 } from './src/utils/molecular-properties';
+export {
+  computeDescriptors,
+  getAtomCount,
+  getBondCount,
+  getFormalCharge,
+  getElementCounts,
+  getHeavyAtomFraction,
+} from './src/utils/molecular-descriptors';
+export type { DescriptorOptions, DescriptorResult } from './types';
 export type { SMARTSPattern, MatchResult, Match, AtomMatch } from './src/types/smarts-types';
 export type { Atom, Bond, Molecule, ParseResult } from './types';
