@@ -64,6 +64,31 @@ const desc = computeDescriptors(mol);
 const desc2 = computeDescriptors(mol, { includeIsotopes: true, includeImplicitH: false });
 ```
 
+## LogP Calculation
+
+The module also provides Crippen LogP (octanol-water partition coefficient) calculation via `src/utils/logp.ts`:
+
+- `computeLogP(mol, includeHs?)` - Returns the Wildman-Crippen LogP estimate
+- `getCrippenAtomContribs(mol, includeHs?)` - Returns per-atom LogP and MR contributions
+- `calcCrippenDescriptors(mol, includeHs?)` - Returns both LogP and molar refractivity
+
+### Usage
+
+```typescript
+import { parseSMILES } from 'index';
+import { computeLogP } from 'src/utils/logp';
+
+const res = parseSMILES('CCO');
+const mol = res.molecules[0];
+const logp = computeLogP(mol, true);  // includes implicit hydrogens
+```
+
+### Implementation Notes
+
+Our LogP implementation uses the published Wildman-Crippen parameters exactly as specified in the original paper. This provides reproducibility but may differ from RDKit by 0.2-1.15 LogP units for complex heterocycles (especially sulfur-containing aromatics).
+
+For detailed information about validation results, known differences with RDKit, and accuracy assessment, see [LogP Implementation Notes](./logp-implementation-notes.md).
+
 Testing and further work
 
 - Tests: unit tests are under `test/unit/utils/` and include `molecular-descriptors.test.ts` plus extra edge-case files added during work.

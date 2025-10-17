@@ -636,8 +636,8 @@ function checkAtomPrimitive(primitive: AtomPrimitive, atom: Atom, molecule: Mole
       return calculateValence(atom, molecule.bonds) === primitive.value;
     
     case 'connectivity':
-      const totalConnectivity = (atom.degree ?? 0) + (atom.hydrogens ?? 0);
-      return totalConnectivity === primitive.value;
+      const connectivityBonds = molecule.bonds.filter(b => b.atom1 === atom.id || b.atom2 === atom.id);
+      return connectivityBonds.length === primitive.value;
     
     case 'total_h':
       const implicitH = atom.hydrogens ?? 0;
@@ -714,7 +714,7 @@ function checkBondPrimitive(
   
   switch (primitive.type) {
     case 'single':
-      return bond.type === BondType.SINGLE && fromAtom?.aromatic !== true && toAtom?.aromatic !== true;
+      return bond.type === BondType.SINGLE;
     
     case 'double':
       return bond.type === BondType.DOUBLE;

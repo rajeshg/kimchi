@@ -16,12 +16,41 @@ function isAtomAromatic(atom: PatternAtom): boolean {
   return false;
 }
 
+function isAtomAliphatic(atom: PatternAtom): boolean {
+  if (atom.primitives) {
+    return atom.primitives.some(p => p.type === 'aliphatic_element' || p.type === 'aliphatic');
+  }
+  return false;
+}
+
+function canMatchBothAromaticAndAliphatic(atom: PatternAtom): boolean {
+  if (!atom.primitives || atom.primitives.length === 0) {
+    return true;
+  }
+  return atom.primitives.some(p => 
+    p.type === 'atomic_number' || 
+    p.type === 'element' || 
+    p.type === 'wildcard'
+  );
+}
+
 function getImplicitBondType(atoms: PatternAtom[], fromIndex: number, toIndex: number): BondPrimitive[] {
   const fromAtom = atoms[fromIndex];
   const toAtom = atoms[toIndex];
   
   if (fromAtom && toAtom && isAtomAromatic(fromAtom) && isAtomAromatic(toAtom)) {
     return [{ type: 'aromatic' }];
+  }
+  
+  if (fromAtom && toAtom && 
+      (isAtomAliphatic(fromAtom) && isAtomAromatic(toAtom) || 
+       isAtomAromatic(fromAtom) && isAtomAliphatic(toAtom))) {
+    return [{ type: 'any' }];
+  }
+  
+  if (fromAtom && toAtom && 
+      (canMatchBothAromaticAndAliphatic(fromAtom) || canMatchBothAromaticAndAliphatic(toAtom))) {
+    return [{ type: 'any' }];
   }
   
   return [{ type: 'single' }];
@@ -181,7 +210,7 @@ export function parseSMARTS(pattern: string): { pattern: SMARTSPattern | null; e
         bonds.push({
           from: lastAtomIndex,
           to: atomIndex,
-          primitives: pendingBond || [{ type: 'single' }]
+          primitives: pendingBond || getImplicitBondType(atoms, lastAtomIndex, atomIndex)
         });
         pendingBond = undefined;
       }
@@ -360,14 +389,14 @@ function parseBracketAtom(pattern: string, startIndex: number): BracketAtomResul
     } else if (char === '+') {
       i++;
       const numResult = parseNumber(pattern, i);
-      primitives.push({ type: 'charge', value: numResult.value || 1 });
-      tokens.push({ type: 'charge', value: numResult.value || 1 });
+      primitives.push({ type: 'charge', value: numResult.value ?? 1 });
+      tokens.push({ type: 'charge', value: numResult.value ?? 1 });
       i = numResult.nextIndex;
     } else if (char === '-') {
       i++;
       const numResult = parseNumber(pattern, i);
-      primitives.push({ type: 'charge', value: -(numResult.value || 1) });
-      tokens.push({ type: 'charge', value: -(numResult.value || 1) });
+      primitives.push({ type: 'charge', value: -(numResult.value ?? 1) });
+      tokens.push({ type: 'charge', value: -(numResult.value ?? 1) });
       i = numResult.nextIndex;
     } else if (char === '*') {
       primitives.push({ type: 'wildcard' });
@@ -422,14 +451,128 @@ function buildLogicalExpression(
     return undefined;
   }
   
-  const hasComma = tokens.some(t => t === ',');
-  const hasAmpersand = tokens.some(t => t === '&');
   const hasSemicolon = tokens.some(t => t === ';');
   
+  if (hasSemicolon) {
+    const semicolonSections: (AtomPrimitive | string)[][] = [];
+    let currentSection: (AtomPrimitive | string)[] = [];
+    
+    for (const token of tokens) {
+      if (typeof token === 'string' && token === ';') {
+        if (currentSection.length > 0) {
+          semicolonSections.push(currentSection);
+          currentSection = [];
+        }
+      } else {
+        currentSection.push(token);
+      }
+    }
+    
+    if (currentSection.length > 0) {
+      semicolonSections.push(currentSection);
+    }
+    
+    const andOperands: (AtomPrimitive | LogicalExpression)[] = semicolonSections.map(section => {
+      const sectionPrimitives = section.filter((t): t is AtomPrimitive => typeof t !== 'string');
+      const hasComma = section.some(t => t === ',');
+      
+      if (!hasComma) {
+        if (sectionPrimitives.length === 1) {
+          return sectionPrimitives[0]!;
+        }
+        return {
+          operator: 'and' as const,
+          operands: sectionPrimitives
+        };
+      }
+      
+      const commaGroups: AtomPrimitive[][] = [];
+      let currentGroup: AtomPrimitive[] = [];
+      
+      for (const token of section) {
+        if (typeof token === 'string' && token === ',') {
+          if (currentGroup.length > 0) {
+            commaGroups.push(currentGroup);
+            currentGroup = [];
+          }
+        } else if (typeof token !== 'string') {
+          currentGroup.push(token);
+        }
+      }
+      
+      if (currentGroup.length > 0) {
+        commaGroups.push(currentGroup);
+      }
+      
+      const orOperands = commaGroups.map(cg => {
+        if (cg.length === 1) {
+          return cg[0]!;
+        }
+        return {
+          operator: 'and' as const,
+          operands: cg
+        } as LogicalExpression;
+      });
+      
+      if (orOperands.length === 1) {
+        return orOperands[0]!;
+      }
+      
+      return {
+        operator: 'or' as const,
+        operands: orOperands
+      };
+    });
+    
+    if (andOperands.length === 1) {
+      return andOperands[0] as LogicalExpression;
+    }
+    
+    return {
+      operator: 'and',
+      operands: andOperands
+    };
+  }
+  
+  const hasComma = tokens.some(t => t === ',');
+  const hasAmpersand = tokens.some(t => t === '&');
+  
   if (hasComma) {
+    const commaGroups: AtomPrimitive[][] = [];
+    let currentGroup: AtomPrimitive[] = [];
+    
+    for (const token of tokens) {
+      if (typeof token === 'string' && token === ',') {
+        if (currentGroup.length > 0) {
+          commaGroups.push(currentGroup);
+          currentGroup = [];
+        }
+      } else if (typeof token !== 'string') {
+        currentGroup.push(token);
+      }
+    }
+    
+    if (currentGroup.length > 0) {
+      commaGroups.push(currentGroup);
+    }
+    
+    const orOperands = commaGroups.map(cg => {
+      if (cg.length === 1) {
+        return cg[0]!;
+      }
+      return {
+        operator: 'and' as const,
+        operands: cg
+      } as LogicalExpression;
+    });
+    
+    if (orOperands.length === 1) {
+      return orOperands[0] as LogicalExpression;
+    }
+    
     return {
       operator: 'or',
-      operands: primitives
+      operands: orOperands
     };
   }
   
@@ -440,17 +583,47 @@ function buildLogicalExpression(
     };
   }
   
-  if (hasSemicolon) {
-    return {
-      operator: 'and',
-      operands: primitives
-    };
-  }
-  
   return {
     operator: 'and',
     operands: primitives
   };
+}
+
+function buildCommaGroups(
+  tokens: (AtomPrimitive | string)[],
+  primitives: AtomPrimitive[]
+): AtomPrimitive[][] {
+  const groups: AtomPrimitive[][] = [];
+  let currentGroup: AtomPrimitive[] = [];
+  let primitiveIndex = 0;
+  
+  for (const token of tokens) {
+    if (typeof token === 'string') {
+      if (token === ',') {
+        if (currentGroup.length > 0) {
+          groups.push(currentGroup);
+          currentGroup = [];
+        }
+      } else if (token === ';') {
+        if (currentGroup.length > 0) {
+          groups.push(currentGroup);
+          currentGroup = [];
+        }
+        break;
+      }
+    } else {
+      if (primitives.includes(token)) {
+        currentGroup.push(token);
+      }
+      primitiveIndex++;
+    }
+  }
+  
+  if (currentGroup.length > 0) {
+    groups.push(currentGroup);
+  }
+  
+  return groups;
 }
 
 interface OrganicAtomResult {
