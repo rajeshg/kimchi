@@ -6,10 +6,10 @@ A high-performance, zero-dependency toolkit for parsing and generating SMILES (S
 
 ## Why chemkit?
 
-- **✅ 100% test coverage** — All 649 tests pass, including comprehensive RDKit comparison tests
-- **✅ RDKit-validated** — Canonical SMILES generation matches RDKit for 100% of tested molecules (325/325 bulk validation)
+- **✅ Extensively tested** — Comprehensive test suite with 99%+ RDKit compatibility
+- **✅ RDKit-validated** — Canonical SMILES generation matches RDKit output (325/325 bulk validation at 100%)
 - **⚡ Fast & lightweight** — Zero dependencies, pure TypeScript implementation
-- **🎯 Production-ready** — Extensively tested with real-world molecules, commercial drugs, and edge cases
+- **🎯 Production-ready** — Validated with real-world molecules, commercial drugs, and edge cases
 - **🔬 Feature-complete** — Full stereochemistry, isotopes, atom class support, and OpenSMILES Standard Form compliance
 
 ## Quick Example

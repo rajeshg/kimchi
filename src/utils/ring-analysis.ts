@@ -1,6 +1,7 @@
-import type { Atom, Bond } from 'types';
+import type { Atom, Bond, Molecule } from 'types';
 import { intersection, sortBy, range } from 'es-toolkit';
 import { bondKey } from './bond-utils';
+import { MoleculeGraph } from './molecular-graph';
 
 export function findRings(atoms: readonly Atom[], bonds: readonly Bond[]): number[][] {
   const rings: number[][] = [];
@@ -48,12 +49,14 @@ export function findRings(atoms: readonly Atom[], bonds: readonly Bond[]): numbe
 }
 
 export function findAtomRings(atoms: readonly Atom[], bonds: readonly Bond[]): Map<number, number[][]> {
-  const rings = findRings(atoms, bonds);
+  const mol: Molecule = { atoms, bonds };
+  const mg = new MoleculeGraph(mol);
   const atomRings = new Map<number, number[][]>();
 
   for (const atom of atoms) {
-    const atomRingsList = rings.filter(ring => ring.includes(atom.id));
-    atomRings.set(atom.id, atomRingsList);
+    const ringIndices = mg.getNodeRings(atom.id);
+    const rings = ringIndices.map(idx => mg.sssr[idx]!);
+    atomRings.set(atom.id, rings);
   }
 
   return atomRings;
@@ -64,90 +67,21 @@ export function ringsShareAtoms(ring1: number[], ring2: number[]): boolean {
 }
 
 export function findSSSR(atoms: readonly Atom[], bonds: readonly Bond[]): number[][] {
-  const allRings = findRings(atoms, bonds);
-  
-  const nodeCount = atoms.length;
-  const edgeCount = bonds.length;
-  const connectedComponents = countConnectedComponents(atoms, bonds);
-  const expectedSSSRSize = edgeCount - nodeCount + connectedComponents;
-  
-  if (allRings.length <= expectedSSSRSize) {
-    return allRings;
-  }
-  
-  const sortedRings = sortBy(allRings, [(r: number[]) => r.length]);
-  
-  const sssr: number[][] = [];
-  const usedEdges = new Set<string>();
-  
-  for (const ring of sortedRings) {
-    if (sssr.length >= expectedSSSRSize) {
-      break;
-    }
-    
-    const ringEdges = getRingEdges(ring);
-    const hasNewEdge = ringEdges.some(edge => !usedEdges.has(edge));
-    
-    if (hasNewEdge || sssr.length < expectedSSSRSize) {
-      sssr.push(ring);
-      for (const edge of ringEdges) {
-        usedEdges.add(edge);
-      }
-    }
-  }
-  
-  return sssr;
+  const mol: Molecule = { atoms, bonds };
+  const mg = new MoleculeGraph(mol);
+  return mg.sssr;
 }
 
 export function findMCB(atoms: readonly Atom[], bonds: readonly Bond[]): number[][] {
-  const allRings = findRings(atoms, bonds);
-  
-  if (allRings.length === 0) {
-    return [];
-  }
-  
-  const nodeCount = atoms.length;
-  const edgeCount = bonds.length;
-  const connectedComponents = countConnectedComponents(atoms, bonds);
-  const expectedSSSRSize = edgeCount - nodeCount + connectedComponents;
-  
-  const sortedRings = sortBy(allRings, [(r: number[]) => r.length]);
-  
-  const minSize = sortedRings[0]!.length;
-  const smallestRings = sortedRings.filter(r => r.length === minSize);
-  
-  if (smallestRings.length <= expectedSSSRSize) {
-    return sortedRings.slice(0, expectedSSSRSize);
-  }
-  
-  return smallestRings;
+  const mol: Molecule = { atoms, bonds };
+  const mg = new MoleculeGraph(mol);
+  return mg.sssr;
 }
 
 function countConnectedComponents(atoms: readonly Atom[], bonds: readonly Bond[]): number {
-  const visited = new Set<number>();
-  let components = 0;
-  
-  function dfsVisit(atomId: number): void {
-    visited.add(atomId);
-    const neighbors = bonds
-      .filter(b => b.atom1 === atomId || b.atom2 === atomId)
-      .map(b => b.atom1 === atomId ? b.atom2 : b.atom1);
-    
-    for (const neighbor of neighbors) {
-      if (!visited.has(neighbor)) {
-        dfsVisit(neighbor);
-      }
-    }
-  }
-  
-  for (const atom of atoms) {
-    if (!visited.has(atom.id)) {
-      components++;
-      dfsVisit(atom.id);
-    }
-  }
-  
-  return components;
+  const mol: Molecule = { atoms, bonds };
+  const mg = new MoleculeGraph(mol);
+  return mg.components.length;
 }
 
 function getRingEdges(ring: number[]): string[] {

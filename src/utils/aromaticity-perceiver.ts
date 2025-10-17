@@ -1,8 +1,9 @@
-import type { Atom, Bond } from 'types';
-import { BondType } from 'types';
-import { range } from 'es-toolkit';
-import { analyzeRings, getRingAtoms, getRingBonds, filterElementaryRings } from './ring-analysis';
-import { getBondsForAtom } from './bond-utils';
+ import type { Atom, Bond, Molecule } from 'types';
+ import { BondType } from 'types';
+ import { range } from 'es-toolkit';
+ import { getRingAtoms, getRingBonds } from './ring-analysis';
+ import { getBondsForAtom } from './bond-utils';
+ import { MoleculeGraph } from './molecular-graph';
 
 type MutableAtom = { -readonly [K in keyof Atom]: Atom[K] };
 type MutableBond = { -readonly [K in keyof Bond]: Bond[K] };
@@ -321,24 +322,25 @@ export function perceiveAromaticity(atoms: readonly Atom[], bonds: readonly Bond
 }
 
 function perceiveAromaticityMutable(atoms: MutableAtom[], bonds: MutableBond[]): void {
-  const ringInfo = analyzeRings(atoms as Atom[], bonds as Bond[]);
-  const allRings = ringInfo.rings;
+  const mol: Molecule = { atoms: atoms as Atom[], bonds: bonds as Bond[] };
+  const mg = new MoleculeGraph(mol);
+  const allRings = mg.cycles;
   if (allRings.length === 0) return;
 
   const originalBondTypes: Record<string, Bond['type']> = {};
   const originalAromaticFlags: Record<number, boolean> = {};
-  
+
   for (const b of bonds) {
     const key = bondKey(b.atom1, b.atom2);
     originalBondTypes[key] = b.type;
   }
-  
+
   for (const atom of atoms) {
     originalAromaticFlags[atom.id] = atom.aromatic;
     atom.aromatic = false;
   }
 
-  const rings = filterElementaryRings(allRings).filter(r => r.length >= 5 && r.length <= 7);
+  const rings = allRings.filter(r => r.length >= 5 && r.length <= 7);
   if (rings.length === 0) return;
 
   const aromaticRings: number[][] = [];

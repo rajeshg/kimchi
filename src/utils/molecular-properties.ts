@@ -1,7 +1,8 @@
-import type { Molecule } from 'types';
-import { MONOISOTOPIC_MASSES, ISOTOPE_MASSES } from 'src/constants';
-import { analyzeRings } from 'src/utils/ring-analysis';
-import { getBondsForAtom, getHeavyNeighborCount, hasMultipleBond, hasTripleBond, hasDoubleBond, hasCarbonylBond } from 'src/utils/bond-utils';
+ import type { Molecule } from 'types';
+ import { MONOISOTOPIC_MASSES, ISOTOPE_MASSES } from 'src/constants';
+ import { analyzeRings } from 'src/utils/ring-analysis';
+ import { getBondsForAtom, getHeavyNeighborCount, hasMultipleBond, hasTripleBond, hasDoubleBond, hasCarbonylBond } from 'src/utils/bond-utils';
+ import { MoleculeGraph } from 'src/utils/molecular-graph';
 
 export interface MolecularOptions {
   includeImplicitH?: boolean; // default true
@@ -120,8 +121,8 @@ export function getRingCount(mol: Molecule): number {
   if (mol.rings) {
     return mol.rings.length;
   }
-  const ringInfo = analyzeRings(mol.atoms, mol.bonds);
-  return ringInfo.rings.length;
+  const mg = new MoleculeGraph(mol);
+  return mg.sssr.length;
 }
 
 export function getAromaticRingCount(mol: Molecule): number {
@@ -133,8 +134,8 @@ export function getAromaticRingCount(mol: Molecule): number {
       });
     }).length;
   }
-  const ringInfo = analyzeRings(mol.atoms, mol.bonds);
-  return ringInfo.rings.filter((ring: readonly number[]) => {
+  const mg = new MoleculeGraph(mol);
+  return mg.sssr.filter((ring: readonly number[]) => {
     return ring.every((atomId: number) => {
       const atom = mol.atoms.find(a => a.id === atomId);
       return atom?.aromatic === true;
@@ -286,29 +287,31 @@ export function getRotatableBondCount(mol: Molecule): number {
   if (mol.bonds.some(b => b.isRotatable !== undefined)) {
     return mol.bonds.filter(b => b.isRotatable).length;
   }
-  
+
   let count = 0;
-  
-  const ringInfo = analyzeRings(mol.atoms, mol.bonds);
+
+  const mg = new MoleculeGraph(mol);
+  const isBondInRing = (a1: number, a2: number) => mg.sssr.some(ring => ring.includes(a1) && ring.includes(a2));
+  const isAtomInRing = (id: number) => mg.nodeRings.has(id);
   
   for (const bond of mol.bonds) {
     if (bond.type !== 'single') continue;
-    
-    if (ringInfo.isBondInRing(bond.atom1, bond.atom2)) continue;
-    
+
+    if (isBondInRing(bond.atom1, bond.atom2)) continue;
+
     const atom1 = mol.atoms.find(a => a.id === bond.atom1)!;
     const atom2 = mol.atoms.find(a => a.id === bond.atom2)!;
-    
+
     if (atom1.symbol === 'H' && !atom1.isotope) continue;
     if (atom2.symbol === 'H' && !atom2.isotope) continue;
-    
+
     const heavyNeighbors1 = getHeavyNeighborCount(mol.bonds, atom1.id, mol.atoms);
     const heavyNeighbors2 = getHeavyNeighborCount(mol.bonds, atom2.id, mol.atoms);
-    
+
     if (heavyNeighbors1 < 2 || heavyNeighbors2 < 2) continue;
-    
-    const atom1InRing = ringInfo.isAtomInRing(atom1.id);
-    const atom2InRing = ringInfo.isAtomInRing(atom2.id);
+
+    const atom1InRing = isAtomInRing(atom1.id);
+    const atom2InRing = isAtomInRing(atom2.id);
     
     if ((atom1InRing && heavyNeighbors2 === 1) || (atom2InRing && heavyNeighbors1 === 1)) continue;
     

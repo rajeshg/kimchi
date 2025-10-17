@@ -1,8 +1,8 @@
-import type { Atom, Bond, Molecule } from 'types';
-import { BondType, StereoType } from 'types';
-import { uniq } from 'es-toolkit';
-import { findRings } from './ring-analysis';
-import { getBondsForAtom, getOtherAtomId } from './bond-utils';
+ import type { Atom, Bond, Molecule } from 'types';
+ import { BondType, StereoType } from 'types';
+ import { uniq } from 'es-toolkit';
+ import { getBondsForAtom, getOtherAtomId } from './bond-utils';
+ import { MoleculeGraph } from './molecular-graph';
 
 function getNeighbors(atomId: number, molecule: Molecule): Array<[number, Bond]> {
   const bonds = getBondsForAtom(molecule.bonds, atomId);
@@ -63,15 +63,16 @@ function computeCanonicalLabels(mol: Molecule): Map<number, string> {
 
 function hasSymmetricSubstituents(atomId: number, molecule: Molecule, labels: Map<number, string>): boolean {
   const neighbors = getNeighbors(atomId, molecule);
-  
+
   if (neighbors.length < 2) return false;
 
   const neighborLabels = neighbors.map(([nid]) => labels.get(nid)!);
   const uniqueLabels = new Set(neighborLabels);
-  
+
   if (uniqueLabels.size >= neighborLabels.length) return false;
 
-  const rings = findRings(molecule.atoms, molecule.bonds);
+  const mg = new MoleculeGraph(molecule);
+  const rings = mg.cycles;
   
   for (let i = 0; i < neighbors.length; i++) {
     for (let j = i + 1; j < neighbors.length; j++) {
@@ -132,7 +133,8 @@ function hasGeminalIdenticalGroups(bond: Bond, molecule: Molecule, labels: Map<n
 
 export function removeInvalidStereo(molecule: Molecule): Molecule {
   const labels = computeCanonicalLabels(molecule);
-  const rings = findRings(molecule.atoms, molecule.bonds);
+  const mg = new MoleculeGraph(molecule);
+  const rings = mg.cycles;
 
   const atomsToRemoveStereo = new Set<number>();
   const bondsToRemoveStereo = new Set<string>();

@@ -487,8 +487,9 @@ function normalizeCycle(cycle: number[]): number[] {
 }
 
 /**
- * Find the Smallest Set of Smallest Rings (SSSR) using a simplified algorithm.
- * This is a basic implementation - for production use, consider more sophisticated algorithms.
+ * Find the Smallest Set of Smallest Rings (SSSR) / Minimum Cycle Basis (MCB).
+ * Uses a greedy algorithm to find a linearly independent set of cycles.
+ * The number of rings = edges - nodes + components (cyclomatic complexity).
  * @param graph The graph to analyze
  * @returns Array of rings, where each ring is an array of node IDs
  */
@@ -496,15 +497,49 @@ export function findSSSR<TNode, TEdge>(
   graph: Graph<TNode, TEdge>
 ): number[][] {
   const allCycles = findCycles(graph);
-
+  
   if (allCycles.length === 0) return [];
 
-  // Sort cycles by size (ascending)
+  const components = findConnectedComponents(graph);
+  const numNodes = graph.nodeCount();
+  const numEdges = graph.edgeCount();
+  const targetRingCount = numEdges - numNodes + components.length;
+
+  if (targetRingCount === 0) return [];
+  if (allCycles.length <= targetRingCount) return allCycles;
+
   allCycles.sort((a, b) => a.length - b.length);
 
-  // Return all cycles of the smallest size
-  const minSize = allCycles[0]!.length;
-  return allCycles.filter(cycle => cycle.length === minSize);
+  const sssr: number[][] = [];
+  const usedEdges = new Set<string>();
+
+  for (const cycle of allCycles) {
+    if (sssr.length >= targetRingCount) break;
+
+    const cycleEdges = new Set<string>();
+    for (let i = 0; i < cycle.length; i++) {
+      const from = cycle[i]!;
+      const to = cycle[(i + 1) % cycle.length]!;
+      cycleEdges.add(getEdgeKey(from, to));
+    }
+
+    const hasNewEdge = Array.from(cycleEdges).some(edge => !usedEdges.has(edge));
+    
+    if (hasNewEdge || sssr.length === 0) {
+      sssr.push(cycle);
+      cycleEdges.forEach(edge => usedEdges.add(edge));
+    }
+  }
+
+  if (sssr.length < targetRingCount) {
+    const remaining = allCycles.filter(c => !sssr.includes(c));
+    for (const cycle of remaining) {
+      if (sssr.length >= targetRingCount) break;
+      sssr.push(cycle);
+    }
+  }
+
+  return sssr.slice(0, targetRingCount);
 }
 
 /**

@@ -1,8 +1,9 @@
-import type { Atom, Bond, ParseError } from 'types';
-import { BondType } from 'types';
-import { sum } from 'es-toolkit';
-import { analyzeRings, getRingAtoms, getRingBonds, filterElementaryRings, isPartOfFusedSystem } from 'src/utils/ring-analysis';
-import { getBondsForAtom } from 'src/utils/bond-utils';
+ import type { Atom, Bond, ParseError, Molecule } from 'types';
+ import { BondType } from 'types';
+ import { sum } from 'es-toolkit';
+ import { getRingAtoms, getRingBonds, filterElementaryRings, isPartOfFusedSystem } from 'src/utils/ring-analysis';
+ import { getBondsForAtom } from 'src/utils/bond-utils';
+ import { MoleculeGraph } from 'src/utils/molecular-graph';
 
 function countPiElectrons(atom: Atom, bonds: readonly Bond[]): number {
   const atomBonds = getBondsForAtom(bonds, atom.id);
@@ -86,13 +87,14 @@ function detectAromaticRings(atoms: readonly Atom[], bonds: readonly Bond[], rin
 }
 
 export function validateAromaticity(
-  atoms: readonly Atom[], 
-  bonds: readonly Bond[], 
-  errors: ParseError[], 
+  atoms: readonly Atom[],
+  bonds: readonly Bond[],
+  errors: ParseError[],
   explicitBonds?: Set<string>
 ): { atoms: Atom[]; bonds: Bond[] } {
-  const ringInfo = analyzeRings(atoms, bonds);
-  const allRings = ringInfo.rings;
+  const mol: Molecule = { atoms, bonds };
+  const mg = new MoleculeGraph(mol);
+  const allRings = mg.cycles;
 
   let updatedBonds = detectAromaticRings(atoms, bonds, allRings);
 
@@ -104,7 +106,7 @@ export function validateAromaticity(
   const atomsToMarkNonAromatic = new Set<number>();
 
   for (const atom of aromaticAtoms) {
-    const atomInRing = ringInfo.isAtomInRing(atom.id);
+    const atomInRing = allRings.some(ring => ring.includes(atom.id));
 
     if (!atomInRing) {
       errors.push({

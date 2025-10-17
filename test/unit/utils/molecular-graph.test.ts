@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test';
-import { buildGraphFromMolecule, computeMoleculeGraphInfo, clearGraphCache } from 'src/utils/molecular-graph';
+import { buildGraphFromMolecule, MoleculeGraph, getFragmentGraphs } from 'src/utils/molecular-graph';
 
 import type { Molecule } from 'types';
 import { BondType, StereoType } from 'types';
@@ -16,11 +16,10 @@ describe('Molecular Graph', () => {
       ]
     };
 
-    const info = computeMoleculeGraphInfo(mol);
-    expect(info.graph.nodeCount()).toBe(2);
-    expect(info.graph.edgeCount()).toBe(1);
-    expect(info.components.length).toBe(1);
-    clearGraphCache();
+    const mg = new MoleculeGraph(mol);
+    expect(mg.graph.nodeCount()).toBe(2);
+    expect(mg.graph.edgeCount()).toBe(1);
+    expect(mg.components.length).toBe(1);
   });
 
   it('should compute SSSR for benzene-like ring', () => {
@@ -43,10 +42,9 @@ describe('Molecular Graph', () => {
       ]
     };
 
-    const info = computeMoleculeGraphInfo(mol);
-  expect(info.sssr.length).toBe(1);
-  expect(info.sssr[0]!.length).toBe(6);
-    clearGraphCache();
+    const mg = new MoleculeGraph(mol);
+    expect(mg.sssr.length).toBe(1);
+    expect(mg.sssr[0]!.length).toBe(6);
   });
 
   it('should compute SSSR for fused rings (naphthalene-like)', () => {
@@ -65,14 +63,13 @@ describe('Molecular Graph', () => {
 
     const mol: any = { atoms, bonds: bonds.map(b => ({ ...b, type: BondType.AROMATIC, stereo: StereoType.NONE })) };
 
-    const info = computeMoleculeGraphInfo(mol);
+    const mg = new MoleculeGraph(mol);
     // Two smallest rings should be present
-    expect(info.sssr.length).toBeGreaterThanOrEqual(2);
+    expect(mg.sssr.length).toBeGreaterThanOrEqual(2);
     // At least one atom (5 or 6) should be in two rings
-    const ringsFor5 = info.nodeRings.get(5) || [];
-    const ringsFor6 = info.nodeRings.get(6) || [];
+    const ringsFor5 = mg.getNodeRings(5);
+    const ringsFor6 = mg.getNodeRings(6);
     expect(ringsFor5.length + ringsFor6.length).toBeGreaterThan(1);
-    clearGraphCache();
   });
 
   it('should handle disconnected fragments', () => {
@@ -86,9 +83,8 @@ describe('Molecular Graph', () => {
       bonds: [ { atom1: 1, atom2: 2, type: BondType.SINGLE, stereo: StereoType.NONE }, { atom1: 3, atom2: 4, type: BondType.SINGLE, stereo: StereoType.NONE } ]
     };
 
-    const info = computeMoleculeGraphInfo(mol);
-    expect(info.components.length).toBe(2);
-    clearGraphCache();
+    const mg = new MoleculeGraph(mol);
+    expect(mg.components.length).toBe(2);
   });
 
   it('should detect bridges in a chain', () => {
@@ -101,26 +97,11 @@ describe('Molecular Graph', () => {
       bonds: [ { atom1: 1, atom2: 2, type: BondType.SINGLE, stereo: StereoType.NONE }, { atom1: 2, atom2: 3, type: BondType.SINGLE, stereo: StereoType.NONE } ]
     };
 
-    const info = computeMoleculeGraphInfo(mol);
-    expect(info.bridges.length).toBe(2);
-    clearGraphCache();
+    const mg = new MoleculeGraph(mol);
+    expect(mg.bridges.length).toBe(2);
   });
 
-  it('should cache and clear graph info correctly', () => {
-    const mol: any = {
-      atoms: [ { id: 1, symbol: 'C', atomicNumber: 6, charge: 0, hydrogens: 0, isotope: null, aromatic: false, chiral: null, isBracket: false, atomClass: 0 } ],
-      bonds: []
-    };
 
-    const info1 = computeMoleculeGraphInfo(mol);
-    const info2 = computeMoleculeGraphInfo(mol);
-    // Should return same object from cache
-    expect(info1).toBe(info2);
-    clearGraphCache();
-    const info3 = computeMoleculeGraphInfo(mol);
-    expect(info3).not.toBe(info2);
-    clearGraphCache();
-  });
 
   it('should return fragment graphs for multi-fragment molecule', () => {
     const mol: any = {
@@ -132,9 +113,9 @@ describe('Molecular Graph', () => {
       bonds: [ { atom1: 1, atom2: 2, type: BondType.SINGLE, stereo: StereoType.NONE } ]
     };
 
-    const graphs = require('src/utils/molecular-graph').getFragmentGraphs(mol);
+    const mg = new MoleculeGraph(mol);
+    const graphs = mg.getFragmentGraphs();
     expect(graphs.length).toBe(2);
-    clearGraphCache();
   });
 
   it('should handle spiro junction (two rings sharing one atom)', () => {
@@ -147,10 +128,9 @@ describe('Molecular Graph', () => {
       ].map(b => ({ ...b, type: BondType.AROMATIC, stereo: StereoType.NONE }))
     };
 
-    const info = computeMoleculeGraphInfo(mol);
+    const mg = new MoleculeGraph(mol);
     // Two rings should be present and atom 1 should be in two rings
-    expect(info.sssr.length).toBeGreaterThanOrEqual(2);
-    expect((info.nodeRings.get(1) || []).length).toBeGreaterThanOrEqual(2);
-    clearGraphCache();
+    expect(mg.sssr.length).toBeGreaterThanOrEqual(2);
+    expect(mg.getNodeRings(1).length).toBeGreaterThanOrEqual(2);
   });
 });
