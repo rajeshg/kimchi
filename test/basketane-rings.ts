@@ -1,5 +1,5 @@
 import { parseSMILES } from "index";
-import { findSSSR, findRings } from "src/utils/ring-finder";
+import { findSSSR, findRings } from "src/utils/ring-analysis";
 
 const smiles = "C1C2CC3CC1CC(C2)C3";
 const result = parseSMILES(smiles);

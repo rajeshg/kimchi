@@ -1,5 +1,5 @@
 import { parseSMILES } from "index";
-import { findMCB } from "src/utils/ring-finder";
+import { findMCB } from "src/utils/ring-analysis";
 
 const testMolecules = [
   { name: "Naphthalene", smiles: "c1ccc2ccccc2c1" },

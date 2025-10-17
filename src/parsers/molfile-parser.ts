@@ -605,8 +605,8 @@ export function parseMolfile(input: string): MolfileParseResult {
     return { molfile: result.molfile, molecule: null, errors: result.errors };
   }
 
-  const molecule = convertToMolecule(result.molfile);
-  enrichMolecule(molecule);
+  const baseMolecule = convertToMolecule(result.molfile);
+  const molecule = enrichMolecule(baseMolecule);
 
   const validationErrors: ParseError[] = [];
   validateValences(molecule.atoms, molecule.bonds, validationErrors);

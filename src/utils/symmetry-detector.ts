@@ -1,7 +1,7 @@
-import type { Bond, Molecule } from 'types';
+import type { Atom, Bond, Molecule } from 'types';
 import { BondType, StereoType } from 'types';
 import { uniq } from 'es-toolkit';
-import { findRings } from './ring-finder';
+import { findRings } from './ring-analysis';
 import { getBondsForAtom, getOtherAtomId } from './bond-utils';
 
 function getNeighbors(atomId: number, molecule: Molecule): Array<[number, Bond]> {
@@ -130,23 +130,24 @@ function hasGeminalIdenticalGroups(bond: Bond, molecule: Molecule, labels: Map<n
   return false;
 }
 
-export function removeInvalidStereo(molecule: Molecule): void {
+export function removeInvalidStereo(molecule: Molecule): Molecule {
   const labels = computeCanonicalLabels(molecule);
   const rings = findRings(molecule.atoms, molecule.bonds);
+
+  const atomsToRemoveStereo = new Set<number>();
+  const bondsToRemoveStereo = new Set<string>();
 
   for (const atom of molecule.atoms) {
     if (atom.chiral && (atom.chiral === '@' || atom.chiral === '@@')) {
       if (atom.atomicNumber === 7 || atom.atomicNumber === 15) {
-        atom.chiral = null;
-        atom.isBracket = false;
+        atomsToRemoveStereo.add(atom.id);
       } else if (atom.atomicNumber === 6 && (atom.hydrogens === 0 || atom.hydrogens === undefined)) {
         const neighbors = getNeighbors(atom.id, molecule);
         if (neighbors.length === 4) {
           const neighborLabels = neighbors.map(([nid]) => labels.get(nid)!);
           const uniqueLabels = new Set(neighborLabels);
           if (uniqueLabels.size < 4) {
-            atom.chiral = null;
-            atom.isBracket = false;
+            atomsToRemoveStereo.add(atom.id);
           }
         }
       } else {
@@ -167,16 +168,14 @@ export function removeInvalidStereo(molecule: Molecule): void {
             );
             
             if (!otherChiralInRing) {
-              atom.chiral = null;
-              atom.isBracket = false;
+              atomsToRemoveStereo.add(atom.id);
               continue;
             }
           }
         }
         
         if (hasSymmetricSubstituents(atom.id, molecule, labels)) {
-          atom.chiral = null;
-          atom.isBracket = false;
+          atomsToRemoveStereo.add(atom.id);
         }
       }
     }
@@ -193,9 +192,27 @@ export function removeInvalidStereo(molecule: Molecule): void {
 
       if (stereoBonds.length > 0 && hasGeminalIdenticalGroups(bond, molecule, labels)) {
         for (const b of stereoBonds) {
-          b.stereo = StereoType.NONE;
+          const bondKey = `${Math.min(b.atom1, b.atom2)}-${Math.max(b.atom1, b.atom2)}`;
+          bondsToRemoveStereo.add(bondKey);
         }
       }
     }
   }
+
+  const newAtoms = molecule.atoms.map(atom => {
+    if (atomsToRemoveStereo.has(atom.id)) {
+      return { ...atom, chiral: null, isBracket: false };
+    }
+    return atom;
+  });
+
+  const newBonds = molecule.bonds.map(bond => {
+    const bondKey = `${Math.min(bond.atom1, bond.atom2)}-${Math.max(bond.atom1, bond.atom2)}`;
+    if (bondsToRemoveStereo.has(bondKey)) {
+      return { ...bond, stereo: StereoType.NONE };
+    }
+    return bond;
+  });
+
+  return { atoms: newAtoms, bonds: newBonds };
 }

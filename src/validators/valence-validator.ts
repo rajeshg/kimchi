@@ -6,7 +6,7 @@ import { getBondsForAtom, hasMultipleBond } from 'src/utils/bond-utils';
 /**
  * Validate that all atoms have valid valences according to their element
  */
-export function validateValences(atoms: Atom[], bonds: Bond[], errors: ParseError[]): void {
+export function validateValences(atoms: readonly Atom[], bonds: readonly Bond[], errors: ParseError[]): void {
   for (const atom of atoms) {
     if (atom.symbol === '*') {
       continue;

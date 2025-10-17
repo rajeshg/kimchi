@@ -10,6 +10,14 @@ import { maxBy } from 'es-toolkit';
 import { enrichMolecule } from 'src/utils/molecule-enrichment';
 import { perceiveAromaticity } from 'src/utils/aromaticity-perceiver';
 
+type MutableAtom = {
+  -readonly [K in keyof Atom]: Atom[K];
+};
+
+type MutableBond = {
+  -readonly [K in keyof Bond]: Bond[K];
+};
+
 export function parseSMILES(smiles: string): ParseResult {
   const errors: ParseError[] = [];
   const molecules: Molecule[] = [];
@@ -28,8 +36,8 @@ export function parseSMILES(smiles: string): ParseResult {
 
 function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: ParseError[] } {
   const errors: ParseError[] = [];
-  const atoms: Atom[] = [];
-  const bonds: Bond[] = [];
+  let atoms: MutableAtom[] = [];
+  let bonds: MutableBond[] = [];
   let atomId = 0;
   const explicitBonds = new Set<string>();
 
@@ -37,16 +45,6 @@ function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: ParseE
     const [min, max] = a1 < a2 ? [a1, a2] : [a2, a1];
     return `${min}-${max}`;
   };
-
-  // Small built-in tracing set for problematic inputs discovered earlier
-  const TRACE_SMILES = new Set([
-    'c1ccccc1',
-    'F/C1=CCC1/F',
-    'c1ccncc1',
-    'C1CC[C@H](C)CC1',
-    'c1nccn1O',
-  ]);
-  const trace = TRACE_SMILES.has(smiles);
 
   let i = 0;
   let prevAtomId: number | null = null;
@@ -79,7 +77,7 @@ function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: ParseE
       } else {
         i++; // skip ]
       }
-      const atom = parseBracketAtom(content, atomId++);
+      const atom = parseBracketAtom(content, atomId++) as MutableAtom | null;
       if (!atom) {
         errors.push({ message: `Invalid bracket atom: ${content}`, position: i });
         continue;
@@ -103,7 +101,7 @@ function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: ParseE
 
     // Wildcard atom '*' (can be aromatic or aliphatic)
     if (ch === '*') {
-      const atom = createAtom('*', atomId++, false, false, 0);
+      const atom = createAtom('*', atomId++, false, false, 0) as MutableAtom;
       atoms.push(atom);
       if (prevAtomId !== null) {
         bonds.push({ atom1: prevAtomId, atom2: atom.id, type: pendingBondType, stereo: pendingBondStereo });
@@ -169,7 +167,7 @@ function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: ParseE
       // or explicitly written in lowercase (like 'c' for carbon)
       const isAromaticOrganic = /^[bcnosp]$/.test(symbol);
       const aromatic = isAromaticOrganic;
-      const atom = createAtom(symbol, atomId++, aromatic, false, 0);
+      const atom = createAtom(symbol, atomId++, aromatic, false, 0) as MutableAtom;
       atoms.push(atom);
 
       // chiral marker immediately after atom
@@ -440,17 +438,17 @@ function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: ParseE
   }
 
   // Validate aromaticity
-  validateAromaticity(atoms, bonds, errors, explicitBonds);
+  const validatedArom = validateAromaticity(atoms, bonds, errors, explicitBonds);
+  atoms = validatedArom.atoms;
+  bonds = validatedArom.bonds;
 
   validateValences(atoms, bonds, errors);
 
   validateStereochemistry(atoms, bonds, errors);
 
-  const molecule: Molecule = { atoms, bonds };
+  const { atoms: aromaticAtoms, bonds: aromaticBonds } = perceiveAromaticity(atoms as Atom[], bonds as Bond[]);
   
-  perceiveAromaticity(molecule.atoms, molecule.bonds);
-  
-  enrichMolecule(molecule);
+  const molecule = enrichMolecule({ atoms: aromaticAtoms, bonds: aromaticBonds });
 
   return { molecule, errors };
 }

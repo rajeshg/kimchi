@@ -24,10 +24,10 @@ describe('Aromaticity Perception - Direct Unit Tests', () => {
         { atom1: 5, atom2: 0, type: BondType.SINGLE, stereo: StereoType.NONE },
       ];
 
-      perceiveAromaticity(atoms, bonds);
+      const result = perceiveAromaticity(atoms, bonds);
 
-      expect(atoms.every(a => !a.aromatic)).toBe(true);
-      expect(bonds.every(b => b.type === BondType.SINGLE)).toBe(true);
+      expect(result.atoms.every(a => !a.aromatic)).toBe(true);
+      expect(result.bonds.every(b => b.type === BondType.SINGLE)).toBe(true);
     });
 
     it('should perceive benzene (alternating double bonds) as aromatic', () => {
@@ -49,10 +49,10 @@ describe('Aromaticity Perception - Direct Unit Tests', () => {
         { atom1: 5, atom2: 0, type: BondType.SINGLE, stereo: StereoType.NONE },
       ];
 
-      perceiveAromaticity(atoms, bonds);
+      const result = perceiveAromaticity(atoms, bonds);
 
-      expect(atoms.every(a => a.aromatic)).toBe(true);
-      expect(bonds.every(b => b.type === BondType.AROMATIC)).toBe(true);
+      expect(result.atoms.every(a => a.aromatic)).toBe(true);
+      expect(result.bonds.every(b => b.type === BondType.AROMATIC)).toBe(true);
     });
 
     it('should not perceive cyclohexene (one double bond) as aromatic', () => {
@@ -74,10 +74,10 @@ describe('Aromaticity Perception - Direct Unit Tests', () => {
         { atom1: 5, atom2: 0, type: BondType.SINGLE, stereo: StereoType.NONE },
       ];
 
-      perceiveAromaticity(atoms, bonds);
+      const result = perceiveAromaticity(atoms, bonds);
 
-      expect(atoms.every(a => !a.aromatic)).toBe(true);
-      expect(bonds.filter(b => b.type === BondType.AROMATIC)).toHaveLength(0);
+      expect(result.atoms.every(a => !a.aromatic)).toBe(true);
+      expect(result.bonds.filter(b => b.type === BondType.AROMATIC)).toHaveLength(0);
     });
   });
 
@@ -101,10 +101,10 @@ describe('Aromaticity Perception - Direct Unit Tests', () => {
         { atom1: 5, atom2: 0, type: BondType.AROMATIC, stereo: StereoType.NONE },
       ];
 
-      perceiveAromaticity(atoms, bonds);
+      const result = perceiveAromaticity(atoms, bonds);
 
-      expect(atoms.every(a => a.aromatic)).toBe(true);
-      expect(bonds.every(b => b.type === BondType.AROMATIC)).toBe(true);
+      expect(result.atoms.every(a => a.aromatic)).toBe(true);
+      expect(result.bonds.every(b => b.type === BondType.AROMATIC)).toBe(true);
     });
 
     it('should correctly re-perceive aromatic pyridine with aromatic bonds', () => {
@@ -126,10 +126,10 @@ describe('Aromaticity Perception - Direct Unit Tests', () => {
         { atom1: 5, atom2: 0, type: BondType.AROMATIC, stereo: StereoType.NONE },
       ];
 
-      perceiveAromaticity(atoms, bonds);
+      const result = perceiveAromaticity(atoms, bonds);
 
-      expect(atoms.every(a => a.aromatic)).toBe(true);
-      expect(bonds.every(b => b.type === BondType.AROMATIC)).toBe(true);
+      expect(result.atoms.every(a => a.aromatic)).toBe(true);
+      expect(result.bonds.every(b => b.type === BondType.AROMATIC)).toBe(true);
     });
   });
 
@@ -153,9 +153,9 @@ describe('Aromaticity Perception - Direct Unit Tests', () => {
         { atom1: 5, atom2: 0, type: BondType.DOUBLE, stereo: StereoType.NONE },
       ];
 
-      perceiveAromaticity(atoms, bonds);
+      const result = perceiveAromaticity(atoms, bonds);
 
-      expect(atoms.filter(a => a.symbol !== 'O').every(a => !a.aromatic)).toBe(true);
+      expect(result.atoms.filter(a => a.symbol !== 'O').every(a => !a.aromatic)).toBe(true);
     });
   });
 
@@ -177,10 +177,10 @@ describe('Aromaticity Perception - Direct Unit Tests', () => {
         { atom1: 4, atom2: 0, type: BondType.SINGLE, stereo: StereoType.NONE },
       ];
 
-      perceiveAromaticity(atoms, bonds);
+      const result = perceiveAromaticity(atoms, bonds);
 
-      expect(atoms.every(a => a.aromatic)).toBe(true);
-      expect(bonds.every(b => b.type === BondType.AROMATIC)).toBe(true);
+      expect(result.atoms.every(a => a.aromatic)).toBe(true);
+      expect(result.bonds.every(b => b.type === BondType.AROMATIC)).toBe(true);
     });
 
     it('should count nitrogen with double bond (pyridine-type) as 1 pi electron', () => {
@@ -202,10 +202,10 @@ describe('Aromaticity Perception - Direct Unit Tests', () => {
         { atom1: 5, atom2: 0, type: BondType.SINGLE, stereo: StereoType.NONE },
       ];
 
-      perceiveAromaticity(atoms, bonds);
+      const result = perceiveAromaticity(atoms, bonds);
 
-      expect(atoms.every(a => a.aromatic)).toBe(true);
-      expect(bonds.every(b => b.type === BondType.AROMATIC)).toBe(true);
+      expect(result.atoms.every(a => a.aromatic)).toBe(true);
+      expect(result.bonds.every(b => b.type === BondType.AROMATIC)).toBe(true);
     });
   });
 });

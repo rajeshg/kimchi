@@ -1,6 +1,6 @@
 import type { Molecule } from 'types';
 import { MONOISOTOPIC_MASSES, ISOTOPE_MASSES } from 'src/constants';
-import { analyzeRings } from 'src/utils/ring-utils';
+import { analyzeRings } from 'src/utils/ring-analysis';
 import { getBondsForAtom, getHeavyNeighborCount, hasMultipleBond, hasTripleBond, hasDoubleBond, hasCarbonylBond } from 'src/utils/bond-utils';
 
 export interface MolecularOptions {
@@ -126,7 +126,7 @@ export function getRingCount(mol: Molecule): number {
 
 export function getAromaticRingCount(mol: Molecule): number {
   if (mol.rings) {
-    return mol.rings.filter((ring: number[]) => {
+    return mol.rings.filter((ring: readonly number[]) => {
       return ring.every((atomId: number) => {
         const atom = mol.atoms.find(a => a.id === atomId);
         return atom?.aromatic === true;
@@ -134,7 +134,7 @@ export function getAromaticRingCount(mol: Molecule): number {
     }).length;
   }
   const ringInfo = analyzeRings(mol.atoms, mol.bonds);
-  return ringInfo.rings.filter((ring: number[]) => {
+  return ringInfo.rings.filter((ring: readonly number[]) => {
     return ring.every((atomId: number) => {
       const atom = mol.atoms.find(a => a.id === atomId);
       return atom?.aromatic === true;

@@ -1,3 +1,5 @@
+import { zip } from 'es-toolkit';
+
 /**
  * Simple, efficient graph data structure for cheminformatics applications.
  * Optimized for small graphs (molecules typically have <100 nodes).
@@ -225,14 +227,14 @@ export class Graph<TNode = any, TEdge = any> {
 export function dfs<TNode, TEdge>(
   graph: Graph<TNode, TEdge>,
   startNode: number,
-  visitCallback?: (nodeId: number, data: TNode) => void,
+  visitCallback?: (nodeId: number, data: TNode | undefined) => void,
   visited: Set<number> = new Set()
 ): Set<number> {
   if (visited.has(startNode)) return visited;
 
   visited.add(startNode);
   const nodeData = graph.getNodeData(startNode);
-  visitCallback?.(startNode, nodeData!);
+  visitCallback?.(startNode, nodeData);
 
   for (const neighbor of graph.getNeighbors(startNode)) {
     if (!visited.has(neighbor)) {
@@ -253,14 +255,14 @@ export function dfs<TNode, TEdge>(
 export function bfs<TNode, TEdge>(
   graph: Graph<TNode, TEdge>,
   startNode: number,
-  visitCallback?: (nodeId: number, data: TNode) => void
+  visitCallback?: (nodeId: number, data: TNode | undefined) => void
 ): Set<number> {
   const visited = new Set<number>();
   const queue: number[] = [startNode];
 
   visited.add(startNode);
   const nodeData = graph.getNodeData(startNode);
-  visitCallback?.(startNode, nodeData!);
+  visitCallback?.(startNode, nodeData);
 
   while (queue.length > 0) {
     const currentNode = queue.shift()!;
@@ -436,7 +438,8 @@ function removeDuplicateCycles(cycles: number[][]): number[][] {
  * Compare two cycles lexicographically.
  */
 function compareCycles(a: number[], b: number[]): number {
-  for (let i = 0; i < Math.min(a.length, b.length); i++) {
+  const minLen = Math.min(a.length, b.length);
+  for (let i = 0; i < minLen; i++) {
     if (a[i]! < b[i]!) return -1;
     if (a[i]! > b[i]!) return 1;
   }
@@ -451,7 +454,7 @@ function normalizeCycle(cycle: number[]): number[] {
   if (cycle.length === 0) return cycle;
 
   // Check if cycle has closing duplicate
-  const hasClosingDuplicate = cycle.length > 1 && cycle[0] === cycle[cycle.length - 1];
+  const hasClosingDuplicate = cycle.length > 1 && cycle[0]! === cycle[cycle.length - 1]!;
   
   // Remove the closing duplicate if present
   const uniqueCycle = hasClosingDuplicate ? cycle.slice(0, -1) : cycle;
@@ -545,10 +548,15 @@ export function findBiconnectedComponents<TNode, TEdge>(
         
         dfsArticulation(v);
 
-        low.set(u, Math.min(low.get(u)!, low.get(v)!));
+        const uLow = low.get(u)!;
+        const vLow = low.get(v)!;
+        low.set(u, Math.min(uLow, vLow));
 
-        if ((parent.get(u) === undefined && children > 1) || 
-            (parent.get(u) !== undefined && low.get(v)! >= disc.get(u)!)) {
+        const parentU = parent.get(u);
+        const vLow2 = low.get(v)!;
+        const uDisc = disc.get(u)!;
+        if ((parentU === undefined && children > 1) ||
+            (parentU !== undefined && vLow2 >= uDisc)) {
           articulationPoints.add(u);
 
           const component: [number, number][] = [];
@@ -565,9 +573,13 @@ export function findBiconnectedComponents<TNode, TEdge>(
           }
         }
       } else if (v !== parent.get(u)) {
-        low.set(u, Math.min(low.get(u)!, disc.get(v)!));
-        
-        if (disc.get(v)! < disc.get(u)!) {
+        const uLow2 = low.get(u)!;
+        const vDisc = disc.get(v)!;
+        low.set(u, Math.min(uLow2, vDisc));
+
+        const vDisc2 = disc.get(v)!;
+        const uDisc2 = disc.get(u)!;
+        if (vDisc2 < uDisc2) {
           edgeStack.push([u, v]);
         }
       }
@@ -618,13 +630,19 @@ export function findBridges<TNode, TEdge>(
         parent.set(v, u);
         dfsBridge(v);
 
-        low.set(u, Math.min(low.get(u)!, low.get(v)!));
+        const uLow = low.get(u)!;
+        const vLow = low.get(v)!;
+        low.set(u, Math.min(uLow, vLow));
 
-        if (low.get(v)! > disc.get(u)!) {
+        const vLow2 = low.get(v)!;
+        const uDisc = disc.get(u)!;
+        if (vLow2 > uDisc) {
           bridges.push([u, v]);
         }
       } else if (v !== parent.get(u)) {
-        low.set(u, Math.min(low.get(u)!, disc.get(v)!));
+        const uLow2 = low.get(u)!;
+        const vDisc = disc.get(v)!;
+        low.set(u, Math.min(uLow2, vDisc));
       }
     }
   }

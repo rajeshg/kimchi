@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'bun:test';
-import { buildGraphFromMolecule, computeMoleculeGraphInfo, clearGraphCache } from 'src/utils/graph-adapter';
+import { buildGraphFromMolecule, computeMoleculeGraphInfo, clearGraphCache } from 'src/utils/molecular-graph';
 
 import type { Molecule } from 'types';
 import { BondType, StereoType } from 'types';
 
-describe('Graph Adapter', () => {
+describe('Molecular Graph', () => {
   it('should build graph from simple molecule', () => {
     const mol: Molecule = {
       atoms: [
@@ -132,7 +132,7 @@ describe('Graph Adapter', () => {
       bonds: [ { atom1: 1, atom2: 2, type: BondType.SINGLE, stereo: StereoType.NONE } ]
     };
 
-    const graphs = require('src/utils/graph-adapter').getFragmentGraphs(mol);
+    const graphs = require('src/utils/molecular-graph').getFragmentGraphs(mol);
     expect(graphs.length).toBe(2);
     clearGraphCache();
   });

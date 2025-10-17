@@ -1,6 +1,6 @@
 import { initializeRDKit, getSubstructMatches } from "test/smarts/rdkit-comparison/rdkit-smarts-api";
 import { parseSMILES, parseSMARTS, matchSMARTS } from "index";
-import { findSSSR } from "src/utils/ring-finder";
+import { findSSSR } from "src/utils/ring-analysis";
 
 const RDKit = await initializeRDKit();
 

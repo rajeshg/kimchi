@@ -1,5 +1,6 @@
 import type { Molecule, Atom, Bond } from 'types';
 import { BondType, StereoType } from 'types';
+import { chunk } from 'es-toolkit';
 
 export interface MolGeneratorOptions {
   title?: string;           // Molecule title (default: empty)
@@ -181,7 +182,7 @@ function formatCountsLine(molecule: Molecule): string {
 /**
  * Format the atom block (one line per atom).
  */
-function formatAtomBlock(atoms: Atom[], coordinates: Map<number, Coordinates>): string[] {
+function formatAtomBlock(atoms: readonly Atom[], coordinates: Map<number, Coordinates>): string[] {
   return atoms.map(atom => {
     const coord = coordinates.get(atom.id)!;
     const symbol = atom.symbol.padEnd(3);
@@ -207,7 +208,7 @@ function getStereoParity(chiral: string | null): number {
 /**
  * Format the bond block (one line per bond).
  */
-function formatBondBlock(bonds: Bond[], atomIndexMap: Map<number, number>): string[] {
+function formatBondBlock(bonds: readonly Bond[], atomIndexMap: Map<number, number>): string[] {
   return bonds.map(bond => {
     const atom1Idx = atomIndexMap.get(bond.atom1)!;
     const atom2Idx = atomIndexMap.get(bond.atom2)!;
@@ -248,7 +249,7 @@ function getMolBondStereo(stereo: StereoType): number {
 /**
  * Format the properties block (charges, isotopes, etc.).
  */
-function formatPropertiesBlock(atoms: Atom[], atomIndexMap: Map<number, number>): string[] {
+function formatPropertiesBlock(atoms: readonly Atom[], atomIndexMap: Map<number, number>): string[] {
   const lines: string[] = [];
 
   // Handle charges
@@ -261,9 +262,8 @@ function formatPropertiesBlock(atoms: Atom[], atomIndexMap: Map<number, number>)
     }
 
     // Group in chunks of 8 (MOL format limit)
-    for (let i = 0; i < chargeEntries.length; i += 8) {
-      const chunk = chargeEntries.slice(i, i + 8);
-      lines.push(`M  CHG  ${chunk.length} ${chunk.join(' ')}`);
+    for (const chargeChunk of chunk(chargeEntries, 8)) {
+      lines.push(`M  CHG  ${chargeChunk.length} ${chargeChunk.join(' ')}`);
     }
   }
 
@@ -277,9 +277,8 @@ function formatPropertiesBlock(atoms: Atom[], atomIndexMap: Map<number, number>)
     }
 
     // Group in chunks of 8
-    for (let i = 0; i < isotopeEntries.length; i += 8) {
-      const chunk = isotopeEntries.slice(i, i + 8);
-      lines.push(`M  ISO  ${chunk.length} ${chunk.join(' ')}`);
+    for (const isotopeChunk of chunk(isotopeEntries, 8)) {
+      lines.push(`M  ISO  ${isotopeChunk.length} ${isotopeChunk.join(' ')}`);
     }
   }
 

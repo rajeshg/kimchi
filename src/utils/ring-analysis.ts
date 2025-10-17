@@ -1,14 +1,11 @@
 import type { Atom, Bond } from 'types';
-import { intersection, sortBy } from 'es-toolkit';
+import { intersection, sortBy, range } from 'es-toolkit';
+import { bondKey } from './bond-utils';
 
-/**
- * Find all rings in a molecule using DFS with improved cycle detection
- * Returns an array of ring atom ID arrays, sorted by size
- */
-export function findRings(atoms: Atom[], bonds: Bond[]): number[][] {
+export function findRings(atoms: readonly Atom[], bonds: readonly Bond[]): number[][] {
   const rings: number[][] = [];
   const visited = new Set<number>();
-  const ringSet = new Set<string>(); // To avoid duplicate rings
+  const ringSet = new Set<string>();
 
   function dfs(startId: number, currentId: number, path: number[], visitedEdges: Set<string>): void {
     path.push(currentId);
@@ -24,7 +21,6 @@ export function findRings(atoms: Atom[], bonds: Bond[]): number[][] {
       visitedEdges.add(edgeKey);
 
       if (neighborId === startId && path.length >= 3) {
-        // Found a ring - normalize it to start with smallest ID
         const ring = [...path].sort((a, b) => a - b);
         const ringKey = ring.join(',');
         if (!ringSet.has(ringKey)) {
@@ -42,21 +38,16 @@ export function findRings(atoms: Atom[], bonds: Bond[]): number[][] {
     visited.delete(currentId);
   }
 
-  // Find rings starting from each atom
   for (const atom of atoms) {
     if (!visited.has(atom.id)) {
       dfs(atom.id, atom.id, [], new Set());
     }
   }
 
-  // Sort rings by size (smallest first)
   return rings.sort((a, b) => a.length - b.length);
 }
 
-/**
- * Find the smallest rings containing each atom
- */
-export function findAtomRings(atoms: Atom[], bonds: Bond[]): Map<number, number[][]> {
+export function findAtomRings(atoms: readonly Atom[], bonds: readonly Bond[]): Map<number, number[][]> {
   const rings = findRings(atoms, bonds);
   const atomRings = new Map<number, number[][]>();
 
@@ -68,14 +59,11 @@ export function findAtomRings(atoms: Atom[], bonds: Bond[]): Map<number, number[
   return atomRings;
 }
 
-/**
- * Check if two rings share atoms (for fused/spiro systems)
- */
 export function ringsShareAtoms(ring1: number[], ring2: number[]): boolean {
   return intersection(ring1, ring2).length > 0;
 }
 
-export function findSSSR(atoms: Atom[], bonds: Bond[]): number[][] {
+export function findSSSR(atoms: readonly Atom[], bonds: readonly Bond[]): number[][] {
   const allRings = findRings(atoms, bonds);
   
   const nodeCount = atoms.length;
@@ -111,7 +99,7 @@ export function findSSSR(atoms: Atom[], bonds: Bond[]): number[][] {
   return sssr;
 }
 
-export function findMCB(atoms: Atom[], bonds: Bond[]): number[][] {
+export function findMCB(atoms: readonly Atom[], bonds: readonly Bond[]): number[][] {
   const allRings = findRings(atoms, bonds);
   
   if (allRings.length === 0) {
@@ -135,7 +123,7 @@ export function findMCB(atoms: Atom[], bonds: Bond[]): number[][] {
   return smallestRings;
 }
 
-function countConnectedComponents(atoms: Atom[], bonds: Bond[]): number {
+function countConnectedComponents(atoms: readonly Atom[], bonds: readonly Bond[]): number {
   const visited = new Set<number>();
   let components = 0;
   
@@ -163,17 +151,14 @@ function countConnectedComponents(atoms: Atom[], bonds: Bond[]): number {
 }
 
 function getRingEdges(ring: number[]): string[] {
-  const edges: string[] = [];
-  for (let i = 0; i < ring.length; i++) {
+  return range(ring.length).map(i => {
     const atom1 = ring[i]!;
     const atom2 = ring[(i + 1) % ring.length]!;
-    const edge = `${Math.min(atom1, atom2)}-${Math.max(atom1, atom2)}`;
-    edges.push(edge);
-  }
-  return edges;
+    return `${Math.min(atom1, atom2)}-${Math.max(atom1, atom2)}`;
+  });
 }
 
-export function classifyRingSystems(atoms: Atom[], bonds: Bond[]): {
+export function classifyRingSystems(atoms: readonly Atom[], bonds: readonly Bond[]): {
   isolated: number[][];
   fused: number[][];
   spiro: number[][];
@@ -214,4 +199,111 @@ export function classifyRingSystems(atoms: Atom[], bonds: Bond[]): {
   }
 
   return { isolated, fused, spiro, bridged };
+}
+
+export interface RingInfo {
+  rings: number[][];
+  ringAtomSet: Set<number>;
+  ringBondSet: Set<string>;
+  isAtomInRing: (atomId: number) => boolean;
+  isBondInRing: (atom1: number, atom2: number) => boolean;
+  getRingsContainingAtom: (atomId: number) => number[][];
+  areBothAtomsInSameRing: (atom1: number, atom2: number) => boolean;
+}
+
+export function analyzeRings(atoms: readonly Atom[], bonds: readonly Bond[]): RingInfo {
+  const rings = findMCB(atoms, bonds);
+  const ringAtomSet = new Set<number>();
+  const ringBondSet = new Set<string>();
+  
+  for (const ring of rings) {
+    for (const atomId of ring) {
+      ringAtomSet.add(atomId);
+    }
+  }
+  
+  for (const bond of bonds) {
+    for (const ring of rings) {
+      const atom1InThisRing = ring.includes(bond.atom1);
+      const atom2InThisRing = ring.includes(bond.atom2);
+      
+      if (atom1InThisRing && atom2InThisRing) {
+        ringBondSet.add(bondKey(bond.atom1, bond.atom2));
+        break;
+      }
+    }
+  }
+  
+  return {
+    rings,
+    ringAtomSet,
+    ringBondSet,
+    isAtomInRing: (atomId: number) => ringAtomSet.has(atomId),
+    isBondInRing: (atom1: number, atom2: number) => ringBondSet.has(bondKey(atom1, atom2)),
+    getRingsContainingAtom: (atomId: number) => rings.filter(r => r.includes(atomId)),
+    areBothAtomsInSameRing: (atom1: number, atom2: number) => {
+      return rings.some(ring => ring.includes(atom1) && ring.includes(atom2));
+    },
+  };
+}
+
+export function isAtomInRing(atomId: number, rings: number[][]): boolean {
+  return rings.some(ring => ring.includes(atomId));
+}
+
+export function isBondInRing(atom1: number, atom2: number, rings: number[][]): boolean {
+  return rings.some(ring => ring.includes(atom1) && ring.includes(atom2));
+}
+
+export function getRingsContainingAtom(atomId: number, rings: number[][]): number[][] {
+  return rings.filter(ring => ring.includes(atomId));
+}
+
+export function getAromaticRings(rings: number[][], atoms: readonly Atom[]): number[][] {
+  return rings.filter(ring => {
+    return ring.every(atomId => {
+      const atom = atoms.find(a => a.id === atomId);
+      return atom?.aromatic === true;
+    });
+  });
+}
+
+export function getRingAtoms(ring: readonly number[], atoms: readonly Atom[]): Atom[] {
+  return [...ring].map((id: number) => atoms.find(a => a.id === id)!);
+}
+
+export function getRingBonds(ring: readonly number[], bonds: readonly Bond[]): Bond[] {
+  return bonds.filter(b => ring.includes(b.atom1) && ring.includes(b.atom2));
+}
+
+export function isCompositeRing(ring: number[], smallerRings: number[][]): boolean {
+  for (let i = 0; i < smallerRings.length; i++) {
+    for (let j = i + 1; j < smallerRings.length; j++) {
+      const ring1 = smallerRings[i]!;
+      const ring2 = smallerRings[j]!;
+      const combined = new Set([...ring1, ...ring2]);
+      if (combined.size === ring.length && ring.every(id => combined.has(id))) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+export function filterElementaryRings(allRings: number[][]): number[][] {
+  return allRings.filter((ring: number[]) => {
+    const smallerRings = allRings.filter((r: number[]) => r.length < ring.length);
+    return !isCompositeRing(ring, smallerRings);
+  });
+}
+
+export function isPartOfFusedSystem(ring: number[], allRings: number[][]): boolean {
+  for (const otherRing of allRings) {
+    if (otherRing === ring) continue;
+    const sharedAtoms = ring.filter(id => otherRing.includes(id));
+    if (sharedAtoms.length >= 2) {
+      return true;
+    }
+  }
+  return false;
 }

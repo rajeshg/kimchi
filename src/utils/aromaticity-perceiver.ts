@@ -1,7 +1,11 @@
 import type { Atom, Bond } from 'types';
 import { BondType } from 'types';
-import { analyzeRings, getRingAtoms, getRingBonds, filterElementaryRings } from './ring-utils';
+import { range } from 'es-toolkit';
+import { analyzeRings, getRingAtoms, getRingBonds, filterElementaryRings } from './ring-analysis';
 import { getBondsForAtom } from './bond-utils';
+
+type MutableAtom = { -readonly [K in keyof Atom]: Atom[K] };
+type MutableBond = { -readonly [K in keyof Bond]: Bond[K] };
 
 interface FusedSystem {
   rings: number[][];
@@ -30,9 +34,8 @@ function findFusedSystems(rings: number[][]): FusedSystem[] {
     };
     
     for (let j = 0; j < ring.length; j++) {
-      const a1 = ring[j];
-      const a2 = ring[(j + 1) % ring.length];
-      if (a1 === undefined || a2 === undefined) continue;
+      const a1 = ring[j]!;
+      const a2 = ring[(j + 1) % ring.length]!;
       system.bonds.add(bondKey(a1, a2));
     }
     
@@ -310,8 +313,15 @@ function isFusedSystemAromatic(
   return isAromatic;
 }
 
-export function perceiveAromaticity(atoms: Atom[], bonds: Bond[]): void {
-  const ringInfo = analyzeRings(atoms, bonds);
+export function perceiveAromaticity(atoms: readonly Atom[], bonds: readonly Bond[]): { atoms: Atom[]; bonds: Bond[] } {
+  const mutableAtoms: MutableAtom[] = atoms.map(a => ({ ...a, ringIds: a.ringIds ? [...a.ringIds] : undefined }));
+  const mutableBonds: MutableBond[] = bonds.map(b => ({ ...b, ringIds: b.ringIds ? [...b.ringIds] : undefined }));
+  perceiveAromaticityMutable(mutableAtoms, mutableBonds);
+  return { atoms: mutableAtoms, bonds: mutableBonds };
+}
+
+function perceiveAromaticityMutable(atoms: MutableAtom[], bonds: MutableBond[]): void {
+  const ringInfo = analyzeRings(atoms as Atom[], bonds as Bond[]);
   const allRings = ringInfo.rings;
   if (allRings.length === 0) return;
 
@@ -376,30 +386,35 @@ export function perceiveAromaticity(atoms: Atom[], bonds: Bond[]): void {
       }
     }
 
-    const ringBonds = getRingBonds(ring, bonds);
+    const ringBonds = getRingBonds(ring, bonds as Bond[]).map(b => ({ ...b }));
     for (const bond of ringBonds) {
       bond.type = BondType.AROMATIC;
+      // Update the original bond in the bonds array
+      const originalBond = bonds.find(b => b.atom1 === bond.atom1 && b.atom2 === bond.atom2);
+      if (originalBond) {
+        (originalBond as any).type = BondType.AROMATIC;
+      }
     }
   }
 
   for (const ring of aromaticRings) {
     if (ringsInFusedSystems.has(ring)) continue;
     
-    const ringAtoms = getRingAtoms(ring, atoms);
+    const ringAtoms = getRingAtoms(ring, atoms as Atom[]).map(a => a as MutableAtom);
     
     for (const atom of ringAtoms) {
       const exoDouble = hasExocyclicDoubleBondToElectronegative(
-        atom,
+        atom as Atom,
         new Set(ring),
-        bonds
+        bonds as Bond[]
       );
 
       if (exoDouble) {
         atom.aromatic = false;
         
-        const ringBonds = getBondsForAtom(bonds, atom.id).filter(b =>
+        const ringBonds = getBondsForAtom(bonds as Bond[], atom.id).filter(b =>
           ring.includes(b.atom1) && ring.includes(b.atom2)
-        );
+        ) as MutableBond[];
         for (const bond of ringBonds) {
           const k = bondKey(bond.atom1, bond.atom2);
           if ((bondAromaticCount[k] || 0) > 1) continue;
@@ -430,8 +445,8 @@ export function perceiveAromaticity(atoms: Atom[], bonds: Bond[]): void {
 function kekulizeNonAromaticRings(
   allRings: number[][],
   aromaticRings: number[][],
-  atoms: Atom[],
-  bonds: Bond[],
+  atoms: MutableAtom[],
+  bonds: MutableBond[],
   originalBondTypes: Record<string, BondType>
 ): void {
   const aromaticRingSet = new Set(aromaticRings.map(ring => ring.join(',')));
@@ -463,8 +478,8 @@ function kekulizeNonAromaticRings(
 
 function kekulizeRing(
   ring: number[],
-  atoms: Atom[],
-  bonds: Bond[],
+  atoms: MutableAtom[],
+  bonds: MutableBond[],
   originalBondTypes: Record<string, BondType>,
   aromaticBondSet: Set<string>
 ): boolean {

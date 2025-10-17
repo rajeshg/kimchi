@@ -1,90 +1,102 @@
 import type { Atom, Bond, Molecule } from 'types';
-import { analyzeRings } from './ring-utils';
+import { analyzeRings } from './ring-analysis';
 import { bondKey, getBondsForAtom, getHeavyNeighborCount, hasDoubleBond, hasTripleBond, hasCarbonylBond } from './bond-utils';
 
-export function enrichMolecule(mol: Molecule): void {
+export function enrichMolecule(mol: Molecule): Molecule {
   const ringInfo = analyzeRings(mol.atoms, mol.bonds);
   
-  mol.rings = ringInfo.rings;
-  mol.ringInfo = {
+  const enrichedRingInfo = {
     atomRings: buildAtomRingsMap(ringInfo.rings),
     bondRings: buildBondRingsMap(ringInfo.rings, mol.bonds),
     rings: ringInfo.rings,
   };
   
-  enrichAtoms(mol, ringInfo);
-  enrichBonds(mol, ringInfo);
+  const enrichedAtoms = enrichAtoms(mol, ringInfo, enrichedRingInfo);
+  const enrichedBonds = enrichBonds(mol, ringInfo, enrichedRingInfo);
+  
+  return {
+    atoms: enrichedAtoms,
+    bonds: enrichedBonds,
+    rings: ringInfo.rings,
+    ringInfo: enrichedRingInfo,
+  };
 }
 
 function buildAtomRingsMap(rings: number[][]): Map<number, Set<number>> {
   const atomRings = new Map<number, Set<number>>();
-  
-  for (let ringIdx = 0; ringIdx < rings.length; ringIdx++) {
-    const ring = rings[ringIdx]!;
-    for (const atomId of ring) {
+
+  rings.forEach((ring, ringIdx) => {
+    ring.forEach(atomId => {
       if (!atomRings.has(atomId)) {
         atomRings.set(atomId, new Set());
       }
       atomRings.get(atomId)!.add(ringIdx);
-    }
-  }
-  
+    });
+  });
+
   return atomRings;
 }
 
-function buildBondRingsMap(rings: number[][], bonds: Bond[]): Map<string, Set<number>> {
+function buildBondRingsMap(rings: number[][], bonds: readonly Bond[]): Map<string, Set<number>> {
   const bondRings = new Map<string, Set<number>>();
-  
-  for (let ringIdx = 0; ringIdx < rings.length; ringIdx++) {
-    const ring = rings[ringIdx]!;
-    for (const bond of bonds) {
-      const atom1InThisRing = ring.includes(bond.atom1);
-      const atom2InThisRing = ring.includes(bond.atom2);
-      
-      if (atom1InThisRing && atom2InThisRing) {
+
+  rings.forEach((ring, ringIdx) => {
+    bonds.forEach(bond => {
+      if (ring.includes(bond.atom1) && ring.includes(bond.atom2)) {
         const key = bondKey(bond.atom1, bond.atom2);
         if (!bondRings.has(key)) {
           bondRings.set(key, new Set());
         }
         bondRings.get(key)!.add(ringIdx);
       }
-    }
-  }
-  
+    });
+  });
+
   return bondRings;
 }
 
-function enrichAtoms(mol: Molecule, ringInfo: ReturnType<typeof analyzeRings>): void {
-  for (const atom of mol.atoms) {
-    atom.degree = getHeavyNeighborCount(mol.bonds, atom.id, mol.atoms);
-    atom.isInRing = ringInfo.isAtomInRing(atom.id);
+function enrichAtoms(
+  mol: Molecule, 
+  ringInfo: ReturnType<typeof analyzeRings>,
+  enrichedRingInfo: { atomRings: Map<number, Set<number>> }
+): Atom[] {
+  return mol.atoms.map(atom => {
+    const degree = getHeavyNeighborCount(mol.bonds, atom.id, mol.atoms);
+    const isInRing = ringInfo.isAtomInRing(atom.id);
+    const ringIds = isInRing ? [...(enrichedRingInfo.atomRings.get(atom.id) || [])] : [];
+    const hybridization = determineHybridization(atom, mol.bonds, mol.atoms);
     
-    if (atom.isInRing) {
-      atom.ringIds = [...(mol.ringInfo!.atomRings.get(atom.id) || [])];
-    } else {
-      atom.ringIds = [];
-    }
-    
-    atom.hybridization = determineHybridization(atom, mol.bonds, mol.atoms);
-  }
+    return {
+      ...atom,
+      degree,
+      isInRing,
+      ringIds,
+      hybridization,
+    };
+  });
 }
 
-function enrichBonds(mol: Molecule, ringInfo: ReturnType<typeof analyzeRings>): void {
-  for (const bond of mol.bonds) {
+function enrichBonds(
+  mol: Molecule, 
+  ringInfo: ReturnType<typeof analyzeRings>,
+  enrichedRingInfo: { bondRings: Map<string, Set<number>> }
+): Bond[] {
+  return mol.bonds.map(bond => {
     const key = bondKey(bond.atom1, bond.atom2);
-    bond.isInRing = ringInfo.isBondInRing(bond.atom1, bond.atom2);
+    const isInRing = ringInfo.isBondInRing(bond.atom1, bond.atom2);
+    const ringIds = isInRing ? [...(enrichedRingInfo.bondRings.get(key) || [])] : [];
+    const isRotatable = isRotatableBond(bond, mol, ringInfo);
     
-    if (bond.isInRing) {
-      bond.ringIds = [...(mol.ringInfo!.bondRings.get(key) || [])];
-    } else {
-      bond.ringIds = [];
-    }
-    
-    bond.isRotatable = isRotatableBond(bond, mol, ringInfo);
-  }
+    return {
+      ...bond,
+      isInRing,
+      ringIds,
+      isRotatable,
+    };
+  });
 }
 
-function determineHybridization(atom: Atom, bonds: Bond[], atoms: Atom[]): 'sp' | 'sp2' | 'sp3' | 'other' {
+function determineHybridization(atom: Atom, bonds: readonly Bond[], atoms: readonly Atom[]): 'sp' | 'sp2' | 'sp3' | 'other' {
   if (atom.aromatic) return 'sp2';
   
   const atomBonds = getBondsForAtom(bonds, atom.id);

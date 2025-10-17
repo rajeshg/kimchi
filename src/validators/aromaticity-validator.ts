@@ -1,9 +1,10 @@
 import type { Atom, Bond, ParseError } from 'types';
 import { BondType } from 'types';
-import { analyzeRings, getRingAtoms, getRingBonds, filterElementaryRings, isPartOfFusedSystem } from 'src/utils/ring-utils';
+import { sum } from 'es-toolkit';
+import { analyzeRings, getRingAtoms, getRingBonds, filterElementaryRings, isPartOfFusedSystem } from 'src/utils/ring-analysis';
 import { getBondsForAtom } from 'src/utils/bond-utils';
 
-function countPiElectrons(atom: Atom, bonds: Bond[]): number {
+function countPiElectrons(atom: Atom, bonds: readonly Bond[]): number {
   const atomBonds = getBondsForAtom(bonds, atom.id);
   const bondCount = atomBonds.length;
   const hasDouble = atomBonds.some(b => b.type === BondType.DOUBLE);
@@ -44,17 +45,14 @@ function countPiElectrons(atom: Atom, bonds: Bond[]): number {
   }
 }
 
-function isHuckelAromatic(ringAtoms: Atom[], ringBonds: Bond[]): boolean {
-  let totalPiElectrons = 0;
-
-  for (const atom of ringAtoms) {
-    totalPiElectrons += countPiElectrons(atom, ringBonds);
-  }
-
+function isHuckelAromatic(ringAtoms: readonly Atom[], ringBonds: readonly Bond[]): boolean {
+  const totalPiElectrons = sum(ringAtoms.map(atom => countPiElectrons(atom, ringBonds)));
   return totalPiElectrons >= 2 && (totalPiElectrons - 2) % 4 === 0;
 }
 
-function detectAromaticRings(atoms: Atom[], bonds: Bond[], rings: number[][]): void {
+function detectAromaticRings(atoms: readonly Atom[], bonds: readonly Bond[], rings: readonly (readonly number[])[]): Bond[] {
+  const bondsToUpdate: Array<{ atom1: number; atom2: number }> = [];
+
   for (const ring of rings) {
     if (ring.length < 5 || ring.length > 7) continue;
 
@@ -69,19 +67,41 @@ function detectAromaticRings(atoms: Atom[], bonds: Bond[], rings: number[][]): v
 
     const allAromatic = ringAtoms.every(atom => atom.aromatic);
     if (allAromatic && hasAlternatingBonds) {
-      ringBonds.forEach(bond => bond.type = BondType.AROMATIC);
+      ringBonds.forEach(bond => {
+        bondsToUpdate.push({ atom1: bond.atom1, atom2: bond.atom2 });
+      });
     }
   }
+
+  return bonds.map(bond => {
+    const shouldUpdate = bondsToUpdate.some(
+      b => (b.atom1 === bond.atom1 && b.atom2 === bond.atom2) ||
+           (b.atom1 === bond.atom2 && b.atom2 === bond.atom1)
+    );
+    if (shouldUpdate) {
+      return { ...bond, type: BondType.AROMATIC };
+    }
+    return bond;
+  });
 }
 
-export function validateAromaticity(atoms: Atom[], bonds: Bond[], errors: ParseError[], explicitBonds?: Set<string>): void {
+export function validateAromaticity(
+  atoms: readonly Atom[], 
+  bonds: readonly Bond[], 
+  errors: ParseError[], 
+  explicitBonds?: Set<string>
+): { atoms: Atom[]; bonds: Bond[] } {
   const ringInfo = analyzeRings(atoms, bonds);
   const allRings = ringInfo.rings;
 
-  detectAromaticRings(atoms, bonds, allRings);
+  let updatedBonds = detectAromaticRings(atoms, bonds, allRings);
 
   const aromaticAtoms = atoms.filter(a => a.aromatic);
-  if (aromaticAtoms.length === 0) return;
+  if (aromaticAtoms.length === 0) {
+    return { atoms: [...atoms], bonds: updatedBonds };
+  }
+
+  const atomsToMarkNonAromatic = new Set<number>();
 
   for (const atom of aromaticAtoms) {
     const atomInRing = ringInfo.isAtomInRing(atom.id);
@@ -91,11 +111,17 @@ export function validateAromaticity(atoms: Atom[], bonds: Bond[], errors: ParseE
         message: `Aromatic atom ${atom.symbol} (id: ${atom.id}) is not in a ring`,
         position: -1
       });
-      atom.aromatic = false;
+      atomsToMarkNonAromatic.add(atom.id);
     }
   }
 
   const rings = filterElementaryRings(allRings);
+
+  const bondsToUpdate = new Map<string, BondType>();
+  const bondKey = (a1: number, a2: number) => {
+    const [min, max] = a1 < a2 ? [a1, a2] : [a2, a1];
+    return `${min}-${max}`;
+  };
 
   for (const ring of rings) {
     const ringAtoms = getRingAtoms(ring, atoms);
@@ -106,23 +132,18 @@ export function validateAromaticity(atoms: Atom[], bonds: Bond[], errors: ParseE
         continue;
       }
 
-      const ringBonds = getRingBonds(ring, bonds);
+      const ringBonds = getRingBonds(ring, updatedBonds);
 
       if (!isHuckelAromatic(ringAtoms, ringBonds)) {
-        const bondKey = (a1: number, a2: number) => {
-          const [min, max] = a1 < a2 ? [a1, a2] : [a2, a1];
-          return `${min}-${max}`;
-        };
-        
         const hasExplicitBondTypes = explicitBonds 
           ? ringBonds.some(b => explicitBonds.has(bondKey(b.atom1, b.atom2)))
           : false;
         
         if (hasExplicitBondTypes) {
-          ringAtoms.forEach((a: Atom) => a.aromatic = false);
+          ringAtoms.forEach((a: Atom) => atomsToMarkNonAromatic.add(a.id));
           ringBonds.forEach((b: Bond) => {
             if (b.type === BondType.AROMATIC) {
-              b.type = BondType.SINGLE;
+              bondsToUpdate.set(bondKey(b.atom1, b.atom2), BondType.SINGLE);
             }
           });
         }
@@ -130,12 +151,28 @@ export function validateAromaticity(atoms: Atom[], bonds: Bond[], errors: ParseE
     }
   }
 
+  const updatedAtoms = atoms.map(atom => {
+    if (atomsToMarkNonAromatic.has(atom.id)) {
+      return { ...atom, aromatic: false };
+    }
+    return atom;
+  });
+
+  updatedBonds = updatedBonds.map(bond => {
+    const key = bondKey(bond.atom1, bond.atom2);
+    const newType = bondsToUpdate.get(key);
+    if (newType !== undefined) {
+      return { ...bond, type: newType };
+    }
+    return bond;
+  });
+
   for (const ring of rings) {
-    const ringAtoms = getRingAtoms(ring, atoms);
+    const ringAtoms = getRingAtoms(ring, updatedAtoms);
     const allAromatic = ringAtoms.every((a: Atom) => a.aromatic);
 
     if (allAromatic) {
-      const ringBonds = getRingBonds(ring, bonds);
+      const ringBonds = getRingBonds(ring, updatedBonds);
 
       const aromaticBondCount = ringBonds.filter(b => b.type === BondType.AROMATIC).length;
       const singleBondCount = ringBonds.filter(b => b.type === BondType.SINGLE).length;
@@ -149,4 +186,6 @@ export function validateAromaticity(atoms: Atom[], bonds: Bond[], errors: ParseE
       }
     }
   }
+
+  return { atoms: updatedAtoms, bonds: updatedBonds };
 }

@@ -4,7 +4,7 @@ import { BondType } from 'types';
 /**
  * Calculate the valence of an atom based on its bonds and charge
  */
-export function calculateValence(atom: Atom, bonds: Bond[]): number {
+export function calculateValence(atom: Atom, bonds: readonly Bond[]): number {
   let valence = 0;
 
   for (const bond of bonds) {

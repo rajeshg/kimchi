@@ -21,20 +21,20 @@ export enum StereoType {
  * Molecules are immutable post-parse - never mutate atoms directly.
  */
 export interface Atom {
-  id: number; // unique identifier
-  symbol: string; // e.g., 'C', 'N', '[Fe]'
-  atomicNumber: number; // from symbol
-  charge: number; // formal charge
-  hydrogens: number; // explicit hydrogens
-  isotope: number | null; // isotopic mass, null if unspecified
-  aromatic: boolean; // true if aromatic
-  chiral: string | null; // e.g., '@', '@@', '@TH1', etc.
-  isBracket: boolean; // true if parsed from bracket
-  atomClass: number; // atom class for application-specific marking (default 0)
-  degree?: number; // heavy atom neighbor count (pre-computed after enrichment)
-  isInRing?: boolean; // true if atom is in any ring (pre-computed after enrichment)
-  ringIds?: number[]; // IDs of rings this atom belongs to (pre-computed after enrichment)
-  hybridization?: 'sp' | 'sp2' | 'sp3' | 'other'; // hybridization state (pre-computed after enrichment)
+  readonly id: number;
+  readonly symbol: string;
+  readonly atomicNumber: number;
+  readonly charge: number;
+  readonly hydrogens: number;
+  readonly isotope: number | null;
+  readonly aromatic: boolean;
+  readonly chiral: string | null;
+  readonly isBracket: boolean;
+  readonly atomClass: number;
+  readonly degree?: number;
+  readonly isInRing?: boolean;
+  readonly ringIds?: readonly number[];
+  readonly hybridization?: 'sp' | 'sp2' | 'sp3' | 'other';
 }
 
 /**
@@ -43,13 +43,13 @@ export interface Atom {
  * Molecules are immutable post-parse - never mutate bonds directly.
  */
 export interface Bond {
-  atom1: number; // atom id
-  atom2: number; // atom id
-  type: BondType;
-  stereo: StereoType; // for double bonds
-  isInRing?: boolean; // true if bond is in any ring (pre-computed after enrichment)
-  ringIds?: number[]; // IDs of rings this bond belongs to (pre-computed after enrichment)
-  isRotatable?: boolean; // true if single, non-ring, non-terminal bond (pre-computed after enrichment)
+  readonly atom1: number;
+  readonly atom2: number;
+  readonly type: BondType;
+  readonly stereo: StereoType;
+  readonly isInRing?: boolean;
+  readonly ringIds?: readonly number[];
+  readonly isRotatable?: boolean;
 }
 
 /**
@@ -58,16 +58,16 @@ export interface Bond {
  * Molecules are immutable post-parse - create new molecules instead of mutating.
  */
 export interface Molecule {
-  atoms: Atom[];
-  bonds: Bond[];
-  rings?: number[][]; // ring information (atom IDs) (pre-computed after enrichment)
-  ringInfo?: RingInfo; // detailed ring analysis (pre-computed after enrichment)
+  readonly atoms: readonly Atom[];
+  readonly bonds: readonly Bond[];
+  readonly rings?: readonly (readonly number[])[];
+  readonly ringInfo?: Readonly<RingInfo>;
 }
 
 export interface RingInfo {
-  atomRings: Map<number, Set<number>>; // atom ID -> set of ring IDs
-  bondRings: Map<string, Set<number>>; // bond key -> set of ring IDs
-  rings: number[][]; // all rings (atom IDs)
+  readonly atomRings: ReadonlyMap<number, ReadonlySet<number>>;
+  readonly bondRings: ReadonlyMap<string, ReadonlySet<number>>;
+  readonly rings: readonly (readonly number[])[];
 }
 
 export interface ParseError {

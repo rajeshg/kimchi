@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { findRings, findAtomRings, ringsShareAtoms, classifyRingSystems } from 'src/utils/ring-finder';
+import { findRings, findAtomRings, ringsShareAtoms, classifyRingSystems } from 'src/utils/ring-analysis';
 
 describe('Ring finder utilities', () => {
   it('finds a 3-membered ring', () => {

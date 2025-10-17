@@ -1,4 +1,4 @@
-import type { Molecule, Bond } from 'types';
+import type { Molecule, Bond, Atom } from 'types';
 import { BondType, StereoType } from 'types';
 import { uniq } from 'es-toolkit';
 import { isOrganicAtom } from 'src/utils/atom-utils';
@@ -6,17 +6,25 @@ import { perceiveAromaticity } from 'src/utils/aromaticity-perceiver';
 import { removeInvalidStereo } from 'src/utils/symmetry-detector';
 import { getBondsForAtom, getOtherAtomId, bondKey as utilBondKey } from 'src/utils/bond-utils';
 
-// SMILES generation strategy:
-// - For simple SMILES: treat molecule as a graph and use DFS traversal
-// - For canonical SMILES: implement canonical numbering (iterative atom invariants),
-//   then use DFS with deterministic ordering based on canonical labels
+type MutableAtom = {
+  -readonly [K in keyof Atom]: Atom[K];
+};
+
+type MutableBond = {
+  -readonly [K in keyof Bond]: Bond[K];
+};
+
+type MutableMolecule = {
+  atoms: MutableAtom[];
+  bonds: MutableBond[];
+};
 
 export function generateSMILES(input: Molecule | Molecule[], canonical = true): string {
   if (Array.isArray(input)) {
     return input.map(mol => generateSMILES(mol, canonical)).join('.');
   }
   const molecule = input as Molecule;
-  const cloned: Molecule = {
+  let cloned: MutableMolecule = {
     atoms: molecule.atoms.map(a => ({ ...a })),
     bonds: molecule.bonds.map(b => ({ ...b })),
   };
@@ -24,8 +32,12 @@ export function generateSMILES(input: Molecule | Molecule[], canonical = true): 
   if (cloned.atoms.length === 0) return '';
 
   if (canonical) {
-    perceiveAromaticity(cloned.atoms, cloned.bonds);
-    removeInvalidStereo(cloned);
+    const { atoms, bonds } = perceiveAromaticity(cloned.atoms as Atom[], cloned.bonds as Bond[]);
+    const validated = removeInvalidStereo({ atoms, bonds });
+    cloned = {
+      atoms: validated.atoms.map(a => ({ ...a })),
+      bonds: validated.bonds.map(b => ({ ...b }))
+    };
   }
 
   for (const atom of cloned.atoms) {
@@ -672,7 +684,7 @@ function isInSmallRing(atom1: number, atom2: number, molecule: Molecule, maxSize
 
 // Normalize stereo markers to canonical form
 // For equivalent representations (e.g., F/C=C/F vs F\C=C\F), prefer UP markers
-function normalizeStereoMarkers(molecule: Molecule): void {
+function normalizeStereoMarkers(molecule: MutableMolecule): void {
   for (const bond of molecule.bonds) {
     if (bond.type !== BondType.DOUBLE) continue;
     
