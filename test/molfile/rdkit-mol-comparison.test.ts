@@ -89,21 +89,21 @@ describe('RDKit MOL File Comparison', () => {
     const rdkitMolfile = rdkitMol.get_molblock();
     const rdkitStructure = parseMolfileBasic(rdkitMolfile);
 
-    // Get chemkit MOL file
+    // Get kimchi MOL file
     const result = parseSMILES('C');
     expect(result.errors).toHaveLength(0);
-    const chemkitMolfile = generateMolfile(result.molecules[0]!);
-    const chemkitStructure = parseMolfileBasic(chemkitMolfile);
+    const kimchiMolfile = generateMolfile(result.molecules[0]!);
+    const kimchiStructure = parseMolfileBasic(kimchiMolfile);
 
     // Compare structure
-    expect(chemkitStructure.numAtoms).toBe(rdkitStructure.numAtoms);
-    expect(chemkitStructure.numBonds).toBe(rdkitStructure.numBonds);
-    expect(chemkitStructure.atoms).toHaveLength(rdkitStructure.atoms.length);
-    expect(chemkitStructure.bonds).toHaveLength(rdkitStructure.bonds.length);
+    expect(kimchiStructure.numAtoms).toBe(rdkitStructure.numAtoms);
+    expect(kimchiStructure.numBonds).toBe(rdkitStructure.numBonds);
+    expect(kimchiStructure.atoms).toHaveLength(rdkitStructure.atoms.length);
+    expect(kimchiStructure.bonds).toHaveLength(rdkitStructure.bonds.length);
 
     // Check atoms (should all be C)
-    for (let i = 0; i < chemkitStructure.atoms.length; i++) {
-      expect(chemkitStructure.atoms[i]!.symbol).toBe(rdkitStructure.atoms[i]!.symbol);
+    for (let i = 0; i < kimchiStructure.atoms.length; i++) {
+      expect(kimchiStructure.atoms[i]!.symbol).toBe(rdkitStructure.atoms[i]!.symbol);
     }
   });
 
@@ -115,26 +115,26 @@ describe('RDKit MOL File Comparison', () => {
     const rdkitMolfile = rdkitMol.get_molblock();
     const rdkitStructure = parseMolfileBasic(rdkitMolfile);
 
-    // Get chemkit MOL file
+    // Get kimchi MOL file
     const result = parseSMILES('CCO');
     expect(result.errors).toHaveLength(0);
-    const chemkitMolfile = generateMolfile(result.molecules[0]!);
-    const chemkitStructure = parseMolfileBasic(chemkitMolfile);
+    const kimchiMolfile = generateMolfile(result.molecules[0]!);
+    const kimchiStructure = parseMolfileBasic(kimchiMolfile);
 
     // Compare structure
-    expect(chemkitStructure.numAtoms).toBe(rdkitStructure.numAtoms);
-    expect(chemkitStructure.numBonds).toBe(rdkitStructure.numBonds);
-    expect(chemkitStructure.atoms).toHaveLength(rdkitStructure.atoms.length);
-    expect(chemkitStructure.bonds).toHaveLength(rdkitStructure.bonds.length);
+    expect(kimchiStructure.numAtoms).toBe(rdkitStructure.numAtoms);
+    expect(kimchiStructure.numBonds).toBe(rdkitStructure.numBonds);
+    expect(kimchiStructure.atoms).toHaveLength(rdkitStructure.atoms.length);
+    expect(kimchiStructure.bonds).toHaveLength(rdkitStructure.bonds.length);
 
     // Check atoms
-    expect(chemkitStructure.atoms[0]!.symbol).toBe('C');
-    expect(chemkitStructure.atoms[1]!.symbol).toBe('C');
-    expect(chemkitStructure.atoms[2]!.symbol).toBe('O');
+    expect(kimchiStructure.atoms[0]!.symbol).toBe('C');
+    expect(kimchiStructure.atoms[1]!.symbol).toBe('C');
+    expect(kimchiStructure.atoms[2]!.symbol).toBe('O');
 
     // Check bonds (should be 2 single bonds)
-    expect(chemkitStructure.bonds[0]!.type).toBe(1); // single
-    expect(chemkitStructure.bonds[1]!.type).toBe(1); // single
+    expect(kimchiStructure.bonds[0]!.type).toBe(1); // single
+    expect(kimchiStructure.bonds[1]!.type).toBe(1); // single
   });
 
   it('compares MOL file structure for benzene', async () => {
@@ -145,23 +145,23 @@ describe('RDKit MOL File Comparison', () => {
     const rdkitMolfile = rdkitMol.get_molblock();
     const rdkitStructure = parseMolfileBasic(rdkitMolfile);
 
-    // Get chemkit MOL file
+    // Get kimchi MOL file
     const result = parseSMILES('c1ccccc1');
     expect(result.errors).toHaveLength(0);
-    const chemkitMolfile = generateMolfile(result.molecules[0]!);
-    const chemkitStructure = parseMolfileBasic(chemkitMolfile);
+    const kimchiMolfile = generateMolfile(result.molecules[0]!);
+    const kimchiStructure = parseMolfileBasic(kimchiMolfile);
 
     // Compare structure
-    expect(chemkitStructure.numAtoms).toBe(rdkitStructure.numAtoms);
-    expect(chemkitStructure.numBonds).toBe(rdkitStructure.numBonds);
+    expect(kimchiStructure.numAtoms).toBe(rdkitStructure.numAtoms);
+    expect(kimchiStructure.numBonds).toBe(rdkitStructure.numBonds);
 
     // Check atoms (should all be C)
-    for (const atom of chemkitStructure.atoms) {
+    for (const atom of kimchiStructure.atoms) {
       expect(atom.symbol).toBe('C');
     }
 
     // Check bonds (should be alternating single and double for aromatic)
-    expect(chemkitStructure.bonds.some(b => b.type === 4)).toBe(true); // aromatic bonds
+    expect(kimchiStructure.bonds.some(b => b.type === 4)).toBe(true); // aromatic bonds
   });
 
   it('compares MOL file structure for charged molecule', async () => {
@@ -172,18 +172,18 @@ describe('RDKit MOL File Comparison', () => {
     const rdkitMolfile = rdkitMol.get_molblock();
     const rdkitStructure = parseMolfileBasic(rdkitMolfile);
 
-    // Get chemkit MOL file
+    // Get kimchi MOL file
     const result = parseSMILES('[NH4+]');
     expect(result.errors).toHaveLength(0);
-    const chemkitMolfile = generateMolfile(result.molecules[0]!);
-    const chemkitStructure = parseMolfileBasic(chemkitMolfile);
+    const kimchiMolfile = generateMolfile(result.molecules[0]!);
+    const kimchiStructure = parseMolfileBasic(kimchiMolfile);
 
     // Compare structure
-    expect(chemkitStructure.numAtoms).toBe(rdkitStructure.numAtoms);
-    expect(chemkitStructure.numBonds).toBe(rdkitStructure.numBonds);
+    expect(kimchiStructure.numAtoms).toBe(rdkitStructure.numAtoms);
+    expect(kimchiStructure.numBonds).toBe(rdkitStructure.numBonds);
 
     // Check atoms
-    expect(chemkitStructure.atoms[0]!.symbol).toBe('N');
+    expect(kimchiStructure.atoms[0]!.symbol).toBe('N');
   });
 
   it('compares MOL file structure for isotope', async () => {
@@ -194,18 +194,18 @@ describe('RDKit MOL File Comparison', () => {
     const rdkitMolfile = rdkitMol.get_molblock();
     const rdkitStructure = parseMolfileBasic(rdkitMolfile);
 
-    // Get chemkit MOL file
+    // Get kimchi MOL file
     const result = parseSMILES('[13CH4]');
     expect(result.errors).toHaveLength(0);
-    const chemkitMolfile = generateMolfile(result.molecules[0]!);
-    const chemkitStructure = parseMolfileBasic(chemkitMolfile);
+    const kimchiMolfile = generateMolfile(result.molecules[0]!);
+    const kimchiStructure = parseMolfileBasic(kimchiMolfile);
 
     // Compare structure
-    expect(chemkitStructure.numAtoms).toBe(rdkitStructure.numAtoms);
-    expect(chemkitStructure.numBonds).toBe(rdkitStructure.numBonds);
+    expect(kimchiStructure.numAtoms).toBe(rdkitStructure.numAtoms);
+    expect(kimchiStructure.numBonds).toBe(rdkitStructure.numBonds);
 
     // Check atoms (should all be C)
-    for (const atom of chemkitStructure.atoms) {
+    for (const atom of kimchiStructure.atoms) {
       expect(atom.symbol).toBe('C');
     }
   });
@@ -218,21 +218,21 @@ describe('RDKit MOL File Comparison', () => {
     const rdkitMolfile = rdkitMol.get_molblock();
     const rdkitStructure = parseMolfileBasic(rdkitMolfile);
 
-    // Get chemkit MOL file
+    // Get kimchi MOL file
     const result = parseSMILES('C[C@H](O)N');
     expect(result.errors).toHaveLength(0);
-    const chemkitMolfile = generateMolfile(result.molecules[0]!);
-    const chemkitStructure = parseMolfileBasic(chemkitMolfile);
+    const kimchiMolfile = generateMolfile(result.molecules[0]!);
+    const kimchiStructure = parseMolfileBasic(kimchiMolfile);
 
     // Compare structure
-    expect(chemkitStructure.numAtoms).toBe(rdkitStructure.numAtoms);
-    expect(chemkitStructure.numBonds).toBe(rdkitStructure.numBonds);
+    expect(kimchiStructure.numAtoms).toBe(rdkitStructure.numAtoms);
+    expect(kimchiStructure.numBonds).toBe(rdkitStructure.numBonds);
 
     // Check atoms
-    expect(chemkitStructure.atoms[0]!.symbol).toBe('C');
-    expect(chemkitStructure.atoms[1]!.symbol).toBe('C');
-    expect(chemkitStructure.atoms[2]!.symbol).toBe('O');
-    expect(chemkitStructure.atoms[3]!.symbol).toBe('N');
+    expect(kimchiStructure.atoms[0]!.symbol).toBe('C');
+    expect(kimchiStructure.atoms[1]!.symbol).toBe('C');
+    expect(kimchiStructure.atoms[2]!.symbol).toBe('O');
+    expect(kimchiStructure.atoms[3]!.symbol).toBe('N');
   });
 
   it('verifies MOL file format compliance', async () => {
@@ -249,25 +249,25 @@ describe('RDKit MOL File Comparison', () => {
     ];
 
     for (const smiles of testCases) {
-      // Get chemkit MOL file
+      // Get kimchi MOL file
       const result = parseSMILES(smiles);
       expect(result.errors).toHaveLength(0);
-      const chemkitMolfile = generateMolfile(result.molecules[0]!);
+      const kimchiMolfile = generateMolfile(result.molecules[0]!);
 
       // Verify MOL file structure
-      const lines = chemkitMolfile.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+      const lines = kimchiMolfile.split('\n').map(line => line.trim()).filter(line => line.length > 0);
 
       // Should have at least header, counts line, atoms, and M END
       expect(lines.length).toBeGreaterThanOrEqual(4);
 
       // Should contain V2000
-      expect(chemkitMolfile).toContain('V2000');
+      expect(kimchiMolfile).toContain('V2000');
 
       // Should end with M END
-      expect(chemkitMolfile.trim().endsWith('M  END')).toBe(true);
+      expect(kimchiMolfile.trim().endsWith('M  END')).toBe(true);
 
       // Should be parseable by our basic parser
-      const structure = parseMolfileBasic(chemkitMolfile);
+      const structure = parseMolfileBasic(kimchiMolfile);
       expect(structure.numAtoms).toBeGreaterThan(0);
     }
   });

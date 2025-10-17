@@ -1,5 +1,5 @@
 {
-  "name": "chemkit",
+  "name": "kimchi",
   "module": "index.ts",
   "type": "module",
   "private": true,

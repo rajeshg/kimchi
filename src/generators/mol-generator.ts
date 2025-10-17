@@ -4,7 +4,7 @@ import { chunk } from 'es-toolkit';
 
 export interface MolGeneratorOptions {
   title?: string;           // Molecule title (default: empty)
-  programName?: string;     // Program name (default: "chemkit")
+  programName?: string;     // Program name (default: "kimchi")
   dimensionality?: '2D' | '3D'; // Default: '2D'
   comment?: string;         // Comment line (default: empty)
 }
@@ -16,13 +16,13 @@ interface Coordinates {
 }
 
 /**
- * Generate a MOL file (V2000 format) from a chemkit Molecule.
+ * Generate a MOL file (V2000 format) from a kimchi Molecule.
  * Matches RDKit output structure for compatibility.
  */
 export function generateMolfile(molecule: Molecule, options?: MolGeneratorOptions): string {
   const opts = {
     title: '',
-    programName: 'chemkit',
+    programName: 'kimchi',
     dimensionality: '2D' as const,
     comment: '',
     ...options,
@@ -33,10 +33,10 @@ export function generateMolfile(molecule: Molecule, options?: MolGeneratorOption
     return generateEmptyMolfile(opts);
   }
 
-  // Generate 2D coordinates (chemkit molecules don't have coordinates)
+  // Generate 2D coordinates (kimchi molecules don't have coordinates)
   const coordinates = generate2DCoordinates(molecule);
 
-  // Create atom index mapping (chemkit uses arbitrary IDs, MOL uses 1-based indices)
+  // Create atom index mapping (kimchi uses arbitrary IDs, MOL uses 1-based indices)
   const atomIndexMap = new Map<number, number>();
   molecule.atoms.forEach((atom, index) => {
     atomIndexMap.set(atom.id, index + 1); // 1-based indexing
@@ -155,7 +155,7 @@ function findConnectedComponents(molecule: Molecule): number[][] {
  * Format the MOL file header (3 lines).
  */
 function formatHeader(options: MolGeneratorOptions): string[] {
-  const programName = options.programName || 'chemkit';
+  const programName = options.programName || 'kimchi';
   const dimensionality = options.dimensionality || '2D';
   const programLine = `     ${programName}${' '.repeat(Math.max(0, 10 - programName.length))}          ${dimensionality}`;
 
@@ -221,7 +221,7 @@ function formatBondBlock(bonds: readonly Bond[], atomIndexMap: Map<number, numbe
 }
 
 /**
- * Convert chemkit BondType to MOL bond type number.
+ * Convert kimchi BondType to MOL bond type number.
  */
 function getMolBondType(bondType: BondType): number {
   switch (bondType) {
@@ -234,7 +234,7 @@ function getMolBondType(bondType: BondType): number {
 }
 
 /**
- * Convert chemkit StereoType to MOL bond stereo number.
+ * Convert kimchi StereoType to MOL bond stereo number.
  */
 function getMolBondStereo(stereo: StereoType): number {
   switch (stereo) {

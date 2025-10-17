@@ -1,4 +1,4 @@
-# Agent Guidelines for chemkit
+# Agent Guidelines for kimchi
 
 ## Build/Test Commands
 - **Run all tests**: `bun test`

@@ -24,14 +24,14 @@ for (const { name, smiles, expectedSSSR } of testMolecules) {
   
   const rdkitR3 = getSubstructMatches(RDKit, smiles, "[R3]");
   const smartsResult = parseSMARTS("[R3]");
-  const chemkitR3 = matchSMARTS(smartsResult.pattern!, mol, { uniqueMatches: true });
+  const kimchiR3 = matchSMARTS(smartsResult.pattern!, mol, { uniqueMatches: true });
   
-  console.log(`[R3] matches - RDKit: ${rdkitR3.matches.length}, Chemkit: ${chemkitR3.matches.length}`);
+  console.log(`[R3] matches - RDKit: ${rdkitR3.matches.length}, kimchi: ${kimchiR3.matches.length}`);
   
-    if (rdkitR3.matches.length !== chemkitR3.matches.length) {
+    if (rdkitR3.matches.length !== kimchiR3.matches.length) {
       const rdkitAtoms = rdkitR3.matches.map((m: any) => m?.[0]).filter((x: any) => x != null).sort((a: number, b: number) => a - b);
-      const chemkitAtoms = chemkitR3.matches.map(m => m.atoms?.[0]?.moleculeIndex ?? -1).filter(x => x >= 0).sort((a, b) => a - b);
+      const kimchiAtoms = kimchiR3.matches.map(m => m.atoms?.[0]?.moleculeIndex ?? -1).filter(x => x >= 0).sort((a, b) => a - b);
       console.log(`  RDKit atoms: ${rdkitAtoms}`);
-      console.log(`  Chemkit atoms: ${chemkitAtoms}`);
+      console.log(`  kimchi atoms: ${kimchiAtoms}`);
     }
 }

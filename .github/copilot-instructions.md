@@ -1,7 +1,7 @@
-# GitHub Copilot Instructions for chemkit
+# GitHub Copilot Instructions for kimchi
 
 ## Project Overview
-chemkit is a TypeScript library for parsing and generating chemical structure formats (SMILES, MOL, SDF) with strict type safety and comprehensive validation.
+kimchi is a TypeScript library for parsing and generating chemical structure formats (SMILES, MOL, SDF) with strict type safety and comprehensive validation.
 
 ## Build & Test Commands
 - Run tests: `bun test`

@@ -2,7 +2,7 @@
   "lockfileVersion": 1,
   "workspaces": {
     "": {
-      "name": "chemkit",
+      "name": "kimchi",
       "dependencies": {
         "es-toolkit": "^1.40.0",
       },

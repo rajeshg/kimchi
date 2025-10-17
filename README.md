@@ -1,10 +1,10 @@
-# chemkit
+# kimchi
 
 **Production-ready TypeScript SMILES parser and generator with high RDKit compatibility**
 
 A high-performance, zero-dependency toolkit for parsing and generating SMILES (Simplified Molecular-Input Line-Entry System) notation. Built for cheminformatics applications that need reliable molecule handling in JavaScript/TypeScript.
 
-## Why chemkit?
+## Why kimchi?
 
 - **✅ Extensively tested** — Comprehensive test suite with 99%+ RDKit compatibility
 - **✅ RDKit-validated** — Canonical SMILES generation matches RDKit output (325/325 bulk validation at 100%)
@@ -15,7 +15,7 @@ A high-performance, zero-dependency toolkit for parsing and generating SMILES (S
 ## Quick Example
 
 ```typescript
-import { parseSMILES, generateSMILES, parseMolfile, generateMolfile, parseSDF, writeSDF } from 'chemkit';
+import { parseSMILES, generateSMILES, parseMolfile, generateMolfile, parseSDF, writeSDF } from 'kimchi';
 
 // Parse SMILES into molecule structure
 const result = parseSMILES('CC(=O)O'); // acetic acid
@@ -29,7 +29,7 @@ console.log(canonical); // "CC(=O)O"
 // Parse MOL file
 const molContent = `
 acetic acid
-  chemkit
+  kimchi
 
   4  3  0  0  0  0  0  0  0  0999 V2000
     0.0000    0.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
@@ -76,7 +76,7 @@ console.log(sdfResult.records[0].properties.NAME); // "Ethanol"
 
 ## RDKit Parity & Validation
 
-**chemkit achieves full parity with RDKit** — the gold standard in cheminformatics:
+**kimchi achieves full parity with RDKit** — the gold standard in cheminformatics:
 
 - **649/649 tests passing** ✅ including comprehensive RDKit comparison tests
 - **325 molecule bulk validation** — All molecules successfully parsed and round-tripped (100% success rate)
@@ -87,11 +87,11 @@ console.log(sdfResult.records[0].properties.NAME); // "Ethanol"
 - **Standard Form compliance** — Implements OpenSMILES 4.3 Standard Form recommendations
 - **Continuous validation** — Every commit is tested against RDKit
 
-Tests compare directly with RDKit's canonical SMILES output. chemkit now produces identical canonical SMILES to RDKit for all tested molecules.
+Tests compare directly with RDKit's canonical SMILES output. kimchi now produces identical canonical SMILES to RDKit for all tested molecules.
 
 ## Complete Feature Support
 
-chemkit handles the full SMILES specification:
+kimchi handles the full SMILES specification:
 
 **Atoms & Elements**
 - Organic subset: `B C N O P S F Cl Br I`
@@ -184,11 +184,11 @@ All generated canonical SMILES match RDKit's output character-for-character.
 ## Installation
 
 ```bash
-npm install chemkit
+npm install kimchi
 # or
-bun add chemkit
+bun add kimchi
 # or
-pnpm add chemkit
+pnpm add kimchi
 ```
 
 ## Usage
@@ -209,7 +209,7 @@ RUN_RDKIT_BULK=1 bun test
 
 Add `RUN_VERBOSE=1` for more detailed RDKit reporting during the run.
 ```typescript
-import { parseSMILES } from 'chemkit';
+import { parseSMILES } from 'kimchi';
 
 // Simple molecule
 const ethanol = parseSMILES('CCO');
@@ -229,7 +229,7 @@ console.log(chiralCenter?.chiral); // '@'
 
 ### Molecular Properties
 
-chemkit provides comprehensive molecular property calculations for drug discovery and cheminformatics applications.
+kimchi provides comprehensive molecular property calculations for drug discovery and cheminformatics applications.
 
 #### Basic Properties
 
@@ -239,7 +239,7 @@ import {
   getMolecularFormula, 
   getMolecularMass, 
   getExactMass 
-} from 'chemkit';
+} from 'kimchi';
 
 const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O');
 const mol = aspirin.molecules[0];
@@ -266,7 +266,7 @@ import {
   getHeteroAtomCount,
   getRingCount,
   getAromaticRingCount
-} from 'chemkit';
+} from 'kimchi';
 
 const ibuprofen = parseSMILES('CC(C)Cc1ccc(cc1)C(C)C(=O)O');
 const mol = ibuprofen.molecules[0];
@@ -293,7 +293,7 @@ import {
   getHBondDonorCount,
   getHBondAcceptorCount,
   getTPSA
-} from 'chemkit';
+} from 'kimchi';
 
 const caffeine = parseSMILES('CN1C=NC2=C1C(=O)N(C(=O)N2C)C');
 const mol = caffeine.molecules[0];
@@ -317,7 +317,7 @@ console.log(getTPSA(mol)); // 61.82
 TPSA (Topological Polar Surface Area) is essential for predicting drug properties:
 
 ```typescript
-import { parseSMILES, getTPSA } from 'chemkit';
+import { parseSMILES, getTPSA } from 'kimchi';
 
 // Oral bioavailability: TPSA < 140 Ų
 const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O');
@@ -336,7 +336,7 @@ import {
   checkLipinskiRuleOfFive, 
   checkVeberRules, 
   checkBBBPenetration 
-} from 'chemkit';
+} from 'kimchi';
 
 // Lipinski's Rule of Five (oral drug-likeness)
 const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O');
@@ -360,7 +360,7 @@ console.log(bbb.likelyPenetration); // true (TPSA: 61.82 < 90)
 ### Generating SMILES
 
 ```typescript
-import { parseSMILES, generateSMILES } from 'chemkit';
+import { parseSMILES, generateSMILES } from 'kimchi';
 
 // Generate canonical SMILES (default)
 const input = 'CC(C)CC';
@@ -392,8 +392,8 @@ console.log(output); // "CCO.O"
 ### Molecule Structure
 
 ```typescript
-import { parseSMILES } from 'chemkit';
-import { BondType } from 'chemkit/types';
+import { parseSMILES } from 'kimchi';
+import { BondType } from 'kimchi/types';
 
 const result = parseSMILES('C=C');
 const mol = result.molecules[0];
@@ -432,7 +432,7 @@ bun test test/parser.test.ts
 
 ### Quick Reference
 
-chemkit provides **21 functions** organized into 4 categories:
+kimchi provides **21 functions** organized into 4 categories:
 
 **Parsing & Generation (6)**
 - `parseSMILES` - Parse SMILES strings
@@ -501,7 +501,7 @@ Generates a MOL file (V2000 format) from a molecule structure. Matches RDKit's o
 - `molecule` — Molecule structure to convert
 - `options` — Optional configuration:
   - `title?: string` — Molecule title (default: empty)
-  - `programName?: string` — Program name in header (default: "chemkit")
+  - `programName?: string` — Program name in header (default: "kimchi")
   - `dimensionality?: '2D' | '3D'` — Coordinate system (default: "2D")
   - `comment?: string` — Comment line (default: empty)
 
@@ -516,7 +516,7 @@ Generates a MOL file (V2000 format) from a molecule structure. Matches RDKit's o
 
 **Example**:
 ```typescript
-import { parseSMILES, generateMolfile } from 'chemkit';
+import { parseSMILES, generateMolfile } from 'kimchi';
 
 const result = parseSMILES('CCO');
 const molfile = generateMolfile(result.molecules[0]);
@@ -562,11 +562,11 @@ Parses a MOL file (MDL Molfile format) into a molecule structure. Supports both 
 
 **Example**:
 ```typescript
-import { parseMolfile, generateSMILES } from 'chemkit';
+import { parseMolfile, generateSMILES } from 'kimchi';
 
 const molContent = `
 ethanol
-  chemkit
+  kimchi
 
   3  2  0  0  0  0  0  0  0  0999 V2000
     0.0000    0.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
@@ -596,7 +596,7 @@ if (invalid.errors.length > 0) {
 
 **Round-trip workflow**:
 ```typescript
-import { parseSMILES, generateMolfile, parseMolfile, generateSMILES } from 'chemkit';
+import { parseSMILES, generateMolfile, parseMolfile, generateSMILES } from 'kimchi';
 
 // SMILES → MOL → SMILES round-trip
 const original = 'CC(=O)O'; // acetic acid
@@ -634,7 +634,7 @@ Parses an SDF (Structure-Data File) into molecule structures with associated pro
 
 **Example (single record)**:
 ```typescript
-import { parseSDF, generateSMILES } from 'chemkit';
+import { parseSDF, generateSMILES } from 'kimchi';
 
 const sdfContent = `
   Mrv2311 02102409422D          
@@ -680,7 +680,7 @@ if (result.records[0].errors.length > 0) {
 
 **Example (multiple records)**:
 ```typescript
-import { parseSDF } from 'chemkit';
+import { parseSDF } from 'kimchi';
 
 const multiRecordSDF = `
   Mrv2311 02102409422D          
@@ -722,7 +722,7 @@ console.log(result.records[1].properties.NAME); // "Ethane"
 
 **Round-trip workflow**:
 ```typescript
-import { parseSMILES, writeSDF, parseSDF, generateSMILES } from 'chemkit';
+import { parseSMILES, writeSDF, parseSDF, generateSMILES } from 'kimchi';
 
 // SMILES → SDF → SMILES round-trip
 const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O').molecules[0];
@@ -745,7 +745,7 @@ Writes molecules to SDF (Structure-Data File) format. Supports single or multipl
 - `records` — Single record or array of records to write
 - `options` — Optional configuration (same as `MolGeneratorOptions`):
   - `title?: string` — Default title for records (default: empty)
-  - `programName?: string` — Program name in headers (default: "chemkit")
+  - `programName?: string` — Program name in headers (default: "kimchi")
   - `dimensionality?: '2D' | '3D'` — Coordinate system (default: "2D")
   - `comment?: string` — Default comment (default: empty)
 
@@ -768,7 +768,7 @@ interface SDFRecord {
 
 **Example (single molecule)**:
 ```typescript
-import { parseSMILES, writeSDF } from 'chemkit';
+import { parseSMILES, writeSDF } from 'kimchi';
 
 const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O');
 const result = writeSDF({
@@ -786,7 +786,7 @@ console.log(result.sdf);
 
 **Example (multiple molecules)**:
 ```typescript
-import { parseSMILES, writeSDF } from 'chemkit';
+import { parseSMILES, writeSDF } from 'kimchi';
 
 const drugs = [
   { smiles: 'CC(=O)Oc1ccccc1C(=O)O', name: 'aspirin' },
@@ -981,7 +981,7 @@ enum BondType {
 
 ## Performance
 
-chemkit is designed for production use with real-world performance:
+kimchi is designed for production use with real-world performance:
 
 - **Parsing**: ~1-10ms per molecule (depending on complexity)
 - **Generation**: ~1-5ms per molecule
@@ -994,7 +994,7 @@ Benchmark with 325 diverse molecules including commercial drugs: Average parse +
 
 ### Molecule Enrichment System
 
-chemkit uses a **post-processing enrichment system** that pre-computes expensive molecular properties during parsing. This design significantly improves performance for downstream property queries while maintaining code simplicity.
+kimchi uses a **post-processing enrichment system** that pre-computes expensive molecular properties during parsing. This design significantly improves performance for downstream property queries while maintaining code simplicity.
 
 #### Why Pre-compute Properties?
 
@@ -1049,7 +1049,7 @@ If you need to modify a molecule, create a new one by parsing updated SMILES.
 
 ## Edge Cases & Limitations
 
-chemkit handles 100% of tested SMILES correctly (325/325 in bulk validation).
+kimchi handles 100% of tested SMILES correctly (325/325 in bulk validation).
 
 **Key implementation details**:
 
@@ -1063,7 +1063,7 @@ This implementation has been validated against RDKit's canonical SMILES output f
 
 ## OpenSMILES Specification Compliance
 
-chemkit implements the OpenSMILES specification with high fidelity while prioritizing **RDKit compatibility** for real-world interoperability. In specific areas where the OpenSMILES specification provides recommendations rather than strict requirements, chemkit follows RDKit's implementation choices to ensure 100% parity with the industry-standard cheminformatics toolkit.
+kimchi implements the OpenSMILES specification with high fidelity while prioritizing **RDKit compatibility** for real-world interoperability. In specific areas where the OpenSMILES specification provides recommendations rather than strict requirements, kimchi follows RDKit's implementation choices to ensure 100% parity with the industry-standard cheminformatics toolkit.
 
 ### Starting Atom Selection (OpenSMILES Section 4.3.4)
 
@@ -1071,7 +1071,7 @@ chemkit implements the OpenSMILES specification with high fidelity while priorit
 - Example preference: `OCCC` over `CCCO` for propanol
 - Rationale: Heteroatoms are "more interesting" chemically
 
-**chemkit Implementation**: Canonical labels first, heteroatoms as tie-breaker.
+**kimchi Implementation**: Canonical labels first, heteroatoms as tie-breaker.
 - Example: Both `OCCC` and `CCCO` canonicalize to `CCCO`
 - Rationale: Ensures 100% deterministic output for identical molecules
 
@@ -1087,25 +1087,25 @@ chemkit implements the OpenSMILES specification with high fidelity while priorit
 
 **OpenSMILES Specification**: Recommends strict Hückel rule enforcement (4n+2 π-electrons).
 
-**chemkit Implementation**: Accepts aromatic notation as specified in input; validates aromatic atoms are in rings but does not enforce strict Hückel rules during parsing.
+**kimchi Implementation**: Accepts aromatic notation as specified in input; validates aromatic atoms are in rings but does not enforce strict Hückel rules during parsing.
 
 **Why RDKit's Approach**: Broader compatibility with real-world chemical data where aromaticity may be empirically determined or context-dependent rather than purely theoretical.
 
 ### Standards Compliance Summary
 
-| Feature | OpenSMILES Spec | chemkit Implementation | Rationale |
+| Feature | OpenSMILES Spec | kimchi Implementation | Rationale |
 |---------|-----------------|------------------------|-----------|
 | **Starting atom** | Heteroatom preference | Canonical labels first | Deterministic output, RDKit parity |
 | **Aromatic validation** | Strict Hückel (4n+2) | Permissive ring validation | Real-world compatibility |
 | **Stereo normalization** | Not specified | Canonical E/Z form | Deterministic stereo representation |
 | **Canonical ordering** | Modified Morgan recommended | Modified Morgan (RDKit-compatible) | 100% RDKit agreement |
 
-All deviations are deliberate choices to maximize **real-world interoperability** while maintaining full compliance with OpenSMILES syntax and semantics. chemkit produces valid OpenSMILES that can be read by any compliant parser.
+All deviations are deliberate choices to maximize **real-world interoperability** while maintaining full compliance with OpenSMILES syntax and semantics. kimchi produces valid OpenSMILES that can be read by any compliant parser.
 
 ## Project Structure
 
 ```
-chemkit/
+kimchi/
 ├── src/
 │   ├── generators/
 │   │   ├── mol-generator.ts         # MOL file generation
@@ -1189,7 +1189,7 @@ chemkit/
 
 ### Canonical SMILES Generation
 
-chemkit implements RDKit-compatible canonical SMILES generation:
+kimchi implements RDKit-compatible canonical SMILES generation:
 
 1. **Modified Morgan Algorithm**: Atoms are canonically ordered using iterative refinement based on:
    - Canonical rank (connectivity signature)
@@ -1202,7 +1202,7 @@ chemkit implements RDKit-compatible canonical SMILES generation:
    - **Tie-breakers** (in order): Heteroatom preference → Terminal atom → Lower degree → Lower charge
    - **Design choice**: Prioritizes canonical labels over heteroatom preference for deterministic output
    - **Note**: The OpenSMILES specification (Section 4.3.4) recommends starting on heteroatoms first (e.g., `OCCC` over `CCCO`), but RDKit prioritizes canonical ordering for deterministic behavior
-   - **Result**: Both approaches are chemically equivalent; chemkit follows RDKit for maximum interoperability
+   - **Result**: Both approaches are chemically equivalent; kimchi follows RDKit for maximum interoperability
 
 3. **Stereo Normalization**: E/Z double bond stereochemistry is normalized to a canonical form:
    - Trans (E) alkenes: Both markers pointing up (`/`) - e.g., `C/C=C/C`
@@ -1226,7 +1226,7 @@ This implementation achieves 100% agreement with RDKit's canonical output across
 
 ## Contributing
 
-We welcome contributions! chemkit maintains strict quality standards:
+We welcome contributions! kimchi maintains strict quality standards:
 
 1. **All tests must pass** — 610/610 required
 2. **RDKit parity required** — Canonical SMILES must match RDKit output exactly
@@ -1236,8 +1236,8 @@ We welcome contributions! chemkit maintains strict quality standards:
 To contribute:
 ```bash
 # Clone and install
-git clone https://github.com/yourusername/chemkit.git
-cd chemkit
+git clone https://github.com/rajeshg/kimchi.git
+cd kimchi
 bun install
 
 # Make changes and test
@@ -1251,7 +1251,7 @@ bun run tsc
 
 ## Use Cases
 
-chemkit is perfect for:
+kimchi is perfect for:
 
 - **Cheminformatics web applications** — Client-side molecule parsing
 - **Chemical databases** — Canonical SMILES storage and comparison

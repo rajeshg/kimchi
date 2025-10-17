@@ -16,7 +16,7 @@ describe("SMARTS Edge Cases - RDKit Comparison", () => {
     expect(RDKit).toBeDefined();
   });
 
-  const testMatch = (smiles: string, smarts: string, description: string, knownDifference?: { chemkit: number; rdkit: number; reason: string }) => {
+  const testMatch = (smiles: string, smarts: string, description: string, knownDifference?: { kimchi: number; rdkit: number; reason: string }) => {
     it(`${description}: ${smiles} ~ ${smarts}`, () => {
       const molResult = parseSMILES(smiles);
       expect(molResult.errors).toEqual([]);
@@ -26,18 +26,18 @@ describe("SMARTS Edge Cases - RDKit Comparison", () => {
       expect(smartsResult.errors).toEqual([]);
       const pattern = smartsResult.pattern!;
 
-      const chemkitResult = matchSMARTS(pattern, mol, { uniqueMatches: true });
-      const chemkitMatches = chemkitResult.matches.map(match =>
+      const kimchiResult = matchSMARTS(pattern, mol, { uniqueMatches: true });
+      const kimchiMatches = kimchiResult.matches.map(match =>
         match.atoms.map(a => a.moleculeIndex)
       );
 
       const rdkitResult = getSubstructMatches(RDKit, smiles, smarts);
 
       if (knownDifference) {
-        expect(chemkitMatches.length).toBe(knownDifference.chemkit);
+        expect(kimchiMatches.length).toBe(knownDifference.kimchi);
         expect(rdkitResult.matches.length).toBe(knownDifference.rdkit);
       } else {
-        expect(chemkitMatches.length).toBe(rdkitResult.matches.length);
+        expect(kimchiMatches.length).toBe(rdkitResult.matches.length);
       }
     });
   };
@@ -160,7 +160,7 @@ describe("SMARTS Edge Cases - RDKit Comparison", () => {
       "[R3]",
       "Adamantane (mislabeled) - R3 atoms",
       {
-        chemkit: 1,
+        kimchi: 1,
         rdkit: 4,
         reason: "RDKit uses extended ring set instead of SSSR. See SMARTS_RING_MEMBERSHIP_ANALYSIS.md"
       }

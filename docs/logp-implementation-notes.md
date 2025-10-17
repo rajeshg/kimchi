@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the Crippen LogP (octanol-water partition coefficient) implementation in chemkit and documents known differences with RDKit's implementation.
+This document describes the Crippen LogP (octanol-water partition coefficient) implementation in kimchi and documents known differences with RDKit's implementation.
 
 ## Implementation
 

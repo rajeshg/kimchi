@@ -269,12 +269,12 @@ describe(`RDKit Bulk Comparison (${EXPECTED_COUNT} SMILES)`, () => {
       const ourMass = parsed.molecules.reduce((sum, m) => sum + getMolecularMass(m), 0);
       const ourExact = parsed.molecules.reduce((sum, m) => sum + getExactMass(m), 0);
 
-      const chemkitOutput = generateSMILES(parsed.molecules);
+      const kimchiOutput = generateSMILES(parsed.molecules);
 
       // Check round-trip: parse -> generate -> parse should work
-      const roundTrip = parseSMILES(chemkitOutput);
+      const roundTrip = parseSMILES(kimchiOutput);
       if (roundTrip.errors && roundTrip.errors.length > 0) {
-        generationFailures.push(`${smiles} -> ${chemkitOutput} (round-trip failed: ${roundTrip.errors.map(e => e.message).join(', ')})`);
+        generationFailures.push(`${smiles} -> ${kimchiOutput} (round-trip failed: ${roundTrip.errors.map(e => e.message).join(', ')})`);
         continue;
       }
 
@@ -285,7 +285,7 @@ describe(`RDKit Bulk Comparison (${EXPECTED_COUNT} SMILES)`, () => {
       const generatedBonds = roundTrip.molecules.reduce((sum, m) => sum + m.bonds.length, 0);
 
       if (originalAtoms !== generatedAtoms || originalBonds !== generatedBonds) {
-        generationFailures.push(`${smiles} -> ${chemkitOutput} (structure mismatch: ${originalAtoms}/${originalBonds} vs ${generatedAtoms}/${generatedBonds})`);
+        generationFailures.push(`${smiles} -> ${kimchiOutput} (structure mismatch: ${originalAtoms}/${originalBonds} vs ${generatedAtoms}/${generatedBonds})`);
         continue;
       }
 
@@ -359,7 +359,7 @@ describe(`RDKit Bulk Comparison (${EXPECTED_COUNT} SMILES)`, () => {
 
     // Report (only when verbose)
     if (process.env.RUN_VERBOSE) {
-      console.log('\nChemkit Bulk Test Report');
+      console.log('\nkimchi Bulk Test Report');
       console.log('Total SMILES:', TEST_SMILES.length);
       console.log('Parse failures:', parseFailures.length);
       console.log('Generation/round-trip failures:', generationFailures.length);
@@ -368,7 +368,7 @@ describe(`RDKit Bulk Comparison (${EXPECTED_COUNT} SMILES)`, () => {
       if (generationFailures.length > 0) console.log('First generation failures:', generationFailures.slice(0,5));
     }
 
-    // Fail the test if chemkit cannot properly parse or generate SMILES
+    // Fail the test if kimchi cannot properly parse or generate SMILES
     expect(generationFailures.length).toBe(0);
   }, 600000);
 

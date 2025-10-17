@@ -7,7 +7,7 @@ const smiles = 'C1C2CC3CC1CC(C2)C3';
 console.log('SMILES:', smiles);
 console.log('Note: This is adamantane (10 carbons, 12 bonds)\n');
 
-console.log('--- Chemkit Analysis ---');
+console.log('--- kimchi Analysis ---');
 const molResult = parseSMILES(smiles);
 const mol = molResult.molecules[0]!;
 console.log('Atoms:', mol.atoms.length);
@@ -17,7 +17,7 @@ mol.rings?.forEach((ring, i) => {
   console.log(`  Ring ${i}:`, ring);
 });
 
-console.log('\nRing membership (chemkit):');
+console.log('\nRing membership (kimchi):');
 mol.atoms.forEach((atom, i) => {
   const count = mol.rings?.filter(r => r.includes(atom.id)).length || 0;
   console.log(`  Atom ${i}: in ${count} SSSR rings`);
@@ -25,7 +25,7 @@ mol.atoms.forEach((atom, i) => {
 
 const smartsResult = parseSMARTS('[R3]');
 const result = matchSMARTS(smartsResult.pattern!, mol, { uniqueMatches: true });
-console.log('\n[R3] matches (chemkit):', result.matches.map(m => m.atoms.map(a => a.moleculeIndex)));
+console.log('\n[R3] matches (kimchi):', result.matches.map(m => m.atoms.map(a => a.moleculeIndex)));
 
 console.log('\n--- RDKit Analysis ---');
 const RDKit = await initializeRDKit();
@@ -53,7 +53,7 @@ const basketaneSmiles = 'C12C3C4C5C1C6C2C5C3C46';
 console.log('SMILES:', basketaneSmiles);
 console.log('Note: This is actual basketane (10 carbons)\n');
 
-console.log('--- Chemkit Analysis ---');
+console.log('--- kimchi Analysis ---');
 const basketaneMolResult = parseSMILES(basketaneSmiles);
 const basketaneMol = basketaneMolResult.molecules[0]!;
 console.log('Atoms:', basketaneMol.atoms.length);
@@ -63,14 +63,14 @@ basketaneMol.rings?.forEach((ring, i) => {
   console.log(`  Ring ${i}:`, ring);
 });
 
-console.log('\nRing membership (chemkit):');
+console.log('\nRing membership (kimchi):');
 basketaneMol.atoms.forEach((atom, i) => {
   const count = basketaneMol.rings?.filter(r => r.includes(atom.id)).length || 0;
   console.log(`  Atom ${i}: in ${count} SSSR rings`);
 });
 
 const basketaneResult = matchSMARTS(smartsResult.pattern!, basketaneMol, { uniqueMatches: true });
-console.log('\n[R3] matches (chemkit):', basketaneResult.matches.map(m => m.atoms.map(a => a.moleculeIndex)));
+console.log('\n[R3] matches (kimchi):', basketaneResult.matches.map(m => m.atoms.map(a => a.moleculeIndex)));
 
 const basketaneR3 = getSubstructMatches(RDKit, basketaneSmiles, '[R3]');
 console.log('[R3] matches (RDKit):', basketaneR3.matches);

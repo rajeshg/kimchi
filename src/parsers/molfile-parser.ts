@@ -535,11 +535,11 @@ function convertToMolecule(molfile: MolfileData): Molecule {
  * 
  * @example
  * ```typescript
- * import { parseMolfile } from 'chemkit';
+ * import { parseMolfile } from 'kimchi';
  * 
  * const molContent = `
  * ethanol
- *   chemkit
+ *   kimchi
  * 
  *   3  2  0  0  0  0  0  0  0  0999 V2000
  *     0.0000    0.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0

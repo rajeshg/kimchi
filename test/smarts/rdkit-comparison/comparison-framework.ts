@@ -15,16 +15,16 @@ export function normalizeMatches(matches: number[][]): number[][] {
 }
 
 export function compareMatches(
-  chemkitMatches: number[][],
+  kimchiMatches: number[][],
   rdkitMatches: number[][]
 ): MatchComparisonResult {
-  const ckNorm = normalizeMatches(chemkitMatches);
+  const ckNorm = normalizeMatches(kimchiMatches);
   const rdNorm = normalizeMatches(rdkitMatches);
 
   if (ckNorm.length !== rdNorm.length) {
     return {
       equal: false,
-      message: `Match count mismatch: chemkit=${ckNorm.length} rdkit=${rdNorm.length}`,
+      message: `Match count mismatch: kimchi=${ckNorm.length} rdkit=${rdNorm.length}`,
     };
   }
 
@@ -34,14 +34,14 @@ export function compareMatches(
     if (ckMatch.length !== rdMatch.length) {
       return {
         equal: false,
-        message: `Match ${i} length mismatch: chemkit=${ckMatch.length} rdkit=${rdMatch.length}`,
+        message: `Match ${i} length mismatch: kimchi=${ckMatch.length} rdkit=${rdMatch.length}`,
       };
     }
     for (let j = 0; j < ckMatch.length; j++) {
       if (ckMatch[j] !== rdMatch[j]) {
         return {
           equal: false,
-          message: `Match ${i} atom ${j} mismatch: chemkit=${ckMatch[j]} rdkit=${rdMatch[j]}`,
+          message: `Match ${i} atom ${j} mismatch: kimchi=${ckMatch[j]} rdkit=${rdMatch[j]}`,
         };
       }
     }
@@ -51,7 +51,7 @@ export function compareMatches(
 }
 
 export function formatMatchDiff(
-  chemkit: number[][],
+  kimchi: number[][],
   rdkit: number[][],
   pattern: string,
   smiles: string
@@ -59,20 +59,20 @@ export function formatMatchDiff(
   const lines: string[] = [];
   lines.push(`Pattern: ${pattern}`);
   lines.push(`Molecule: ${smiles}`);
-  lines.push(`Chemkit matches (${chemkit.length}): ${JSON.stringify(normalizeMatches(chemkit))}`);
+  lines.push(`kimchi matches (${kimchi.length}): ${JSON.stringify(normalizeMatches(kimchi))}`);
   lines.push(`RDKit matches (${rdkit.length}): ${JSON.stringify(normalizeMatches(rdkit))}`);
   return lines.join('\n');
 }
 
 export function assertMatchesEqual(
-  chemkitMatches: number[][],
+  kimchiMatches: number[][],
   rdkitMatches: number[][],
   pattern: string,
   smiles: string
 ): void {
-  const result = compareMatches(chemkitMatches, rdkitMatches);
+  const result = compareMatches(kimchiMatches, rdkitMatches);
   if (!result.equal) {
-    const diff = formatMatchDiff(chemkitMatches, rdkitMatches, pattern, smiles);
+    const diff = formatMatchDiff(kimchiMatches, rdkitMatches, pattern, smiles);
     throw new Error(`${result.message}\n${diff}`);
   }
 }

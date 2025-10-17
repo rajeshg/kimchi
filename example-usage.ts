@@ -1,6 +1,6 @@
 import { parseSMILES, generateSMILES } from './index';
 
-console.log('ChemKit SMILES Generation Examples');
+console.log('kimchi SMILES Generation Examples');
 console.log('===================================\n');
 
 const smiles = 'CC(C)CC';
