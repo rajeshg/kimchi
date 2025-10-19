@@ -6,6 +6,7 @@ export { parseSDF, type SDFParseResult, type SDFRecord } from './src/parsers/sdf
 export { writeSDF, type SDFWriterOptions, type SDFWriterResult } from './src/generators/sdf-writer';
 export { parseSMARTS } from './src/parsers/smarts-parser';
 export { matchSMARTS } from './src/matchers/smarts-matcher';
+export { kekulize } from './src/utils/kekulize';
 export {
   getMolecularFormula,
   getMolecularMass,
@@ -24,6 +25,7 @@ export {
   checkBBBPenetration,
 } from './src/utils/molecular-properties';
 export { computeLogP, computeLogP as logP, computeLogP as crippenLogP } from './src/utils/logp';
+export { renderSVG, type SVGRendererOptions, type SVGRenderResult } from './src/generators/svg-renderer';
 export type {
   LipinskiResult,
   VeberResult,

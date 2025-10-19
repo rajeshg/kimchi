@@ -576,3 +576,56 @@ function kekulizeRing(
   
   return success;
 }
+
+export function kekulize(molecule: Molecule): Molecule {
+  const mutableAtoms: MutableAtom[] = molecule.atoms.map(a => ({ ...a }));
+  const mutableBonds: MutableBond[] = molecule.bonds.map(b => ({ ...b }));
+  
+  const aromaticBonds = mutableBonds.filter(b => b.type === BondType.AROMATIC);
+  if (aromaticBonds.length === 0) {
+    return molecule;
+  }
+  
+  const mg = new MoleculeGraph({ atoms: mutableAtoms as Atom[], bonds: mutableBonds as Bond[] });
+  const rings = mg.cycles.filter(r => r.length >= 5 && r.length <= 7);
+  
+  const ringBondMap = new Map<string, number[][]>();
+  for (const ring of rings) {
+    for (let i = 0; i < ring.length; i++) {
+      const a1 = ring[i]!;
+      const a2 = ring[(i + 1) % ring.length]!;
+      const k = bondKey(a1, a2);
+      const ringList = ringBondMap.get(k) || [];
+      ringList.push(ring);
+      ringBondMap.set(k, ringList);
+    }
+  }
+  
+  const originalBondTypes: Record<string, BondType> = {};
+  for (const b of molecule.bonds) {
+    const k = bondKey(b.atom1, b.atom2);
+    originalBondTypes[k] = b.type;
+  }
+  
+  const aromaticRings = rings.filter(ring => {
+    return ring.every(atomId => {
+      const atom = mutableAtoms.find(a => a.id === atomId);
+      return atom?.aromatic === true;
+    });
+  });
+  
+  const aromaticBondSet = new Set<string>();
+  for (const ring of aromaticRings) {
+    for (let i = 0; i < ring.length; i++) {
+      const a1 = ring[i]!;
+      const a2 = ring[(i + 1) % ring.length]!;
+      aromaticBondSet.add(bondKey(a1, a2));
+    }
+  }
+  
+  for (const ring of aromaticRings) {
+    kekulizeRing(ring, mutableAtoms, mutableBonds, originalBondTypes, aromaticBondSet);
+  }
+  
+  return { atoms: mutableAtoms, bonds: mutableBonds };
+}
