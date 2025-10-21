@@ -43,8 +43,35 @@ export function svgDashedBond(x1: number, y1: number, x2: number, y2: number, co
   return svg;
 }
 
-export function svgText(x: number, y: number, text: string, color: string, fontSize: number, fontFamily: string): string {
-  return `<text x="${x}" y="${y}" fill="${color}" font-size="${fontSize}" font-family="${fontFamily}" text-anchor="middle" alignment-baseline="middle">${text}</text>`;
+export function svgText(
+  x: number,
+  y: number,
+  text: string,
+  color: string,
+  fontSize: number,
+  fontFamily: string,
+  options?: { background?: boolean; backgroundColor?: string; padding?: number }
+): string {
+  const bg = options?.background ?? false;
+  const bgColor = options?.backgroundColor ?? '#FFFFFF';
+  const padding = options?.padding ?? Math.max(2, Math.floor(fontSize * 0.15));
+
+  // Simple text width estimate: approx 0.6 * fontSize per glyph
+  const textWidth = Math.max(6, text.length * fontSize * 0.6);
+  const textHeight = Math.max(8, fontSize * 1.2);
+
+  if (!bg) {
+    return `<text x="${x}" y="${y}" fill="${color}" font-size="${fontSize}" font-family="${fontFamily}" text-anchor="middle" alignment-baseline="middle">${text}</text>`;
+  }
+
+  const rectX = x - (textWidth / 2) - padding;
+  const rectY = y - (textHeight / 2) - padding / 2;
+  const rectW = textWidth + padding * 2;
+  const rectH = textHeight + padding;
+
+  // Draw background rect first, then text on top to ensure label is in the foreground
+  return (`<rect x="${rectX}" y="${rectY}" width="${rectW}" height="${rectH}" rx="2" ry="2" style="fill:${bgColor};stroke:none;" />` +
+    `<text x="${x}" y="${y}" fill="${color}" font-size="${fontSize}" font-family="${fontFamily}" text-anchor="middle" alignment-baseline="middle">${text}</text>`);
 }
 
 export function svgCircle(cx: number, cy: number, r: number, color: string, width: number): string {

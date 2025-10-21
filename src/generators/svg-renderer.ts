@@ -197,6 +197,36 @@ function renderSingleMolecule(
      labelOffsets = new Map();
    }
 
+  // For heteroatoms that are part of rings (e.g. the N in pyridine), prefer
+  // drawing the label centered on the atom so it overlaps ring lines like RDKit.
+  // Build a set of atom indices that are heteroatoms in any ring and force
+  // their label offsets to zero.
+  const heteroRingIndices = new Set<number>();
+  try {
+    if (molecule.ringInfo && Array.isArray(molecule.ringInfo.rings)) {
+      for (const ring of molecule.ringInfo.rings) {
+        if (!ring) continue;
+        for (const aid of ring) {
+          const idx = atomIdToIndex.get(aid as number);
+          if (idx !== undefined) {
+            const atom = molecule.atoms[idx];
+            if (atom && atom.symbol !== 'C') {
+              heteroRingIndices.add(idx);
+            }
+          }
+        }
+      }
+    }
+  } catch (e) {
+    // ignore
+  }
+
+  // Override offsets for heteroatoms in rings so the label sits centered
+  // on the atom coordinate (dx=0, dy=0).
+  for (const idx of heteroRingIndices) {
+    labelOffsets.set(idx, { dx: 0, dy: 0 });
+  }
+
    let vbX = 0, vbY = 0, vbW = width, vbH = height;
    if (transformedPoints.length > 0) {
      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
@@ -393,8 +423,14 @@ function renderSingleMolecule(
       const dy = y2 - y1;
       const len = Math.sqrt(dx * dx + dy * dy);
       if (len > 0) {
-        x1 += (dx / len) * shortenDistance;
-        y1 += (dy / len) * shortenDistance;
+        // If this atom is a heteroatom inside a ring we prefer the label to
+        // overlap the bond (do not shorten). Otherwise shorten to avoid
+        // overlapping label text.
+        const atom1Idx = atomIdToIndex.get(bond.atom1 as number) ?? -1;
+        if (!heteroRingIndices.has(atom1Idx)) {
+          x1 += (dx / len) * shortenDistance;
+          y1 += (dy / len) * shortenDistance;
+        }
       }
     }
     
@@ -403,8 +439,11 @@ function renderSingleMolecule(
       const dy = y1 - y2;
       const len = Math.sqrt(dx * dx + dy * dy);
       if (len > 0) {
-        x2 += (dx / len) * shortenDistance;
-        y2 += (dy / len) * shortenDistance;
+        const atom2Idx = atomIdToIndex.get(bond.atom2 as number) ?? -1;
+        if (!heteroRingIndices.has(atom2Idx)) {
+          x2 += (dx / len) * shortenDistance;
+          y2 += (dy / len) * shortenDistance;
+        }
       }
     }
     
@@ -440,18 +479,20 @@ function renderSingleMolecule(
          
          let label = atom.symbol;
          
-         if (options.showImplicitHydrogens && atom.hydrogens > 0 && atom.symbol !== 'C') {
-           const hColor = atomColors['H'] ?? '#AAAAAA';
-           const hText = atom.hydrogens === 1 ? 'H' : `H${atom.hydrogens}`;
-           
-           const atomWidth = label.length * fontSize * 0.6;
-           const hWidth = hText.length * fontSize * 0.6;
-           
-           svgBody += svgText(labelX - hWidth / 2, labelY, label, color, fontSize, fontFamily);
-           svgBody += svgText(labelX + atomWidth / 2, labelY, hText, hColor, fontSize, fontFamily);
-         } else {
-           svgBody += svgText(labelX, labelY, label, color, fontSize, fontFamily);
-         }
+        if (options.showImplicitHydrogens && atom.hydrogens > 0 && atom.symbol !== 'C') {
+          const hColor = atomColors['H'] ?? '#AAAAAA';
+          const hText = atom.hydrogens === 1 ? 'H' : `H${atom.hydrogens}`;
+          
+          const atomWidth = label.length * fontSize * 0.6;
+          const hWidth = hText.length * fontSize * 0.6;
+          
+          const isHeteroRing = heteroRingIndices.has(i);
+          svgBody += svgText(labelX - hWidth / 2, labelY, label, color, fontSize, fontFamily, isHeteroRing ? { background: true } : undefined);
+          svgBody += svgText(labelX + atomWidth / 2, labelY, hText, hColor, fontSize, fontFamily, isHeteroRing ? { background: true } : undefined);
+        } else {
+          const isHeteroRing = heteroRingIndices.has(i);
+          svgBody += svgText(labelX, labelY, label, color, fontSize, fontFamily, isHeteroRing ? { background: true } : undefined);
+        }
 
          if (atom.charge !== 0) {
            const chargeSign = atom.charge > 0 ? '+' : '−';
@@ -585,6 +626,29 @@ function renderMultipleMolecules(
     
     const atomsToShow = determineVisibleAtoms(molecule, options.showCarbonLabels ?? false);
     const aromaticRings = detectAromaticRings(molecule);
+
+    // Compute heteroatoms that belong to rings for this molecule and force
+    // their labels to be centered (so they overlap ring lines) and avoid
+    // bond shortening around them.
+    const heteroRingIndices = new Set<number>();
+    try {
+      if (molecule.ringInfo && Array.isArray(molecule.ringInfo.rings)) {
+        for (const ring of molecule.ringInfo.rings) {
+          if (!ring) continue;
+          for (const aid of ring) {
+            const idx = atomIdToIndex.get(aid as number);
+            if (idx !== undefined) {
+              const atom = molecule.atoms[idx];
+              if (atom && atom.symbol !== 'C') {
+                heteroRingIndices.add(idx);
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
     
     const bondsInAromaticRings = new Set<number>();
     for (const aromRing of aromaticRings) {
@@ -682,8 +746,11 @@ function renderMultipleMolecules(
         const dy = y2 - y1;
         const len = Math.sqrt(dx * dx + dy * dy);
         if (len > 0) {
-          x1 += (dx / len) * shortenDistance;
-          y1 += (dy / len) * shortenDistance;
+          const atom1Idx = atomIdToIndex.get(bond.atom1 as number) ?? -1;
+          if (!heteroRingIndices.has(atom1Idx)) {
+            x1 += (dx / len) * shortenDistance;
+            y1 += (dy / len) * shortenDistance;
+          }
         }
       }
       
@@ -692,8 +759,11 @@ function renderMultipleMolecules(
         const dy = y1 - y2;
         const len = Math.sqrt(dx * dx + dy * dy);
         if (len > 0) {
-          x2 += (dx / len) * shortenDistance;
-          y2 += (dy / len) * shortenDistance;
+          const atom2Idx = atomIdToIndex.get(bond.atom2 as number) ?? -1;
+          if (!heteroRingIndices.has(atom2Idx)) {
+            x2 += (dx / len) * shortenDistance;
+            y2 += (dy / len) * shortenDistance;
+          }
         }
       }
       
@@ -725,18 +795,22 @@ function renderMultipleMolecules(
          
          let label = atom.symbol;
          
-         if (options.showImplicitHydrogens && atom.hydrogens > 0 && atom.symbol !== 'C') {
-           const hColor = atomColors['H'] ?? '#AAAAAA';
-           const hText = atom.hydrogens === 1 ? 'H' : `H${atom.hydrogens}`;
-           
-           const atomWidth = label.length * fontSize * 0.6;
-           const hWidth = hText.length * fontSize * 0.6;
-           
-           svgBody += svgText(x - hWidth / 2, y, label, color, fontSize, fontFamily);
-           svgBody += svgText(x + atomWidth / 2, y, hText, hColor, fontSize, fontFamily);
-         } else {
-           svgBody += svgText(x, y, label, color, fontSize, fontFamily);
-         }
+        if (options.showImplicitHydrogens && atom.hydrogens > 0 && atom.symbol !== 'C') {
+          const hColor = atomColors['H'] ?? '#AAAAAA';
+          const hText = atom.hydrogens === 1 ? 'H' : `H${atom.hydrogens}`;
+          
+          const atomWidth = label.length * fontSize * 0.6;
+          const hWidth = hText.length * fontSize * 0.6;
+          
+          const atomIdx = i;
+          const isHeteroRing = heteroRingIndices.has(atomIdx);
+          svgBody += svgText(x - hWidth / 2, y, label, color, fontSize, fontFamily, isHeteroRing ? { background: true } : undefined);
+          svgBody += svgText(x + atomWidth / 2, y, hText, hColor, fontSize, fontFamily, isHeteroRing ? { background: true } : undefined);
+        } else {
+          const atomIdx = i;
+          const isHeteroRing = heteroRingIndices.has(atomIdx);
+          svgBody += svgText(x, y, label, color, fontSize, fontFamily, isHeteroRing ? { background: true } : undefined);
+        }
 
          if (atom.charge !== 0) {
            const chargeSign = atom.charge > 0 ? '+' : '−';

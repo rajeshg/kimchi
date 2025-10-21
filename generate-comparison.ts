@@ -112,9 +112,8 @@ const testMolecules = [
   'C1=CC=CC=C1C(=O)Pb', // benzoyl plumbanol
 ];
 
-async function generateRDKitSVGs() {
+async function generateComparison() {
   let rdkit: any = null;
-  const rdkitSvgs = new Map<string, string>();
 
   try {
     const rdkitModule = await import('@rdkit/rdkit').catch(() => null);
@@ -125,30 +124,6 @@ async function generateRDKitSVGs() {
   } catch (e) {
     console.warn('RDKit not available:', e);
   }
-
-  for (const smiles of testMolecules) {
-    if (rdkit) {
-      try {
-        const mol = rdkit.get_mol(smiles);
-        if (mol) {
-          const svg = mol.get_svg();
-          rdkitSvgs.set(smiles, svg);
-          mol.delete();
-        }
-      } catch (e) {
-        console.warn(`Error rendering ${smiles} with RDKit:`, e);
-        rdkitSvgs.set(smiles, '<svg><text x="10" y="20">RDKit Error</text></svg>');
-      }
-    } else {
-      rdkitSvgs.set(smiles, '<svg><text x="10" y="20">RDKit not available</text></svg>');
-    }
-  }
-
-  return rdkitSvgs;
-}
-
-async function generateComparison() {
-  const rdkitSvgs = await generateRDKitSVGs();
 
   function escapeHtml(s: string) {
     return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -161,7 +136,22 @@ async function generateComparison() {
   }> = [];
 
   for (const smiles of testMolecules) {
-    const rdkitSvg = rdkitSvgs.get(smiles) || '<svg><text x="10" y="20">Not generated</text></svg>';
+    let rdkitSvg = '';
+
+    if (rdkit) {
+      try {
+        const mol = rdkit.get_mol(smiles);
+        if (mol) {
+          rdkitSvg = mol.get_svg();
+          mol.delete();
+        }
+      } catch (e) {
+        console.warn(`Error rendering ${smiles} with RDKit:`, e);
+        rdkitSvg = '<svg><text x="10" y="20">RDKit Error</text></svg>';
+      }
+    } else {
+      rdkitSvg = '<svg><text x="10" y="20">RDKit not available</text></svg>';
+    }
 
     let kimchiSvg = '';
 
@@ -225,7 +215,7 @@ ${rows
 </body>
 </html>`;
 
-  fs.writeFileSync('/Users/rajeshg/sde/workspace/kimchi/comparison.html', html);
+  fs.writeFileSync('./comparison.html', html);
   console.log('Generated comparison.html');
 }
 

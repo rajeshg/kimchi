@@ -1,18 +1,37 @@
 # kimchi
 
-**Production-ready TypeScript SMILES parser and generator with high RDKit compatibility**
+A fast TypeScript / JavaScript chemistry toolkit for working with molecular structures: parsing & generation (SMILES, MOL, SDF), canonicalization, pattern matching (SMARTS), 2D rendering, molecular descriptors, and structural analysis.
 
-A high-performance, zero-dependency toolkit for parsing and generating SMILES (Simplified Molecular-Input Line-Entry System) notation. Built for cheminformatics applications that need reliable molecule handling in JavaScript/TypeScript.
+Production-ready, TypeScript-first library for cheminformatics — works in both browser and Node.js. kimchi keeps a small runtime footprint and relies on a couple of lightweight, well-audited libraries (for example `es-toolkit` utility helpers and `webcola` for layout) rather than a large dependency surface.
 
 ## Why kimchi?
 
-- **✅ Extensively tested** — Comprehensive test suite with 99%+ RDKit compatibility
-- **✅ RDKit-validated** — Canonical SMILES generation matches RDKit output (325/325 bulk validation at 100%)
-- **⚡ Fast & lightweight** — Zero dependencies, pure TypeScript implementation
-- **🎯 Production-ready** — Validated with real-world molecules, commercial drugs, and edge cases
-- **🔬 Feature-complete** — Full stereochemistry, isotopes, atom class support, and OpenSMILES Standard Form compliance
+- ⚡ Fast & lightweight — Small dependency footprint (uses a couple of lightweight libraries such as `es-toolkit` and `webcola`), pure TypeScript implementation with small runtime overhead (works in browser and Node.js)
+- ✅ TypeScript-first — Strong types and type definitions make integration into TS projects effortless; friendly JS API for plain JavaScript users
+- ✅ Well-tested & RDKit-aligned — Comprehensive test suite with wide RDKit comparisons to ensure high compatibility and correctness
+- 🎯 Production-ready — Used and validated with real-world molecules, commercial drugs, and many edge cases
+- 🔬 Feature-rich — Full stereochemistry, isotopes, atom class support, canonicalization, and OpenSMILES compatibility
 
-## Quick Example
+## HTML Playground
+
+kimchi includes an interactive HTML playground for testing SMILES parsing, molecular visualization, and descriptor calculation:
+
+```bash
+# Build the browser bundle and start a local server
+bun run serve
+
+# Then open http://localhost:3000/smiles-playground.html in your browser
+```
+
+The playground provides:
+- **2D Structure Visualization** — Clean SVG rendering of molecular structures
+- **Molecular Descriptors** — Formula, mass, TPSA, rotatable bonds, etc.
+- **Drug-Likeness Checks** — Lipinski's Rule of Five, Veber rules, BBB penetration
+- **Interactive Examples** — Pre-loaded molecules like aspirin, caffeine, ibuprofen
+
+The playground automatically detects if the full kimchi library is available and falls back to approximate calculations if needed.
+
+**Note:** The HTML playground requires a web server to load the kimchi library due to ES module security restrictions. Use `bun run serve` to start a local server, then open `http://localhost:3000/smiles-playground.html` in your browser.
 
 ```typescript
 import { parseSMILES, generateSMILES, parseMolfile, generateMolfile, parseSDF, writeSDF } from 'kimchi';
@@ -74,112 +93,33 @@ console.log(sdfResult.records[0].molecule?.atoms.length); // 3
 console.log(sdfResult.records[0].properties.NAME); // "Ethanol"
 ```
 
-## RDKit Parity & Validation
+## Testing & RDKit comparison
 
-**kimchi achieves full parity with RDKit** — the gold standard in cheminformatics:
+kimchi has an extensive test suite (unit, integration, and RDKit comparison tests) that exercises parsing, generation, file round-trips, stereochemistry, aromatic perception, and molecular properties. Rather than rely on fragile hard-coded counts in the README, the project keeps comprehensive automated tests in the `test/` folder and runs RDKit parity checks as part of the comparison test suite when RDKit is available.
 
-- **649/649 tests passing** ✅ including comprehensive RDKit comparison tests
-- **325 molecule bulk validation** — All molecules successfully parsed and round-tripped (100% success rate)
-- **0 generation mismatches** — All parsed molecules generate valid SMILES
-- **100% RDKit canonical agreement** — All 325 generated canonical SMILES match RDKit's output
-- **Real-world validation** — Includes 25 common commercial drugs (aspirin, ibuprofen, acetaminophen, nicotine, morphine, penicillin, testosterone, diazepam, and more)
-- **Stereo normalization** — E/Z double bond stereochemistry canonicalized to match RDKit
-- **Standard Form compliance** — Implements OpenSMILES 4.3 Standard Form recommendations
-- **Continuous validation** — Every commit is tested against RDKit
+Highlights:
+- Broad unit and integration coverage across parsers, generators, utils, and validators
+- RDKit comparison tests for canonical SMILES and round-trip fidelity (these run when RDKit is available in the test environment)
+- Tests are designed to be self-contained and to skip RDKit-specific checks when RDKit isn't present in the environment
 
-Tests compare directly with RDKit's canonical SMILES output. kimchi now produces identical canonical SMILES to RDKit for all tested molecules.
+For maintainers: update and run the test suite with `bun test`. Use `RUN_RDKIT_BULK=1` to enable the heavier RDKit bulk comparisons when you have RDKit available.
 
-## Complete Feature Support
+## Key features
 
-kimchi handles the full SMILES specification:
+- Parsing and generating SMILES, MOL (V2000/V3000), and SDF
+- Canonical SMILES generation with RDKit-compatible ordering and stereo normalization
+- Full stereochemistry support (tetrahedral, E/Z, extended chirality)
+- Aromaticity perception and optional kekulization
+- Isotopes, explicit hydrogens, charges, atom classes, and multi-digit ring closures
+- SMARTS parsing and pattern matching
+- 2D SVG rendering with automatic coordinate generation (webcola-based layout)
+- Molecular properties and drug-likeness metrics (TPSA, LogP, Lipinski/Veber checks)
+- Immutable molecule objects with enrichment for fast property queries
 
-**Atoms & Elements**
-- Organic subset: `B C N O P S F Cl Br I`
-- All periodic table elements (brackets required)
-- Isotopes: `[13C]`, `[2H]` (deuterium), `[14C]`
-- Wildcards: `*` (unknown/unspecified atoms)
-- Atom classes: `[C:1]`, `[NH4+:2]` (for reaction mapping)
+The project also includes utilities for ring finding, symmetry detection, valence checking, and RDKit comparison tooling in the `test/rdkit-comparison` folder.
+## Validation
 
-**Bonds**
-- Single, double `=`, triple `#`, quadruple `$`
-- Aromatic bonds (implicit in aromatic rings)
-- Ring closures with multi-digit support `%10`, `%11`
-
-**Stereochemistry**
-- Tetrahedral centers: `@`, `@@`
-- Extended chirality: `@TH1`, `@AL1`, `@SP1`
-- E/Z double bonds: `/`, `\` with automatic normalization
-- Canonical stereo normalization (matches RDKit)
-- Ring closure stereo markers
-
-**Charges & Brackets**
-- Positive/negative charges: `[NH4+]`, `[O-]`
-- Multiple charges: `[Ca+2]`
-- Explicit hydrogens: `[CH3]`, `[NH2]`
-
-**Complex Structures**
-- Branches: `CC(C)C`
-- Nested branches: `CC(C(C)C)C`
-- Disconnected molecules: `CC.O` (mixture notation)
-- Fused rings: `c1ccc2ccccc2c1` (naphthalene)
-- Spiro compounds
-
-## Validation Results
-
-```
-Test Suite: 649/649 passing ✅
-├─ Parser tests: 18/18 ✅
-├─ Comprehensive tests: 99/99 ✅
-├─ Isotope tests: 23/23 ✅
-├─ Bracket parser tests: 36/36 ✅
-├─ Extended stereo: 35/35 ✅
-├─ Stereo extras: 19/19 ✅
-├─ Additional stereo: 12/12 ✅
-├─ Ring stereo: 28/28 ✅
-├─ Edge cases: 6/6 ✅
-├─ Round-trip tests: 23/23 ✅
-├─ Standard form: 20/20 ✅
-├─ MOL generator: 7/7 ✅
-├─ MOL file parser: 26/26 ✅
-├─ MOL file roundtrip: 4/4 ✅
-├─ SDF writer: 23/23 ✅ (7 integration + 16 unit)
-├─ SDF parser: 39/39 ✅ (5 integration + 34 unit)
-├─ Molecular properties: 48/48 ✅
-├─ Aromaticity perceiver: 22/22 ✅
-├─ Ring finder: 5/5 ✅
-├─ Symmetry detector: 19/19 ✅
-├─ Valence calculator: 2/2 ✅
-├─ Atom utils: 5/5 ✅
-├─ RDKit comparison: 2/2 ✅
-├─ RDKit canonical: 27/27 ✅
-├─ RDKit stereo: 21/21 ✅
-├─ RDKit symmetry: 53/53 ✅
-├─ RDKit MOL comparison: 7/7 ✅
-├─ RDKit MOL file: 15/15 ✅
-└─ RDKit bulk: 325 molecules ✅
-
-RDKit Bulk Validation:
-├─ Parsed: 325/325 (100%)
-├─ Generation matches: 325/325 (100%)
-├─ RDKit canonical matches: 325/325 (100%)
-└─ Parse failures: 0
-
-Commercial Drug Validation (included in bulk):
-✅ Aspirin, Ibuprofen, Acetaminophen
-✅ Nicotine, Morphine, Testosterone
-✅ Penicillin G, Diazepam (Valium)
-✅ Diphenhydramine (Benadryl), Nifedipine
-✅ Plus 15 additional common pharmaceuticals
-
-RDKit Canonical Stereo Tests:
-All stereo SMILES match RDKit exactly, including:
-├─ E/Z normalization: C\C=C\C → C/C=C/C (trans)
-├─ Tri-substituted alkenes: Cl/C=C(\F)Br → F/C(Br)=C\Cl
-├─ Conjugated dienes with multiple stereo centers
-└─ Cyclic systems with exocyclic double bonds
-```
-
-All generated canonical SMILES match RDKit's output character-for-character.
+kimchi maintains broad automated test coverage across unit, integration, and RDKit comparison tests. The `test/` directory contains the authoritative suite; maintainers can run `bun test` locally and enable the heavier RDKit comparison runs with `RUN_RDKIT_BULK=1` when RDKit is available. Tests are designed to validate parsing, generation, round-tripping, stereochemistry, aromatic perception, and molecular properties without requiring hard-coded counts in the README.
 
 ## Installation
 

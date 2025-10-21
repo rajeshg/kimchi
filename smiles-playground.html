@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>SMILES Playground — kimchi descriptors</title>
+   <title>SMILES Playground — kimchi molecular visualization</title>
   <style>
     :root{font-family:Inter,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial;--bg:#0f1720;--card:#0b1220;--muted:#9aa4b2;--accent:#60a5fa}
     body{margin:0;background:linear-gradient(180deg,#071028 0%,#071724 100%);color:#e6eef6;min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:32px}
@@ -28,12 +28,12 @@
 </head>
 <body>
   <div class="container">
-    <header>
-      <div>
-        <h1>SMILES Playground — compute molecular descriptors</h1>
-        <div class="status">Type a SMILES string and the page will compute descriptors without reloading.</div>
-      </div>
-    </header>
+     <header>
+       <div>
+         <h1>SMILES Playground — molecular visualization & descriptors</h1>
+         <div class="status">Type a SMILES string and see the 2D structure, compute descriptors, and check drug-likeness rules.</div>
+       </div>
+     </header>
 
     <div class="card">
       <div>
@@ -54,16 +54,23 @@
         </div>
       </div>
 
-      <div class="grid">
-        <div>
-          <h3>Summary</h3>
-          <div class="props" id="props"></div>
+       <div class="grid">
+         <div>
+           <h3>Structure</h3>
+           <div class="card" style="margin-bottom:16px;text-align:center;background:#ffffff;border:1px solid #e5e7eb;">
+             <div id="structure-svg" style="min-height:200px;display:flex;align-items:center;justify-content:center;color:#666;font-size:14px">
+               Enter a SMILES string to see the 2D structure
+             </div>
+           </div>
 
-          <h3 style="margin-top:12px">Descriptors</h3>
-          <div class="card" style="margin-top:8px">
-            <table class="table" id="desc-table"></table>
-          </div>
-        </div>
+           <h3>Summary</h3>
+           <div class="props" id="props"></div>
+
+           <h3 style="margin-top:12px">Descriptors</h3>
+           <div class="card" style="margin-top:8px">
+             <table class="table" id="desc-table"></table>
+           </div>
+         </div>
 
         <div class="right">
           <div class="card">
@@ -83,9 +90,9 @@
         </div>
       </div>
 
-      <footer>
-        This page uses a built-in fallback parser/calculators if the project exports can't be loaded in the browser. Fallback is approximate for complex SMILES (rings/charges/aromaticity).
-      </footer>
+       <footer>
+         This page uses a built-in fallback parser/calculators if the project exports can't be loaded in the browser. Fallback is approximate for complex SMILES (rings/charges/aromaticity). SVG rendering requires the full kimchi library.
+       </footer>
     </div>
   </div>
 
@@ -229,7 +236,7 @@
 
       let lib = null;
       diag.textContent = 'Library auto-detection: attempting dynamic import of common bundle locations...';
-      tryLoadLibrary().then(mod=>{ lib = mod; diag.textContent = 'Library loaded from dynamic import. Using project exports.'}).catch(err=>{ diag.textContent = 'No project bundle found — using fallback parser and calculators (approximate).'; lib = null });
+       tryLoadLibrary().then(mod=>{ lib = mod; diag.textContent = 'Library loaded from dynamic import. Using project exports.'}).catch(err=>{ diag.textContent = 'No project bundle found. For full functionality (SVG rendering), run `bun run serve` and open this page at http://localhost:3000/smiles-playground.html. Using fallback parser for descriptors only.'; lib = null });
 
       function renderChecks(checks){
         function renderCheck(name, check, props) {
@@ -238,7 +245,7 @@
           if (props) {
             el.innerHTML += `<div style="font-size:13px;color:var(--muted);margin-bottom:4px">${Object.entries(props).map(([k,v])=>`${k}: ${v}`).join(', ')}</div>`;
           }
-          if (check.violations.length) {
+          if (check.violations?.length) {
             el.innerHTML += `<div style="font-size:13px;color:#ef4444">Violations: ${check.violations.join('; ')}</div>`;
           }
         }
@@ -247,50 +254,71 @@
         renderCheck('BBB', checks.bbb, {tpsa: checks.bbb.tpsa});
       }
 
-      function renderResult(mol){
-        const formula = getMolecularFormula(mol,{includeImplicitH:true});
-        const mw = getMolecularMass(mol);
-        const em = mw; // fallback
-        const heavy = getHeavyAtomCount(mol);
-        const hetero = getHeteroAtomCount(mol);
-        const rings = getRingCount(mol);
-        const arom = getAromaticRingCount(mol);
-        const fraction = getFractionCSP3(mol);
-        const acc = getHBondAcceptorCount(mol);
-        const don = getHBondDonorCount(mol);
-        const tpsa = getTPSA(mol);
-        const rot = getRotatableBondCount(mol);
+        function renderResult(parseResult){
+         // Render SVG structure
+         const svgEl = document.getElementById('structure-svg');
+         if(lib && lib.renderSVG){
+           try{
+             const result = lib.renderSVG(parseResult, { width: 250, height: 200 });
+             svgEl.innerHTML = result.svg;
+           }catch(e){
+             svgEl.innerHTML = `<div style="color:#ef4444">SVG rendering error: ${e.message}</div>`;
+           }
+         } else {
+           svgEl.innerHTML = '<div>SVG rendering requires the full kimchi library.<br>Use fallback parser for descriptors only.</div>';
+         }
 
-        const summary = [
-          ['Formula',formula],['Molecular mass',mw],["Exact mass",em],['Atoms',mol.atoms.length],['Bonds',mol.bonds.length],['Heavy atoms',heavy],['Heteroatoms',hetero],['Ring count',rings],['Aromatic rings',arom],['Frac cSP3',fraction],['H-bond acceptors',acc],['H-bond donors',don],['TPSA',tpsa],['Rotatable bonds',rot]
-        ];
-        propsEl.innerHTML = '';
-        for(const [k,v] of summary){ const d=document.createElement('div'); d.className='prop'; d.innerHTML=`<b>${k}</b><div>${v}</div>`; propsEl.appendChild(d) }
+         // Extract molecule for descriptor calculations
+         const mol = parseResult.molecules ? parseResult.molecules[0] : (parseResult.molecule || parseResult);
 
-        const desc = computeDescriptors(mol);
-        descTable.innerHTML = '';
-        for(const k of Object.keys(desc)){
-          const row = document.createElement('tr'); row.innerHTML = `<td><b>${k}</b></td><td>${JSON.stringify(desc[k])}</td>`; descTable.appendChild(row);
-        }
+         const formula = getMolecularFormula(mol,{includeImplicitH:true});
+         const mw = getMolecularMass(mol);
+         const em = mw; // fallback
+         const heavy = getHeavyAtomCount(mol);
+         const hetero = getHeteroAtomCount(mol);
+         const rings = getRingCount(mol);
+         const arom = getAromaticRingCount(mol);
+         const fraction = getFractionCSP3(mol);
+         const acc = getHBondAcceptorCount(mol);
+         const don = getHBondDonorCount(mol);
+         const tpsa = getTPSA(mol);
+         const rot = getRotatableBondCount(mol);
 
-        const checks = computeChecks(mol);
-        renderChecks(checks);
-      }
+         const summary = [
+           ['Formula',formula],['Molecular mass',mw],["Exact mass",em],['Atoms',mol.atoms.length],['Bonds',mol.bonds.length],['Heavy atoms',heavy],['Heteroatoms',hetero],['Ring count',rings],['Aromatic rings',arom],['Frac cSP3',fraction],['H-bond acceptors',acc],['H-bond donors',don],['TPSA',tpsa],['Rotatable bonds',rot]
+         ];
+         propsEl.innerHTML = '';
+         for(const [k,v] of summary){ const d=document.createElement('div'); d.className='prop'; d.innerHTML=`<b>${k}</b><div>${v}</div>`; propsEl.appendChild(d) }
 
-      function computeFromSmiles(smiles){
-        if(!smiles||!smiles.trim()){ propsEl.innerHTML=''; descTable.innerHTML=''; checksContainer.innerHTML='<div id="lipinski"></div><div id="veber"></div><div id="bbb"></div>'; return }
-        if(lib && lib.parseSMILES){
-          try{
-            const result = lib.parseSMILES(smiles);
-            const mol = result.molecule || result;
-            renderResult(mol);
-            diag.textContent = 'Used project parseSMILES + descriptor functions when available.';
-            return;
-          }catch(e){ diag.textContent = 'Project parse failed, falling back: '+e.message }
-        }
-        const mol = parseSMILESFallback(smiles);
-        renderResult(mol);
-      }
+         const desc = computeDescriptors(mol);
+         descTable.innerHTML = '';
+         for(const k of Object.keys(desc)){
+           const row = document.createElement('tr'); row.innerHTML = `<td><b>${k}</b></td><td>${JSON.stringify(desc[k])}</td>`; descTable.appendChild(row);
+         }
+
+         const checks = computeChecks(mol);
+         renderChecks(checks);
+       }
+
+       function computeFromSmiles(smiles){
+         if(!smiles||!smiles.trim()){ 
+           document.getElementById('structure-svg').innerHTML = 'Enter a SMILES string to see the 2D structure';
+           propsEl.innerHTML=''; 
+           descTable.innerHTML=''; 
+           checksContainer.innerHTML='<div id="lipinski"></div><div id="veber"></div><div id="bbb"></div>'; 
+           return 
+         }
+          if(lib && lib.parseSMILES){
+            try{
+              const parseResult = lib.parseSMILES(smiles);
+              renderResult(parseResult);
+              diag.textContent = 'Used project parseSMILES + descriptor functions when available.';
+              return;
+            }catch(e){ diag.textContent = 'Project parse failed, falling back: '+e.message }
+          }
+         const mol = parseSMILESFallback(smiles);
+         renderResult({ molecules: [mol] });
+       }
 
       go.addEventListener('click', ()=> computeFromSmiles(smilesInput.value));
       smilesInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter') computeFromSmiles(smilesInput.value) });
