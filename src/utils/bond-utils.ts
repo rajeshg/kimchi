@@ -1,5 +1,4 @@
 import type { Atom, Bond } from 'types';
-import { partition } from 'es-toolkit';
 
 export function getBondsForAtom(bonds: readonly Bond[], atomId: number): Bond[] {
   return bonds.filter(b => b.atom1 === atomId || b.atom2 === atomId);
@@ -34,9 +33,10 @@ export interface BondsByType {
 }
 
 export function partitionBondsByType(bonds: readonly Bond[]): BondsByType {
-  const [single, rest1] = partition([...bonds], b => b.type === 'single');
-  const [double, rest2] = partition(rest1, b => b.type === 'double');
-  const [triple, aromatic] = partition(rest2, b => b.type === 'triple');
+  const single = bonds.filter(b => b.type === 'single');
+  const double = bonds.filter(b => b.type === 'double');
+  const triple = bonds.filter(b => b.type === 'triple');
+  const aromatic = bonds.filter(b => b.type === 'aromatic');
   
   return { single, double, triple, aromatic };
 }

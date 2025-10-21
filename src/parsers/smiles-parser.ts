@@ -6,7 +6,6 @@ import { validateAromaticity } from 'src/validators/aromaticity-validator';
 import { validateValences } from 'src/validators/valence-validator';
 import { validateStereochemistry } from 'src/validators/stereo-validator';
 import { parseBracketAtom } from 'src/parsers/bracket-parser';
-import { maxBy } from 'es-toolkit';
 import { enrichMolecule } from 'src/utils/molecule-enrichment';
 import { perceiveAromaticity } from 'src/utils/aromaticity-perceiver';
 
@@ -419,7 +418,7 @@ function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: ParseE
           : (DEFAULT_VALENCES[atom.symbol] || [atom.atomicNumber]);
         // Per OpenSMILES spec: if bond sum equals a known valence or exceeds all known valences, H count = 0
         // Otherwise H count = (next highest known valence) - bond sum
-        const maxValence = maxBy(defaultValences, (v) => v) ?? 0;
+        const maxValence = Math.max(...defaultValences);
         if (bondOrderSum >= maxValence) {
           atom.hydrogens = 0;
         } else {

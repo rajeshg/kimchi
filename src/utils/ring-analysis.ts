@@ -1,5 +1,4 @@
 import type { Atom, Bond, Molecule } from 'types';
-import { intersection, sortBy, range } from 'es-toolkit';
 import { bondKey } from './bond-utils';
 import { MoleculeGraph } from './molecular-graph';
 
@@ -63,7 +62,8 @@ export function findAtomRings(atoms: readonly Atom[], bonds: readonly Bond[]): M
 }
 
 export function ringsShareAtoms(ring1: number[], ring2: number[]): boolean {
-  return intersection(ring1, ring2).length > 0;
+  const set2 = new Set(ring2);
+  return ring1.some(atom => set2.has(atom));
 }
 
 export function findSSSR(atoms: readonly Atom[], bonds: readonly Bond[]): number[][] {
@@ -85,11 +85,13 @@ function countConnectedComponents(atoms: readonly Atom[], bonds: readonly Bond[]
 }
 
 function getRingEdges(ring: number[]): string[] {
-  return range(ring.length).map(i => {
+  const edges: string[] = [];
+  for (let i = 0; i < ring.length; i++) {
     const atom1 = ring[i]!;
     const atom2 = ring[(i + 1) % ring.length]!;
-    return `${Math.min(atom1, atom2)}-${Math.max(atom1, atom2)}`;
-  });
+    edges.push(`${Math.min(atom1, atom2)}-${Math.max(atom1, atom2)}`);
+  }
+  return edges;
 }
 
 export function classifyRingSystems(atoms: readonly Atom[], bonds: readonly Bond[]): {
@@ -113,7 +115,7 @@ export function classifyRingSystems(atoms: readonly Atom[], bonds: readonly Bond
     for (let j = i + 1; j < rings.length; j++) {
       const ring2 = rings[j];
       if (!ring2) continue;
-      const shared = intersection(ring1, ring2);
+       const shared = ring1.filter(atom => ring2.includes(atom));
 
       if (shared.length > 0) {
         sharedCount++;

@@ -1,6 +1,13 @@
 import type { Molecule, Atom, Bond } from 'types';
 import { BondType, StereoType } from 'types';
-import { chunk } from 'es-toolkit';
+
+function chunk<T>(array: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < array.length; i += size) {
+    chunks.push(array.slice(i, i + size));
+  }
+  return chunks;
+}
 
 export interface MolGeneratorOptions {
   title?: string;           // Molecule title (default: empty)

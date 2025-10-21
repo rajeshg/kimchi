@@ -1,5 +1,3 @@
-import { zip } from 'es-toolkit';
-
 /**
  * Simple, efficient graph data structure for cheminformatics applications.
  * Optimized for small graphs (molecules typically have <100 nodes).

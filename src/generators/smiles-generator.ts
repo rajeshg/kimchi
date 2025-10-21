@@ -1,6 +1,5 @@
 import type { Molecule, Bond, Atom } from 'types';
 import { BondType, StereoType } from 'types';
-import { uniq } from 'es-toolkit';
 import { isOrganicAtom } from 'src/utils/atom-utils';
 import { perceiveAromaticity } from 'src/utils/aromaticity-perceiver';
 import { removeInvalidStereo } from 'src/utils/symmetry-detector';
@@ -458,7 +457,7 @@ function canonicalLabels(mol: Molecule): { labels: Map<number, string>, duplicat
 
     const labelMap = new Map<string, number>();
     let counter = 1;
-    const uniqueLabels = uniq(mol.atoms.map(a => newLabels.get(a.id)!));
+    const uniqueLabels = Array.from(new Set(mol.atoms.map(a => newLabels.get(a.id)!)));
     uniqueLabels.sort();
     for (const lbl of uniqueLabels) {
       labelMap.set(lbl, counter++);

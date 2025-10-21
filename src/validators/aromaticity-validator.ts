@@ -1,7 +1,6 @@
- import type { Atom, Bond, ParseError, Molecule } from 'types';
- import { BondType } from 'types';
- import { sum } from 'es-toolkit';
- import { getRingAtoms, getRingBonds, filterElementaryRings, isPartOfFusedSystem } from 'src/utils/ring-analysis';
+import type { Atom, Bond, ParseError, Molecule } from 'types';
+import { BondType } from 'types';
+import { getRingAtoms, getRingBonds, filterElementaryRings, isPartOfFusedSystem } from 'src/utils/ring-analysis';
  import { getBondsForAtom } from 'src/utils/bond-utils';
  import { MoleculeGraph } from 'src/utils/molecular-graph';
 
@@ -47,7 +46,7 @@ function countPiElectrons(atom: Atom, bonds: readonly Bond[]): number {
 }
 
 function isHuckelAromatic(ringAtoms: readonly Atom[], ringBonds: readonly Bond[]): boolean {
-  const totalPiElectrons = sum(ringAtoms.map(atom => countPiElectrons(atom, ringBonds)));
+  const totalPiElectrons = ringAtoms.reduce((sum, atom) => sum + countPiElectrons(atom, ringBonds), 0);
   return totalPiElectrons >= 2 && (totalPiElectrons - 2) % 4 === 0;
 }
 

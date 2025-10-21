@@ -1,8 +1,7 @@
- import type { Atom, Bond, Molecule } from 'types';
- import { BondType, StereoType } from 'types';
- import { uniq } from 'es-toolkit';
- import { getBondsForAtom, getOtherAtomId } from './bond-utils';
- import { MoleculeGraph } from './molecular-graph';
+import type { Atom, Bond, Molecule } from 'types';
+import { BondType, StereoType } from 'types';
+import { getBondsForAtom, getOtherAtomId } from './bond-utils';
+import { MoleculeGraph } from './molecular-graph';
 
 function getNeighbors(atomId: number, molecule: Molecule): Array<[number, Bond]> {
   const bonds = getBondsForAtom(molecule.bonds, atomId);
@@ -38,7 +37,7 @@ function computeCanonicalLabels(mol: Molecule): Map<number, string> {
 
     const labelMap = new Map<string, number>();
     let counter = 1;
-    const uniqueLabels = uniq(mol.atoms.map(a => newLabels.get(a.id)!));
+    const uniqueLabels = Array.from(new Set(mol.atoms.map(a => newLabels.get(a.id)!)));
     uniqueLabels.sort();
     for (const lbl of uniqueLabels) {
       labelMap.set(lbl, counter++);

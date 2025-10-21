@@ -1,6 +1,5 @@
 import type { Atom, Bond, ParseError } from 'types';
 import { DEFAULT_VALENCES } from 'src/constants';
-import { maxBy } from 'es-toolkit';
 import { getBondsForAtom, hasMultipleBond } from 'src/utils/bond-utils';
 
 /**
@@ -52,7 +51,7 @@ export function validateValences(atoms: readonly Atom[], bonds: readonly Bond[],
       continue;
     }
 
-    const maxAllowed = maxBy(allowedValences, (v) => v) ?? 0;
+    const maxAllowed = Math.max(...allowedValences);
     if (valence > maxAllowed) {
       errors.push({
         message: `Atom ${atom.symbol} (id: ${atom.id}) has invalid valence ${valence}, maximum allowed is ${maxAllowed}`,
