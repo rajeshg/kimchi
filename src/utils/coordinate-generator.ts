@@ -1,4 +1,5 @@
 import type { Molecule, Atom } from 'types';
+import { StereoType } from 'types';
 import type { SVGRendererOptions } from 'src/generators/svg-renderer';
 import { findSSSR } from './ring-analysis';
 
@@ -230,10 +231,73 @@ function layoutRing(ring: number[], bondLength: number, startAngle?: number): Ma
   return coords;
 }
 
+function orderRingsLinearlyForFusion(rings: number[][]): number[][] {
+  if (rings.length <= 2) return rings;
+  
+  const graph = new Map<number, Set<number>>();
+  
+  for (let i = 0; i < rings.length; i++) {
+    if (!graph.has(i)) graph.set(i, new Set());
+    for (let j = i + 1; j < rings.length; j++) {
+      const setI = new Set(rings[i]);
+      const setJ = new Set(rings[j]);
+      let sharedCount = 0;
+      for (const atom of setI) {
+        if (setJ.has(atom)) {
+          sharedCount++;
+          if (sharedCount >= 2) break;
+        }
+      }
+      if (sharedCount >= 2) {
+        graph.get(i)!.add(j);
+        if (!graph.has(j)) graph.set(j, new Set());
+        graph.get(j)!.add(i);
+      }
+    }
+  }
+  
+  const findLinearChain = (start: number, visited: Set<number>): number[] => {
+    const chain: number[] = [start];
+    visited.add(start);
+    let current = start;
+    
+    while (true) {
+      const neighbors = Array.from(graph.get(current) || []).filter(n => !visited.has(n));
+      if (neighbors.length === 0) break;
+      if (neighbors.length > 1) break;
+      const next = neighbors[0]!;
+      chain.push(next);
+      visited.add(next);
+      current = next;
+    }
+    
+    return chain;
+  };
+  
+  const visited = new Set<number>();
+  const chains: number[][] = [];
+  
+  for (let i = 0; i < rings.length; i++) {
+    if (!visited.has(i)) {
+      const chain = findLinearChain(i, visited);
+      chains.push(chain);
+    }
+  }
+  
+  const result: number[][] = [];
+  chains.sort((a, b) => b.length - a.length);
+  for (const chain of chains) {
+    for (const ringIdx of chain) {
+      result.push(rings[ringIdx]!);
+    }
+  }
+  return result;
+}
+
 export function layoutFusedRings(rings: number[][], bondLength: number): Map<number, AtomCoordinates> {
   const coords = new Map<number, AtomCoordinates>();
 
-  const sortedRings = [...rings].sort((a, b) => b.length - a.length);
+  const sortedRings = orderRingsLinearlyForFusion(rings);
   
   const firstRing = sortedRings[0]!;
   const firstCoords = layoutRing(firstRing, bondLength);
@@ -250,35 +314,44 @@ export function layoutFusedRings(rings: number[][], bondLength: number): Map<num
       const c1 = coords.get(a1!)!;
       const c2 = coords.get(a2!)!;
 
-      const dx = c2.x - c1.x;
-      const dy = c2.y - c1.y;
-      const edgeAngle = Math.atan2(dy, dx);
-
-      const ringSize = ring.length;
-      const interiorAngle = ((ringSize - 2) * Math.PI) / ringSize;
-
       const idx1 = ring.indexOf(a1!);
       const idx2 = ring.indexOf(a2!);
-      const forward = (idx2 - idx1 + ringSize) % ringSize === 1;
       
-      const direction = forward ? 1 : -1;
-      let currentX = c2.x;
-      let currentY = c2.y;
-      // For fused rings, position the new ring on the outside of the shared edge
-      // This angle calculation ensures the ring extends outward rather than overlapping
-      let currentAngle = forward ? 
-        edgeAngle - interiorAngle :  // Extend to the "right" when moving forward
-        edgeAngle + interiorAngle;   // Extend to the "left" when moving backward
-      let idx = idx2;
-
-      for (let j = 0; j < ringSize - 2; j++) {
-        idx = (idx + direction + ringSize) % ringSize;
-        const atomId = ring[idx]!;
+      const ringSize = ring.length;
+      const interiorAngle = ((ringSize - 2) * Math.PI) / ringSize;
+      
+      const idealRingCoords = layoutRing(ring, bondLength);
+      const idealC1 = idealRingCoords.get(a1!)!;
+      const idealC2 = idealRingCoords.get(a2!)!;
+      
+      const dx = c2.x - c1.x;
+      const dy = c2.y - c1.y;
+      const actualDist = Math.sqrt(dx * dx + dy * dy);
+      
+      const idealDx = idealC2.x - idealC1.x;
+      const idealDy = idealC2.y - idealC1.y;
+      const idealDist = Math.sqrt(idealDx * idealDx + idealDy * idealDy);
+      
+      const scale = actualDist / idealDist;
+      const actualAngle = Math.atan2(dy, dx);
+      const idealAngle = Math.atan2(idealDy, idealDx);
+      const rotation = actualAngle - idealAngle;
+      
+      for (const [atomId, idealCoord] of idealRingCoords) {
         if (!coords.has(atomId)) {
-          currentX += Math.cos(currentAngle) * bondLength;
-          currentY += Math.sin(currentAngle) * bondLength;
-          coords.set(atomId, { x: currentX, y: currentY });
-          currentAngle += direction * (Math.PI - interiorAngle);
+          const relX = idealCoord.x - idealC1.x;
+          const relY = idealCoord.y - idealC1.y;
+          
+          const rotatedX = relX * Math.cos(rotation) - relY * Math.sin(rotation);
+          const rotatedY = relX * Math.sin(rotation) + relY * Math.cos(rotation);
+          
+          const scaledX = rotatedX * scale;
+          const scaledY = rotatedY * scale;
+          
+          coords.set(atomId, {
+            x: c1.x + scaledX,
+            y: c1.y + scaledY,
+          });
         }
       }
     } else if (sharedAtoms.length === 1) {
@@ -309,60 +382,260 @@ function layoutChain(molecule: Molecule, bondLength: number): MoleculeCoordinate
   const degrees = molecule.atoms.map(a => 
     molecule.bonds.filter(b => b.atom1 === a.id || b.atom2 === a.id).length
   );
-  const startIdx = degrees.indexOf(Math.min(...degrees));
+  
+  const isSimpleNonRingMolecule = !molecule.ringInfo || !molecule.ringInfo.rings || molecule.ringInfo.rings.length === 0;
+  
+  let startIdx: number;
+  if (isSimpleNonRingMolecule) {
+    const branchingAtomIdx = degrees.findIndex(d => d > 2);
+    if (branchingAtomIdx !== -1) {
+      startIdx = branchingAtomIdx;
+    } else {
+      startIdx = degrees.indexOf(Math.min(...degrees));
+    }
+  } else {
+    startIdx = degrees.indexOf(Math.min(...degrees));
+  }
+  
   const startId = molecule.atoms[startIdx]!.id;
 
-  const queue: { id: number; parentId: number | null; angle: number }[] = [];
-  queue.push({ id: startId, parentId: null, angle: 0 });
+   const queue: { id: number; parentId: number | null; angle: number; depth: number }[] = [];
+   queue.push({ id: startId, parentId: null, angle: 0, depth: 0 });
 
-  coords[startIdx] = { x: 0, y: 0 };
-  visited.add(startId);
+   coords[startIdx] = { x: 0, y: 0 };
+   visited.add(startId);
 
-  while (queue.length > 0) {
-    const item = queue.shift()!;
-    const { id, parentId, angle } = item;
+   while (queue.length > 0) {
+     const item = queue.shift()!;
+     const { id, parentId, angle, depth } = item;
 
-    const neighbors = molecule.bonds
-      .filter(b => b.atom1 === id || b.atom2 === id)
-      .map(b => (b.atom1 === id ? b.atom2 : b.atom1))
-      .filter(nid => !visited.has(nid));
+     const neighbors = molecule.bonds
+       .filter(b => b.atom1 === id || b.atom2 === id)
+       .map(b => (b.atom1 === id ? b.atom2 : b.atom1))
+       .filter(nid => !visited.has(nid));
 
-    for (let i = 0; i < neighbors.length; i++) {
-      const neighborId = neighbors[i]!;
-      const neighborIdx = molecule.atoms.findIndex(a => a.id === neighborId);
-      const currentIdx = molecule.atoms.findIndex(a => a.id === id);
-      const currentCoord = coords[currentIdx]!;
+     for (let i = 0; i < neighbors.length; i++) {
+       const neighborId = neighbors[i]!;
+       const neighborIdx = molecule.atoms.findIndex(a => a.id === neighborId);
+       const currentIdx = molecule.atoms.findIndex(a => a.id === id);
+       const currentCoord = coords[currentIdx]!;
 
-      let childAngle: number;
-      if (neighbors.length === 1) {
-        if (parentId === null) {
-          childAngle = 0;
+       let childAngle: number;
+       if (neighbors.length === 1) {
+         if (parentId === null) {
+           childAngle = 0;
+         } else {
+           const parentIdx = molecule.atoms.findIndex(a => a.id === parentId);
+           const parentCoord = coords[parentIdx]!;
+           const incomingAngle = Math.atan2(
+             currentCoord.y - parentCoord.y,
+             currentCoord.x - parentCoord.x
+           );
+           if (isSimpleNonRingMolecule) {
+             const alternation = (depth % 2 === 0) ? 1 : -1;
+             childAngle = incomingAngle + alternation * Math.PI / 3;
+           } else {
+             childAngle = incomingAngle + Math.PI / 6;
+           }
+         }
         } else {
-          const parentIdx = molecule.atoms.findIndex(a => a.id === parentId);
-          const parentCoord = coords[parentIdx]!;
-          const incomingAngle = Math.atan2(
-            currentCoord.y - parentCoord.y,
-            currentCoord.x - parentCoord.x
-          );
-          childAngle = incomingAngle;
+          if (isSimpleNonRingMolecule) {
+            if (neighbors.length === 2) {
+              childAngle = angle + (i - 0.5) * (2 * Math.PI / 3);
+            } else if (neighbors.length === 3) {
+              childAngle = angle + i * (2 * Math.PI / 3);
+            } else if (neighbors.length === 4) {
+              childAngle = angle + (i - 1.5) * (Math.PI / 2);
+            } else {
+              childAngle = angle + (i - (neighbors.length - 1) / 2) * (Math.PI / 3);
+            }
+          } else {
+            if (neighbors.length === 4) {
+              childAngle = angle + (i - 1.5) * (Math.PI / 2);
+            } else {
+              childAngle = angle + (i - (neighbors.length - 1) / 2) * (Math.PI / 3);
+            }
+          }
         }
-      } else {
-        childAngle = angle + (i - (neighbors.length - 1) / 2) * (Math.PI / 3);
-      }
 
-      coords[neighborIdx] = {
-        x: currentCoord.x + Math.cos(childAngle) * bondLength,
-        y: currentCoord.y + Math.sin(childAngle) * bondLength,
-      };
-      visited.add(neighborId);
-      queue.push({ id: neighborId, parentId: id, angle: childAngle });
-    }
-  }
+       coords[neighborIdx] = {
+         x: currentCoord.x + Math.cos(childAngle) * bondLength,
+         y: currentCoord.y + Math.sin(childAngle) * bondLength,
+       };
+       visited.add(neighborId);
+       queue.push({ id: neighborId, parentId: id, angle: childAngle, depth: depth + 1 });
+     }
+   }
 
   return coords;
 }
 
+// Detect linear chains attached to a given atom id. Returns an array of chains
+// where each chain is an array of atom ids starting from the attachment neighbor
+// and extending out until a branchpoint or ring is reached.
+function detectLinearChainsAttachedToAtom(molecule: Molecule, atomId: number, minLen: number): number[][] {
+  const chains: number[][] = [];
+  const isRingAtom = (aid: number) => !!molecule.ringInfo && Array.from(molecule.ringInfo.rings).some(r => r && r.includes(aid));
+
+  const neighbors = molecule.bonds
+    .filter(b => b.atom1 === atomId || b.atom2 === atomId)
+    .map(b => (b.atom1 === atomId ? b.atom2 : b.atom1));
+
+  for (const nb of neighbors) {
+    // walk outward from nb while degree == 2 and not in a ring
+    const chain: number[] = [];
+    let current = nb;
+    let prev = atomId;
+    while (true) {
+      chain.push(current);
+      const deg = molecule.bonds.filter(b => b.atom1 === current || b.atom2 === current).length;
+      if (deg !== 2) break;
+      if (isRingAtom(current)) break;
+      // find next
+      const nexts = molecule.bonds
+        .filter(b => b.atom1 === current || b.atom2 === current)
+        .map(b => (b.atom1 === current ? b.atom2 : b.atom1))
+        .filter(aid => aid !== prev);
+      if (nexts.length !== 1) break;
+      prev = current;
+      current = nexts[0]!;
+    }
+    if (chain.length >= minLen) {
+      chains.push(chain);
+    }
+  }
+  return chains;
+}
+
+// Place a linear chain deterministically using the parent atom coordinate as anchor.
+// Applies alternating perpendicular offsets to create a zigzag. Modifies coords in place.
+// Returns the attachment atom id so callers can decide what to anchor for D3.
+function placeLinearChainDeterministically(chain: number[], molecule: Molecule, coords: MoleculeCoordinates, bondLength: number): number {
+  if (chain.length === 0) return -1;
+  // attachment atom is the atom connected to the first chain atom but not part of chain
+  const first = chain[0]!;
+  const attachmentBond = molecule.bonds.find(b => b.atom1 === first || b.atom2 === first)!;
+  const attachId = attachmentBond.atom1 === first ? attachmentBond.atom2 : attachmentBond.atom1;
+  const attachIdx = molecule.atoms.findIndex(a => a.id === attachId);
+  const attachCoord = coords[attachIdx]!;
+
+  // compute radial vector: if attach atom is in ring, use ring center; otherwise fallback to +x
+  let radialX = 1, radialY = 0;
+  if (molecule.ringInfo && molecule.ringInfo.rings) {
+    // find ring that contains attachId if any
+    const ring = molecule.ringInfo.rings.find(r => r && r.includes(attachId));
+    if (ring) {
+      // compute center of that ring
+      const ringAtomIds = Array.from(ring);
+      let cx = 0, cy = 0, cnt = 0;
+      for (const aid of ringAtomIds) {
+        const idx = molecule.atoms.findIndex(a => a.id === aid);
+        const c = coords[idx];
+        if (c) { cx += c.x; cy += c.y; cnt++; }
+      }
+      if (cnt > 0) {
+        cx /= cnt; cy /= cnt;
+        radialX = attachCoord.x - cx;
+        radialY = attachCoord.y - cy;
+      }
+    }
+  }
+  let rlen = Math.sqrt(radialX * radialX + radialY * radialY) || 1;
+  radialX /= rlen; radialY /= rlen;
+
+  // Place chain with alternating 120/240 degree angles for zigzag
+   let prevX = attachCoord.x;
+   let prevY = attachCoord.y;
+   let directionAngle = Math.atan2(radialY, radialX);
+   
+   for (let i = 0; i < chain.length; i++) {
+     const aid = chain[i]!;
+     const idx = molecule.atoms.findIndex(a => a.id === aid);
+     
+     const alternation = (i % 2 === 0) ? 1 : -1;
+     const nextAngle = directionAngle + alternation * Math.PI / 3;
+     
+     const nx = prevX + Math.cos(nextAngle) * bondLength;
+     const ny = prevY + Math.sin(nextAngle) * bondLength;
+     coords[idx] = { x: nx, y: ny };
+     
+     prevX = nx;
+     prevY = ny;
+     directionAngle = nextAngle;
+   }
+
+  // Chain zigzag pattern is already in place with proper angles
+
+  return attachId;
+}
+
+
+export function generateCoordinatesDeterministic(molecule: Molecule, options: SVGRendererOptions = {}): MoleculeCoordinates {
+  const opts: SVGRendererOptions = { ...options, deterministicChainPlacement: true } as SVGRendererOptions;
+  return generateCoordinates(molecule, opts);
+}
+
 export function generateCoordinates(
+  molecule: Molecule,
+  options: SVGRendererOptions = {}
+): MoleculeCoordinates {
+  const bondLength = options.bondLength ?? 35;
+  
+  // Generate initial coordinates using default layout
+  let coords = generateCoordinatesDefault(molecule, options);
+
+  // Optionally apply deterministic chain placement for long linear chains
+  const fixedAtomIds: number[] = [];
+  if (options.deterministicChainPlacement) {
+    const minLen = options.deterministicChainLength ?? 4;
+    // iterate through ring atoms and find attached linear chains
+    const ringAtomSet = new Set<number>();
+    if (molecule.ringInfo && molecule.ringInfo.rings) {
+      for (const r of molecule.ringInfo.rings) {
+        if (!r) continue;
+        for (const aid of r) ringAtomSet.add(aid);
+      }
+    }
+    for (const atom of molecule.atoms) {
+      if (!ringAtomSet.has(atom.id)) continue;
+      const chains = detectLinearChainsAttachedToAtom(molecule, atom.id, minLen);
+      for (const chain of chains) {
+        const attachId = placeLinearChainDeterministically(chain, molecule, coords, bondLength);
+        if (attachId !== -1 && !fixedAtomIds.includes(attachId)) fixedAtomIds.push(attachId);
+        for (const chainAtomId of chain) {
+          if (!fixedAtomIds.includes(chainAtomId)) fixedAtomIds.push(chainAtomId);
+        }
+      }
+    }
+  }
+
+  // Anchor atoms that participate in explicit stereochemical bonds so D3 doesn't move them
+  for (const bond of molecule.bonds) {
+    if (bond.stereo && bond.stereo !== StereoType.NONE) {
+      if (!fixedAtomIds.includes(bond.atom1)) fixedAtomIds.push(bond.atom1);
+      if (!fixedAtomIds.includes(bond.atom2)) fixedAtomIds.push(bond.atom2);
+    }
+  }
+
+   try {
+     // eslint-disable-next-line @typescript-eslint/no-var-requires
+     const { refineCoordinatesWithWebcola } = require('./coordinate-generator-webcola');
+     coords = refineCoordinatesWithWebcola(
+       molecule,
+       coords,
+       bondLength,
+       options.webcolaIterations ?? 100,
+       fixedAtomIds,
+       options
+     );
+   } catch (err) {
+     throw new Error('Webcola coordinate engine is required but not available.');
+   }
+
+   return coords;
+}
+
+function generateCoordinatesDefault(
   molecule: Molecule,
   options: SVGRendererOptions = {}
 ): MoleculeCoordinates {
@@ -429,24 +702,85 @@ export function generateCoordinates(
           const newSystemAtomCoord = newSystemCoords.get(connectingBond.newSystemAtom)!;
           
           // For connected systems, position the new system so that the connecting atoms
-          // are at a proper bond length distance apart
-          
-          // Calculate the direction vector from the existing atom to position the new system
-          // We'll place the new system along the x-axis from the existing atom
-          const bondVector = { x: bondLength, y: 0 };
-          
-          // Calculate the offset needed to position the new connecting atom at bond length distance
-          const offsetX = existingAtomCoord.x + bondVector.x - newSystemAtomCoord.x;
-          const offsetY = existingAtomCoord.y + bondVector.y - newSystemAtomCoord.y;
-          
-          // Apply offset to position the new system
-          for (const [id, coord] of newSystemCoords) {
-            ringCoords.set(id, {
-              x: coord.x + offsetX,
-              y: coord.y + offsetY
-            });
+          // are at a proper bond length distance apart. Preferably rotate the new system so
+          // its local bond vector aligns with the desired outgoing direction from the existing system,
+          // then translate it into place. This avoids large offsets and unpredictable orientations.
+
+          // Compute a more appropriate bond direction based on the existing system geometry
+          // Try to find a neighbor in the already-positioned system to derive direction; fall back to +x
+          let dirX = 1, dirY = 0;
+          for (const bond of molecule.bonds) {
+            if ((bond.atom1 === connectingBond.existingSystemAtom && ringCoords.has(bond.atom2)) ||
+                (bond.atom2 === connectingBond.existingSystemAtom && ringCoords.has(bond.atom1))) {
+              const neighborId = ringCoords.has(bond.atom1) ? bond.atom1 : bond.atom2;
+              const neighborCoord = ringCoords.get(neighborId)!;
+              dirX = existingAtomCoord.x - neighborCoord.x;
+              dirY = existingAtomCoord.y - neighborCoord.y;
+              break;
+            }
           }
-          
+
+          const dlen = Math.sqrt(dirX * dirX + dirY * dirY) || 1;
+          dirX /= dlen; dirY /= dlen;
+
+          // Desired position for the new system's connecting atom: one bond length away along dir
+          const desiredX = existingAtomCoord.x + dirX * bondLength;
+          const desiredY = existingAtomCoord.y + dirY * bondLength;
+
+          // Attempt to rotate the new system so its local neighbor vector aligns opposite to dir
+          // (so that rings/substructures extend outward without overlapping).
+          let rotatedCoordsMap: Map<number, AtomCoordinates> | null = null;
+
+          // Find a neighbor of the connecting atom within the new system to derive its local orientation
+          let newNeighborId: number | null = null;
+          for (const bond of molecule.bonds) {
+            if (bond.atom1 === connectingBond.newSystemAtom && newSystemCoords.has(bond.atom2)) { newNeighborId = bond.atom2; break; }
+            if (bond.atom2 === connectingBond.newSystemAtom && newSystemCoords.has(bond.atom1)) { newNeighborId = bond.atom1; break; }
+          }
+
+          if (newNeighborId !== null) {
+            const nnCoord = newSystemCoords.get(newNeighborId)!;
+            const vNewX = nnCoord.x - newSystemAtomCoord.x;
+            const vNewY = nnCoord.y - newSystemAtomCoord.y;
+            const vNewLen = Math.sqrt(vNewX * vNewX + vNewY * vNewY) || 1;
+            const angleNew = Math.atan2(vNewY, vNewX);
+            // We want the neighbor vector to point roughly opposite the outgoing dir so the new system
+            // extends outwards from the shared atom. Therefore add PI to dir angle.
+            const angleDesired = Math.atan2(dirY, dirX) + Math.PI;
+            const rotateAngle = angleDesired - angleNew;
+
+            const sinA = Math.sin(rotateAngle);
+            const cosA = Math.cos(rotateAngle);
+
+            rotatedCoordsMap = new Map<number, AtomCoordinates>();
+            for (const [id, coord] of newSystemCoords) {
+              const tx = coord.x - newSystemAtomCoord.x;
+              const ty = coord.y - newSystemAtomCoord.y;
+              const rx = tx * cosA - ty * sinA + newSystemAtomCoord.x;
+              const ry = tx * sinA + ty * cosA + newSystemAtomCoord.y;
+              rotatedCoordsMap.set(id, { x: rx, y: ry });
+            }
+          }
+
+          if (rotatedCoordsMap) {
+            const rotatedAnchor = rotatedCoordsMap.get(connectingBond.newSystemAtom)!;
+            const translateX2 = desiredX - rotatedAnchor.x;
+            const translateY2 = desiredY - rotatedAnchor.y;
+            for (const [id, coord] of rotatedCoordsMap) {
+              ringCoords.set(id, { x: coord.x + translateX2, y: coord.y + translateY2 });
+            }
+          } else {
+            // Fallback: simple translation
+            const translateX = desiredX - newSystemAtomCoord.x;
+            const translateY = desiredY - newSystemAtomCoord.y;
+            for (const [id, coord] of newSystemCoords) {
+              ringCoords.set(id, {
+                x: coord.x + translateX,
+                y: coord.y + translateY
+              });
+            }
+          }
+
           processedSystems.add(j);
           changed = true;
         }
@@ -572,7 +906,13 @@ export function generateCoordinates(
 
     for (let i = 0; i < neighbors.length; i++) {
       const neighborId = neighbors[i]!;
-      const childAngle = angle + (i - (neighbors.length - 1) / 2) * (Math.PI / 3);
+      let childAngle = angle + (i - (neighbors.length - 1) / 2) * (Math.PI / 3);
+      
+      if (neighbors.length === 1 && !ringCoords.has(id)) {
+        const zigzagDirection = (visited.size % 2) === 0 ? 1 : -1;
+        childAngle += zigzagDirection * (Math.PI / 4);
+      }
+      
       queue.push({ id: neighborId, parentId: id, angle: childAngle });
     }
   }

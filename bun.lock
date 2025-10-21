@@ -5,6 +5,8 @@
       "name": "kimchi",
       "dependencies": {
         "es-toolkit": "^1.40.0",
+        "webcola": "^3.4.0",
+        "xmllint": "^0.1.1",
       },
       "devDependencies": {
         "@rdkit/rdkit": "latest",
@@ -28,10 +30,26 @@
 
     "csstype": ["csstype@3.1.3", "", {}, "sha512-M1uQkMl8rQK/szD0LNhtqxIPLpimGm8sOBwU7lLnCpSbTyY3yeU1Vc7l4KT5zT4s/yOxHH5O7tIuuLOCnLADRw=="],
 
+    "d3-dispatch": ["d3-dispatch@1.0.6", "", {}, "sha512-fVjoElzjhCEy+Hbn8KygnmMS7Or0a9sI2UzGwoB7cCtvI1XpVN9GpoYlnb3xt2YV66oXYb1fLJ8GMvP4hdU1RA=="],
+
+    "d3-drag": ["d3-drag@1.2.5", "", { "dependencies": { "d3-dispatch": "1", "d3-selection": "1" } }, "sha512-rD1ohlkKQwMZYkQlYVCrSFxsWPzI97+W+PaEIBNTMxRuxz9RF0Hi5nJWHGVJ3Om9d2fRTe1yOBINJyy/ahV95w=="],
+
+    "d3-path": ["d3-path@1.0.9", "", {}, "sha512-VLaYcn81dtHVTjEHd8B+pbe9yHWpXKZUC87PzoFmsFrJqgFwDe/qxfp5MlfsfM1V5E/iVt0MmEbWQ7FVIXh/bg=="],
+
+    "d3-selection": ["d3-selection@1.4.2", "", {}, "sha512-SJ0BqYihzOjDnnlfyeHT0e30k0K1+5sR3d5fNueCNeuhZTnGw4M4o8mqJchSwgKMXCNFo+e2VTChiSJ0vYtXkg=="],
+
+    "d3-shape": ["d3-shape@1.3.7", "", { "dependencies": { "d3-path": "1" } }, "sha512-EUkvKjqPFUAZyOlhY5gzCxCeI0Aep04LwIRpsZ/mLFelJiUfnK56jo5JMDSE7yyP2kLSb6LtF+S5chMk7uqPqw=="],
+
+    "d3-timer": ["d3-timer@1.0.10", "", {}, "sha512-B1JDm0XDaQC+uvo4DT79H0XmBskgS3l6Ve+1SBCfxgmtIb1AVrPIoqd+nPSv+loMX8szQ0sVUhGngL7D5QPiXw=="],
+
     "es-toolkit": ["es-toolkit@1.40.0", "", {}, "sha512-8o6w0KFmU0CiIl0/Q/BCEOabF2IJaELM1T2PWj6e8KqzHv1gdx+7JtFnDwOx1kJH/isJ5NwlDG1nCr1HrRF94Q=="],
 
     "typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
 
     "undici-types": ["undici-types@7.14.0", "", {}, "sha512-QQiYxHuyZ9gQUIrmPo3IA+hUl4KYk8uSA7cHrcKd/l3p1OTpZcM0Tbp9x7FAtXdAYhlasd60ncPpgu6ihG6TOA=="],
+
+    "webcola": ["webcola@3.4.0", "", { "dependencies": { "d3-dispatch": "^1.0.3", "d3-drag": "^1.0.4", "d3-shape": "^1.3.5", "d3-timer": "^1.0.5" } }, "sha512-4BiLXjXw3SJHo3Xd+rF+7fyClT6n7I+AR6TkBqyQ4kTsePSAMDLRCXY1f3B/kXJeP9tYn4G1TblxTO+jAt0gaw=="],
+
+    "xmllint": ["xmllint@0.1.1", "", {}, "sha512-yXa09o/w2E+OLQVbgRyuz1n5o4ZodV8n/iBXwLKQNR6GcfWL8vF8uApjBFKTzhq7sCABtkRXCwEE3+vtkm/Wqg=="],
   }
 }

@@ -105,6 +105,71 @@ describe('SVG Basic Rendering', () => {
   });
 });
 
+describe('SVG Multi-Molecule Rendering', () => {
+  it('should render multiple molecules from ParseResult', () => {
+    const parseResult = parseSMILES('CC.CC');
+    expect(parseResult.molecules.length).toBe(2);
+    
+    const result = renderSVG(parseResult);
+    expect(result.errors).toEqual([]);
+    expect(result.svg).toContain('<svg');
+    expect(result.svg).toContain('</svg>');
+  });
+  
+  it('should render organic molecule with counter-ion', () => {
+    const parseResult = parseSMILES('C1=CC=CC=C1C(=O)C(=O)[O-].[Li+]');
+    expect(parseResult.molecules.length).toBe(2);
+    
+    const benzoate = parseResult.molecules[0]!;
+    const lithium = parseResult.molecules[1]!;
+    
+    expect(benzoate.atoms.length).toBe(11);
+    expect(lithium.atoms.length).toBe(1);
+    expect(lithium.atoms[0]?.symbol).toBe('Li');
+    expect(lithium.atoms[0]?.charge).toBe(1);
+    
+    const result = renderSVG(parseResult);
+    expect(result.errors).toEqual([]);
+    expect(result.svg).toContain('<svg');
+    expect(result.svg).toContain('Li');
+  });
+  
+  it('should render array of molecules', () => {
+    const result1 = parseSMILES('CC');
+    const result2 = parseSMILES('CC');
+    const molecules = [...result1.molecules, ...result2.molecules];
+    
+    const result = renderSVG(molecules);
+    expect(result.errors).toEqual([]);
+    expect(result.svg).toContain('<svg');
+  });
+  
+  it('should render multiple complex molecules with spacing', () => {
+    const parseResult = parseSMILES('c1ccccc1.c1cccnc1');
+    expect(parseResult.molecules.length).toBe(2);
+    
+    const benzene = parseResult.molecules[0]!;
+    const pyridine = parseResult.molecules[1]!;
+    
+    expect(benzene.atoms.length).toBe(6);
+    expect(pyridine.atoms.length).toBe(6);
+    
+    const result = renderSVG(parseResult, { moleculeSpacing: 100 });
+    expect(result.errors).toEqual([]);
+    expect(result.svg).toContain('<svg');
+  });
+  
+  it('should render ionic compound with multiple counter-ions', () => {
+    const parseResult = parseSMILES('CC(=O)OC1=CC=CC=C1C(=O)O.Na.[Na]');
+    expect(parseResult.molecules.length).toBe(3);
+    
+    const result = renderSVG(parseResult);
+    expect(result.errors).toEqual([]);
+    expect(result.svg).toContain('Na');
+  });
+});
+
+
 describe('SVG Aromatic Ring Rendering', () => {
   it('should render benzene with inner double bond lines pointing toward ring center', () => {
     const parseResult = parseSMILES('c1ccccc1');

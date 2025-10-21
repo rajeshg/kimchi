@@ -389,6 +389,256 @@ const output = generateSMILES(mixture.molecules);
 console.log(output); // "CCO.O"
 ```
 
+### SVG Rendering
+
+Render molecules as 2D SVG structures with automatic coordinate generation and layout optimization using webcola collision prevention.
+
+#### Basic SVG Rendering
+
+```typescript
+import { parseSMILES, renderSVG } from 'kimchi';
+
+// Render from parsed molecule
+const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O');
+const result = renderSVG(aspirin.molecules[0]);
+console.log(result.svg); // SVG string ready for display
+console.log(result.width); // Canvas width
+console.log(result.height); // Canvas height
+
+// Or render directly from SMILES (if parsing is included)
+const renderResult = renderSVG('CCO');
+if (renderResult.errors.length === 0) {
+  console.log(renderResult.svg);
+}
+
+// Render multiple molecules in a grid
+const molecules = [
+  parseSMILES('CC(=O)O').molecules[0],
+  parseSMILES('CCO').molecules[0],
+  parseSMILES('CC(C)C').molecules[0]
+];
+const gridResult = renderSVG(molecules);
+console.log(gridResult.svg); // Multi-molecule grid
+```
+
+#### SVG Rendering Options
+
+```typescript
+import { parseSMILES, renderSVG } from 'kimchi';
+import type { SVGRendererOptions } from 'kimchi';
+
+const benzene = parseSMILES('c1ccccc1');
+const mol = benzene.molecules[0];
+
+const options: SVGRendererOptions = {
+  // Canvas sizing
+  width: 400,
+  height: 400,
+  padding: 20,
+  
+  // Bond styling
+  bondLineWidth: 2,
+  bondLength: 40,
+  bondColor: '#000000',
+  
+  // Atom & text styling
+  fontSize: 14,
+  fontFamily: 'Arial, sans-serif',
+  showCarbonLabels: false, // Hide C labels for cleaner appearance
+  showImplicitHydrogens: false, // Hide implicit hydrogens
+  
+  // Color mapping by element
+  atomColors: {
+    C: '#222222',
+    N: '#3050F8',
+    O: '#FF0D0D',
+    S: '#E6C200',
+    F: '#50FF50',
+    Cl: '#1FF01F',
+    Br: '#A62929',
+    I: '#940094'
+  },
+  
+  // Background
+  backgroundColor: '#FFFFFF',
+  
+  // Stereochemistry display
+  showStereoBonds: true,
+  
+  // Layout optimization
+  webcolaIterations: 100, // More iterations = better layout (default: 100)
+  kekulize: true, // Convert aromatic to alternating single/double bonds (default: true)
+  
+  // Chain placement (for deterministic layouts)
+  deterministicChainPlacement: false,
+  deterministicChainLength: 3,
+  moleculeSpacing: 60
+};
+
+const result = renderSVG(mol, options);
+console.log(result.svg); // Custom-styled SVG
+```
+
+#### Using Pre-computed Coordinates
+
+```typescript
+import { parseSMILES, renderSVG } from 'kimchi';
+
+const ethanol = parseSMILES('CCO');
+const mol = ethanol.molecules[0];
+
+// Provide your own atom coordinates (useful for custom layouts)
+const customCoords = [
+  { x: 0, y: 0 },    // C
+  { x: 40, y: 0 },   // C
+  { x: 80, y: 0 }    // O
+];
+
+const result = renderSVG(mol, {
+  atomCoordinates: customCoords,
+  width: 200,
+  height: 100
+});
+
+console.log(result.svg);
+```
+
+#### Webcola Coordinate Generation
+
+kimchi uses **webcola** for collision prevention and layout optimization. This algorithm:
+- Automatically detects and regularizes rings (5 and 6-membered rings)
+- Handles fused ring systems with intelligent spacing
+- Prevents atom/bond overlap
+- Produces publication-quality 2D structures
+
+```typescript
+import { parseSMILES, renderSVG } from 'kimchi';
+
+// Complex fused ring system
+const naphthalene = parseSMILES('c1ccc2ccccc2c1');
+const result = renderSVG(naphthalene.molecules[0], {
+  width: 300,
+  height: 300,
+  webcolaIterations: 150, // More iterations for complex molecules
+  bondLength: 35
+});
+
+console.log(result.svg);
+```
+
+#### Error Handling
+
+```typescript
+import { renderSVG } from 'kimchi';
+
+const result = renderSVG('C');
+if (result.errors.length > 0) {
+  console.error('SVG rendering errors:', result.errors);
+} else {
+  console.log(result.svg);
+}
+```
+
+### SMARTS Matching
+
+Match molecular patterns using SMARTS (SMILES Arbitrary Target Specification) notation.
+
+```typescript
+import { parseSMILES, parseSMARTS, matchSMARTS } from 'kimchi';
+
+// Parse molecule and SMARTS pattern
+const molecule = parseSMILES('CC(=O)Oc1ccccc1C(=O)O'); // aspirin
+const pattern = parseSMARTS('[O;D1]'); // Single-bonded oxygen (carbonyl)
+
+// Find matching atoms
+const matches = matchSMARTS(molecule.molecules[0], pattern);
+console.log(matches.length); // 2 (two carbonyl oxygens)
+console.log(matches); // [[2], [7]] (atom indices)
+
+// Example: Find aromatic rings
+const aromaticRing = parseSMARTS('c1ccccc1'); // benzene pattern
+const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O');
+const ringMatches = matchSMARTS(aspirin.molecules[0], aromaticRing);
+console.log(ringMatches.length); // 1 (one benzene ring)
+
+// Example: Find carboxylic acid groups
+const carboxylPattern = parseSMARTS('[C](=O)[O;H1]'); // COOH
+const matches2 = matchSMARTS(aspirin.molecules[0], carboxylPattern);
+console.log(matches2.length); // 1 (one carboxylic acid)
+
+// Example: Find all heteroatoms
+const heteroPattern = parseSMARTS('[!C;!H]'); // Any non-carbon, non-hydrogen
+const heteroMatches = matchSMARTS(aspirin.molecules[0], heteroPattern);
+console.log(heteroMatches.length); // Number of heteroatoms
+```
+
+### Kekulization
+
+Convert aromatic molecules to alternating single/double bond representations (Kekulé structures).
+
+```typescript
+import { parseSMILES, kekulize, generateSMILES } from 'kimchi';
+
+// Parse aromatic molecule
+const benzene = parseSMILES('c1ccccc1');
+const mol = benzene.molecules[0];
+
+// Convert to Kekulé structure
+const kekuleMol = kekulize(mol);
+
+// Generate SMILES from Kekulé form
+const kekuleSMILES = generateSMILES(kekuleMol);
+console.log(kekuleSMILES); // "C1=CC=CC=C1" or similar alternating structure
+
+// SVG rendering automatically kekulizes (unless disabled)
+import { renderSVG } from 'kimchi';
+
+const result = renderSVG(mol, {
+  kekulize: true  // default: true
+});
+// Rendered SVG shows alternating single/double bonds
+```
+
+### LogP Calculation
+
+Calculate LogP (partition coefficient) for predicting lipophilicity and membrane permeability.
+
+```typescript
+import { parseSMILES, computeLogP, crippenLogP } from 'kimchi';
+
+const molecules = [
+  'CC(=O)Oc1ccccc1C(=O)O',  // aspirin
+  'CC(C)Cc1ccc(cc1)C(C)C(=O)O', // ibuprofen
+  'CC(=O)Nc1ccc(O)cc1'    // acetaminophen
+];
+
+molecules.forEach(smiles => {
+  const mol = parseSMILES(smiles).molecules[0];
+  
+  // Wildman-Crippen method (more accurate)
+  const logP = computeLogP(mol);
+  console.log(`${smiles.substring(0, 10)}... LogP: ${logP.toFixed(2)}`);
+  
+  // Alternative: crippenLogP (alias)
+  const logP2 = crippenLogP(mol);
+  console.log(`  Crippen LogP: ${logP2.toFixed(2)}`);
+});
+
+// LogP guidelines for drug design
+const caffeine = parseSMILES('CN1C=NC2=C1C(=O)N(C(=O)N2C)C');
+const caffeineMol = caffeine.molecules[0];
+const logpValue = computeLogP(caffeineMol);
+
+console.log(`Caffeine LogP: ${logpValue.toFixed(2)}`);
+if (logpValue > 5) {
+  console.log('⚠️ High LogP - may have poor water solubility');
+} else if (logpValue < 0) {
+  console.log('✓ Good LogP - hydrophilic, good bioavailability');
+} else {
+  console.log('✓ Optimal LogP - good balance of lipophilicity and hydrophilicity');
+}
+```
+
 ### Molecule Structure
 
 ```typescript
@@ -432,7 +682,7 @@ bun test test/parser.test.ts
 
 ### Quick Reference
 
-kimchi provides **21 functions** organized into 4 categories:
+kimchi provides **28 functions** organized into 6 categories:
 
 **Parsing & Generation (6)**
 - `parseSMILES` - Parse SMILES strings
@@ -442,10 +692,21 @@ kimchi provides **21 functions** organized into 4 categories:
 - `parseSDF` - Parse SDF files with properties
 - `writeSDF` - Write SDF files with properties
 
+**Pattern Matching & Rendering (4)**
+- `renderSVG` - Render molecules as 2D SVG structures
+- `parseSMARTS` - Parse SMARTS pattern strings
+- `matchSMARTS` - Find SMARTS pattern matches in molecules
+- `kekulize` - Convert aromatic to Kekulé structures
+
 **Basic Properties (3)**
 - `getMolecularFormula` - Hill notation formula
 - `getMolecularMass` - Average molecular mass
 - `getExactMass` - Exact mass (monoisotopic)
+
+**Lipophilicity (3)**
+- `computeLogP` - Wildman-Crippen partition coefficient
+- `crippenLogP` - Alias for computeLogP
+- `logP` - Alternative LogP calculation
 
 **Structural Properties (7)**
 - `getHeavyAtomCount` - Non-hydrogen atom count
@@ -820,6 +1081,133 @@ console.log(result.sdf);
 - Output compatible with RDKit, OpenBabel, ChemDraw, and other tools
 - Standard SDF format (V2000 MOL blocks)
 - Properties follow MDL SDF specification
+
+---
+
+#### Pattern Matching & Rendering (4 functions)
+
+##### `renderSVG(input: string | Molecule | Molecule[] | ParseResult, options?: SVGRendererOptions): SVGRenderResult`
+
+Renders molecules as 2D SVG structures with automatic coordinate generation using webcola collision prevention.
+
+**Parameters**:
+- `input` — SMILES string, single molecule, array of molecules, or ParseResult
+- `options` — Optional rendering configuration (see SVGRendererOptions below)
+
+**Returns**: `SVGRenderResult` containing:
+- `svg: string` — SVG markup ready for display
+- `width: number` — Canvas width in pixels
+- `height: number` — Canvas height in pixels
+- `errors: string[]` — Any rendering errors (empty if successful)
+
+**SVGRendererOptions**:
+- `width?: number` — Canvas width (default: 300)
+- `height?: number` — Canvas height (default: 300)
+- `bondLineWidth?: number` — Bond line thickness (default: 2)
+- `bondLength?: number` — Target bond length in pixels (default: 40)
+- `fontSize?: number` — Atom label font size (default: 12)
+- `fontFamily?: string` — Font family (default: "Arial, sans-serif")
+- `padding?: number` — Canvas padding (default: 20)
+- `showCarbonLabels?: boolean` — Show C atom labels (default: false)
+- `showImplicitHydrogens?: boolean` — Show implicit hydrogens (default: false)
+- `kekulize?: boolean` — Convert aromatic to Kekulé (default: true)
+- `atomColors?: Record<string, string>` — Element-specific colors
+- `backgroundColor?: string` — Background color (default: "#FFFFFF")
+- `bondColor?: string` — Bond color (default: "#000000")
+- `showStereoBonds?: boolean` — Show wedge/hash bonds (default: true)
+- `atomCoordinates?: AtomCoordinates[]` — Pre-computed coordinates
+- `webcolaIterations?: number` — Collision prevention iterations (default: 100)
+- `deterministicChainPlacement?: boolean` — Deterministic layouts (default: false)
+- `moleculeSpacing?: number` — Space between molecules in grid (default: 60)
+
+**Features**:
+- Automatic 2D coordinate generation with collision prevention
+- Ring regularization for 5 and 6-membered rings
+- Fused ring system handling
+- Stereochemistry display (wedge/hash bonds)
+- Element-specific atom coloring
+- Publication-quality output
+
+##### `parseSMARTS(smarts: string): ParseResult`
+
+Parses a SMARTS pattern string into a pattern molecule structure.
+
+**Returns**: `ParseResult` containing:
+- `molecules: Molecule[]` — Array with pattern molecule
+- `errors: string[]` — Parse errors (empty if successful)
+
+**SMARTS support**:
+- Logical operators: `!` (not), `&` (and), `,` (or)
+- Atom properties: `[D1]` (degree), `[H1]` (explicit H), `[v3]` (valence)
+- Connectivity: `[#6X4]` (carbon with degree 4)
+- Aromatic matching: `[c]` or `[a]` (aromatic carbon)
+
+##### `matchSMARTS(molecule: Molecule, pattern: ParseResult): number[][]`
+
+Finds all matches of a SMARTS pattern in a molecule.
+
+**Parameters**:
+- `molecule` — Target molecule to search
+- `pattern` — SMARTS pattern (from `parseSMARTS()`)
+
+**Returns**: Array of matches, where each match is an array of atom indices
+
+**Example**:
+```typescript
+import { parseSMILES, parseSMARTS, matchSMARTS } from 'kimchi';
+
+const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O').molecules[0];
+const carbonyl = parseSMARTS('[C](=O)').molecules[0];
+
+const matches = matchSMARTS(aspirin, carbonyl);
+// matches: [[1, 2], [7, 8]] (two carbonyl groups)
+```
+
+##### `kekulize(molecule: Molecule): Molecule`
+
+Converts aromatic molecules to alternating single/double bond (Kekulé) representation.
+
+**Returns**: New molecule with aromatic bonds replaced by alternating single/double bonds
+
+**Example**:
+```typescript
+import { parseSMILES, kekulize, generateSMILES } from 'kimchi';
+
+const benzene = parseSMILES('c1ccccc1');
+const kek = kekulize(benzene.molecules[0]);
+console.log(generateSMILES(kek)); // "C1=CC=CC=C1"
+```
+
+---
+
+#### Lipophilicity (3 functions)
+
+##### `computeLogP(molecule: Molecule): number`
+
+Calculates the LogP (partition coefficient) using the Wildman-Crippen method. LogP predicts lipophilicity and membrane permeability.
+
+**Returns**: LogP value as a number
+
+**Interpretation**:
+- LogP < 0: Hydrophilic (water-loving)
+- 0 ≤ LogP ≤ 5: Optimal range for most drugs
+- LogP > 5: Lipophilic (fat-loving), may have poor water solubility
+
+**Example**:
+```typescript
+import { parseSMILES, computeLogP } from 'kimchi';
+
+const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O').molecules[0];
+console.log(computeLogP(aspirin)); // 1.31 (good bioavailability)
+```
+
+##### `crippenLogP(molecule: Molecule): number`
+
+Alias for `computeLogP()`. Alternative name for the Wildman-Crippen LogP calculation.
+
+##### `logP(molecule: Molecule): number`
+
+Alternative LogP calculation method. May use different fragment contributions than Crippen.
 
 ---
 

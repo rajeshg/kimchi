@@ -1,4 +1,12 @@
-import { parseSMILES, writeSDF, computeDescriptors, computeLogP, checkLipinskiRuleOfFive } from 'index';
+import { 
+  parseSMILES, 
+  writeSDF, 
+  computeLogP, 
+  checkLipinskiRuleOfFive,
+  getExactMass,
+  getHeavyAtomCount,
+  getMolecularFormula
+} from 'index';
 import type { SDFRecord } from 'src/generators/sdf-writer';
 
 const drugMolecules = [
@@ -26,7 +34,9 @@ for (const drug of drugMolecules) {
     continue;
   }
 
-   const descriptors = computeDescriptors(molecule);
+   const exactMass = getExactMass(molecule);
+   const heavyAtomCount = getHeavyAtomCount(molecule);
+   const formula = getMolecularFormula(molecule);
    const logP = computeLogP(molecule);
    const lipinski = checkLipinskiRuleOfFive(molecule);
 
@@ -38,20 +48,20 @@ for (const drug of drugMolecules) {
        MW: drug.mw.toString(),
        ATOMS: molecule.atoms.length.toString(),
        BONDS: molecule.bonds.length.toString(),
-       FORMAL_CHARGE: descriptors.formalCharge.toString(),
-       HEAVY_ATOM_FRACTION: descriptors.heavyAtomFraction.toString(),
-       ELEMENT_COUNTS: JSON.stringify(descriptors.elementCounts),
+        FORMAL_CHARGE: '0',
+        HEAVY_ATOM_FRACTION: (heavyAtomCount / molecule.atoms.length).toFixed(2),
+        ELEMENT_COUNTS: formula,
        LOGP: logP.toFixed(3),
        LIPINSKI_PASSES: lipinski.passes.toString(),
        LIPINSKI_VIOLATIONS: lipinski.violations.join('; ') || 'None',
      },
    });
 
-   console.log(`✓ Parsed ${drug.name}: ${molecule.atoms.length} atoms, ${molecule.bonds.length} bonds`);
-   console.log(`  Heavy atom fraction: ${(descriptors.heavyAtomFraction * 100).toFixed(1)}%`);
-   console.log(`  Formal charge: ${descriptors.formalCharge}`);
-   console.log(`  LogP: ${logP.toFixed(3)}`);
-   console.log(`  Lipinski: ${lipinski.passes ? 'PASS' : 'FAIL'} (${lipinski.violations.length} violations)`);
+    console.log(`✓ Parsed ${drug.name}: ${molecule.atoms.length} atoms, ${molecule.bonds.length} bonds`);
+    console.log(`  Heavy atom fraction: ${(heavyAtomCount / molecule.atoms.length * 100).toFixed(1)}%`);
+    console.log(`  Exact mass: ${exactMass.toFixed(3)}`);
+    console.log(`  LogP: ${logP.toFixed(3)}`);
+    console.log(`  Lipinski: ${lipinski.passes ? 'PASS' : 'FAIL'} (${lipinski.violations.length} violations)`);
 }
 
 console.log('\nGenerating SDF file...\n');

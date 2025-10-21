@@ -36,23 +36,29 @@ export function svgDoubleBond(
 
   let usePolygonParallel = false;
   let ringAtoms: number[] | undefined = undefined;
-  if (bond.isInRing && molecule.ringInfo) {
-    const ringId = bond.ringIds?.[0];
-    if (ringId !== undefined) {
-      const ringArr = molecule.ringInfo.rings[ringId];
-      if (ringArr) {
-        ringAtoms = Array.from(ringArr);
-        if (isRegularPolygon(ringAtoms, atomIdToCoords)) {
-          usePolygonParallel = true;
-        }
+  // If the bond is in one or more rings, try to pick a regular polygon ring
+  // for the special parallel rendering path. For fused rings prefer any
+  // regular polygon ring; otherwise we'll compute a combined ring center
+  // from all rings the bond participates in so orientation is stable.
+  if (bond.isInRing && molecule.ringInfo && bond.ringIds && bond.ringIds.length > 0) {
+    for (const rid of bond.ringIds) {
+      const ringArr = molecule.ringInfo.rings[rid];
+      if (!ringArr) continue;
+      const candidate = Array.from(ringArr);
+      if (isRegularPolygon(candidate, atomIdToCoords)) {
+        ringAtoms = candidate;
+        usePolygonParallel = true;
+        break;
       }
     }
+    // if we didn't find a regular polygon ring, leave ringAtoms undefined
+    // and fall back to computing a combined center later when needed
   }
 
   if (usePolygonParallel && ringAtoms) {
     const a1 = atomIdToCoords.get(bond.atom1);
     const a2 = atomIdToCoords.get(bond.atom2);
-    if (a1 && a2) {
+    if (a1 && a2 && ringAtoms && ringAtoms.length > 0) {
       let cx = 0, cy = 0;
       for (const atomId of ringAtoms) {
         const c = atomIdToCoords.get(atomId);
@@ -104,28 +110,38 @@ export function svgDoubleBond(
   if (bond.isInRing && molecule.ringInfo) {
     const ringId = bond.ringIds?.[0];
     if (ringId !== undefined) {
-      const ringAtoms = molecule.ringInfo.rings[ringId];
-      if (ringAtoms) {
-        let ringCenterX = 0;
-        let ringCenterY = 0;
+      // Compute a stable ring center for orientation. If the bond belongs to
+      // multiple rings (fused rings) compute the average of their centers so
+      // the orientation decision is consistent.
+      const participatingRingIds = bond.ringIds ?? [];
+      let ringCenterX = 0;
+      let ringCenterY = 0;
+      let centerCount = 0;
+      for (const rid of participatingRingIds) {
+        const ringAtoms = molecule.ringInfo.rings[rid];
+        if (!ringAtoms) continue;
+        let cx = 0, cy = 0, count = 0;
         for (const atomId of ringAtoms) {
           const coord = atomIdToCoords.get(atomId);
-          if (coord) {
-            ringCenterX += coord.x;
-            ringCenterY += coord.y;
-          }
+          if (coord) { cx += coord.x; cy += coord.y; count++; }
         }
-        ringCenterX /= ringAtoms.length;
-        ringCenterY /= ringAtoms.length;
+        if (count === 0) continue;
+        ringCenterX += cx / count;
+        ringCenterY += cy / count;
+        centerCount++;
+      }
+      if (centerCount === 0) return '';
+      ringCenterX /= centerCount;
+      ringCenterY /= centerCount;
 
-        const a1Coord = atomIdToCoords.get(bond.atom1);
-        const a2Coord = atomIdToCoords.get(bond.atom2);
+      const a1Coord = atomIdToCoords.get(bond.atom1);
+      const a2Coord = atomIdToCoords.get(bond.atom2);
 
-        if (!a1Coord || !a2Coord) return '';
+      if (!a1Coord || !a2Coord) return '';
 
-        const rcx = ringCenterX - a1Coord.x;
-        const rcy = ringCenterY - a1Coord.y;
-        const crossProduct = dx * rcy - dy * rcx;
+      const rcx = ringCenterX - a1Coord.x;
+      const rcy = ringCenterY - a1Coord.y;
+      const crossProduct = dx * rcy - dy * rcx;
         if (crossProduct > 0) {
           [line1X1, line2X1] = [line2X1, line1X1];
           [line1Y1, line2Y1] = [line2Y1, line1Y1];
@@ -142,7 +158,6 @@ export function svgDoubleBond(
         line2Y2 -= innerDy / innerLen * shortenAmount;
       }
     }
-  }
 
   return svgLine(line1X1, line1Y1, line1X2, line1Y2, color, width, bondClass) +
          svgLine(line2X1, line2Y1, line2X2, line2Y2, color, width, bondClass);

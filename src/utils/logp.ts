@@ -253,3 +253,6 @@ export function computeLogP(mol: Molecule, includeHs = true): number {
   }
   return calcCrippenDescriptors(mol, includeHs).logp;
 }
+
+export const logP = computeLogP;
+export const crippenLogP = computeLogP;

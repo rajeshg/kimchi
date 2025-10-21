@@ -16,6 +16,8 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "es-toolkit": "^1.40.0"
+    "es-toolkit": "^1.40.0",
+    "webcola": "^3.4.0",
+    "xmllint": "^0.1.1"
   }
 }

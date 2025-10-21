@@ -19,7 +19,6 @@ import {
   getRingCount,
   getAromaticRingCount,
   getFractionCSP3,
-  computeDescriptors,
 } from 'index';
 
 console.log('Kimchi Comprehensive Capabilities Demo');
@@ -55,7 +54,6 @@ if (parseResult.molecules.length > 0) {
   const formula = getMolecularFormula(molecule);
   const mass = getMolecularMass(molecule);
   const logP = computeLogP(molecule);
-  const descriptors = computeDescriptors(molecule);
   const lipinski = checkLipinskiRuleOfFive(molecule);
   const veber = checkVeberRules(molecule);
   const bbb = checkBBBPenetration(molecule);
@@ -120,7 +118,6 @@ const sdfRecords = sampleMolecules.map(({ smiles, name }) => {
   if (result.errors.length > 0 || !result.molecules[0]) return null;
 
   const molecule = result.molecules[0]!;
-  const descriptors = computeDescriptors(molecule);
 
   return {
     molecule,
