@@ -1,6 +1,6 @@
 import type { Atom, Bond, ParseError, Molecule } from 'types';
 import { BondType } from 'types';
-import { getRingAtoms, getRingBonds, filterElementaryRings, isPartOfFusedSystem } from 'src/utils/ring-analysis';
+import { getRingAtoms, getRingBonds, isPartOfFusedSystem } from 'src/utils/ring-analysis';
  import { getBondsForAtom } from 'src/utils/bond-utils';
  import { MoleculeGraph } from 'src/utils/molecular-graph';
 
@@ -93,9 +93,9 @@ export function validateAromaticity(
 ): { atoms: Atom[]; bonds: Bond[] } {
   const mol: Molecule = { atoms, bonds };
   const mg = new MoleculeGraph(mol);
-  const allRings = mg.cycles;
+  const rings = mg.sssr;
 
-  let updatedBonds = detectAromaticRings(atoms, bonds, allRings);
+  let updatedBonds = detectAromaticRings(atoms, bonds, rings);
 
   const aromaticAtoms = atoms.filter(a => a.aromatic);
   if (aromaticAtoms.length === 0) {
@@ -105,7 +105,7 @@ export function validateAromaticity(
   const atomsToMarkNonAromatic = new Set<number>();
 
   for (const atom of aromaticAtoms) {
-    const atomInRing = allRings.some(ring => ring.includes(atom.id));
+    const atomInRing = rings.some(ring => ring.includes(atom.id));
 
     if (!atomInRing) {
       errors.push({
@@ -115,8 +115,6 @@ export function validateAromaticity(
       atomsToMarkNonAromatic.add(atom.id);
     }
   }
-
-  const rings = filterElementaryRings(allRings);
 
   const bondsToUpdate = new Map<string, BondType>();
   const bondKey = (a1: number, a2: number) => {

@@ -338,19 +338,110 @@ export function findShortestPath<TNode, TEdge>(
 }
 
 /**
- * Calculate shortest path distance between two nodes.
- * @param graph The graph to search
- * @param startNode Starting node ID
- * @param endNode Target node ID
- * @returns Distance (number of edges) or -1 if no path exists
+ * Get the shortest path distance between two nodes.
+ * @param graph The graph to analyze
+ * @param startNode The starting node
+ * @param endNode The ending node
+ * @returns Distance (number of edges) or -1 if unreachable
  */
 export function getDistance<TNode, TEdge>(
   graph: Graph<TNode, TEdge>,
   startNode: number,
   endNode: number
 ): number {
-  const path = findShortestPath(graph, startNode, endNode);
-  return path.length === 0 ? -1 : path.length - 1;
+  if (startNode === endNode) return 0;
+
+  const visited = new Set<number>();
+  const queue: { node: number; distance: number }[] = [{ node: startNode, distance: 0 }];
+  visited.add(startNode);
+
+  while (queue.length > 0) {
+    const { node, distance } = queue.shift()!;
+
+    for (const neighbor of graph.getNeighbors(node)) {
+      if (!visited.has(neighbor)) {
+        if (neighbor === endNode) {
+          return distance + 1;
+        }
+        visited.add(neighbor);
+        queue.push({ node: neighbor, distance: distance + 1 });
+      }
+    }
+  }
+
+  return -1; // No path found
+}
+
+/**
+ * Find the Smallest Set of Smallest Rings (SSSR) for a graph.
+ * SSSR uses Euclidean formula: # of rings = edges - nodes + components
+ *
+ * @param graph The graph to analyze
+ * @returns Array of rings, where each ring is an array of node IDs
+ */
+export function findSSSR<TNode, TEdge>(
+  graph: Graph<TNode, TEdge>
+): number[][] {
+  const components = findConnectedComponents(graph);
+  const numNodes = graph.nodeCount();
+  const numEdges = graph.edgeCount();
+  const targetRingCount = numEdges - numNodes + components.length;
+
+  if (targetRingCount === 0) return [];
+
+  // Collect all small cycles first (before selecting SSSR)
+  const allCycles: number[][] = [];
+  const nodes = graph.getNodes();
+  const visited = new Set<string>();
+  
+  // Find cycles from all nodes
+  for (const startNode of nodes) {
+    if (graph.getDegree(startNode) < 2) continue;
+    
+    const cycles = findSmallCycles(graph, startNode, 7, -1);
+    for (const cycle of cycles) {
+      const normalized = normalizeCycle(cycle);
+      const key = normalized.join(',');
+      if (!visited.has(key)) {
+        visited.add(key);
+        allCycles.push(normalized);
+      }
+    }
+  }
+
+  // Sort by cycle length (prefer smaller rings)
+  allCycles.sort((a, b) => a.length - b.length);
+
+  // Greedily select cycles that include new edges (SSSR algorithm)
+  const sssr: number[][] = [];
+  const usedEdges = new Set<string>();
+
+  for (const cycle of allCycles) {
+    if (sssr.length >= targetRingCount) break;
+
+    // Check if cycle has any new edges
+    const cycleEdges = new Set<string>();
+    for (let j = 0; j < cycle.length; j++) {
+      const from = cycle[j]!;
+      const to = cycle[(j + 1) % cycle.length]!;
+      cycleEdges.add(getEdgeKey(from, to));
+    }
+
+    let hasNewEdge = false;
+    for (const edge of cycleEdges) {
+      if (!usedEdges.has(edge)) {
+        hasNewEdge = true;
+        break;
+      }
+    }
+
+    if (hasNewEdge || sssr.length === 0) {
+      sssr.push(cycle);
+      cycleEdges.forEach(edge => usedEdges.add(edge));
+    }
+  }
+
+  return sssr;
 }
 
 /**
@@ -382,32 +473,36 @@ function findCyclesFromNode<TNode, TEdge>(
   cycles: number[][]
 ): void {
   const path: number[] = [];
-  const visited = new Set<number>();
+  const pathSet = new Set<number>();
+  const pathIndex = new Map<number, number>();
 
   function backtrack(current: number): void {
-    const pathIndex = path.indexOf(current);
-
-    if (pathIndex !== -1) {
-      // Found a cycle
-      const cycle = path.slice(pathIndex);
-      cycle.push(current); // Close the cycle
-      if (cycle.length >= 4) { // At least 3 unique nodes + closing node
-        cycles.push([...cycle]);
+    if (pathSet.has(current)) {
+      const cycleStartIndex = pathIndex.get(current);
+      if (cycleStartIndex !== undefined) {
+        const cycle = path.slice(cycleStartIndex);
+        cycle.push(current);
+        if (cycle.length >= 4) {
+          cycles.push([...cycle]);
+        }
       }
       return;
     }
 
+    const currentIndex = path.length;
     path.push(current);
-    visited.add(current);
+    pathSet.add(current);
+    pathIndex.set(current, currentIndex);
 
     for (const neighbor of graph.getNeighbors(current)) {
-      if (neighbor >= startNode) { // Avoid duplicate cycles by direction
+      if (neighbor >= startNode) {
         backtrack(neighbor);
       }
     }
 
     path.pop();
-    visited.delete(current);
+    pathSet.delete(current);
+    pathIndex.delete(current);
   }
 
   backtrack(startNode);
@@ -484,60 +579,75 @@ function normalizeCycle(cycle: number[]): number[] {
   return compareCycles(canonical1, canonical2) <= 0 ? canonical1 : canonical2;
 }
 
+
+
 /**
- * Find the Smallest Set of Smallest Rings (SSSR) / Minimum Cycle Basis (MCB).
- * Uses a greedy algorithm to find a linearly independent set of cycles.
- * The number of rings = edges - nodes + components (cyclomatic complexity).
- * @param graph The graph to analyze
- * @returns Array of rings, where each ring is an array of node IDs
+ * Find small cycles from a given node using DFS with maximum cycle size limit.
+ * Returns cycles in order of increasing length (prioritizes smaller rings).
+ * This is much faster than finding all cycles.
  */
-export function findSSSR<TNode, TEdge>(
-  graph: Graph<TNode, TEdge>
+function findSmallCycles<TNode, TEdge>(
+  graph: Graph<TNode, TEdge>,
+  startNode: number,
+  maxCycleSize: number,
+  maxCyclesToFind: number
 ): number[][] {
-  const allCycles = findCycles(graph);
+  const cycles: number[][] = [];
+  const path: number[] = [];
+  const pathSet = new Set<number>();
   
-  if (allCycles.length === 0) return [];
-
-  const components = findConnectedComponents(graph);
-  const numNodes = graph.nodeCount();
-  const numEdges = graph.edgeCount();
-  const targetRingCount = numEdges - numNodes + components.length;
-
-  if (targetRingCount === 0) return [];
-  if (allCycles.length <= targetRingCount) return allCycles;
-
-  allCycles.sort((a, b) => a.length - b.length);
-
-  const sssr: number[][] = [];
-  const usedEdges = new Set<string>();
-
-  for (const cycle of allCycles) {
-    if (sssr.length >= targetRingCount) break;
-
-    const cycleEdges = new Set<string>();
-    for (let i = 0; i < cycle.length; i++) {
-      const from = cycle[i]!;
-      const to = cycle[(i + 1) % cycle.length]!;
-      cycleEdges.add(getEdgeKey(from, to));
-    }
-
-    const hasNewEdge = Array.from(cycleEdges).some(edge => !usedEdges.has(edge));
+  function dfs(current: number, parentNode: number | null): void {
+    if (maxCyclesToFind > 0 && cycles.length >= maxCyclesToFind) return;
+    if (path.length > maxCycleSize) return;
     
-    if (hasNewEdge || sssr.length === 0) {
-      sssr.push(cycle);
-      cycleEdges.forEach(edge => usedEdges.add(edge));
+    path.push(current);
+    pathSet.add(current);
+    
+    const neighbors = graph.getNeighbors(current);
+    for (const neighbor of neighbors) {
+      // Skip the parent to avoid immediate backtrack
+      if (neighbor === parentNode) continue;
+      
+      if (pathSet.has(neighbor)) {
+        // Found a cycle
+        const cycleStartIdx = path.indexOf(neighbor);
+        if (cycleStartIdx >= 0 && cycleStartIdx < path.length - 2) {
+          const cycle = path.slice(cycleStartIdx);
+          if (cycle.length >= 3 && cycle.length <= maxCycleSize) {
+            // Normalize and add
+            const normalized = normalizeCycle(cycle);
+            const key = normalized.join(',');
+            
+            // Check for duplicates
+            let isDuplicate = false;
+            for (const existing of cycles) {
+              if (existing.length === normalized.length && 
+                  existing.join(',') === key) {
+                isDuplicate = true;
+                break;
+              }
+            }
+            
+            if (!isDuplicate) {
+              cycles.push(normalized);
+            }
+          }
+        }
+      } else {
+        // Continue DFS
+        dfs(neighbor, current);
+      }
     }
+    
+    path.pop();
+    pathSet.delete(current);
   }
 
-  if (sssr.length < targetRingCount) {
-    const remaining = allCycles.filter(c => !sssr.includes(c));
-    for (const cycle of remaining) {
-      if (sssr.length >= targetRingCount) break;
-      sssr.push(cycle);
-    }
-  }
-
-  return sssr.slice(0, targetRingCount);
+  dfs(startNode, null);
+  
+  // Sort by cycle length (smaller rings first)
+  cycles.sort((a, b) => a.length - b.length);
+  return cycles;
 }
 
 /**

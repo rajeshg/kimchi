@@ -358,83 +358,125 @@ function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: ParseE
   }
   if (branchStack.length > 0) errors.push({ message: 'Unmatched opening parentheses', position: -1 });
 
-  // Stereo inference, aromatic bonds, hydrogens
-  for (const bd of bonds) {
-    if (bd.type !== BondType.DOUBLE) continue;
-    if (bd.stereo && bd.stereo !== StereoType.NONE) continue;
-    const a = bd.atom1;
-    const b = bd.atom2;
-    const singleA = bonds.find(bx => bx.type === BondType.SINGLE && ((bx.atom1 === a && bx.atom2 !== b) || (bx.atom2 === a && bx.atom1 !== b)) && bx.stereo && bx.stereo !== StereoType.NONE);
-    const singleB = bonds.find(bx => bx.type === BondType.SINGLE && ((bx.atom1 === b && bx.atom2 !== a) || (bx.atom2 === b && bx.atom1 !== a)) && bx.stereo && bx.stereo !== StereoType.NONE);
-    if (singleA && singleB && singleA.stereo === singleB.stereo) bd.stereo = singleA.stereo;
-  }
+   // Build O(1) lookup structures for atoms and bonds
+   const atomMap = new Map<number, MutableAtom>();
+   for (const atom of atoms) {
+     atomMap.set(atom.id, atom);
+   }
 
-  for (const bond of bonds) {
-    const a1 = atoms.find(a => a.id === bond.atom1)!;
-    const a2 = atoms.find(a => a.id === bond.atom2)!;
-    if (a1.aromatic && a2.aromatic && !explicitBonds.has(bondKey(bond.atom1, bond.atom2))) {
-      bond.type = BondType.AROMATIC;
-    }
-  }
+   // Build adjacency index: atom id -> list of bonds connected to it
+   const adjacency = new Map<number, MutableBond[]>();
+   for (const bond of bonds) {
+     if (!adjacency.has(bond.atom1)) adjacency.set(bond.atom1, []);
+     if (!adjacency.has(bond.atom2)) adjacency.set(bond.atom2, []);
+     adjacency.get(bond.atom1)!.push(bond);
+     adjacency.get(bond.atom2)!.push(bond);
+   }
 
-  for (const atom of atoms) {
-    if (atom.isBracket) {
-      // Bracket atoms have explicit hydrogen count, default to 0 if not specified
-      if (atom.hydrogens < 0) {
-        atom.hydrogens = 0;
-      }
-    } else {
-      // Calculate implicit hydrogens for non-bracket atoms
-      // For hydrogen calculation, aromatic bonds count as 1.0 (not 1.5)
-      let bondOrderSum = 0;
-      for (const bond of bonds) {
-        if (bond.atom1 === atom.id || bond.atom2 === atom.id) {
-          switch (bond.type) {
-            case BondType.SINGLE:
-            case BondType.AROMATIC:
-              bondOrderSum += 1;
-              break;
-            case BondType.DOUBLE:
-              bondOrderSum += 2;
-              break;
-            case BondType.TRIPLE:
-              bondOrderSum += 3;
-              break;
-            case BondType.QUADRUPLE:
-              bondOrderSum += 4;
-              break;
-          }
-        }
-      }
-      
-      // Special handling for wildcard atom '*'
-      if (atom.symbol === '*') {
-        // Wildcard atom takes valence from its bonds, no implicit hydrogens
-        atom.hydrogens = 0;
-      } else {
-        // Use aromatic valences for aromatic atoms, default valences otherwise
-        const defaultValences = atom.aromatic 
-          ? (AROMATIC_VALENCES[atom.symbol] || DEFAULT_VALENCES[atom.symbol] || [atom.atomicNumber])
-          : (DEFAULT_VALENCES[atom.symbol] || [atom.atomicNumber]);
-        // Per OpenSMILES spec: if bond sum equals a known valence or exceeds all known valences, H count = 0
-        // Otherwise H count = (next highest known valence) - bond sum
-        const maxValence = Math.max(...defaultValences);
-        if (bondOrderSum >= maxValence) {
-          atom.hydrogens = 0;
-        } else {
-          // Find the next highest valence
-          let targetValence = maxValence;
-          for (const v of defaultValences.sort((a, b) => a - b)) {
-            if (v >= bondOrderSum) {
-              targetValence = v;
-              break;
-            }
-          }
-          atom.hydrogens = Math.max(0, targetValence + (atom.charge || 0) - bondOrderSum);
-        }
-      }
-    }
-  }
+   // Stereo inference: O(1) lookup instead of O(N²) .find()
+   for (const bd of bonds) {
+     if (bd.type !== BondType.DOUBLE) continue;
+     if (bd.stereo && bd.stereo !== StereoType.NONE) continue;
+     const a = bd.atom1;
+     const b = bd.atom2;
+     
+     let singleA: MutableBond | undefined;
+     let singleB: MutableBond | undefined;
+     
+     // Find stereo single bond attached to atom a (but not to b)
+     const bondsAtA = adjacency.get(a) || [];
+     for (const bx of bondsAtA) {
+       if (bx.type === BondType.SINGLE && bx.stereo && bx.stereo !== StereoType.NONE) {
+         const other = bx.atom1 === a ? bx.atom2 : bx.atom1;
+         if (other !== b) {
+           singleA = bx;
+           break;
+         }
+       }
+     }
+     
+     // Find stereo single bond attached to atom b (but not to a)
+     const bondsAtB = adjacency.get(b) || [];
+     for (const bx of bondsAtB) {
+       if (bx.type === BondType.SINGLE && bx.stereo && bx.stereo !== StereoType.NONE) {
+         const other = bx.atom1 === b ? bx.atom2 : bx.atom1;
+         if (other !== a) {
+           singleB = bx;
+           break;
+         }
+       }
+     }
+     
+     if (singleA && singleB && singleA.stereo === singleB.stereo) bd.stereo = singleA.stereo;
+   }
+
+   // Aromatic bond detection: O(N) with O(1) atom lookup
+   for (const bond of bonds) {
+     const a1 = atomMap.get(bond.atom1);
+     const a2 = atomMap.get(bond.atom2);
+     if (a1 && a2 && a1.aromatic && a2.aromatic && !explicitBonds.has(bondKey(bond.atom1, bond.atom2))) {
+       bond.type = BondType.AROMATIC;
+     }
+   }
+
+   // Hydrogen calculation: O(N·M) -> O(N) with adjacency index
+   for (const atom of atoms) {
+     if (atom.isBracket) {
+       // Bracket atoms have explicit hydrogen count, default to 0 if not specified
+       if (atom.hydrogens < 0) {
+         atom.hydrogens = 0;
+       }
+     } else {
+       // Calculate implicit hydrogens for non-bracket atoms
+       // For hydrogen calculation, aromatic bonds count as 1.0 (not 1.5)
+       let bondOrderSum = 0;
+       const atomBonds = adjacency.get(atom.id) || [];
+       for (const bond of atomBonds) {
+         switch (bond.type) {
+           case BondType.SINGLE:
+           case BondType.AROMATIC:
+             bondOrderSum += 1;
+             break;
+           case BondType.DOUBLE:
+             bondOrderSum += 2;
+             break;
+           case BondType.TRIPLE:
+             bondOrderSum += 3;
+             break;
+           case BondType.QUADRUPLE:
+             bondOrderSum += 4;
+             break;
+         }
+       }
+       
+       // Special handling for wildcard atom '*'
+       if (atom.symbol === '*') {
+         // Wildcard atom takes valence from its bonds, no implicit hydrogens
+         atom.hydrogens = 0;
+       } else {
+         // Use aromatic valences for aromatic atoms, default valences otherwise
+         const defaultValences = atom.aromatic 
+           ? (AROMATIC_VALENCES[atom.symbol] || DEFAULT_VALENCES[atom.symbol] || [atom.atomicNumber])
+           : (DEFAULT_VALENCES[atom.symbol] || [atom.atomicNumber]);
+         // Per OpenSMILES spec: if bond sum equals a known valence or exceeds all known valences, H count = 0
+         // Otherwise H count = (next highest known valence) - bond sum
+         const maxValence = Math.max(...defaultValences);
+         if (bondOrderSum >= maxValence) {
+           atom.hydrogens = 0;
+         } else {
+           // Find the next highest valence
+           let targetValence = maxValence;
+           for (const v of defaultValences.sort((a, b) => a - b)) {
+             if (v >= bondOrderSum) {
+               targetValence = v;
+               break;
+             }
+           }
+           atom.hydrogens = Math.max(0, targetValence + (atom.charge || 0) - bondOrderSum);
+         }
+       }
+     }
+   }
 
   // Validate aromaticity
   const validatedArom = validateAromaticity(atoms, bonds, errors, explicitBonds);

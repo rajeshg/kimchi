@@ -7,8 +7,9 @@ export function findRings(atoms: readonly Atom[], bonds: readonly Bond[]): numbe
   const visited = new Set<number>();
   const ringSet = new Set<string>();
 
-  function dfs(startId: number, currentId: number, path: number[], visitedEdges: Set<string>): void {
+  function dfs(startId: number, currentId: number, path: number[], visitedEdges: Set<string>, pathSet: Set<number>): void {
     path.push(currentId);
+    pathSet.add(currentId);
     visited.add(currentId);
 
     const neighbors = bonds
@@ -27,20 +28,23 @@ export function findRings(atoms: readonly Atom[], bonds: readonly Bond[]): numbe
           ringSet.add(ringKey);
           rings.push(ring);
         }
-      } else if (!path.includes(neighborId)) {
-        dfs(startId, neighborId, [...path], new Set(visitedEdges));
+      } else if (!pathSet.has(neighborId)) {
+        const newPathSet = new Set(pathSet);
+        newPathSet.add(neighborId);
+        dfs(startId, neighborId, [...path], new Set(visitedEdges), newPathSet);
       }
 
       visitedEdges.delete(edgeKey);
     }
 
     path.pop();
+    pathSet.delete(currentId);
     visited.delete(currentId);
   }
 
   for (const atom of atoms) {
     if (!visited.has(atom.id)) {
-      dfs(atom.id, atom.id, [], new Set());
+      dfs(atom.id, atom.id, [], new Set(), new Set());
     }
   }
 
@@ -111,11 +115,12 @@ export function classifyRingSystems(atoms: readonly Atom[], bonds: readonly Bond
     if (!ring1) continue;
     let sharedCount = 0;
     let sharedAtoms: number[] = [];
+    const ring1Set = new Set(ring1);
 
     for (let j = i + 1; j < rings.length; j++) {
       const ring2 = rings[j];
       if (!ring2) continue;
-       const shared = ring1.filter(atom => ring2.includes(atom));
+      const shared = ring2.filter(atom => ring1Set.has(atom));
 
       if (shared.length > 0) {
         sharedCount++;
@@ -151,65 +156,77 @@ export function analyzeRings(atoms: readonly Atom[], bonds: readonly Bond[]): Ri
   const rings = findMCB(atoms, bonds);
   const ringAtomSet = new Set<number>();
   const ringBondSet = new Set<string>();
-  
+
   for (const ring of rings) {
     for (const atomId of ring) {
       ringAtomSet.add(atomId);
     }
   }
-  
+
   for (const bond of bonds) {
-    for (const ring of rings) {
-      const atom1InThisRing = ring.includes(bond.atom1);
-      const atom2InThisRing = ring.includes(bond.atom2);
-      
+    for (let ringIdx = 0; ringIdx < rings.length; ringIdx++) {
+      const ring = rings[ringIdx]!;
+      const ringSet = new Set(ring);
+      const atom1InThisRing = ringSet.has(bond.atom1);
+      const atom2InThisRing = ringSet.has(bond.atom2);
+
       if (atom1InThisRing && atom2InThisRing) {
         ringBondSet.add(bondKey(bond.atom1, bond.atom2));
         break;
       }
     }
   }
-  
+
+  const ringSetArray = rings.map(r => new Set(r));
+
   return {
     rings,
     ringAtomSet,
     ringBondSet,
     isAtomInRing: (atomId: number) => ringAtomSet.has(atomId),
     isBondInRing: (atom1: number, atom2: number) => ringBondSet.has(bondKey(atom1, atom2)),
-    getRingsContainingAtom: (atomId: number) => rings.filter(r => r.includes(atomId)),
+    getRingsContainingAtom: (atomId: number) => rings.filter((_, idx) => ringSetArray[idx]!.has(atomId)),
     areBothAtomsInSameRing: (atom1: number, atom2: number) => {
-      return rings.some(ring => ring.includes(atom1) && ring.includes(atom2));
+      return ringSetArray.some(ringSet => ringSet.has(atom1) && ringSet.has(atom2));
     },
   };
 }
 
 export function isAtomInRing(atomId: number, rings: number[][]): boolean {
-  return rings.some(ring => ring.includes(atomId));
+  const ringSets = rings.map(r => new Set(r));
+  return ringSets.some(ringSet => ringSet.has(atomId));
 }
 
 export function isBondInRing(atom1: number, atom2: number, rings: number[][]): boolean {
-  return rings.some(ring => ring.includes(atom1) && ring.includes(atom2));
+  const ringSets = rings.map(r => new Set(r));
+  return ringSets.some(ringSet => ringSet.has(atom1) && ringSet.has(atom2));
 }
 
 export function getRingsContainingAtom(atomId: number, rings: number[][]): number[][] {
-  return rings.filter(ring => ring.includes(atomId));
+  return rings.filter(ring => {
+    const ringSet = new Set(ring);
+    return ringSet.has(atomId);
+  });
 }
 
 export function getAromaticRings(rings: number[][], atoms: readonly Atom[]): number[][] {
+  const atomMap = new Map(atoms.map(a => [a.id, a]));
   return rings.filter(ring => {
     return ring.every(atomId => {
-      const atom = atoms.find(a => a.id === atomId);
+      const atom = atomMap.get(atomId);
       return atom?.aromatic === true;
     });
   });
 }
 
 export function getRingAtoms(ring: readonly number[], atoms: readonly Atom[]): Atom[] {
-  return [...ring].map((id: number) => atoms.find(a => a.id === id)!);
+  const atomMap = new Map(atoms.map(a => [a.id, a]));
+  return [...ring].map((id: number) => atomMap.get(id)!);
 }
 
 export function getRingBonds(ring: readonly number[], bonds: readonly Bond[]): Bond[] {
-  return bonds.filter(b => ring.includes(b.atom1) && ring.includes(b.atom2));
+  const ringSet = new Set(ring);
+  return bonds.filter(b => ringSet.has(b.atom1) && ringSet.has(b.atom2));
 }
 
 export function isCompositeRing(ring: number[], smallerRings: number[][]): boolean {
@@ -234,10 +251,11 @@ export function filterElementaryRings(allRings: number[][]): number[][] {
 }
 
 export function isPartOfFusedSystem(ring: number[], allRings: number[][]): boolean {
+  const ringSet = new Set(ring);
   for (const otherRing of allRings) {
     if (otherRing === ring) continue;
-    const sharedAtoms = ring.filter(id => otherRing.includes(id));
-    if (sharedAtoms.length >= 2) {
+    const sharedCount = otherRing.filter(id => ringSet.has(id)).length;
+    if (sharedCount >= 2) {
       return true;
     }
   }
