@@ -44,12 +44,10 @@
   "scripts": {
     "test": "bun test",
     "test:full": "RUN_RDKIT_BULK=1 bun test",
-    "typecheck": "bun run tsc --noEmit",
-    "build": "bun run build:browser && bun run build:types",
-    "build:browser": "bun build index.ts --outdir ./dist --target browser --format esm --minify",
-    "build:types": "bun run tsc --declaration --emitDeclarationOnly --outDir dist",
+    "typecheck": "bunx tsc --noEmit --skipLibCheck",
+    "build": "node scripts/build.mjs",
     "serve": "bun run build && bunx serve . -p 3000",
-    "prepublishOnly": "bun run typecheck && bun run test && bun run build"
+    "prepublishOnly": "bun run build && bun run test"
   },
   "devDependencies": {
     "@rdkit/rdkit": "latest",
