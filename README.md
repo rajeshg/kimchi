@@ -1,10 +1,10 @@
-# kimchi
+# openchem
 
 A fast TypeScript / JavaScript chemistry toolkit for working with molecular structures: parsing & generation (SMILES, MOL, SDF), canonicalization, pattern matching (SMARTS), 2D rendering, molecular descriptors, and structural analysis.
 
-Production-ready, TypeScript-first library for cheminformatics — works in both browser and Node.js. kimchi keeps a small runtime footprint and relies on a couple of lightweight, well-audited libraries (for example `es-toolkit` utility helpers and `webcola` for layout) rather than a large dependency surface.
+Production-ready, TypeScript-first library for cheminformatics — works in both browser and Node.js. openchem keeps a small runtime footprint and relies on a couple of lightweight, well-audited libraries (for example `es-toolkit` utility helpers and `webcola` for layout) rather than a large dependency surface.
 
-## Why kimchi?
+## Why openchem?
 
 - ⚡ Fast & lightweight — Small dependency footprint (uses a couple of lightweight libraries such as `es-toolkit` and `webcola`), pure TypeScript implementation with small runtime overhead (works in browser and Node.js)
 - ✅ TypeScript-first — Strong types and type definitions make integration into TS projects effortless; friendly JS API for plain JavaScript users
@@ -14,7 +14,7 @@ Production-ready, TypeScript-first library for cheminformatics — works in both
 
 ## HTML Playground
 
-kimchi includes an interactive HTML playground for testing SMILES parsing, molecular visualization, and descriptor calculation:
+openchem includes an interactive HTML playground for testing SMILES parsing, molecular visualization, and descriptor calculation:
 
 ```bash
 # Build the browser bundle and start a local server
@@ -29,12 +29,12 @@ The playground provides:
 - **Drug-Likeness Checks** — Lipinski's Rule of Five, Veber rules, BBB penetration
 - **Interactive Examples** — Pre-loaded molecules like aspirin, caffeine, ibuprofen
 
-The playground automatically detects if the full kimchi library is available and falls back to approximate calculations if needed.
+The playground automatically detects if the full openchem library is available and falls back to approximate calculations if needed.
 
-**Note:** The HTML playground requires a web server to load the kimchi library due to ES module security restrictions. Use `bun run serve` to start a local server, then open `http://localhost:3000/smiles-playground.html` in your browser.
+**Note:** The HTML playground requires a web server to load the openchem library due to ES module security restrictions. Use `bun run serve` to start a local server, then open `http://localhost:3000/smiles-playground.html` in your browser.
 
 ```typescript
-import { parseSMILES, generateSMILES, parseMolfile, generateMolfile, parseSDF, writeSDF } from '@rajgolla/kimchi';
+import { parseSMILES, generateSMILES, parseMolfile, generateMolfile, parseSDF, writeSDF } from 'openchem';
 
 // Parse SMILES into molecule structure
 const result = parseSMILES('CC(=O)O'); // acetic acid
@@ -95,7 +95,7 @@ console.log(sdfResult.records[0].properties.NAME); // "Ethanol"
 
 ## Testing & RDKit comparison
 
-kimchi has an extensive test suite (unit, integration, and RDKit comparison tests) that exercises parsing, generation, file round-trips, stereochemistry, aromatic perception, and molecular properties. Rather than rely on fragile hard-coded counts in the README, the project keeps comprehensive automated tests in the `test/` folder and runs RDKit parity checks as part of the comparison test suite when RDKit is available.
+openchem has an extensive test suite (unit, integration, and RDKit comparison tests) that exercises parsing, generation, file round-trips, stereochemistry, aromatic perception, and molecular properties. Rather than rely on fragile hard-coded counts in the README, the project keeps comprehensive automated tests in the `test/` folder and runs RDKit parity checks as part of the comparison test suite when RDKit is available.
 
 Highlights:
 - Broad unit and integration coverage across parsers, generators, utils, and validators
@@ -119,16 +119,16 @@ For maintainers: update and run the test suite with `bun test`. Use `RUN_RDKIT_B
 The project also includes utilities for ring finding, symmetry detection, valence checking, and RDKit comparison tooling in the `test/rdkit-comparison` folder.
 ## Validation
 
-kimchi maintains broad automated test coverage across unit, integration, and RDKit comparison tests. The `test/` directory contains the authoritative suite; maintainers can run `bun test` locally and enable the heavier RDKit comparison runs with `RUN_RDKIT_BULK=1` when RDKit is available. Tests are designed to validate parsing, generation, round-tripping, stereochemistry, aromatic perception, and molecular properties without requiring hard-coded counts in the README.
+openchem maintains broad automated test coverage across unit, integration, and RDKit comparison tests. The `test/` directory contains the authoritative suite; maintainers can run `bun test` locally and enable the heavier RDKit comparison runs with `RUN_RDKIT_BULK=1` when RDKit is available. Tests are designed to validate parsing, generation, round-tripping, stereochemistry, aromatic perception, and molecular properties without requiring hard-coded counts in the README.
 
 ## Installation
 
 ```bash
-npm install @rajgolla/kimchi
-# or
-bun add @rajgolla/kimchi
-# or
-pnpm add @rajgolla/kimchi
+npm install openchem
+
+bun add openchem
+
+pnpm add openchem
 ```
 
 ## Usage
@@ -149,7 +149,7 @@ RUN_RDKIT_BULK=1 bun test
 
 Add `RUN_VERBOSE=1` for more detailed RDKit reporting during the run.
 ```typescript
-import { parseSMILES } from '@rajgolla/kimchi';
+import { parseSMILES } from 'openchem';
 
 // Simple molecule
 const ethanol = parseSMILES('CCO');
@@ -169,7 +169,7 @@ console.log(chiralCenter?.chiral); // '@'
 
 ### Molecular Properties
 
-kimchi provides comprehensive molecular property calculations for drug discovery and cheminformatics applications.
+openchem provides comprehensive molecular property calculations for drug discovery and cheminformatics applications.
 
 #### Basic Properties
 
@@ -179,7 +179,7 @@ import {
   getMolecularFormula, 
   getMolecularMass, 
   getExactMass 
-} from '@rajgolla/kimchi';
+} from 'openchem';
 
 const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O');
 const mol = aspirin.molecules[0];
@@ -206,7 +206,7 @@ import {
   getHeteroAtomCount,
   getRingCount,
   getAromaticRingCount
-} from '@rajgolla/kimchi';
+} from 'openchem';
 
 const ibuprofen = parseSMILES('CC(C)Cc1ccc(cc1)C(C)C(=O)O');
 const mol = ibuprofen.molecules[0];
@@ -233,7 +233,7 @@ import {
   getHBondDonorCount,
   getHBondAcceptorCount,
   getTPSA
-} from '@rajgolla/kimchi';
+} from 'openchem';
 
 const caffeine = parseSMILES('CN1C=NC2=C1C(=O)N(C(=O)N2C)C');
 const mol = caffeine.molecules[0];
@@ -257,7 +257,7 @@ console.log(getTPSA(mol)); // 61.82
 TPSA (Topological Polar Surface Area) is essential for predicting drug properties:
 
 ```typescript
-import { parseSMILES, getTPSA } from '@rajgolla/kimchi';
+import { parseSMILES, getTPSA } from 'openchem';
 
 // Oral bioavailability: TPSA < 140 Ų
 const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O');
@@ -276,7 +276,7 @@ import {
   checkLipinskiRuleOfFive, 
   checkVeberRules, 
   checkBBBPenetration 
-} from '@rajgolla/kimchi';
+} from 'openchem';
 
 // Lipinski's Rule of Five (oral drug-likeness)
 const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O');
@@ -300,7 +300,7 @@ console.log(bbb.likelyPenetration); // true (TPSA: 61.82 < 90)
 ### Generating SMILES
 
 ```typescript
-import { parseSMILES, generateSMILES } from '@rajgolla/kimchi';
+import { parseSMILES, generateSMILES } from 'openchem';
 
 // Generate canonical SMILES (default)
 const input = 'CC(C)CC';
@@ -336,7 +336,7 @@ Render molecules as 2D SVG structures with automatic coordinate generation and l
 #### Basic SVG Rendering
 
 ```typescript
-import { parseSMILES, renderSVG } from '@rajgolla/kimchi';
+import { parseSMILES, renderSVG } from 'openchem';
 
 // Render from parsed molecule
 const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O');
@@ -364,8 +364,8 @@ console.log(gridResult.svg); // Multi-molecule grid
 #### SVG Rendering Options
 
 ```typescript
-import { parseSMILES, renderSVG } from '@rajgolla/kimchi';
-import type { SVGRendererOptions } from '@rajgolla/kimchi';
+import { parseSMILES, renderSVG } from 'openchem';
+import type { SVGRendererOptions } from 'openchem';
 
 const benzene = parseSMILES('c1ccccc1');
 const mol = benzene.molecules[0];
@@ -422,7 +422,7 @@ console.log(result.svg); // Custom-styled SVG
 #### Using Pre-computed Coordinates
 
 ```typescript
-import { parseSMILES, renderSVG } from '@rajgolla/kimchi';
+import { parseSMILES, renderSVG } from 'openchem';
 
 const ethanol = parseSMILES('CCO');
 const mol = ethanol.molecules[0];
@@ -445,14 +445,14 @@ console.log(result.svg);
 
 #### Webcola Coordinate Generation
 
-kimchi uses **webcola** for collision prevention and layout optimization. This algorithm:
+openchem uses **webcola** for collision prevention and layout optimization. This algorithm:
 - Automatically detects and regularizes rings (5 and 6-membered rings)
 - Handles fused ring systems with intelligent spacing
 - Prevents atom/bond overlap
 - Produces publication-quality 2D structures
 
 ```typescript
-import { parseSMILES, renderSVG } from '@rajgolla/kimchi';
+import { parseSMILES, renderSVG } from 'openchem';
 
 // Complex fused ring system
 const naphthalene = parseSMILES('c1ccc2ccccc2c1');
@@ -469,7 +469,7 @@ console.log(result.svg);
 #### Error Handling
 
 ```typescript
-import { renderSVG } from '@rajgolla/kimchi';
+import { renderSVG } from 'openchem';
 
 const result = renderSVG('C');
 if (result.errors.length > 0) {
@@ -484,7 +484,7 @@ if (result.errors.length > 0) {
 Match molecular patterns using SMARTS (SMILES Arbitrary Target Specification) notation.
 
 ```typescript
-import { parseSMILES, parseSMARTS, matchSMARTS } from '@rajgolla/kimchi';
+import { parseSMILES, parseSMARTS, matchSMARTS } from 'openchem';
 
 // Parse molecule and SMARTS pattern
 const molecule = parseSMILES('CC(=O)Oc1ccccc1C(=O)O'); // aspirin
@@ -517,7 +517,7 @@ console.log(heteroMatches.length); // Number of heteroatoms
 Convert aromatic molecules to alternating single/double bond representations (Kekulé structures).
 
 ```typescript
-import { parseSMILES, kekulize, generateSMILES } from '@rajgolla/kimchi';
+import { parseSMILES, kekulize, generateSMILES } from 'openchem';
 
 // Parse aromatic molecule
 const benzene = parseSMILES('c1ccccc1');
@@ -531,7 +531,7 @@ const kekuleSMILES = generateSMILES(kekuleMol);
 console.log(kekuleSMILES); // "C1=CC=CC=C1" or similar alternating structure
 
 // SVG rendering automatically kekulizes (unless disabled)
-import { renderSVG } from '@rajgolla/kimchi';
+import { renderSVG } from 'openchem';
 
 const result = renderSVG(mol, {
   kekulize: true  // default: true
@@ -544,7 +544,7 @@ const result = renderSVG(mol, {
 Calculate LogP (partition coefficient) for predicting lipophilicity and membrane permeability.
 
 ```typescript
-import { parseSMILES, computeLogP, crippenLogP } from '@rajgolla/kimchi';
+import { parseSMILES, computeLogP, crippenLogP } from 'openchem';
 
 const molecules = [
   'CC(=O)Oc1ccccc1C(=O)O',  // aspirin
@@ -582,8 +582,8 @@ if (logpValue > 5) {
 ### Molecule Structure
 
 ```typescript
-import { parseSMILES } from '@rajgolla/kimchi';
-import { BondType } from '@rajgolla/kimchi';
+import { parseSMILES } from 'openchem';
+import { BondType } from 'openchem';
 
 const result = parseSMILES('C=C');
 const mol = result.molecules[0];
@@ -622,7 +622,7 @@ bun test test/parser.test.ts
 
 ### Quick Reference
 
-kimchi provides **28 functions** organized into 6 categories:
+openchem provides **28 functions** organized into 6 categories:
 
 **Parsing & Generation (6)**
 - `parseSMILES` - Parse SMILES strings
@@ -702,7 +702,7 @@ Generates a MOL file (V2000 format) from a molecule structure. Matches RDKit's o
 - `molecule` — Molecule structure to convert
 - `options` — Optional configuration:
   - `title?: string` — Molecule title (default: empty)
-  - `programName?: string` — Program name in header (default: "kimchi")
+  - `programName?: string` — Program name in header (default: "openchem")
   - `dimensionality?: '2D' | '3D'` — Coordinate system (default: "2D")
   - `comment?: string` — Comment line (default: empty)
 
@@ -717,7 +717,7 @@ Generates a MOL file (V2000 format) from a molecule structure. Matches RDKit's o
 
 **Example**:
 ```typescript
-import { parseSMILES, generateMolfile } from '@rajgolla/kimchi';
+import { parseSMILES, generateMolfile } from 'openchem';
 
 const result = parseSMILES('CCO');
 const molfile = generateMolfile(result.molecules[0]);
@@ -763,7 +763,7 @@ Parses a MOL file (MDL Molfile format) into a molecule structure. Supports both 
 
 **Example**:
 ```typescript
-import { parseMolfile, generateSMILES } from '@rajgolla/kimchi';
+import { parseMolfile, generateSMILES } from 'openchem';
 
 const molContent = `
 ethanol
@@ -797,7 +797,7 @@ if (invalid.errors.length > 0) {
 
 **Round-trip workflow**:
 ```typescript
-import { parseSMILES, generateMolfile, parseMolfile, generateSMILES } from '@rajgolla/kimchi';
+import { parseSMILES, generateMolfile, parseMolfile, generateSMILES } from 'openchem';
 
 // SMILES → MOL → SMILES round-trip
 const original = 'CC(=O)O'; // acetic acid
@@ -835,7 +835,7 @@ Parses an SDF (Structure-Data File) into molecule structures with associated pro
 
 **Example (single record)**:
 ```typescript
-import { parseSDF, generateSMILES } from '@rajgolla/kimchi';
+import { parseSDF, generateSMILES } from 'openchem';
 
 const sdfContent = `
   Mrv2311 02102409422D          
@@ -881,7 +881,7 @@ if (result.records[0].errors.length > 0) {
 
 **Example (multiple records)**:
 ```typescript
-import { parseSDF } from '@rajgolla/kimchi';
+import { parseSDF } from 'openchem';
 
 const multiRecordSDF = `
   Mrv2311 02102409422D          
@@ -923,7 +923,7 @@ console.log(result.records[1].properties.NAME); // "Ethane"
 
 **Round-trip workflow**:
 ```typescript
-import { parseSMILES, writeSDF, parseSDF, generateSMILES } from '@rajgolla/kimchi';
+import { parseSMILES, writeSDF, parseSDF, generateSMILES } from 'openchem';
 
 // SMILES → SDF → SMILES round-trip
 const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O').molecules[0];
@@ -946,7 +946,7 @@ Writes molecules to SDF (Structure-Data File) format. Supports single or multipl
 - `records` — Single record or array of records to write
 - `options` — Optional configuration (same as `MolGeneratorOptions`):
   - `title?: string` — Default title for records (default: empty)
-  - `programName?: string` — Program name in headers (default: "kimchi")
+  - `programName?: string` — Program name in headers (default: "openchem")
   - `dimensionality?: '2D' | '3D'` — Coordinate system (default: "2D")
   - `comment?: string` — Default comment (default: empty)
 
@@ -969,7 +969,7 @@ interface SDFRecord {
 
 **Example (single molecule)**:
 ```typescript
-import { parseSMILES, writeSDF } from '@rajgolla/kimchi';
+import { parseSMILES, writeSDF } from 'openchem';
 
 const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O');
 const result = writeSDF({
@@ -987,7 +987,7 @@ console.log(result.sdf);
 
 **Example (multiple molecules)**:
 ```typescript
-import { parseSMILES, writeSDF } from '@rajgolla/kimchi';
+import { parseSMILES, writeSDF } from 'openchem';
 
 const drugs = [
   { smiles: 'CC(=O)Oc1ccccc1C(=O)O', name: 'aspirin' },
@@ -1094,7 +1094,7 @@ Finds all matches of a SMARTS pattern in a molecule.
 
 **Example**:
 ```typescript
-import { parseSMILES, parseSMARTS, matchSMARTS } from '@rajgolla/kimchi';
+import { parseSMILES, parseSMARTS, matchSMARTS } from 'openchem';
 
 const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O').molecules[0];
 const carbonyl = parseSMARTS('[C](=O)').molecules[0];
@@ -1111,7 +1111,7 @@ Converts aromatic molecules to alternating single/double bond (Kekulé) represen
 
 **Example**:
 ```typescript
-import { parseSMILES, kekulize, generateSMILES } from '@rajgolla/kimchi';
+import { parseSMILES, kekulize, generateSMILES } from 'openchem';
 
 const benzene = parseSMILES('c1ccccc1');
 const kek = kekulize(benzene.molecules[0]);
@@ -1135,7 +1135,7 @@ Calculates the LogP (partition coefficient) using the Wildman-Crippen method. Lo
 
 **Example**:
 ```typescript
-import { parseSMILES, computeLogP } from '@rajgolla/kimchi';
+import { parseSMILES, computeLogP } from 'openchem';
 
 const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O').molecules[0];
 console.log(computeLogP(aspirin)); // 1.31 (good bioavailability)
@@ -1554,7 +1554,7 @@ This implementation achieves 100% agreement with RDKit's canonical output across
 
 ## Contributing
 
-We welcome contributions! kimchi maintains strict quality standards:
+We welcome contributions! openchem maintains strict quality standards:
 
 1. **All tests must pass** — 610/610 required
 2. **RDKit parity required** — Canonical SMILES must match RDKit output exactly

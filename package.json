@@ -1,16 +1,16 @@
 {
-  "name": "@rajgolla/kimchi",
+  "name": "openchem",
   "version": "0.1.1",
   "description": "A fast TypeScript / JavaScript chemistry toolkit for working with molecular structures: parsing & generation (SMILES, MOL, SDF), canonicalization, pattern matching (SMARTS), 2D rendering, and molecular descriptors.",
-  "author": "kimchi contributors",
+  "author": "rajeshg",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/rajeshg/kimchi"
+    "url": "https://github.com/rajeshg/openchem"
   },
-  "homepage": "https://github.com/rajeshg/kimchi",
+  "homepage": "https://github.com/rajeshg/openchem",
   "bugs": {
-    "url": "https://github.com/rajeshg/kimchi/issues"
+    "url": "https://github.com/rajeshg/openchem/issues"
   },
   "keywords": [
     "chemistry",
