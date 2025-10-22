@@ -1,0 +1,12 @@
+test/
+docs/
+scripts/
+.github/
+*.test.ts
+smiles-playground.html
+tsconfig.json
+bun.lock
+generate-comparison.ts
+AGENTS.md
+opencode.json
+.gitignore

@@ -1,15 +1,55 @@
 {
-  "name": "kimchi",
+  "name": "@rajgolla/kimchi",
+  "version": "0.1.0",
+  "description": "A fast TypeScript / JavaScript chemistry toolkit for working with molecular structures: parsing & generation (SMILES, MOL, SDF), canonicalization, pattern matching (SMARTS), 2D rendering, and molecular descriptors.",
+  "author": "kimchi contributors",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rajgolla/kimchi"
+  },
+  "homepage": "https://github.com/rajgolla/kimchi",
+  "bugs": {
+    "url": "https://github.com/rajgolla/kimchi/issues"
+  },
+  "keywords": [
+    "chemistry",
+    "cheminformatics",
+    "smiles",
+    "mol",
+    "sdf",
+    "smarts",
+    "molecular-structures",
+    "2d-rendering",
+    "typescript",
+    "javascript"
+  ],
   "module": "index.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "type": "module",
-  "private": true,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "index.ts",
+    "types.ts",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "test": "bun test",
     "test:full": "RUN_RDKIT_BULK=1 bun test",
     "typecheck": "bun run tsc --noEmit",
-    "build": "bun run build:browser",
+    "build": "bun run build:browser && bun run build:types",
     "build:browser": "bun build index.ts --outdir ./dist --target browser --format esm --minify",
-    "serve": "bun run build && bunx serve . -p 3000"
+    "build:types": "bun run tsc --declaration --emitDeclarationOnly --outDir dist",
+    "serve": "bun run build && bunx serve . -p 3000",
+    "prepublishOnly": "bun run typecheck && bun run test && bun run build"
   },
   "devDependencies": {
     "@rdkit/rdkit": "latest",
@@ -20,5 +60,8 @@
   },
   "dependencies": {
     "webcola": "^3.4.0"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
