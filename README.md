@@ -34,7 +34,7 @@ The playground automatically detects if the full kimchi library is available and
 **Note:** The HTML playground requires a web server to load the kimchi library due to ES module security restrictions. Use `bun run serve` to start a local server, then open `http://localhost:3000/smiles-playground.html` in your browser.
 
 ```typescript
-import { parseSMILES, generateSMILES, parseMolfile, generateMolfile, parseSDF, writeSDF } from 'kimchi';
+import { parseSMILES, generateSMILES, parseMolfile, generateMolfile, parseSDF, writeSDF } from '@rajgolla/kimchi';
 
 // Parse SMILES into molecule structure
 const result = parseSMILES('CC(=O)O'); // acetic acid
@@ -124,11 +124,11 @@ kimchi maintains broad automated test coverage across unit, integration, and RDK
 ## Installation
 
 ```bash
-npm install kimchi
+npm install @rajgolla/kimchi
 # or
-bun add kimchi
+bun add @rajgolla/kimchi
 # or
-pnpm add kimchi
+pnpm add @rajgolla/kimchi
 ```
 
 ## Usage
@@ -149,7 +149,7 @@ RUN_RDKIT_BULK=1 bun test
 
 Add `RUN_VERBOSE=1` for more detailed RDKit reporting during the run.
 ```typescript
-import { parseSMILES } from 'kimchi';
+import { parseSMILES } from '@rajgolla/kimchi';
 
 // Simple molecule
 const ethanol = parseSMILES('CCO');
@@ -179,7 +179,7 @@ import {
   getMolecularFormula, 
   getMolecularMass, 
   getExactMass 
-} from 'kimchi';
+} from '@rajgolla/kimchi';
 
 const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O');
 const mol = aspirin.molecules[0];
@@ -206,7 +206,7 @@ import {
   getHeteroAtomCount,
   getRingCount,
   getAromaticRingCount
-} from 'kimchi';
+} from '@rajgolla/kimchi';
 
 const ibuprofen = parseSMILES('CC(C)Cc1ccc(cc1)C(C)C(=O)O');
 const mol = ibuprofen.molecules[0];
@@ -233,7 +233,7 @@ import {
   getHBondDonorCount,
   getHBondAcceptorCount,
   getTPSA
-} from 'kimchi';
+} from '@rajgolla/kimchi';
 
 const caffeine = parseSMILES('CN1C=NC2=C1C(=O)N(C(=O)N2C)C');
 const mol = caffeine.molecules[0];
@@ -257,7 +257,7 @@ console.log(getTPSA(mol)); // 61.82
 TPSA (Topological Polar Surface Area) is essential for predicting drug properties:
 
 ```typescript
-import { parseSMILES, getTPSA } from 'kimchi';
+import { parseSMILES, getTPSA } from '@rajgolla/kimchi';
 
 // Oral bioavailability: TPSA < 140 Ų
 const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O');
@@ -276,7 +276,7 @@ import {
   checkLipinskiRuleOfFive, 
   checkVeberRules, 
   checkBBBPenetration 
-} from 'kimchi';
+} from '@rajgolla/kimchi';
 
 // Lipinski's Rule of Five (oral drug-likeness)
 const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O');
@@ -300,7 +300,7 @@ console.log(bbb.likelyPenetration); // true (TPSA: 61.82 < 90)
 ### Generating SMILES
 
 ```typescript
-import { parseSMILES, generateSMILES } from 'kimchi';
+import { parseSMILES, generateSMILES } from '@rajgolla/kimchi';
 
 // Generate canonical SMILES (default)
 const input = 'CC(C)CC';
@@ -336,7 +336,7 @@ Render molecules as 2D SVG structures with automatic coordinate generation and l
 #### Basic SVG Rendering
 
 ```typescript
-import { parseSMILES, renderSVG } from 'kimchi';
+import { parseSMILES, renderSVG } from '@rajgolla/kimchi';
 
 // Render from parsed molecule
 const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O');
@@ -364,8 +364,8 @@ console.log(gridResult.svg); // Multi-molecule grid
 #### SVG Rendering Options
 
 ```typescript
-import { parseSMILES, renderSVG } from 'kimchi';
-import type { SVGRendererOptions } from 'kimchi';
+import { parseSMILES, renderSVG } from '@rajgolla/kimchi';
+import type { SVGRendererOptions } from '@rajgolla/kimchi';
 
 const benzene = parseSMILES('c1ccccc1');
 const mol = benzene.molecules[0];
@@ -422,7 +422,7 @@ console.log(result.svg); // Custom-styled SVG
 #### Using Pre-computed Coordinates
 
 ```typescript
-import { parseSMILES, renderSVG } from 'kimchi';
+import { parseSMILES, renderSVG } from '@rajgolla/kimchi';
 
 const ethanol = parseSMILES('CCO');
 const mol = ethanol.molecules[0];
@@ -452,7 +452,7 @@ kimchi uses **webcola** for collision prevention and layout optimization. This a
 - Produces publication-quality 2D structures
 
 ```typescript
-import { parseSMILES, renderSVG } from 'kimchi';
+import { parseSMILES, renderSVG } from '@rajgolla/kimchi';
 
 // Complex fused ring system
 const naphthalene = parseSMILES('c1ccc2ccccc2c1');
@@ -469,7 +469,7 @@ console.log(result.svg);
 #### Error Handling
 
 ```typescript
-import { renderSVG } from 'kimchi';
+import { renderSVG } from '@rajgolla/kimchi';
 
 const result = renderSVG('C');
 if (result.errors.length > 0) {
@@ -484,7 +484,7 @@ if (result.errors.length > 0) {
 Match molecular patterns using SMARTS (SMILES Arbitrary Target Specification) notation.
 
 ```typescript
-import { parseSMILES, parseSMARTS, matchSMARTS } from 'kimchi';
+import { parseSMILES, parseSMARTS, matchSMARTS } from '@rajgolla/kimchi';
 
 // Parse molecule and SMARTS pattern
 const molecule = parseSMILES('CC(=O)Oc1ccccc1C(=O)O'); // aspirin
@@ -517,7 +517,7 @@ console.log(heteroMatches.length); // Number of heteroatoms
 Convert aromatic molecules to alternating single/double bond representations (Kekulé structures).
 
 ```typescript
-import { parseSMILES, kekulize, generateSMILES } from 'kimchi';
+import { parseSMILES, kekulize, generateSMILES } from '@rajgolla/kimchi';
 
 // Parse aromatic molecule
 const benzene = parseSMILES('c1ccccc1');
@@ -531,7 +531,7 @@ const kekuleSMILES = generateSMILES(kekuleMol);
 console.log(kekuleSMILES); // "C1=CC=CC=C1" or similar alternating structure
 
 // SVG rendering automatically kekulizes (unless disabled)
-import { renderSVG } from 'kimchi';
+import { renderSVG } from '@rajgolla/kimchi';
 
 const result = renderSVG(mol, {
   kekulize: true  // default: true
@@ -544,7 +544,7 @@ const result = renderSVG(mol, {
 Calculate LogP (partition coefficient) for predicting lipophilicity and membrane permeability.
 
 ```typescript
-import { parseSMILES, computeLogP, crippenLogP } from 'kimchi';
+import { parseSMILES, computeLogP, crippenLogP } from '@rajgolla/kimchi';
 
 const molecules = [
   'CC(=O)Oc1ccccc1C(=O)O',  // aspirin
@@ -582,8 +582,8 @@ if (logpValue > 5) {
 ### Molecule Structure
 
 ```typescript
-import { parseSMILES } from 'kimchi';
-import { BondType } from 'kimchi/types';
+import { parseSMILES } from '@rajgolla/kimchi';
+import { BondType } from '@rajgolla/kimchi';
 
 const result = parseSMILES('C=C');
 const mol = result.molecules[0];
@@ -717,7 +717,7 @@ Generates a MOL file (V2000 format) from a molecule structure. Matches RDKit's o
 
 **Example**:
 ```typescript
-import { parseSMILES, generateMolfile } from 'kimchi';
+import { parseSMILES, generateMolfile } from '@rajgolla/kimchi';
 
 const result = parseSMILES('CCO');
 const molfile = generateMolfile(result.molecules[0]);
@@ -763,7 +763,7 @@ Parses a MOL file (MDL Molfile format) into a molecule structure. Supports both 
 
 **Example**:
 ```typescript
-import { parseMolfile, generateSMILES } from 'kimchi';
+import { parseMolfile, generateSMILES } from '@rajgolla/kimchi';
 
 const molContent = `
 ethanol
@@ -797,7 +797,7 @@ if (invalid.errors.length > 0) {
 
 **Round-trip workflow**:
 ```typescript
-import { parseSMILES, generateMolfile, parseMolfile, generateSMILES } from 'kimchi';
+import { parseSMILES, generateMolfile, parseMolfile, generateSMILES } from '@rajgolla/kimchi';
 
 // SMILES → MOL → SMILES round-trip
 const original = 'CC(=O)O'; // acetic acid
@@ -835,7 +835,7 @@ Parses an SDF (Structure-Data File) into molecule structures with associated pro
 
 **Example (single record)**:
 ```typescript
-import { parseSDF, generateSMILES } from 'kimchi';
+import { parseSDF, generateSMILES } from '@rajgolla/kimchi';
 
 const sdfContent = `
   Mrv2311 02102409422D          
@@ -881,7 +881,7 @@ if (result.records[0].errors.length > 0) {
 
 **Example (multiple records)**:
 ```typescript
-import { parseSDF } from 'kimchi';
+import { parseSDF } from '@rajgolla/kimchi';
 
 const multiRecordSDF = `
   Mrv2311 02102409422D          
@@ -923,7 +923,7 @@ console.log(result.records[1].properties.NAME); // "Ethane"
 
 **Round-trip workflow**:
 ```typescript
-import { parseSMILES, writeSDF, parseSDF, generateSMILES } from 'kimchi';
+import { parseSMILES, writeSDF, parseSDF, generateSMILES } from '@rajgolla/kimchi';
 
 // SMILES → SDF → SMILES round-trip
 const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O').molecules[0];
@@ -969,7 +969,7 @@ interface SDFRecord {
 
 **Example (single molecule)**:
 ```typescript
-import { parseSMILES, writeSDF } from 'kimchi';
+import { parseSMILES, writeSDF } from '@rajgolla/kimchi';
 
 const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O');
 const result = writeSDF({
@@ -987,7 +987,7 @@ console.log(result.sdf);
 
 **Example (multiple molecules)**:
 ```typescript
-import { parseSMILES, writeSDF } from 'kimchi';
+import { parseSMILES, writeSDF } from '@rajgolla/kimchi';
 
 const drugs = [
   { smiles: 'CC(=O)Oc1ccccc1C(=O)O', name: 'aspirin' },
@@ -1094,7 +1094,7 @@ Finds all matches of a SMARTS pattern in a molecule.
 
 **Example**:
 ```typescript
-import { parseSMILES, parseSMARTS, matchSMARTS } from 'kimchi';
+import { parseSMILES, parseSMARTS, matchSMARTS } from '@rajgolla/kimchi';
 
 const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O').molecules[0];
 const carbonyl = parseSMARTS('[C](=O)').molecules[0];
@@ -1111,7 +1111,7 @@ Converts aromatic molecules to alternating single/double bond (Kekulé) represen
 
 **Example**:
 ```typescript
-import { parseSMILES, kekulize, generateSMILES } from 'kimchi';
+import { parseSMILES, kekulize, generateSMILES } from '@rajgolla/kimchi';
 
 const benzene = parseSMILES('c1ccccc1');
 const kek = kekulize(benzene.molecules[0]);
@@ -1135,7 +1135,7 @@ Calculates the LogP (partition coefficient) using the Wildman-Crippen method. Lo
 
 **Example**:
 ```typescript
-import { parseSMILES, computeLogP } from 'kimchi';
+import { parseSMILES, computeLogP } from '@rajgolla/kimchi';
 
 const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O').molecules[0];
 console.log(computeLogP(aspirin)); // 1.31 (good bioavailability)
