@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-   <title>SMILES Playground — kimchi molecular visualization</title>
+    <title>SMILES Playground — openchem molecular visualization</title>
   <style>
     :root{font-family:Inter,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial;--bg:#0f1720;--card:#0b1220;--muted:#9aa4b2;--accent:#60a5fa}
     body{margin:0;background:linear-gradient(180deg,#071028 0%,#071724 100%);color:#e6eef6;min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:32px}
@@ -91,7 +91,7 @@
       </div>
 
        <footer>
-         This page uses a built-in fallback parser/calculators if the project exports can't be loaded in the browser. Fallback is approximate for complex SMILES (rings/charges/aromaticity). SVG rendering requires the full kimchi library.
+         This page uses a built-in fallback parser/calculators if the project exports can't be loaded in the browser. Fallback is approximate for complex SMILES (rings/charges/aromaticity). SVG rendering requires the full openchem library.
        </footer>
     </div>
   </div>
@@ -103,7 +103,7 @@
 
       function tryLoadLibrary() {
         // Try to import compiled project exports (if user built a browser bundle as index.js at project root)
-        if (window.kimchi) return Promise.resolve(window.kimchi);
+        if (window.openchem) return Promise.resolve(window.openchem);
         const paths = ['./index.js','./dist/index.js','/index.js'];
         let lastErr = null;
         return paths.reduce((p,path)=>p.catch(()=>import(path)).catch(e=>{ lastErr=e; return Promise.reject(e); }), Promise.reject()).catch(()=>{ return Promise.reject(lastErr); });
@@ -265,7 +265,7 @@
              svgEl.innerHTML = `<div style="color:#ef4444">SVG rendering error: ${e.message}</div>`;
            }
          } else {
-           svgEl.innerHTML = '<div>SVG rendering requires the full kimchi library.<br>Use fallback parser for descriptors only.</div>';
+              svgEl.innerHTML = '<div>SVG rendering requires the full openchem library.<br>Use fallback parser for descriptors only.</div>';
          }
 
          // Extract molecule for descriptor calculations

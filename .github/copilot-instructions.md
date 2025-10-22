@@ -1,7 +1,7 @@
-# GitHub Copilot Instructions for kimchi
+# GitHub Copilot Instructions for opencode
 
 ## Project Overview
-kimchi is a TypeScript library for parsing and generating chemical structure formats (SMILES, MOL, SDF) with strict type safety and comprehensive validation.
+opencode is a TypeScript library for parsing and generating chemical structure formats (SMILES, MOL, SDF) with strict type safety and comprehensive validation.
 
 ## Build & Test Commands
 - Run tests: `bun test`

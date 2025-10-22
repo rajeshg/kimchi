@@ -21,7 +21,7 @@ import {
   getFractionCSP3,
 } from 'index';
 
-console.log('Kimchi Comprehensive Capabilities Demo');
+console.log('openchem Comprehensive Capabilities Demo');
 console.log('=====================================\n');
 
 // 1. SMILES Parsing and Generation
@@ -94,7 +94,7 @@ if (parseResult.molecules.length > 0) {
   const molecule = parseResult.molecules[0]!;
   const molfile = generateMolfile(molecule, {
     title: 'Aspirin',
-    programName: 'kimchi-demo',
+    programName: 'opencode-demo',
     comment: 'Generated from SMILES',
   });
 
@@ -133,7 +133,7 @@ const sdfRecords = sampleMolecules.map(({ smiles, name }) => {
 
 const sdfResult = writeSDF(sdfRecords, {
   title: 'Sample Molecules',
-  programName: 'kimchi-demo',
+  programName: 'opencode-demo',
 });
 
 if (sdfResult.errors.length > 0) {
@@ -166,7 +166,7 @@ if (smartsResult.errors.length > 0) {
   }
 }
 
-console.log('\nDemo completed! Kimchi supports:');
+console.log('\nDemo completed! openchem supports:');
 console.log('- SMILES parsing and generation');
 console.log('- Molecular property calculations');
 console.log('- Drug-likeness assessment');

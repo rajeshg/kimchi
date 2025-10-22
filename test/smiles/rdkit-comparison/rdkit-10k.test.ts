@@ -31,7 +31,7 @@ describe('RDKit 10k SMILES Comparison', () => {
 
     const stats = {
       total: smilesLines.length,
-      kimchiParseFailures: 0,
+      opencodeParseFailures: 0,
       rdkitParseFailures: 0,
       atomCountMismatches: 0,
       bondCountMismatches: 0,
@@ -40,7 +40,7 @@ describe('RDKit 10k SMILES Comparison', () => {
       success: 0
     };
 
-    const kimchiFailures: string[] = [];
+    const opencodeFailures: string[] = [];
     const rdkitFailures: string[] = [];
     const mismatchDetails: string[] = [];
     const roundTripFailures: string[] = [];
@@ -73,38 +73,38 @@ describe('RDKit 10k SMILES Comparison', () => {
       }
 
       const parsed = parseSMILES(smiles);
-      const kimchiFailed = parsed.errors && parsed.errors.length > 0;
+      const opencodeFailed = parsed.errors && parsed.errors.length > 0;
 
-      if (kimchiFailed) {
-        stats.kimchiParseFailures++;
-        if (kimchiFailures.length < 10) {
-          kimchiFailures.push(`${smiles} (${parsed.errors?.map(e => e.message).join(', ')})`);
+      if (opencodeFailed) {
+        stats.opencodeParseFailures++;
+        if (opencodeFailures.length < 10) {
+          opencodeFailures.push(`${smiles} (${parsed.errors?.map(e => e.message).join(', ')})`);
         }
       }
 
-      if (rdkitFailed && kimchiFailed) {
+      if (rdkitFailed && opencodeFailed) {
         stats.bothFailed++;
         continue;
       }
 
-      if (kimchiFailed) {
+      if (opencodeFailed) {
         continue;
       }
 
-       const kimchiAtoms = parsed.molecules.reduce((sum, mol) => sum + mol.atoms.length, 0);
-       const kimchiBonds = parsed.molecules.reduce((sum, mol) => sum + mol.bonds.length, 0);
+       const opencodeAtoms = parsed.molecules.reduce((sum, mol) => sum + mol.atoms.length, 0);
+       const opencodeBonds = parsed.molecules.reduce((sum, mol) => sum + mol.bonds.length, 0);
 
       if (!rdkitFailed) {
-        if (kimchiAtoms !== rdkitAtoms) {
+        if (opencodeAtoms !== rdkitAtoms) {
           stats.atomCountMismatches++;
           if (mismatchDetails.length < 10) {
-            mismatchDetails.push(`${smiles}: atoms ${kimchiAtoms} vs ${rdkitAtoms}`);
+            mismatchDetails.push(`${smiles}: atoms ${opencodeAtoms} vs ${rdkitAtoms}`);
           }
         }
-        if (kimchiBonds !== rdkitBonds) {
+        if (opencodeBonds !== rdkitBonds) {
           stats.bondCountMismatches++;
-          if (mismatchDetails.length < 10 && kimchiAtoms === rdkitAtoms) {
-            mismatchDetails.push(`${smiles}: bonds ${kimchiBonds} vs ${rdkitBonds}`);
+          if (mismatchDetails.length < 10 && opencodeAtoms === rdkitAtoms) {
+            mismatchDetails.push(`${smiles}: bonds ${opencodeBonds} vs ${rdkitBonds}`);
           }
         }
       }
@@ -121,17 +121,17 @@ describe('RDKit 10k SMILES Comparison', () => {
          const rtAtoms = roundTrip.molecules.reduce((sum, mol) => sum + mol.atoms.length, 0);
          const rtBonds = roundTrip.molecules.reduce((sum, mol) => sum + mol.bonds.length, 0);
 
-         if (rtAtoms !== kimchiAtoms || rtBonds !== kimchiBonds) {
+         if (rtAtoms !== opencodeAtoms || rtBonds !== opencodeBonds) {
            stats.roundTripFailures++;
            if (roundTripFailures.length < 10) {
-             roundTripFailures.push(`${smiles} -> ${generated} (${kimchiAtoms}/${kimchiBonds} -> ${rtAtoms}/${rtBonds})`);
+             roundTripFailures.push(`${smiles} -> ${generated} (${opencodeAtoms}/${opencodeBonds} -> ${rtAtoms}/${rtBonds})`);
            }
          }
        }
 
-      if (!kimchiFailed && !rdkitFailed && 
-          kimchiAtoms === rdkitAtoms && 
-          kimchiBonds === rdkitBonds &&
+      if (!opencodeFailed && !rdkitFailed && 
+          opencodeAtoms === rdkitAtoms && 
+          opencodeBonds === rdkitBonds &&
           (!roundTrip.errors || roundTrip.errors.length === 0)) {
         stats.success++;
       }
@@ -147,20 +147,20 @@ describe('RDKit 10k SMILES Comparison', () => {
       console.log('\n=== RDKit 10k Validation Results ===');
       console.log(`Total SMILES: ${stats.total}`);
       console.log(`Success (full parity): ${stats.success} (${(stats.success/stats.total*100).toFixed(2)}%)`);
-      console.log(`kimchi parse failures: ${stats.kimchiParseFailures} (${(stats.kimchiParseFailures/stats.total*100).toFixed(2)}%)`);
+      console.log(`opencode parse failures: ${stats.opencodeParseFailures} (${(stats.opencodeParseFailures/stats.total*100).toFixed(2)}%)`);
       console.log(`RDKit parse failures: ${stats.rdkitParseFailures} (${(stats.rdkitParseFailures/stats.total*100).toFixed(2)}%)`);
       console.log(`Both failed: ${stats.bothFailed} (${(stats.bothFailed/stats.total*100).toFixed(2)}%)`);
       console.log(`Atom count mismatches: ${stats.atomCountMismatches} (${(stats.atomCountMismatches/stats.total*100).toFixed(2)}%)`);
       console.log(`Bond count mismatches: ${stats.bondCountMismatches} (${(stats.bondCountMismatches/stats.total*100).toFixed(2)}%)`);
       console.log(`Round-trip failures: ${stats.roundTripFailures} (${(stats.roundTripFailures/stats.total*100).toFixed(2)}%)`);
 
-      if (kimchiFailures.length > 0) {
-        console.log('\nFirst kimchi parse failures:');
-        kimchiFailures.forEach(f => console.log(`  ${f}`));
+      if (opencodeFailures.length > 0) {
+        console.log('\nFirst opencode parse failures:');
+        opencodeFailures.forEach(f => console.log(`  ${f}`));
       }
 
       if (rdkitFailures.length > 0 && stats.rdkitParseFailures > stats.bothFailed) {
-        console.log('\nFirst RDKit-only parse failures (kimchi succeeded):');
+        console.log('\nFirst RDKit-only parse failures (opencode succeeded):');
         rdkitFailures.slice(0, 5).forEach(f => console.log(`  ${f}`));
       }
 

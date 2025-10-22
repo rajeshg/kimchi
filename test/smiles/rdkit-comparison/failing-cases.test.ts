@@ -22,12 +22,12 @@ describe('Focused failing cases', () => {
   it('reproduces bond mismatches', () => {
     for (const s of failingBondSMILES) {
       const parsed = parseSMILES(s);
-      const kimchiAtoms = parsed.molecules.reduce((sum, mol) => sum + mol.atoms.length, 0);
-      const kimchiBonds = parsed.molecules.reduce((sum, mol) => sum + mol.bonds.length, 0);
+      const opencodeAtoms = parsed.molecules.reduce((sum, mol) => sum + mol.atoms.length, 0);
+      const opencodeBonds = parsed.molecules.reduce((sum, mol) => sum + mol.bonds.length, 0);
       // we expect these to currently mismatch RDKit per previous run
       // just assert parsed succeeded
       expect(parsed.errors && parsed.errors.length).toBe(0);
-      expect(kimchiBonds).toBeGreaterThan(0);
+      expect(opencodeBonds).toBeGreaterThan(0);
     }
   }, 20000);
 

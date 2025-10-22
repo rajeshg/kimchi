@@ -95,7 +95,7 @@ For detailed information about validation results, known differences with RDKit,
 
 ## Drug-Likeness Rules
 
-kimchi provides comprehensive drug-likeness assessment functions that evaluate molecules against established pharmaceutical rules:
+opencode provides comprehensive drug-likeness assessment functions that evaluate molecules against established pharmaceutical rules:
 
 ### Lipinski's Rule of Five
 

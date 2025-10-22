@@ -1,6 +1,6 @@
 import { parseSMILES, checkLipinskiRuleOfFive, checkVeberRules, checkBBBPenetration, computeLogP } from 'index';
 
-console.log('kimchi Drug-Likeness Assessment Examples');
+console.log('opencode Drug-Likeness Assessment Examples');
 console.log('=========================================\n');
 
 // Test molecules with varying drug-likeness properties

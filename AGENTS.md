@@ -1,4 +1,4 @@
-# Agent Guidelines for kimchi
+# Agent Guidelines for opencode
 
 ## Build/Test Commands
 - **Run all tests**: `bun test`

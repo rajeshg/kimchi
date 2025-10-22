@@ -16,7 +16,7 @@ const failing = [
 ];
 
 describe('Bond mismatch debug', () => {
-  it('prints kimchi vs RDKit bond counts and kimchi bond lists', async () => {
+  it('prints opencode vs RDKit bond counts and opencode bond lists', async () => {
     const rdkitModule = await import('@rdkit/rdkit').catch(() => null);
     if (!rdkitModule) {
       throw new Error('RDKit is not available. Install with: npm install @rdkit/rdkit');
@@ -27,11 +27,11 @@ describe('Bond mismatch debug', () => {
     for (const s of failing) {
       const parsed = parseSMILES(s);
       if (parsed.errors && parsed.errors.length) {
-        // suppressed detailed kimchi parse errors in debug run
+        // suppressed detailed opencode parse errors in debug run
         continue;
       }
-      const kimchiAtoms = parsed.molecules.reduce((sum, mol) => sum + mol.atoms.length, 0);
-      const kimchiBonds = parsed.molecules.reduce((sum, mol) => sum + mol.bonds.length, 0);
+      const opencodeAtoms = parsed.molecules.reduce((sum, mol) => sum + mol.atoms.length, 0);
+      const opencodeBonds = parsed.molecules.reduce((sum, mol) => sum + mol.bonds.length, 0);
       const bondList: string[] = [];
       for (const mol of parsed.molecules) {
         for (const b of mol.bonds) {
@@ -52,10 +52,10 @@ describe('Bond mismatch debug', () => {
         // RDKit parsing failed; treat as zero counts
       }
 
-      if (kimchiBonds !== rdkitBonds) {
+      if (opencodeBonds !== rdkitBonds) {
         // Only print concise summary for mismatches when verbose
         if (process.env.RUN_VERBOSE) {
-          console.log(`${s} -> kimchi ${kimchiAtoms}/${kimchiBonds} vs RDKit ${rdkitAtoms}/${rdkitBonds}`);
+          console.log(`${s} -> opencode ${opencodeAtoms}/${opencodeBonds} vs RDKit ${rdkitAtoms}/${rdkitBonds}`);
         }
       }
       // continue to next without failing the test to capture all cases

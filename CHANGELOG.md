@@ -12,12 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive documentation for npm publishing workflow
 
 ### Fixed
-- Scoped package name updated to `@rajgolla/kimchi` for public registry
+- Scoped package name updated to `@rajgolla/opencode` for public registry
 
 ## [0.1.0] - 2024-10-21
 
 ### Added
-- Initial public release of kimchi cheminformatics library
+- Initial public release of opencode cheminformatics library
 - Complete SMILES parser supporting full OpenSMILES specification
 - Canonical SMILES generation with RDKit-compatible canonicalization
 - MOL/SDF file format support (parsing and generation)

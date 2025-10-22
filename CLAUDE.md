@@ -1,6 +1,6 @@
-# kimchi Development Guide
+# opencode Development Guide
 
-This document describes conventions, workflows, and important commands for maintaining the kimchi cheminformatics library.
+This document describes conventions, workflows, and important commands for maintaining the opencode cheminformatics library.
 
 ## Build & Test Commands
 
@@ -104,19 +104,19 @@ bun run serve
 
 1. **Verify package on npm**
    ```bash
-   npm view kimchi@0.2.0
-   npm view kimchi dist-tags
+   npm view opencode@0.2.0
+   npm view opencode dist-tags
    ```
 
 2. **Test installation from npm**
    ```bash
    mkdir test-install && cd test-install
    npm init -y
-   npm install kimchi
+   npm install opencode
    ```
 
 3. **Create GitHub Release** with changelog and download link
-   - Go to https://github.com/sst/kimchi/releases
+   - Go to https://github.com/sst/opencode/releases
    - Create new release from the git tag
    - Include CHANGELOG.md section for this version
 
@@ -186,19 +186,19 @@ Everything else (test/, docs/, scripts/, etc.) is excluded via .npmignore.
 ## Known Issues & Workarounds
 
 ### Aromaticity Perception
-- kimchi uses strict Hückel's rule (4n+2 π electrons)
+- opencode uses strict Hückel's rule (4n+2 π electrons)
 - RDKit uses extended aromaticity perception
 - This causes expected differences in complex heterocycles
 - See `docs/SMARTS_AROMATICITY_ANALYSIS.md` for details
 
 ### LogP Differences
-- kimchi uses published Wildman-Crippen parameters
+- opencode uses published Wildman-Crippen parameters
 - RDKit may use modified parameters or special cases
 - Differences typically 0.2-1.15 LogP units for complex molecules
 - See `docs/logp-implementation-notes.md` for validation data
 
 ### Ring Membership Counting
-- kimchi follows SMARTS spec (uses SSSR only)
+- opencode follows SMARTS spec (uses SSSR only)
 - RDKit deviates with extended ring sets
 - See `docs/SMARTS_RING_MEMBERSHIP_ANALYSIS.md` for analysis
 
@@ -244,7 +244,7 @@ bun test test/file.test.ts -t "test name"
 ## Project Structure
 
 ```
-kimchi/
+opencode/
 ├── src/
 │   ├── generators/          # SMILES, MOL, SDF generation + SVG rendering
 │   ├── parsers/             # SMILES, MOL, SDF, SMARTS parsing
@@ -280,6 +280,6 @@ kimchi/
 
 ## Contact & Issues
 
-- Report bugs: https://github.com/sst/kimchi/issues
+- Report bugs: https://github.com/sst/opencode/issues
 - See README.md for user documentation
 - See docs/ folder for technical deep-dives

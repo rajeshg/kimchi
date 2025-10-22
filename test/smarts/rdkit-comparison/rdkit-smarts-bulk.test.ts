@@ -302,20 +302,20 @@ describe('RDKit SMARTS Bulk Comparison', () => {
           continue;
         }
 
-        const allkimchiMatches: number[][] = [];
+        const allopencodeMatches: number[][] = [];
         let atomOffset = 0;
         for (const mol of parsed.molecules) {
-          const kimchiResult = matchSMARTS(smartsPattern.pattern!, mol, { uniqueMatches: true });
-          const kimchiMatches = kimchiResult.matches.map(match => 
+          const opencodeResult = matchSMARTS(smartsPattern.pattern!, mol, { uniqueMatches: true });
+          const opencodeMatches = opencodeResult.matches.map(match => 
             match.atoms.map(a => a.moleculeIndex + atomOffset)
           );
-          allkimchiMatches.push(...kimchiMatches);
+          allopencodeMatches.push(...opencodeMatches);
           atomOffset += mol.atoms.length;
         }
-        const kimchiMatches = allkimchiMatches;
+        const opencodeMatches = allopencodeMatches;
 
         try {
-          assertMatchesEqual(kimchiMatches, rdkitResult.matches, pattern, smiles);
+          assertMatchesEqual(opencodeMatches, rdkitResult.matches, pattern, smiles);
           successCount++;
         } catch (e) {
           failures.push(`${pattern} vs ${smiles}: ${e}`);

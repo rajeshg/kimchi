@@ -12,15 +12,15 @@ describe('Aromaticity Comparison with RDKit', () => {
       const rdkitResult = getRDKitAromaticity(rdkit, smiles);
       expect(rdkitResult.success).toBe(true);
       
-      // Get kimchi aromaticity
-      const kimchiResult = parseSMILES(smiles);
-      expect(kimchiResult.errors).toHaveLength(0);
-      const molecule = kimchiResult.molecules[0]!;
+      // Get opencode aromaticity
+      const opencodeResult = parseSMILES(smiles);
+      expect(opencodeResult.errors).toHaveLength(0);
+      const molecule = opencodeResult.molecules[0]!;
       
       // Compare aromaticity arrays
-      const kimchiAromaticity = molecule.atoms.map(atom => atom.aromatic);
+      const opencodeAromaticity = molecule.atoms.map(atom => atom.aromatic);
       
-      expect(kimchiAromaticity).toEqual(rdkitResult.aromaticAtoms);
+      expect(opencodeAromaticity).toEqual(rdkitResult.aromaticAtoms);
     });
     
     it('should match RDKit aromaticity for acetophenone', async () => {
@@ -31,15 +31,15 @@ describe('Aromaticity Comparison with RDKit', () => {
       const rdkitResult = getRDKitAromaticity(rdkit, smiles);
       expect(rdkitResult.success).toBe(true);
       
-      // Get kimchi aromaticity
-      const kimchiResult = parseSMILES(smiles);
-      expect(kimchiResult.errors).toHaveLength(0);
-      const molecule = kimchiResult.molecules[0]!;
+      // Get opencode aromaticity
+      const opencodeResult = parseSMILES(smiles);
+      expect(opencodeResult.errors).toHaveLength(0);
+      const molecule = opencodeResult.molecules[0]!;
       
       // Compare aromaticity arrays
-      const kimchiAromaticity = molecule.atoms.map(atom => atom.aromatic);
+      const opencodeAromaticity = molecule.atoms.map(atom => atom.aromatic);
       
-      expect(kimchiAromaticity).toEqual(rdkitResult.aromaticAtoms);
+      expect(opencodeAromaticity).toEqual(rdkitResult.aromaticAtoms);
     });
     
     it('should match RDKit aromaticity for benzaldehyde', async () => {
@@ -50,15 +50,15 @@ describe('Aromaticity Comparison with RDKit', () => {
       const rdkitResult = getRDKitAromaticity(rdkit, smiles);
       expect(rdkitResult.success).toBe(true);
       
-      // Get kimchi aromaticity
-      const kimchiResult = parseSMILES(smiles);
-      expect(kimchiResult.errors).toHaveLength(0);
-      const molecule = kimchiResult.molecules[0]!;
+      // Get opencode aromaticity
+      const opencodeResult = parseSMILES(smiles);
+      expect(opencodeResult.errors).toHaveLength(0);
+      const molecule = opencodeResult.molecules[0]!;
       
       // Compare aromaticity arrays
-      const kimchiAromaticity = molecule.atoms.map(atom => atom.aromatic);
+      const opencodeAromaticity = molecule.atoms.map(atom => atom.aromatic);
       
-      expect(kimchiAromaticity).toEqual(rdkitResult.aromaticAtoms);
+      expect(opencodeAromaticity).toEqual(rdkitResult.aromaticAtoms);
     });
   });
 });

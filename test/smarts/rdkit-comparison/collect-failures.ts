@@ -31,9 +31,9 @@ async function main() {
   const failures: Array<{
     pattern: string;
     smiles: string;
-    kimchiCount: number;
+    opencodeCount: number;
     rdkitCount: number;
-    kimchiMatches: string;
+    opencodeMatches: string;
     rdkitMatches: string;
   }> = [];
 
@@ -46,7 +46,7 @@ async function main() {
       const smartsResult = parseSMARTS(pattern);
       if (!smartsResult.pattern) continue;
 
-      const kimchiResult = matchSMARTS(smartsResult.pattern, mol, { uniqueMatches: true });
+      const opencodeResult = matchSMARTS(smartsResult.pattern, mol, { uniqueMatches: true });
       
       const rdkitMol = typeof RDKit.get_mol === 'function' ? RDKit.get_mol(smiles) : null;
       if (!rdkitMol) continue;
@@ -63,13 +63,13 @@ async function main() {
       rdkitMol.delete();
       rdkitQuery.delete();
 
-      if (kimchiResult.matches.length !== rdkitMatches.length) {
+      if (opencodeResult.matches.length !== rdkitMatches.length) {
         failures.push({
           pattern,
           smiles,
-          kimchiCount: kimchiResult.matches.length,
+          opencodeCount: opencodeResult.matches.length,
           rdkitCount: rdkitMatches.length,
-          kimchiMatches: JSON.stringify(kimchiResult.matches.map((m: any) => m.map((am: any) => am.moleculeAtomIndex))),
+          opencodeMatches: JSON.stringify(opencodeResult.matches.map((m: any) => m.map((am: any) => am.moleculeAtomIndex))),
           rdkitMatches: JSON.stringify(rdkitMatches)
         });
       }
@@ -81,9 +81,9 @@ async function main() {
     console.log(`  {`);
     console.log(`    pattern: '${f.pattern}',`);
     console.log(`    smiles: '${f.smiles}',`);
-    console.log(`    kimchiCount: ${f.kimchiCount},`);
+    console.log(`    opencodeCount: ${f.opencodeCount},`);
     console.log(`    rdkitCount: ${f.rdkitCount},`);
-    console.log(`    kimchiMatches: ${f.kimchiMatches},`);
+    console.log(`    opencodeMatches: ${f.opencodeMatches},`);
     console.log(`    rdkitMatches: ${f.rdkitMatches},`);
     console.log(`  },`);
   });

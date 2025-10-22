@@ -1,6 +1,6 @@
 import { parseSMILES, generateSMILES } from 'index';
 
-console.log('kimchi SMILES Generation Examples');
+console.log('opencode SMILES Generation Examples');
 console.log('===================================\n');
 
 const smiles = 'CC(C)CC';

@@ -132,7 +132,7 @@ async function generateComparison() {
   const rows: Array<{
     smiles: string;
     rdkitSvg: string;
-    kimchiSvg: string;
+    opencodeSvg: string;
   }> = [];
 
   for (const smiles of testMolecules) {
@@ -153,23 +153,23 @@ async function generateComparison() {
       rdkitSvg = '<svg><text x="10" y="20">RDKit not available</text></svg>';
     }
 
-    let kimchiSvg = '';
+    let opencodeSvg = '';
 
     try {
       const result = parseSMILES(smiles);
       if (result.molecules.length > 0) {
         try {
           const rendered = renderSVG(result, { width: 250, height: 200 });
-          kimchiSvg = rendered.svg;
+          opencodeSvg = rendered.svg;
         } catch (e) {
-          kimchiSvg = `<svg><text x=\"10\" y=\"20\">Kimchi Error: ${String(e).substring(0, 80)}</text></svg>`;
+          opencodeSvg = `<svg><text x=\"10\" y=\"20\">openchem Error: ${String(e).substring(0, 80)}</text></svg>`;
         }
       }
     } catch (e) {
-      kimchiSvg = `<svg><text x=\"10\" y=\"20\">Kimchi Error: ${String(e).substring(0, 80)}</text></svg>`;
+      opencodeSvg = `<svg><text x=\"10\" y=\"20\">openchem Error: ${String(e).substring(0, 80)}</text></svg>`;
     }
 
-    rows.push({ smiles, rdkitSvg, kimchiSvg });
+    rows.push({ smiles, rdkitSvg, opencodeSvg });
   }
 
   const html = `<!DOCTYPE html>
@@ -177,7 +177,7 @@ async function generateComparison() {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SMILES Rendering Comparison - RDKit vs Kimchi</title>
+  <title>SMILES Rendering Comparison - RDKit vs openchem</title>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 20px; background-color: #f5f5f5; }
     h1 { color: #333; text-align: center; margin-bottom: 20px; }
@@ -191,13 +191,13 @@ async function generateComparison() {
   </style>
 </head>
 <body>
-   <h1>SMILES Rendering Comparison: RDKit vs Kimchi</h1>
+   <h1>SMILES Rendering Comparison: RDKit vs openchem</h1>
    <table>
      <thead>
        <tr>
          <th>SMILES</th>
          <th>RDKit</th>
-         <th>Kimchi</th>
+         <th>openchem</th>
        </tr>
      </thead>
      <tbody>
@@ -206,7 +206,7 @@ ${rows
        (r) => `      <tr>
          <td class="smiles-cell">${r.smiles}</td>
          <td><div class="svg-container">${r.rdkitSvg}</div></td>
-         <td><div class="svg-container">${r.kimchiSvg}</div></td>
+         <td><div class="svg-container">${r.opencodeSvg}</div></td>
        </tr>`
      )
      .join('\n')}

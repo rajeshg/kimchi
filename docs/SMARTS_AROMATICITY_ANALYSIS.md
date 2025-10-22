@@ -2,7 +2,7 @@
 
 ## Summary
 
-Investigation into SMARTS matching discrepancies between kimchi and RDKit revealed fundamental differences in **aromaticity perception models**, not bugs in the SMARTS matcher.
+Investigation into SMARTS matching discrepancies between opencode and RDKit revealed fundamental differences in **aromaticity perception models**, not bugs in the SMARTS matcher.
 
 ## Test Results
 
@@ -12,7 +12,7 @@ Recent fixes resolved indole and pyrimidinone cases. Remaining failures are due 
 
 ## Root Cause: Different Aromaticity Models
 
-### kimchi's Model (Conservative, Ring-Based)
+### opencode's Model (Conservative, Ring-Based)
 - Uses strict Hückel's rule (4n+2 π electrons)
 - Only considers atoms within aromatic rings as aromatic
 - Filters to elementary rings of size 5-7
@@ -29,11 +29,11 @@ Recent fixes resolved indole and pyrimidinone cases. Remaining failures are due 
 SMILES: `O1C=C[C@H]([C@H]1O2)c3c2cc(OC)c4c3OC(=O)C5=C4CCC(=O)5`
 
 ### Atom 15 (Carbonyl Carbon in C(=O))
-- **kimchi**: Aliphatic (not in aromatic ring)
+- **opencode**: Aliphatic (not in aromatic ring)
 - **RDKit**: Aromatic (conjugated with aromatic system)
 
 ### Atoms 17, 18 (C=C in Lactone Ring)  
-- **kimchi**: Aliphatic (lactone ring has C=O, not aromatic by Hückel)
+- **opencode**: Aliphatic (lactone ring has C=O, not aromatic by Hückel)
 - **RDKit**: Aromatic (part of extended conjugated aromatic system)
 
 RDKit canonical SMILES shows lowercase `c` for these atoms: `...c3oc(=O)c4c(c13)...`
@@ -42,7 +42,7 @@ RDKit canonical SMILES shows lowercase `c` for these atoms: `...c3oc(=O)c4c(c13)
 
 **Both models are chemically valid** but serve different purposes:
 
-1. **kimchi's approach**: 
+1. **opencode's approach**: 
    - Traditional organic chemistry definition
    - Clear, predictable behavior
    - Suitable for educational purposes and basic cheminformatics
@@ -55,8 +55,8 @@ RDKit canonical SMILES shows lowercase `c` for these atoms: `...c3oc(=O)c4c(c13)
 ## Recommendations
 
 ### Option 1: Document the Difference (Recommended)
-- Keep kimchi's current model
-- Document that kimchi uses strict ring-based aromaticity
+- Keep opencode's current model
+- Document that opencode uses strict ring-based aromaticity
 - Note known differences with RDKit in test documentation
 - Update test expectations to mark these as "expected differences"
 
@@ -73,7 +73,7 @@ RDKit canonical SMILES shows lowercase `c` for these atoms: `...c3oc(=O)c4c(c13)
 
 ## Suggested Action
 
-**Keep kimchi's current aromaticity model** and update the test file to document these as expected differences rather than failures:
+**Keep opencode's current aromaticity model** and update the test file to document these as expected differences rather than failures:
 
 ```typescript
 const KNOWN_DIFFERENCES = [
