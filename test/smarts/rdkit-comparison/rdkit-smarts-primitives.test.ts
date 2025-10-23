@@ -145,7 +145,7 @@ describe('RDKit SMARTS Primitives Comparison', () => {
 
     it('matches n (aromatic nitrogen)', async () => {
       const pattern = 'n';
-      for (const smiles of ['c1ccncc1', 'c1nccn1', 'n1cccc1']) {
+      for (const smiles of ['c1ccncc1', 'c1[nH]ccn1', '[nH]1cccc1']) {
         const rdkitResult = getSubstructMatches(RDKit, smiles, pattern);
         testPattern(RDKit, pattern, smiles);
       }
@@ -509,9 +509,9 @@ describe('RDKit SMARTS Primitives Comparison', () => {
       }
     });
 
-    it.skip('matches [N&R&D2] (nitrogen in ring with degree 2)', async () => {
-      const pattern = '[N&R&D2]';
-      for (const smiles of ['c1ccncc1', 'c1nccn1']) {
+    it('matches [n&R&D2] (aromatic nitrogen in ring with degree 2)', async () => {
+      const pattern = '[n&R&D2]';
+      for (const smiles of ['c1ccncc1', 'c1nccnc1']) {
         const rdkitResult = getSubstructMatches(RDKit, smiles, pattern);
         testPattern(RDKit, pattern, smiles);
       }

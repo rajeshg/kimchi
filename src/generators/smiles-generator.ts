@@ -339,10 +339,6 @@ function generateComponentSMILES(atomIds: number[], molecule: Molecule, useCanon
       if (ringBond && isFirstOccurrence) {
         const bondSym = bondSymbolForOutput(ringBond, otherAtom!, subMol, atomId, duplicates, labels);
         if (bondSym) out.push(bondSym);
-        else if (ringBond.type !== BondType.SINGLE) {
-          if (ringBond.type === BondType.DOUBLE) out.push('=');
-          else if (ringBond.type === BondType.TRIPLE) out.push('#');
-        }
         out.push(numStr);
         continue;
       }
@@ -502,6 +498,21 @@ function bondPriority(b: Bond): number {
 }
 
 function bondSymbolForOutput(bond: Bond, childId: number, molecule: Molecule, parentId: number | null, duplicates: Set<number>, labels: Map<number, string>): string {
+  const parentAtom = parentId !== null ? molecule.atoms.find(a => a.id === parentId) : null;
+  const childAtom = molecule.atoms.find(a => a.id === childId);
+  
+  if (parentAtom?.aromatic && childAtom?.aromatic) {
+    if (bond.type === BondType.AROMATIC) {
+      return '';
+    }
+    if (bond.type === BondType.SINGLE) {
+      return '-';
+    }
+    if (bond.type === BondType.DOUBLE) {
+      return '';
+    }
+  }
+  
   if (bond.type === BondType.SINGLE && parentId !== null) {
     // Check if either end of this bond is connected to a double bond
     const parentDoubleBond = molecule.bonds.find(b => 

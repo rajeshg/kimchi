@@ -306,6 +306,17 @@ function parseBracketAtom(pattern: string, startIndex: number): BracketAtomResul
           tokens.push({ type: 'ring_membership', negate: true });
         }
         i = numResult.nextIndex;
+      } else if (nextChar === 'r') {
+        i++;
+        const numResult = parseNumber(pattern, i);
+        if (numResult.value !== null) {
+          primitives.push({ type: 'ring_size', value: numResult.value, negate: true });
+          tokens.push({ type: 'ring_size', value: numResult.value, negate: true });
+        } else {
+          primitives.push({ type: 'ring_membership', negate: true });
+          tokens.push({ type: 'ring_membership', negate: true });
+        }
+        i = numResult.nextIndex;
       } else if (nextChar === 'a') {
         primitives.push({ type: 'aromatic', negate: true });
         tokens.push({ type: 'aromatic', negate: true });

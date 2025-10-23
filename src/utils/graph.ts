@@ -394,20 +394,20 @@ export function findSSSR<TNode, TEdge>(
   const nodes = graph.getNodes();
   const visited = new Set<string>();
   
-  // Find cycles from all nodes
-  for (const startNode of nodes) {
-    if (graph.getDegree(startNode) < 2) continue;
-    
-    const cycles = findSmallCycles(graph, startNode, 7, -1);
-    for (const cycle of cycles) {
-      const normalized = normalizeCycle(cycle);
-      const key = normalized.join(',');
-      if (!visited.has(key)) {
-        visited.add(key);
-        allCycles.push(normalized);
-      }
-    }
-  }
+   // Find cycles from all nodes
+   for (const startNode of nodes) {
+     if (graph.getDegree(startNode) < 2) continue;
+     
+     const cycles = findSmallCycles(graph, startNode, 100, -1);
+     for (const cycle of cycles) {
+       const normalized = normalizeCycle(cycle);
+       const key = normalized.join(',');
+       if (!visited.has(key)) {
+         visited.add(key);
+         allCycles.push(normalized);
+       }
+     }
+   }
 
   // Sort by cycle length (prefer smaller rings)
   allCycles.sort((a, b) => a.length - b.length);

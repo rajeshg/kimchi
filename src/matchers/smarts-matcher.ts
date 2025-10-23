@@ -13,19 +13,32 @@ import type {
 } from 'src/types/smarts-types';
 import { enrichMolecule } from 'src/utils/molecule-enrichment';
 import { calculateValence } from 'src/utils/valence-calculator';
+import { parseSMARTS } from 'src/parsers/smarts-parser';
 
 export function matchSMARTS(
-  pattern: SMARTSPattern,
+  pattern: string | SMARTSPattern,
   molecule: Molecule,
   options?: SMARTSMatchOptions
 ): MatchResult {
-  enrichMolecule(molecule);
+  let parsedPattern: SMARTSPattern;
+  if (typeof pattern === 'string') {
+    const parseResult = parseSMARTS(pattern);
+    if (!parseResult.pattern || parseResult.errors.length > 0) {
+      throw new Error(`Invalid SMARTS pattern: ${parseResult.errors.join(', ')}`);
+    }
+    parsedPattern = parseResult.pattern;
+  } else {
+    parsedPattern = pattern;
+  }
+
+  const enriched = enrichMolecule(molecule);
+  molecule = enriched;
   
   const matches: Match[] = [];
   const maxMatches = options?.maxMatches ?? Infinity;
   
   for (let i = 0; i < molecule.atoms.length && matches.length < maxMatches; i++) {
-    const foundMatches = tryMatchFromAtom(pattern, molecule, i);
+    const foundMatches = tryMatchFromAtom(parsedPattern, molecule, i);
     for (const match of foundMatches) {
       if (matches.length >= maxMatches) break;
       if (!options?.uniqueMatches || !isDuplicateMatch(match, matches)) {
@@ -69,23 +82,84 @@ function validateRingClosures(
   }
   
   const mappedIndices = new Set(mapping.values());
-  const matchedAtomIds = Array.from(mappedIndices).map(idx => molecule.atoms[idx]!.id);
+  const mappedIndicesArr = Array.from(mappedIndices);
+  const matchedAtomIds = mappedIndicesArr.map(idx => molecule.atoms[idx]!.id);
   const matchedAtomIdSet = new Set(matchedAtomIds);
   
+  const debug = !!process.env.DEBUG_SMARTS;
+  if (debug) {
+    try {
+      console.debug('[SMARTS DEBUG] validateRingClosures mappingIndices=', mappedIndicesArr);
+      console.debug('[SMARTS DEBUG] validateRingClosures matchedAtomIds=', matchedAtomIds);
+      console.debug('[SMARTS DEBUG] validateRingClosures molecule.rings=', molecule.rings?.slice(0, 100));
+      console.debug('[SMARTS DEBUG] validateRingClosures matched atoms ringIds=', mappedIndicesArr.map(i => ({ idx: i, id: molecule.atoms[i]!.id, ringIds: molecule.atoms[i]!.ringIds })));
+    } catch (e) {
+      // swallow debug errors
+    }
+  }
+  
   if (!molecule.rings || molecule.rings.length === 0) {
+    if (debug) console.debug('[SMARTS DEBUG] validateRingClosures: molecule has no rings, failing ring closure');
     return false;
   }
   
+  // First, check for an exact SSSR ring match (existing behavior)
   const matchesExactRing = molecule.rings.some(ring => {
     if (ring.length !== matchedAtomIds.length) {
       return false;
     }
     const ringSet = new Set(ring);
-    return matchedAtomIds.every(id => ringSet.has(id)) && 
-           ring.every(id => matchedAtomIdSet.has(id));
+    const matches = matchedAtomIds.every(id => ringSet.has(id)) && ring.every(id => matchedAtomIdSet.has(id));
+    if (debug && matches) {
+      console.debug('[SMARTS DEBUG] validateRingClosures: found exact ring match', ring);
+    }
+    return matches;
   });
   
-  return matchesExactRing;
+  if (matchesExactRing) {
+    return true;
+  }
+  
+  if (debug) {
+    console.debug('[SMARTS DEBUG] validateRingClosures: no exact ring match for', matchedAtomIds);
+  }
+  
+  // Relaxed rule: each ring-closure bond in the pattern must map to two molecule atoms
+  // that share at least one ring id. This allows local ring-closure checks (common SMARTS usage).
+  for (const rb of ringClosureBonds) {
+    const fromMolIdx = mapping.get(rb.from);
+    const toMolIdx = mapping.get(rb.to);
+    if (fromMolIdx === undefined || toMolIdx === undefined) {
+      if (debug) console.debug('[SMARTS DEBUG] validateRingClosures: ring closure bond endpoints not mapped', rb);
+      return false;
+    }
+
+    const fromAtom = molecule.atoms[fromMolIdx];
+    const toAtom = molecule.atoms[toMolIdx];
+
+    const fromRingIds = new Set(fromAtom.ringIds ?? []);
+    const toRingIds = new Set(toAtom.ringIds ?? []);
+
+    const shared = Array.from(fromRingIds).some(rid => toRingIds.has(rid));
+
+    if (debug) {
+      console.debug('[SMARTS DEBUG] validateRingClosures: ringBond endpoints', {
+        patternFrom: rb.from,
+        patternTo: rb.to,
+        fromAtomId: fromAtom.id,
+        toAtomId: toAtom.id,
+        fromRingIds: fromAtom.ringIds,
+        toRingIds: toAtom.ringIds,
+        shared
+      });
+    }
+
+    if (!shared) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 function collectAllMatches(
@@ -661,14 +735,14 @@ function checkAtomPrimitive(primitive: AtomPrimitive, atom: Atom, molecule: Mole
       return (explicitH - bondedH) === primitive.value;
     
     case 'ring_membership':
+      const atomRingCount = atom.ringIds?.length ?? 0;
       if (primitive.value === 0) {
-        return !(atom.isInRing === true);
+        return atomRingCount === 0;
       }
       if (primitive.value === undefined) {
-        return atom.isInRing === true;
+        return atomRingCount > 0;
       }
-      const ringCount = atom.ringIds?.length ?? 0;
-      return ringCount === primitive.value;
+      return atomRingCount === primitive.value;
     
     case 'ring_size':
       if (!molecule.rings || !atom.ringIds) {
