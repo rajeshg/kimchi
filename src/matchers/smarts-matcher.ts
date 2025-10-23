@@ -136,6 +136,10 @@ function validateRingClosures(
 
     const fromAtom = molecule.atoms[fromMolIdx];
     const toAtom = molecule.atoms[toMolIdx];
+    if (!fromAtom || !toAtom) {
+      if (debug) console.debug('[SMARTS DEBUG] validateRingClosures: fromAtom or toAtom is undefined', { fromMolIdx, toMolIdx });
+      return false;
+    }
 
     const fromRingIds = new Set(fromAtom.ringIds ?? []);
     const toRingIds = new Set(toAtom.ringIds ?? []);
@@ -786,6 +790,7 @@ function checkBondPrimitive(
 ): boolean {
   const fromAtom = molecule.atoms.find(a => a.id === bond.atom1);
   const toAtom = molecule.atoms.find(a => a.id === bond.atom2);
+  if (!fromAtom || !toAtom) return false;
   
   switch (primitive.type) {
     case 'single':
