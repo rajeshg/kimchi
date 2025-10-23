@@ -252,9 +252,11 @@ const result2 = checkLipinskiRuleOfFive(aspirin);
 - See `docs/logp-implementation-notes.md` for validation data
 
 ### Ring Membership Counting
-- openchem follows SMARTS spec (uses SSSR only)
-- RDKit deviates with extended ring sets
-- See `docs/SMARTS_RING_MEMBERSHIP_ANALYSIS.md` for analysis
+- openchem uses all-rings (all simple cycles) for SMARTS `[Rn]` primitive to match RDKit behavior
+- This deviates from strict SMARTS spec which requires SSSR only
+- SSSR rings are still computed and stored in `molecule.rings` for general analysis
+- Implementation: `src/utils/molecule-enrichment.ts` uses `findAllRings()` for atom enrichment
+- See `docs/SMARTS_RING_MEMBERSHIP_ANALYSIS.md` for detailed analysis of the design choice
 
 ## Common Tasks
 
