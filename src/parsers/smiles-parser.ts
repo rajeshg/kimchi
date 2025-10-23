@@ -8,6 +8,7 @@ import { validateStereochemistry } from 'src/validators/stereo-validator';
 import { parseBracketAtom } from 'src/parsers/bracket-parser';
 import { enrichMolecule } from 'src/utils/molecule-enrichment';
 import { perceiveAromaticity } from 'src/utils/aromaticity-perceiver';
+import { MoleculeGraph } from 'src/utils/molecular-graph';
 
 type MutableAtom = {
   -readonly [K in keyof Atom]: Atom[K];
@@ -17,7 +18,7 @@ type MutableBond = {
   -readonly [K in keyof Bond]: Bond[K];
 };
 
-export function parseSMILES(smiles: string): ParseResult {
+export function parseSMILES(smiles: string, timings?: any): ParseResult {
   const errors: ParseError[] = [];
   const molecules: Molecule[] = [];
 
@@ -25,7 +26,7 @@ export function parseSMILES(smiles: string): ParseResult {
   const parts = smiles.split('.');
   for (const part of parts) {
     if (part.trim() === '') continue; // skip empty parts
-    const result = parseSingleSMILES(part.trim());
+    const result = parseSingleSMILES(part.trim(), timings);
     molecules.push(result.molecule);
     errors.push(...result.errors);
   }
@@ -33,10 +34,11 @@ export function parseSMILES(smiles: string): ParseResult {
   return { molecules, errors };
 }
 
-function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: ParseError[] } {
+function parseSingleSMILES(smiles: string, timings?: any): { molecule: Molecule; errors: ParseError[] } {
   const errors: ParseError[] = [];
   let atoms: MutableAtom[] = [];
   let bonds: MutableBond[] = [];
+  const t0 = typeof performance !== 'undefined' ? performance.now() : Date.now();
   let atomId = 0;
   const explicitBonds = new Set<string>();
 
@@ -54,6 +56,7 @@ function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: ParseE
   const bookmarks = new Map<number, { atomId: number; bondType: BondType; bondStereo: StereoType; explicit: boolean }[]>();
 
 
+  const tTokenizeStart = typeof performance !== 'undefined' ? performance.now() : Date.now();
   while (i < smiles.length) {
     const ch = smiles[i]!;
 
@@ -295,6 +298,8 @@ function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: ParseE
     i++;
   }
 
+  const tTokenizeEnd = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  if (timings) timings.tokenize += tTokenizeEnd - tTokenizeStart;
   // Post-process ring closures
   for (const [digit, entries] of bookmarks) {
     if (entries.length < 2) continue;
@@ -358,7 +363,8 @@ function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: ParseE
   }
   if (branchStack.length > 0) errors.push({ message: 'Unmatched opening parentheses', position: -1 });
 
-   // Build O(1) lookup structures for atoms and bonds
+  const tBuildGraphStart = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  // Build O(1) lookup structures for atoms and bonds
    const atomMap = new Map<number, MutableAtom>();
    for (const atom of atoms) {
      atomMap.set(atom.id, atom);
@@ -478,18 +484,44 @@ function parseSingleSMILES(smiles: string): { molecule: Molecule; errors: ParseE
      }
    }
 
-  // Validate aromaticity
-  const validatedArom = validateAromaticity(atoms, bonds, errors, explicitBonds);
-  atoms = validatedArom.atoms;
-  bonds = validatedArom.bonds;
+  const tBuildGraphEnd = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  if (timings) timings.buildGraph += tBuildGraphEnd - tBuildGraphStart;
 
-  validateValences(atoms, bonds, errors);
+const mol: Molecule = { atoms: atoms as Atom[], bonds: bonds as Bond[] };
+   const mg = new MoleculeGraph(mol);
 
-  validateStereochemistry(atoms, bonds, errors);
+    // Validate aromaticity
+    const tAromStart = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    const validatedArom = validateAromaticity(atoms, bonds, errors, explicitBonds, mg);
+    const tAromEnd = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    if (timings) timings.validateAromaticity += tAromEnd - tAromStart;
+   atoms = validatedArom.atoms;
+   bonds = validatedArom.bonds;
 
-  const { atoms: aromaticAtoms, bonds: aromaticBonds } = perceiveAromaticity(atoms as Atom[], bonds as Bond[]);
-  
-  const molecule = enrichMolecule({ atoms: aromaticAtoms, bonds: aromaticBonds });
+   const tValenceStart = typeof performance !== 'undefined' ? performance.now() : Date.now();
+   validateValences(atoms, bonds, errors);
+   const tValenceEnd = typeof performance !== 'undefined' ? performance.now() : Date.now();
+   if (timings) timings.validateValences += tValenceEnd - tValenceStart;
+
+   const tStereoStart = typeof performance !== 'undefined' ? performance.now() : Date.now();
+   validateStereochemistry(atoms, bonds, errors);
+   const tStereoEnd = typeof performance !== 'undefined' ? performance.now() : Date.now();
+   if (timings) timings.validateStereo += tStereoEnd - tStereoStart;
+
+
+   // Perceive aromaticity (only once, after validation) - reuse MoleculeGraph
+   const tPerceiveAromStart = typeof performance !== 'undefined' ? performance.now() : Date.now();
+   const { atoms: aromaticAtoms, bonds: aromaticBonds } = perceiveAromaticity(atoms as Atom[], bonds as Bond[], mg);
+   const tPerceiveAromEnd = typeof performance !== 'undefined' ? performance.now() : Date.now();
+   if (timings) timings.perceiveAromaticity += tPerceiveAromEnd - tPerceiveAromStart;
+
+   // Enrich molecule using aromaticity-perceived atoms/bonds - reuse MoleculeGraph
+   const tEnrichStart = typeof performance !== 'undefined' ? performance.now() : Date.now();
+   const molecule = enrichMolecule({ atoms: aromaticAtoms, bonds: aromaticBonds }, mg);
+   const tEnrichEnd = typeof performance !== 'undefined' ? performance.now() : Date.now();
+   if (timings) timings.enrichMolecule += tEnrichEnd - tEnrichStart;
+
+  if (timings) timings.total += (typeof performance !== 'undefined' ? performance.now() : Date.now()) - t0;
 
   return { molecule, errors };
 }

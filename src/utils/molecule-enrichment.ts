@@ -1,9 +1,10 @@
 import type { Atom, Bond, Molecule } from 'types';
 import { analyzeRings } from './ring-analysis';
 import { bondKey, getBondsForAtom, getHeavyNeighborCount, hasDoubleBond, hasTripleBond, hasCarbonylBond } from './bond-utils';
+import { MoleculeGraph } from './molecular-graph';
 
-export function enrichMolecule(mol: Molecule): Molecule {
-  const ringInfo = analyzeRings(mol.atoms, mol.bonds);
+export function enrichMolecule(mol: Molecule, mg?: MoleculeGraph): Molecule {
+  const ringInfo = analyzeRings(mol, mg);
   
   const enrichedRingInfo = {
     atomRings: buildAtomRingsMap(ringInfo.rings),

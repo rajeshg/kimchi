@@ -132,7 +132,7 @@ async function generateComparison() {
   const rows: Array<{
     smiles: string;
     rdkitSvg: string;
-    opencodeSvg: string;
+    openchemSvg: string;
   }> = [];
 
   for (const smiles of testMolecules) {
@@ -153,23 +153,23 @@ async function generateComparison() {
       rdkitSvg = '<svg><text x="10" y="20">RDKit not available</text></svg>';
     }
 
-    let opencodeSvg = '';
+    let openchemSvg = '';
 
     try {
       const result = parseSMILES(smiles);
       if (result.molecules.length > 0) {
         try {
           const rendered = renderSVG(result, { width: 250, height: 200 });
-          opencodeSvg = rendered.svg;
+          openchemSvg = rendered.svg;
         } catch (e) {
-          opencodeSvg = `<svg><text x=\"10\" y=\"20\">openchem Error: ${String(e).substring(0, 80)}</text></svg>`;
+          openchemSvg = `<svg><text x=\"10\" y=\"20\">openchem Error: ${String(e).substring(0, 80)}</text></svg>`;
         }
       }
     } catch (e) {
-      opencodeSvg = `<svg><text x=\"10\" y=\"20\">openchem Error: ${String(e).substring(0, 80)}</text></svg>`;
+      openchemSvg = `<svg><text x=\"10\" y=\"20\">openchem Error: ${String(e).substring(0, 80)}</text></svg>`;
     }
 
-    rows.push({ smiles, rdkitSvg, opencodeSvg });
+    rows.push({ smiles, rdkitSvg, openchemSvg });
   }
 
   const html = `<!DOCTYPE html>
@@ -206,7 +206,7 @@ ${rows
        (r) => `      <tr>
          <td class="smiles-cell">${r.smiles}</td>
          <td><div class="svg-container">${r.rdkitSvg}</div></td>
-         <td><div class="svg-container">${r.opencodeSvg}</div></td>
+         <td><div class="svg-container">${r.openchemSvg}</div></td>
        </tr>`
      )
      .join('\n')}

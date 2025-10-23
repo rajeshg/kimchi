@@ -31,9 +31,9 @@ async function main() {
   const failures: Array<{
     pattern: string;
     smiles: string;
-    opencodeCount: number;
+    openchemCount: number;
     rdkitCount: number;
-    opencodeMatches: string;
+    openchemMatches: string;
     rdkitMatches: string;
   }> = [];
 
@@ -46,7 +46,7 @@ async function main() {
       const smartsResult = parseSMARTS(pattern);
       if (!smartsResult.pattern) continue;
 
-      const opencodeResult = matchSMARTS(smartsResult.pattern, mol, { uniqueMatches: true });
+      const openchemResult = matchSMARTS(smartsResult.pattern, mol, { uniqueMatches: true });
       
       const rdkitMol = typeof RDKit.get_mol === 'function' ? RDKit.get_mol(smiles) : null;
       if (!rdkitMol) continue;
@@ -63,13 +63,13 @@ async function main() {
       rdkitMol.delete();
       rdkitQuery.delete();
 
-      if (opencodeResult.matches.length !== rdkitMatches.length) {
+      if (openchemResult.matches.length !== rdkitMatches.length) {
         failures.push({
           pattern,
           smiles,
-          opencodeCount: opencodeResult.matches.length,
+          openchemCount: openchemResult.matches.length,
           rdkitCount: rdkitMatches.length,
-          opencodeMatches: JSON.stringify(opencodeResult.matches.map((m: any) => m.map((am: any) => am.moleculeAtomIndex))),
+          openchemMatches: JSON.stringify(openchemResult.matches.map((m: any) => m.map((am: any) => am.moleculeAtomIndex))),
           rdkitMatches: JSON.stringify(rdkitMatches)
         });
       }
@@ -81,9 +81,9 @@ async function main() {
     console.log(`  {`);
     console.log(`    pattern: '${f.pattern}',`);
     console.log(`    smiles: '${f.smiles}',`);
-    console.log(`    opencodeCount: ${f.opencodeCount},`);
+    console.log(`    openchemCount: ${f.openchemCount},`);
     console.log(`    rdkitCount: ${f.rdkitCount},`);
-    console.log(`    opencodeMatches: ${f.opencodeMatches},`);
+    console.log(`    openchemMatches: ${f.openchemMatches},`);
     console.log(`    rdkitMatches: ${f.rdkitMatches},`);
     console.log(`  },`);
   });

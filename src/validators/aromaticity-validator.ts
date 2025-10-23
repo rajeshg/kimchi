@@ -89,18 +89,19 @@ export function validateAromaticity(
   atoms: readonly Atom[],
   bonds: readonly Bond[],
   errors: ParseError[],
-  explicitBonds?: Set<string>
+  explicitBonds?: Set<string>,
+  mg?: MoleculeGraph
 ): { atoms: Atom[]; bonds: Bond[] } {
-  const mol: Molecule = { atoms, bonds };
-  const mg = new MoleculeGraph(mol);
-  const rings = mg.sssr;
-
-  let updatedBonds = detectAromaticRings(atoms, bonds, rings);
-
   const aromaticAtoms = atoms.filter(a => a.aromatic);
   if (aromaticAtoms.length === 0) {
-    return { atoms: [...atoms], bonds: updatedBonds };
+    return { atoms: [...atoms], bonds: [...bonds] };
   }
+
+  const mol: Molecule = { atoms, bonds };
+  const graph = mg || new MoleculeGraph(mol);
+  const rings = graph.sssr;
+
+  let updatedBonds = detectAromaticRings(atoms, bonds, rings);
 
   const atomsToMarkNonAromatic = new Set<number>();
 
@@ -134,10 +135,10 @@ export function validateAromaticity(
       const ringBonds = getRingBonds(ring, updatedBonds);
 
       if (!isHuckelAromatic(ringAtoms, ringBonds)) {
-        const hasExplicitBondTypes = explicitBonds 
+        const hasExplicitBondTypes = explicitBonds
           ? ringBonds.some(b => explicitBonds.has(bondKey(b.atom1, b.atom2)))
           : false;
-        
+
         if (hasExplicitBondTypes) {
           ringAtoms.forEach((a: Atom) => atomsToMarkNonAromatic.add(a.id));
           ringBonds.forEach((b: Bond) => {

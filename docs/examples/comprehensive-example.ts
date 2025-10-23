@@ -94,7 +94,7 @@ if (parseResult.molecules.length > 0) {
   const molecule = parseResult.molecules[0]!;
   const molfile = generateMolfile(molecule, {
     title: 'Aspirin',
-    programName: 'opencode-demo',
+    programName: 'openchem-demo',
     comment: 'Generated from SMILES',
   });
 
@@ -133,7 +133,7 @@ const sdfRecords = sampleMolecules.map(({ smiles, name }) => {
 
 const sdfResult = writeSDF(sdfRecords, {
   title: 'Sample Molecules',
-  programName: 'opencode-demo',
+  programName: 'openchem-demo',
 });
 
 if (sdfResult.errors.length > 0) {

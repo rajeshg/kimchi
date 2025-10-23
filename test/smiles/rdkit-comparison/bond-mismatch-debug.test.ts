@@ -16,7 +16,7 @@ const failing = [
 ];
 
 describe('Bond mismatch debug', () => {
-  it('prints opencode vs RDKit bond counts and opencode bond lists', async () => {
+  it('prints openchem vs RDKit bond counts and openchem bond lists', async () => {
     const rdkitModule = await import('@rdkit/rdkit').catch(() => null);
     if (!rdkitModule) {
       throw new Error('RDKit is not available. Install with: npm install @rdkit/rdkit');
@@ -27,11 +27,11 @@ describe('Bond mismatch debug', () => {
     for (const s of failing) {
       const parsed = parseSMILES(s);
       if (parsed.errors && parsed.errors.length) {
-        // suppressed detailed opencode parse errors in debug run
+        // suppressed detailed openchem parse errors in debug run
         continue;
       }
-      const opencodeAtoms = parsed.molecules.reduce((sum, mol) => sum + mol.atoms.length, 0);
-      const opencodeBonds = parsed.molecules.reduce((sum, mol) => sum + mol.bonds.length, 0);
+      const openchemAtoms = parsed.molecules.reduce((sum, mol) => sum + mol.atoms.length, 0);
+      const openchemBonds = parsed.molecules.reduce((sum, mol) => sum + mol.bonds.length, 0);
       const bondList: string[] = [];
       for (const mol of parsed.molecules) {
         for (const b of mol.bonds) {
@@ -52,10 +52,10 @@ describe('Bond mismatch debug', () => {
         // RDKit parsing failed; treat as zero counts
       }
 
-      if (opencodeBonds !== rdkitBonds) {
+      if (openchemBonds !== rdkitBonds) {
         // Only print concise summary for mismatches when verbose
         if (process.env.RUN_VERBOSE) {
-          console.log(`${s} -> opencode ${opencodeAtoms}/${opencodeBonds} vs RDKit ${rdkitAtoms}/${rdkitBonds}`);
+          console.log(`${s} -> openchem ${openchemAtoms}/${openchemBonds} vs RDKit ${rdkitAtoms}/${rdkitBonds}`);
         }
       }
       // continue to next without failing the test to capture all cases

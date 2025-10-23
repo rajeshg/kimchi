@@ -1,0 +1,11 @@
+smiles,rdkit_success,openchem_success,rdkit_time_ms,openchem_time_ms,which_faster
+"CC(C)(C)C1=CC2=C(C=C1)N3C4=CC(=C5C=CC6=C7C5=C4C=CC7=CC(=C6)C(C)(C)C)N8C9=C(C=C(C=C9)C(C)(C)C)C1=CC4=C(C=C18)N(C1=C4C=C(C=C1)C(C)(C)C)C1=C4C=CC5=C6C4=C(C=CC6=CC(=C5)C(C)(C)C)C(=C1)N1C4=C(C=C(C=C4)C(C)(C)C)C4=C1C=C3C2=C4",yes,yes,262.29,27.44,openchem
+"C1=CC=C(C=C1)C2=NN(C(=O)C=C2)CC(=O)NN3C(=O)C=CC3=O",yes,yes,3.82,4.37,rdkit
+"C1=CC=C(C=C1)N2C3=C(C=N2)C(=O)N(C=N3)CCC(=O)NO",yes,yes,2.27,2.18,openchem
+"CS(=O)(=O)C1=CC=C(C=C1)C2=NC3=C(N2CC(=O)N=NC4=C(NC5=C4C=C(C=C5)Br)O)C=CC(=C3)Cl",yes,yes,2.06,3.14,rdkit
+"CC1=CC=C(C=C1)C(=C(C2=CC=C(C=C2)OCCN3CCCCC3)C4=CC=C(C=C4)OCCN5CCCCC5)C",yes,yes,3.84,7.78,rdkit
+"C1=CC=C2C(=C1)C=CC(=C2C(C3=CC=C(C=C3)Cl)NC4=CNC=CC4=O)O",yes,yes,2.77,2.42,openchem
+"C1=CC(=CC(=C1)NC(=O)NC2=CC=C(C=C2)C#CC3=C4C(=CC=C3)NN=C4N)C(F)(F)F",yes,yes,1.73,1.71,openchem
+"C1=CC=C(C=C1)N2C3=C(C=N2)C(=O)N(C=N3)CCCCC(=O)NC4=C(C=C(C=C4)F)N",yes,yes,2.71,2.69,openchem
+"CCOC(=O)/C=C/COC(=O)[C@@H]1CCCN1C(=O)C(CCCCNC(=O)OC(C)(C)C)NC(=O)OC(C)(C)C",yes,yes,5.22,2.78,openchem
+"CS(=O)(=O)C1=CC=C(C=C1)C2=NC3=C(N2CC(=O)N=NC4=C(NC5=C4C=C(C=C5)Cl)O)C=CC(=C3)Cl",yes,yes,6.13,2.77,openchem

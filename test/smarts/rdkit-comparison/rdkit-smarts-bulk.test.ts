@@ -280,73 +280,73 @@ const KNOWN_AROMATICITY_DIFFERENCES: KnownDifference[] = [
   {
     pattern: 'C',
     smiles: 'n1c2ccccc2c1',
-    reason: 'opencode marks all atoms in indole as aromatic per Hückel rule; RDKit marks some atoms non-aromatic',
+    reason: 'openchem marks all atoms in indole as aromatic per Hückel rule; RDKit marks some atoms non-aromatic',
     category: 'aromaticity-aliphatic'
   },
   {
     pattern: 'N',
     smiles: 'n1c2ccccc2c1',
-    reason: 'opencode marks all atoms in indole as aromatic per Hückel rule; RDKit marks some atoms non-aromatic',
+    reason: 'openchem marks all atoms in indole as aromatic per Hückel rule; RDKit marks some atoms non-aromatic',
     category: 'aromaticity-aliphatic'
   },
   {
     pattern: 'N',
     smiles: 'n1cccc1',
-    reason: 'opencode marks all atoms in pyrrole as aromatic; RDKit marks nitrogen differently',
+    reason: 'openchem marks all atoms in pyrrole as aromatic; RDKit marks nitrogen differently',
     category: 'aromaticity-aliphatic'
   },
   {
     pattern: '[a]',
     smiles: 'n1c2ccccc2c1',
-    reason: 'opencode marks all atoms in indole as aromatic; RDKit uses extended aromaticity model',
+    reason: 'openchem marks all atoms in indole as aromatic; RDKit uses extended aromaticity model',
     category: 'aromaticity-aromatic'
   },
   {
     pattern: 'c1ccccc1',
     smiles: 'c1ccccc1',
-    reason: 'opencode returns all possible 6-membered aromatic rings; RDKit returns only primary ring',
+    reason: 'openchem returns all possible 6-membered aromatic rings; RDKit returns only primary ring',
     category: 'multiple-ring-matches'
   },
   {
     pattern: 'c1ccccc1',
     smiles: 'c1ccncc1',
-    reason: 'opencode returns all possible 6-membered aromatic rings; RDKit returns only primary ring',
+    reason: 'openchem returns all possible 6-membered aromatic rings; RDKit returns only primary ring',
     category: 'multiple-ring-matches'
   },
   {
     pattern: 'c1ccccc1',
     smiles: 'c1ccccc1O',
-    reason: 'opencode returns all possible 6-membered aromatic rings; RDKit returns only primary ring',
+    reason: 'openchem returns all possible 6-membered aromatic rings; RDKit returns only primary ring',
     category: 'multiple-ring-matches'
   },
   {
     pattern: 'c1ccccc1',
     smiles: 'c1ccccc1N',
-    reason: 'opencode returns all possible 6-membered aromatic rings; RDKit returns only primary ring',
+    reason: 'openchem returns all possible 6-membered aromatic rings; RDKit returns only primary ring',
     category: 'multiple-ring-matches'
   },
   {
     pattern: 'c1ccccc1',
     smiles: 'c1ccc(cc1)O',
-    reason: 'opencode returns all possible 6-membered aromatic rings; RDKit returns only primary ring',
+    reason: 'openchem returns all possible 6-membered aromatic rings; RDKit returns only primary ring',
     category: 'multiple-ring-matches'
   },
   {
     pattern: 'c1ccccc1',
     smiles: 'c1ccccc1C(=O)O',
-    reason: 'opencode returns all possible 6-membered aromatic rings; RDKit returns only primary ring',
+    reason: 'openchem returns all possible 6-membered aromatic rings; RDKit returns only primary ring',
     category: 'multiple-ring-matches'
   },
   {
     pattern: 'c1ccccc1',
     smiles: 'c1ccccc1F',
-    reason: 'opencode returns all possible 6-membered aromatic rings; RDKit returns only primary ring',
+    reason: 'openchem returns all possible 6-membered aromatic rings; RDKit returns only primary ring',
     category: 'multiple-ring-matches'
   },
   {
     pattern: 'c1ccccc1',
     smiles: 'c1ccccc1Cl',
-    reason: 'opencode returns all possible 6-membered aromatic rings; RDKit returns only primary ring',
+    reason: 'openchem returns all possible 6-membered aromatic rings; RDKit returns only primary ring',
     category: 'multiple-ring-matches'
   },
 ];
@@ -354,7 +354,7 @@ const KNOWN_AROMATICITY_DIFFERENCES: KnownDifference[] = [
 function isKnownDifference(
   pattern: string, 
   smiles: string, 
-  opencodeCount: number, 
+  openchemCount: number, 
   rdkitCount: number
 ): KnownDifference | undefined {
   // Check for exact match first
@@ -366,12 +366,12 @@ function isKnownDifference(
   // Check for category-based matches
   
   // Benzene ring pattern matching fused aromatic systems
-  // opencode finds all possible 6-membered aromatic rings, RDKit returns only primary ring
-  if (pattern === 'c1ccccc1' && opencodeCount > rdkitCount && rdkitCount > 0) {
+  // openchem finds all possible 6-membered aromatic rings, RDKit returns only primary ring
+  if (pattern === 'c1ccccc1' && openchemCount > rdkitCount && rdkitCount > 0) {
     return {
       pattern,
       smiles,
-      reason: 'opencode returns all matching 6-membered rings in fused systems; RDKit returns only primary ring',
+      reason: 'openchem returns all matching 6-membered rings in fused systems; RDKit returns only primary ring',
       category: 'multiple-ring-matches'
     };
   }
@@ -383,7 +383,7 @@ function isKnownDifference(
       return {
         pattern,
         smiles,
-        reason: 'opencode marks all atoms in aromatic heterocycles as aromatic per Hückel rule; RDKit uses extended aromaticity model',
+        reason: 'openchem marks all atoms in aromatic heterocycles as aromatic per Hückel rule; RDKit uses extended aromaticity model',
         category: 'aromaticity-aliphatic'
       };
     }
@@ -426,23 +426,23 @@ describe('RDKit SMARTS Bulk Comparison', () => {
           continue;
         }
 
-        const allopencodeMatches: number[][] = [];
+        const allopenchemMatches: number[][] = [];
         let atomOffset = 0;
         for (const mol of parsed.molecules) {
-          const opencodeResult = matchSMARTS(smartsPattern.pattern!, mol, { uniqueMatches: true });
-          const opencodeMatches = opencodeResult.matches.map(match => 
+          const openchemResult = matchSMARTS(smartsPattern.pattern!, mol, { uniqueMatches: true });
+          const openchemMatches = openchemResult.matches.map(match => 
             match.atoms.map(a => a.moleculeIndex + atomOffset)
           );
-          allopencodeMatches.push(...opencodeMatches);
+          allopenchemMatches.push(...openchemMatches);
           atomOffset += mol.atoms.length;
         }
-        const opencodeMatches = allopencodeMatches;
+        const openchemMatches = allopenchemMatches;
 
         try {
-          assertMatchesEqual(opencodeMatches, rdkitResult.matches, pattern, smiles);
+          assertMatchesEqual(openchemMatches, rdkitResult.matches, pattern, smiles);
           successCount++;
         } catch (e) {
-          const knownDiff = isKnownDifference(pattern, smiles, opencodeMatches.length, rdkitResult.matches.length);
+          const knownDiff = isKnownDifference(pattern, smiles, openchemMatches.length, rdkitResult.matches.length);
           if (knownDiff) {
             knownDifferences.push(`${pattern} vs ${smiles}: ${knownDiff.reason}`);
             successCount++;

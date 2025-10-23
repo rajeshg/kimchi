@@ -89,21 +89,21 @@ describe('RDKit MOL File Comparison', () => {
     const rdkitMolfile = rdkitMol.get_molblock();
     const rdkitStructure = parseMolfileBasic(rdkitMolfile);
 
-    // Get opencode MOL file
+    // Get openchem MOL file
     const result = parseSMILES('C');
     expect(result.errors).toHaveLength(0);
-    const opencodeMolfile = generateMolfile(result.molecules[0]!);
-    const opencodeStructure = parseMolfileBasic(opencodeMolfile);
+    const openchemMolfile = generateMolfile(result.molecules[0]!);
+    const openchemStructure = parseMolfileBasic(openchemMolfile);
 
     // Compare structure
-    expect(opencodeStructure.numAtoms).toBe(rdkitStructure.numAtoms);
-    expect(opencodeStructure.numBonds).toBe(rdkitStructure.numBonds);
-    expect(opencodeStructure.atoms).toHaveLength(rdkitStructure.atoms.length);
-    expect(opencodeStructure.bonds).toHaveLength(rdkitStructure.bonds.length);
+    expect(openchemStructure.numAtoms).toBe(rdkitStructure.numAtoms);
+    expect(openchemStructure.numBonds).toBe(rdkitStructure.numBonds);
+    expect(openchemStructure.atoms).toHaveLength(rdkitStructure.atoms.length);
+    expect(openchemStructure.bonds).toHaveLength(rdkitStructure.bonds.length);
 
     // Check atoms (should all be C)
-    for (let i = 0; i < opencodeStructure.atoms.length; i++) {
-      expect(opencodeStructure.atoms[i]!.symbol).toBe(rdkitStructure.atoms[i]!.symbol);
+    for (let i = 0; i < openchemStructure.atoms.length; i++) {
+      expect(openchemStructure.atoms[i]!.symbol).toBe(rdkitStructure.atoms[i]!.symbol);
     }
   });
 
@@ -115,26 +115,26 @@ describe('RDKit MOL File Comparison', () => {
     const rdkitMolfile = rdkitMol.get_molblock();
     const rdkitStructure = parseMolfileBasic(rdkitMolfile);
 
-    // Get opencode MOL file
+    // Get openchem MOL file
     const result = parseSMILES('CCO');
     expect(result.errors).toHaveLength(0);
-    const opencodeMolfile = generateMolfile(result.molecules[0]!);
-    const opencodeStructure = parseMolfileBasic(opencodeMolfile);
+    const openchemMolfile = generateMolfile(result.molecules[0]!);
+    const openchemStructure = parseMolfileBasic(openchemMolfile);
 
     // Compare structure
-    expect(opencodeStructure.numAtoms).toBe(rdkitStructure.numAtoms);
-    expect(opencodeStructure.numBonds).toBe(rdkitStructure.numBonds);
-    expect(opencodeStructure.atoms).toHaveLength(rdkitStructure.atoms.length);
-    expect(opencodeStructure.bonds).toHaveLength(rdkitStructure.bonds.length);
+    expect(openchemStructure.numAtoms).toBe(rdkitStructure.numAtoms);
+    expect(openchemStructure.numBonds).toBe(rdkitStructure.numBonds);
+    expect(openchemStructure.atoms).toHaveLength(rdkitStructure.atoms.length);
+    expect(openchemStructure.bonds).toHaveLength(rdkitStructure.bonds.length);
 
     // Check atoms
-    expect(opencodeStructure.atoms[0]!.symbol).toBe('C');
-    expect(opencodeStructure.atoms[1]!.symbol).toBe('C');
-    expect(opencodeStructure.atoms[2]!.symbol).toBe('O');
+    expect(openchemStructure.atoms[0]!.symbol).toBe('C');
+    expect(openchemStructure.atoms[1]!.symbol).toBe('C');
+    expect(openchemStructure.atoms[2]!.symbol).toBe('O');
 
     // Check bonds (should be 2 single bonds)
-    expect(opencodeStructure.bonds[0]!.type).toBe(1); // single
-    expect(opencodeStructure.bonds[1]!.type).toBe(1); // single
+    expect(openchemStructure.bonds[0]!.type).toBe(1); // single
+    expect(openchemStructure.bonds[1]!.type).toBe(1); // single
   });
 
   it('compares MOL file structure for benzene', async () => {
@@ -145,23 +145,23 @@ describe('RDKit MOL File Comparison', () => {
     const rdkitMolfile = rdkitMol.get_molblock();
     const rdkitStructure = parseMolfileBasic(rdkitMolfile);
 
-    // Get opencode MOL file
+    // Get openchem MOL file
     const result = parseSMILES('c1ccccc1');
     expect(result.errors).toHaveLength(0);
-    const opencodeMolfile = generateMolfile(result.molecules[0]!);
-    const opencodeStructure = parseMolfileBasic(opencodeMolfile);
+    const openchemMolfile = generateMolfile(result.molecules[0]!);
+    const openchemStructure = parseMolfileBasic(openchemMolfile);
 
     // Compare structure
-    expect(opencodeStructure.numAtoms).toBe(rdkitStructure.numAtoms);
-    expect(opencodeStructure.numBonds).toBe(rdkitStructure.numBonds);
+    expect(openchemStructure.numAtoms).toBe(rdkitStructure.numAtoms);
+    expect(openchemStructure.numBonds).toBe(rdkitStructure.numBonds);
 
     // Check atoms (should all be C)
-    for (const atom of opencodeStructure.atoms) {
+    for (const atom of openchemStructure.atoms) {
       expect(atom.symbol).toBe('C');
     }
 
     // Check bonds (should be alternating single and double for aromatic)
-    expect(opencodeStructure.bonds.some(b => b.type === 4)).toBe(true); // aromatic bonds
+    expect(openchemStructure.bonds.some(b => b.type === 4)).toBe(true); // aromatic bonds
   });
 
   it('compares MOL file structure for charged molecule', async () => {
@@ -172,18 +172,18 @@ describe('RDKit MOL File Comparison', () => {
     const rdkitMolfile = rdkitMol.get_molblock();
     const rdkitStructure = parseMolfileBasic(rdkitMolfile);
 
-    // Get opencode MOL file
+    // Get openchem MOL file
     const result = parseSMILES('[NH4+]');
     expect(result.errors).toHaveLength(0);
-    const opencodeMolfile = generateMolfile(result.molecules[0]!);
-    const opencodeStructure = parseMolfileBasic(opencodeMolfile);
+    const openchemMolfile = generateMolfile(result.molecules[0]!);
+    const openchemStructure = parseMolfileBasic(openchemMolfile);
 
     // Compare structure
-    expect(opencodeStructure.numAtoms).toBe(rdkitStructure.numAtoms);
-    expect(opencodeStructure.numBonds).toBe(rdkitStructure.numBonds);
+    expect(openchemStructure.numAtoms).toBe(rdkitStructure.numAtoms);
+    expect(openchemStructure.numBonds).toBe(rdkitStructure.numBonds);
 
     // Check atoms
-    expect(opencodeStructure.atoms[0]!.symbol).toBe('N');
+    expect(openchemStructure.atoms[0]!.symbol).toBe('N');
   });
 
   it('compares MOL file structure for isotope', async () => {
@@ -194,18 +194,18 @@ describe('RDKit MOL File Comparison', () => {
     const rdkitMolfile = rdkitMol.get_molblock();
     const rdkitStructure = parseMolfileBasic(rdkitMolfile);
 
-    // Get opencode MOL file
+    // Get openchem MOL file
     const result = parseSMILES('[13CH4]');
     expect(result.errors).toHaveLength(0);
-    const opencodeMolfile = generateMolfile(result.molecules[0]!);
-    const opencodeStructure = parseMolfileBasic(opencodeMolfile);
+    const openchemMolfile = generateMolfile(result.molecules[0]!);
+    const openchemStructure = parseMolfileBasic(openchemMolfile);
 
     // Compare structure
-    expect(opencodeStructure.numAtoms).toBe(rdkitStructure.numAtoms);
-    expect(opencodeStructure.numBonds).toBe(rdkitStructure.numBonds);
+    expect(openchemStructure.numAtoms).toBe(rdkitStructure.numAtoms);
+    expect(openchemStructure.numBonds).toBe(rdkitStructure.numBonds);
 
     // Check atoms (should all be C)
-    for (const atom of opencodeStructure.atoms) {
+    for (const atom of openchemStructure.atoms) {
       expect(atom.symbol).toBe('C');
     }
   });
@@ -218,21 +218,21 @@ describe('RDKit MOL File Comparison', () => {
     const rdkitMolfile = rdkitMol.get_molblock();
     const rdkitStructure = parseMolfileBasic(rdkitMolfile);
 
-    // Get opencode MOL file
+    // Get openchem MOL file
     const result = parseSMILES('C[C@H](O)N');
     expect(result.errors).toHaveLength(0);
-    const opencodeMolfile = generateMolfile(result.molecules[0]!);
-    const opencodeStructure = parseMolfileBasic(opencodeMolfile);
+    const openchemMolfile = generateMolfile(result.molecules[0]!);
+    const openchemStructure = parseMolfileBasic(openchemMolfile);
 
     // Compare structure
-    expect(opencodeStructure.numAtoms).toBe(rdkitStructure.numAtoms);
-    expect(opencodeStructure.numBonds).toBe(rdkitStructure.numBonds);
+    expect(openchemStructure.numAtoms).toBe(rdkitStructure.numAtoms);
+    expect(openchemStructure.numBonds).toBe(rdkitStructure.numBonds);
 
     // Check atoms
-    expect(opencodeStructure.atoms[0]!.symbol).toBe('C');
-    expect(opencodeStructure.atoms[1]!.symbol).toBe('C');
-    expect(opencodeStructure.atoms[2]!.symbol).toBe('O');
-    expect(opencodeStructure.atoms[3]!.symbol).toBe('N');
+    expect(openchemStructure.atoms[0]!.symbol).toBe('C');
+    expect(openchemStructure.atoms[1]!.symbol).toBe('C');
+    expect(openchemStructure.atoms[2]!.symbol).toBe('O');
+    expect(openchemStructure.atoms[3]!.symbol).toBe('N');
   });
 
   it('verifies MOL file format compliance', async () => {
@@ -249,25 +249,25 @@ describe('RDKit MOL File Comparison', () => {
     ];
 
     for (const smiles of testCases) {
-      // Get opencode MOL file
+      // Get openchem MOL file
       const result = parseSMILES(smiles);
       expect(result.errors).toHaveLength(0);
-      const opencodeMolfile = generateMolfile(result.molecules[0]!);
+      const openchemMolfile = generateMolfile(result.molecules[0]!);
 
       // Verify MOL file structure
-      const lines = opencodeMolfile.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+      const lines = openchemMolfile.split('\n').map(line => line.trim()).filter(line => line.length > 0);
 
       // Should have at least header, counts line, atoms, and M END
       expect(lines.length).toBeGreaterThanOrEqual(4);
 
       // Should contain V2000
-      expect(opencodeMolfile).toContain('V2000');
+      expect(openchemMolfile).toContain('V2000');
 
       // Should end with M END
-      expect(opencodeMolfile.trim().endsWith('M  END')).toBe(true);
+      expect(openchemMolfile.trim().endsWith('M  END')).toBe(true);
 
       // Should be parseable by our basic parser
-      const structure = parseMolfileBasic(opencodeMolfile);
+      const structure = parseMolfileBasic(openchemMolfile);
       expect(structure.numAtoms).toBeGreaterThan(0);
     }
   });

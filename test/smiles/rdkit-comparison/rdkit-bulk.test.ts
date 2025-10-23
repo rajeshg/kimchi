@@ -1,15 +1,16 @@
 import { describe, it, expect } from 'bun:test';
-import { 
-  parseSMILES, 
-  generateSMILES, 
-  getMolecularFormula, 
-  getMolecularMass, 
+import {
+  parseSMILES,
+  generateSMILES,
+  getMolecularFormula,
+  getMolecularMass,
   getExactMass,
   getHBondDonorCount,
   getHBondAcceptorCount,
   getRotatableBondCount,
   getTPSA,
 } from 'index';
+import { enrichMolecule } from 'src/utils/molecule-enrichment';
 
 // Programmatically build a diverse list of 300 SMILES
 const TEST_SMILES: string[] = [];
@@ -269,12 +270,12 @@ describe(`RDKit Bulk Comparison (${EXPECTED_COUNT} SMILES)`, () => {
       const ourMass = parsed.molecules.reduce((sum, m) => sum + getMolecularMass(m), 0);
       const ourExact = parsed.molecules.reduce((sum, m) => sum + getExactMass(m), 0);
 
-      const opencodeOutput = generateSMILES(parsed.molecules);
+      const openchemOutput = generateSMILES(parsed.molecules);
 
       // Check round-trip: parse -> generate -> parse should work
-      const roundTrip = parseSMILES(opencodeOutput);
+      const roundTrip = parseSMILES(openchemOutput);
       if (roundTrip.errors && roundTrip.errors.length > 0) {
-        generationFailures.push(`${smiles} -> ${opencodeOutput} (round-trip failed: ${roundTrip.errors.map(e => e.message).join(', ')})`);
+        generationFailures.push(`${smiles} -> ${openchemOutput} (round-trip failed: ${roundTrip.errors.map(e => e.message).join(', ')})`);
         continue;
       }
 
@@ -285,7 +286,7 @@ describe(`RDKit Bulk Comparison (${EXPECTED_COUNT} SMILES)`, () => {
       const generatedBonds = roundTrip.molecules.reduce((sum, m) => sum + m.bonds.length, 0);
 
       if (originalAtoms !== generatedAtoms || originalBonds !== generatedBonds) {
-        generationFailures.push(`${smiles} -> ${opencodeOutput} (structure mismatch: ${originalAtoms}/${originalBonds} vs ${generatedAtoms}/${generatedBonds})`);
+        generationFailures.push(`${smiles} -> ${openchemOutput} (structure mismatch: ${originalAtoms}/${originalBonds} vs ${generatedAtoms}/${generatedBonds})`);
         continue;
       }
 
@@ -319,34 +320,35 @@ describe(`RDKit Bulk Comparison (${EXPECTED_COUNT} SMILES)`, () => {
       const descriptors = tryGetDescriptors(rdkitMol);
       if (descriptors && parsed.molecules.length === 1) {
         const mol = parsed.molecules[0]!;
-        
+        const enriched = enrichMolecule(mol);
+
         // H-bond donors
         if (typeof descriptors.NumHDonors === 'number') {
-          const ourDonors = getHBondDonorCount(mol);
+          const ourDonors = getHBondDonorCount(enriched);
           if (descriptors.NumHDonors !== ourDonors) {
             generationFailures.push(`${smiles} (HBD mismatch) our:${ourDonors} rdkit:${descriptors.NumHDonors}`);
           }
         }
-        
+
         // H-bond acceptors
         if (typeof descriptors.NumHAcceptors === 'number') {
-          const ourAcceptors = getHBondAcceptorCount(mol);
+          const ourAcceptors = getHBondAcceptorCount(enriched);
           if (descriptors.NumHAcceptors !== ourAcceptors) {
             generationFailures.push(`${smiles} (HBA mismatch) our:${ourAcceptors} rdkit:${descriptors.NumHAcceptors}`);
           }
         }
-        
+
         // Rotatable bonds
         if (typeof descriptors.NumRotatableBonds === 'number') {
-          const ourRotBonds = getRotatableBondCount(mol);
+          const ourRotBonds = getRotatableBondCount(enriched);
           if (descriptors.NumRotatableBonds !== ourRotBonds) {
             generationFailures.push(`${smiles} (RotBonds mismatch) our:${ourRotBonds} rdkit:${descriptors.NumRotatableBonds}`);
           }
         }
-        
+
         // TPSA (allow small tolerance for floating point)
         if (typeof descriptors.TPSA === 'number') {
-          const ourTPSA = getTPSA(mol);
+          const ourTPSA = getTPSA(enriched);
           const tpsaTol = 0.1;
           if (Math.abs(descriptors.TPSA - ourTPSA) > tpsaTol) {
             generationFailures.push(`${smiles} (TPSA mismatch) our:${ourTPSA.toFixed(2)} rdkit:${descriptors.TPSA.toFixed(2)}`);
@@ -359,7 +361,7 @@ describe(`RDKit Bulk Comparison (${EXPECTED_COUNT} SMILES)`, () => {
 
     // Report (only when verbose)
     if (process.env.RUN_VERBOSE) {
-      console.log('\nopencode Bulk Test Report');
+      console.log('\nopenchem Bulk Test Report');
       console.log('Total SMILES:', TEST_SMILES.length);
       console.log('Parse failures:', parseFailures.length);
       console.log('Generation/round-trip failures:', generationFailures.length);
@@ -368,7 +370,7 @@ describe(`RDKit Bulk Comparison (${EXPECTED_COUNT} SMILES)`, () => {
       if (generationFailures.length > 0) console.log('First generation failures:', generationFailures.slice(0,5));
     }
 
-    // Fail the test if opencode cannot properly parse or generate SMILES
+    // Fail the test if openchem cannot properly parse or generate SMILES
     expect(generationFailures.length).toBe(0);
   }, 600000);
 

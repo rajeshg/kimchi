@@ -3,7 +3,7 @@
 
 // Small ethanol molfile (V2000) used as an example
 const ethanolMol = `ethanol
-  opencode
+  openchem
 
   3  2  0  0  0  0  0  0  0  0999 V2000
     0.0000    0.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0

@@ -72,11 +72,11 @@ describe('RDKit Stereo SMILES Comparison', () => {
     it(`matches RDKit canonical SMILES for ${description}: ${input}`, async () => {
       const RDKit = await initializeRDKit();
       
-      // Parse with opencode
+      // Parse with openchem
       const result = parseSMILES(input);
       expect(result.errors).toHaveLength(0);
       
-      // Generate canonical SMILES with opencode
+      // Generate canonical SMILES with openchem
       const ourCanonical = generateSMILES(result.molecules);
       
       // Get RDKit canonical SMILES

@@ -48,7 +48,7 @@ console.log(canonical); // "CC(=O)O"
 // Parse MOL file
 const molContent = `
 acetic acid
-  opencode
+  openchem
 
   4  3  0  0  0  0  0  0  0  0999 V2000
     0.0000    0.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
@@ -767,7 +767,7 @@ import { parseMolfile, generateSMILES } from 'openchem';
 
 const molContent = `
 ethanol
-  opencode
+  openchem
 
   3  2  0  0  0  0  0  0  0  0999 V2000
     0.0000    0.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
@@ -1309,7 +1309,7 @@ enum BondType {
 
 ## Performance
 
-opencode is designed for production use with real-world performance:
+openchem is designed for production use with real-world performance:
 
 - **Parsing**: ~1-10ms per molecule (depending on complexity)
 - **Generation**: ~1-5ms per molecule
@@ -1322,7 +1322,7 @@ Benchmark with 325 diverse molecules including commercial drugs: Average parse +
 
 ### Molecule Enrichment System
 
-opencode uses a **post-processing enrichment system** that pre-computes expensive molecular properties during parsing. This design significantly improves performance for downstream property queries while maintaining code simplicity.
+openchem uses a **post-processing enrichment system** that pre-computes expensive molecular properties during parsing. This design significantly improves performance for downstream property queries while maintaining code simplicity.
 
 #### Why Pre-compute Properties?
 
@@ -1377,7 +1377,7 @@ If you need to modify a molecule, create a new one by parsing updated SMILES.
 
 ## Edge Cases & Limitations
 
-opencode handles 100% of tested SMILES correctly (325/325 in bulk validation).
+openchem handles 100% of tested SMILES correctly (325/325 in bulk validation).
 
 **Key implementation details**:
 
@@ -1391,7 +1391,7 @@ This implementation has been validated against RDKit's canonical SMILES output f
 
 ## OpenSMILES Specification Compliance
 
-opencode implements the OpenSMILES specification with high fidelity while prioritizing **RDKit compatibility** for real-world interoperability. In specific areas where the OpenSMILES specification provides recommendations rather than strict requirements, opencode follows RDKit's implementation choices to ensure 100% parity with the industry-standard cheminformatics toolkit.
+openchem implements the OpenSMILES specification with high fidelity while prioritizing **RDKit compatibility** for real-world interoperability. In specific areas where the OpenSMILES specification provides recommendations rather than strict requirements, openchem follows RDKit's implementation choices to ensure 100% parity with the industry-standard cheminformatics toolkit.
 
 ### Starting Atom Selection (OpenSMILES Section 4.3.4)
 
@@ -1399,7 +1399,7 @@ opencode implements the OpenSMILES specification with high fidelity while priori
 - Example preference: `OCCC` over `CCCO` for propanol
 - Rationale: Heteroatoms are "more interesting" chemically
 
-**opencode Implementation**: Canonical labels first, heteroatoms as tie-breaker.
+**openchem Implementation**: Canonical labels first, heteroatoms as tie-breaker.
 - Example: Both `OCCC` and `CCCO` canonicalize to `CCCO`
 - Rationale: Ensures 100% deterministic output for identical molecules
 
@@ -1415,25 +1415,25 @@ opencode implements the OpenSMILES specification with high fidelity while priori
 
 **OpenSMILES Specification**: Recommends strict Hückel rule enforcement (4n+2 π-electrons).
 
-**opencode Implementation**: Accepts aromatic notation as specified in input; validates aromatic atoms are in rings but does not enforce strict Hückel rules during parsing.
+**openchem Implementation**: Accepts aromatic notation as specified in input; validates aromatic atoms are in rings but does not enforce strict Hückel rules during parsing.
 
 **Why RDKit's Approach**: Broader compatibility with real-world chemical data where aromaticity may be empirically determined or context-dependent rather than purely theoretical.
 
 ### Standards Compliance Summary
 
-| Feature | OpenSMILES Spec | opencode Implementation | Rationale |
+| Feature | OpenSMILES Spec | openchem Implementation | Rationale |
 |---------|-----------------|------------------------|-----------|
 | **Starting atom** | Heteroatom preference | Canonical labels first | Deterministic output, RDKit parity |
 | **Aromatic validation** | Strict Hückel (4n+2) | Permissive ring validation | Real-world compatibility |
 | **Stereo normalization** | Not specified | Canonical E/Z form | Deterministic stereo representation |
 | **Canonical ordering** | Modified Morgan recommended | Modified Morgan (RDKit-compatible) | 100% RDKit agreement |
 
-All deviations are deliberate choices to maximize **real-world interoperability** while maintaining full compliance with OpenSMILES syntax and semantics. opencode produces valid OpenSMILES that can be read by any compliant parser.
+All deviations are deliberate choices to maximize **real-world interoperability** while maintaining full compliance with OpenSMILES syntax and semantics. openchem produces valid OpenSMILES that can be read by any compliant parser.
 
 ## Project Structure
 
 ```
-opencode/
+openchem/
 ├── src/
 │   ├── generators/
 │   │   ├── mol-generator.ts         # MOL file generation
@@ -1517,7 +1517,7 @@ opencode/
 
 ### Canonical SMILES Generation
 
-opencode implements RDKit-compatible canonical SMILES generation:
+openchem implements RDKit-compatible canonical SMILES generation:
 
 1. **Modified Morgan Algorithm**: Atoms are canonically ordered using iterative refinement based on:
    - Canonical rank (connectivity signature)
@@ -1530,7 +1530,7 @@ opencode implements RDKit-compatible canonical SMILES generation:
    - **Tie-breakers** (in order): Heteroatom preference → Terminal atom → Lower degree → Lower charge
    - **Design choice**: Prioritizes canonical labels over heteroatom preference for deterministic output
    - **Note**: The OpenSMILES specification (Section 4.3.4) recommends starting on heteroatoms first (e.g., `OCCC` over `CCCO`), but RDKit prioritizes canonical ordering for deterministic behavior
-   - **Result**: Both approaches are chemically equivalent; opencode follows RDKit for maximum interoperability
+   - **Result**: Both approaches are chemically equivalent; openchem follows RDKit for maximum interoperability
 
 3. **Stereo Normalization**: E/Z double bond stereochemistry is normalized to a canonical form:
    - Trans (E) alkenes: Both markers pointing up (`/`) - e.g., `C/C=C/C`
@@ -1564,8 +1564,8 @@ We welcome contributions! openchem maintains strict quality standards:
 To contribute:
 ```bash
 # Clone and install
-git clone https://github.com/rajeshg/opencode.git
-cd opencode
+git clone https://github.com/rajeshg/openchem.git
+cd openchem
 bun install
 
 # Make changes and test
@@ -1579,7 +1579,7 @@ bun run tsc
 
 ## Use Cases
 
-opencode is perfect for:
+openchem is perfect for:
 
 - **Cheminformatics web applications** — Client-side molecule parsing
 - **Chemical databases** — Canonical SMILES storage and comparison

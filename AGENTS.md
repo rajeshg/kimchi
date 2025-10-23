@@ -1,4 +1,4 @@
-# Agent Guidelines for opencode
+# Agent Guidelines for openchem
 
 ## Build/Test Commands
 - **Run all tests**: `bun test`

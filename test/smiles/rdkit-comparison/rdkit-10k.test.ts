@@ -31,7 +31,7 @@ describe('RDKit 10k SMILES Comparison', () => {
 
     const stats = {
       total: smilesLines.length,
-      opencodeParseFailures: 0,
+      openchemParseFailures: 0,
       rdkitParseFailures: 0,
       atomCountMismatches: 0,
       bondCountMismatches: 0,
@@ -40,7 +40,7 @@ describe('RDKit 10k SMILES Comparison', () => {
       success: 0
     };
 
-    const opencodeFailures: string[] = [];
+    const openchemFailures: string[] = [];
     const rdkitFailures: string[] = [];
     const mismatchDetails: string[] = [];
     const roundTripFailures: string[] = [];
@@ -73,38 +73,38 @@ describe('RDKit 10k SMILES Comparison', () => {
       }
 
       const parsed = parseSMILES(smiles);
-      const opencodeFailed = parsed.errors && parsed.errors.length > 0;
+      const openchemFailed = parsed.errors && parsed.errors.length > 0;
 
-      if (opencodeFailed) {
-        stats.opencodeParseFailures++;
-        if (opencodeFailures.length < 10) {
-          opencodeFailures.push(`${smiles} (${parsed.errors?.map(e => e.message).join(', ')})`);
+      if (openchemFailed) {
+        stats.openchemParseFailures++;
+        if (openchemFailures.length < 10) {
+          openchemFailures.push(`${smiles} (${parsed.errors?.map(e => e.message).join(', ')})`);
         }
       }
 
-      if (rdkitFailed && opencodeFailed) {
+      if (rdkitFailed && openchemFailed) {
         stats.bothFailed++;
         continue;
       }
 
-      if (opencodeFailed) {
+      if (openchemFailed) {
         continue;
       }
 
-       const opencodeAtoms = parsed.molecules.reduce((sum, mol) => sum + mol.atoms.length, 0);
-       const opencodeBonds = parsed.molecules.reduce((sum, mol) => sum + mol.bonds.length, 0);
+       const openchemAtoms = parsed.molecules.reduce((sum, mol) => sum + mol.atoms.length, 0);
+       const openchemBonds = parsed.molecules.reduce((sum, mol) => sum + mol.bonds.length, 0);
 
       if (!rdkitFailed) {
-        if (opencodeAtoms !== rdkitAtoms) {
+        if (openchemAtoms !== rdkitAtoms) {
           stats.atomCountMismatches++;
           if (mismatchDetails.length < 10) {
-            mismatchDetails.push(`${smiles}: atoms ${opencodeAtoms} vs ${rdkitAtoms}`);
+            mismatchDetails.push(`${smiles}: atoms ${openchemAtoms} vs ${rdkitAtoms}`);
           }
         }
-        if (opencodeBonds !== rdkitBonds) {
+        if (openchemBonds !== rdkitBonds) {
           stats.bondCountMismatches++;
-          if (mismatchDetails.length < 10 && opencodeAtoms === rdkitAtoms) {
-            mismatchDetails.push(`${smiles}: bonds ${opencodeBonds} vs ${rdkitBonds}`);
+          if (mismatchDetails.length < 10 && openchemAtoms === rdkitAtoms) {
+            mismatchDetails.push(`${smiles}: bonds ${openchemBonds} vs ${rdkitBonds}`);
           }
         }
       }
@@ -121,17 +121,17 @@ describe('RDKit 10k SMILES Comparison', () => {
          const rtAtoms = roundTrip.molecules.reduce((sum, mol) => sum + mol.atoms.length, 0);
          const rtBonds = roundTrip.molecules.reduce((sum, mol) => sum + mol.bonds.length, 0);
 
-         if (rtAtoms !== opencodeAtoms || rtBonds !== opencodeBonds) {
+         if (rtAtoms !== openchemAtoms || rtBonds !== openchemBonds) {
            stats.roundTripFailures++;
            if (roundTripFailures.length < 10) {
-             roundTripFailures.push(`${smiles} -> ${generated} (${opencodeAtoms}/${opencodeBonds} -> ${rtAtoms}/${rtBonds})`);
+             roundTripFailures.push(`${smiles} -> ${generated} (${openchemAtoms}/${openchemBonds} -> ${rtAtoms}/${rtBonds})`);
            }
          }
        }
 
-      if (!opencodeFailed && !rdkitFailed && 
-          opencodeAtoms === rdkitAtoms && 
-          opencodeBonds === rdkitBonds &&
+      if (!openchemFailed && !rdkitFailed && 
+          openchemAtoms === rdkitAtoms && 
+          openchemBonds === rdkitBonds &&
           (!roundTrip.errors || roundTrip.errors.length === 0)) {
         stats.success++;
       }
@@ -147,20 +147,20 @@ describe('RDKit 10k SMILES Comparison', () => {
       console.log('\n=== RDKit 10k Validation Results ===');
       console.log(`Total SMILES: ${stats.total}`);
       console.log(`Success (full parity): ${stats.success} (${(stats.success/stats.total*100).toFixed(2)}%)`);
-      console.log(`opencode parse failures: ${stats.opencodeParseFailures} (${(stats.opencodeParseFailures/stats.total*100).toFixed(2)}%)`);
+      console.log(`openchem parse failures: ${stats.openchemParseFailures} (${(stats.openchemParseFailures/stats.total*100).toFixed(2)}%)`);
       console.log(`RDKit parse failures: ${stats.rdkitParseFailures} (${(stats.rdkitParseFailures/stats.total*100).toFixed(2)}%)`);
       console.log(`Both failed: ${stats.bothFailed} (${(stats.bothFailed/stats.total*100).toFixed(2)}%)`);
       console.log(`Atom count mismatches: ${stats.atomCountMismatches} (${(stats.atomCountMismatches/stats.total*100).toFixed(2)}%)`);
       console.log(`Bond count mismatches: ${stats.bondCountMismatches} (${(stats.bondCountMismatches/stats.total*100).toFixed(2)}%)`);
       console.log(`Round-trip failures: ${stats.roundTripFailures} (${(stats.roundTripFailures/stats.total*100).toFixed(2)}%)`);
 
-      if (opencodeFailures.length > 0) {
-        console.log('\nFirst opencode parse failures:');
-        opencodeFailures.forEach(f => console.log(`  ${f}`));
+      if (openchemFailures.length > 0) {
+        console.log('\nFirst openchem parse failures:');
+        openchemFailures.forEach(f => console.log(`  ${f}`));
       }
 
       if (rdkitFailures.length > 0 && stats.rdkitParseFailures > stats.bothFailed) {
-        console.log('\nFirst RDKit-only parse failures (opencode succeeded):');
+        console.log('\nFirst RDKit-only parse failures (openchem succeeded):');
         rdkitFailures.slice(0, 5).forEach(f => console.log(`  ${f}`));
       }
 

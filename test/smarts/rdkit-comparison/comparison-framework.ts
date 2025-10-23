@@ -15,16 +15,16 @@ export function normalizeMatches(matches: number[][]): number[][] {
 }
 
 export function compareMatches(
-  opencodeMatches: number[][],
+  openchemMatches: number[][],
   rdkitMatches: number[][]
 ): MatchComparisonResult {
-  const ckNorm = normalizeMatches(opencodeMatches);
+  const ckNorm = normalizeMatches(openchemMatches);
   const rdNorm = normalizeMatches(rdkitMatches);
 
   if (ckNorm.length !== rdNorm.length) {
     return {
       equal: false,
-      message: `Match count mismatch: opencode=${ckNorm.length} rdkit=${rdNorm.length}`,
+      message: `Match count mismatch: openchem=${ckNorm.length} rdkit=${rdNorm.length}`,
     };
   }
 
@@ -34,14 +34,14 @@ export function compareMatches(
     if (ckMatch.length !== rdMatch.length) {
       return {
         equal: false,
-        message: `Match ${i} length mismatch: opencode=${ckMatch.length} rdkit=${rdMatch.length}`,
+        message: `Match ${i} length mismatch: openchem=${ckMatch.length} rdkit=${rdMatch.length}`,
       };
     }
     for (let j = 0; j < ckMatch.length; j++) {
       if (ckMatch[j] !== rdMatch[j]) {
         return {
           equal: false,
-          message: `Match ${i} atom ${j} mismatch: opencode=${ckMatch[j]} rdkit=${rdMatch[j]}`,
+          message: `Match ${i} atom ${j} mismatch: openchem=${ckMatch[j]} rdkit=${rdMatch[j]}`,
         };
       }
     }
@@ -51,7 +51,7 @@ export function compareMatches(
 }
 
 export function formatMatchDiff(
-  opencode: number[][],
+  openchem: number[][],
   rdkit: number[][],
   pattern: string,
   smiles: string
@@ -59,20 +59,20 @@ export function formatMatchDiff(
   const lines: string[] = [];
   lines.push(`Pattern: ${pattern}`);
   lines.push(`Molecule: ${smiles}`);
-  lines.push(`opencode matches (${opencode.length}): ${JSON.stringify(normalizeMatches(opencode))}`);
+  lines.push(`openchem matches (${openchem.length}): ${JSON.stringify(normalizeMatches(openchem))}`);
   lines.push(`RDKit matches (${rdkit.length}): ${JSON.stringify(normalizeMatches(rdkit))}`);
   return lines.join('\n');
 }
 
 export function assertMatchesEqual(
-  opencodeMatches: number[][],
+  openchemMatches: number[][],
   rdkitMatches: number[][],
   pattern: string,
   smiles: string
 ): void {
-  const result = compareMatches(opencodeMatches, rdkitMatches);
+  const result = compareMatches(openchemMatches, rdkitMatches);
   if (!result.equal) {
-    const diff = formatMatchDiff(opencodeMatches, rdkitMatches, pattern, smiles);
+    const diff = formatMatchDiff(openchemMatches, rdkitMatches, pattern, smiles);
     throw new Error(`${result.message}\n${diff}`);
   }
 }

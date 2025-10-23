@@ -1,6 +1,7 @@
 import type { Molecule } from 'types';
 import { MONOISOTOPIC_MASSES, ISOTOPE_MASSES } from 'src/constants';
-import { analyzeRings } from 'src/utils/ring-analysis';
+import { analyzeRings, findRings } from 'src/utils/ring-analysis';
+import { enrichMolecule } from 'src/utils/molecule-enrichment';
 import { getBondsForAtom, getHeavyNeighborCount, hasMultipleBond, hasTripleBond, hasDoubleBond, hasCarbonylBond } from 'src/utils/bond-utils';
 import { MoleculeGraph } from 'src/utils/molecular-graph';
 import { computeLogP } from 'src/utils/logp';
@@ -285,16 +286,25 @@ function getTPSAContribution(
 }
 
 export function getRotatableBondCount(mol: Molecule): number {
-  if (mol.bonds.some(b => b.isRotatable !== undefined)) {
-    return mol.bonds.filter(b => b.isRotatable).length;
+  // Enrich the molecule to ensure ring information is available
+  const enriched = enrichMolecule(mol);
+  if (enriched.bonds.some(b => b.isRotatable !== undefined)) {
+    return enriched.bonds.filter(b => b.isRotatable).length;
   }
 
   let count = 0;
 
-  const mg = new MoleculeGraph(mol);
-  const isBondInRing = (a1: number, a2: number) => mg.sssr.some(ring => ring.includes(a1) && ring.includes(a2));
-  const isAtomInRing = (id: number) => mg.nodeRings.has(id);
-  
+  // Use findRings to detect all rings for accurate bond-in-ring detection
+  const rings = findRings(enriched.atoms, enriched.bonds);
+  const isBondInRing = (a1: number, a2: number) => rings.some(ring => {
+    const idx1 = ring.indexOf(a1);
+    const idx2 = ring.indexOf(a2);
+    if (idx1 === -1 || idx2 === -1) return false;
+    const dist = Math.abs(idx1 - idx2);
+    return dist === 1 || dist === ring.length - 1; // adjacent in ring
+  });
+  const isAtomInRing = (id: number) => rings.some(ring => ring.includes(id));
+
   for (const bond of mol.bonds) {
     if (bond.type !== 'single') continue;
 
@@ -333,10 +343,10 @@ export function getRotatableBondCount(mol: Molecule): number {
     if ((hasCarbonyl1 && isHeteroatom2) || (hasCarbonyl2 && isHeteroatom1)) continue;
     
     count++;
+   }
+
+    return count;
   }
-  
-  return count;
-}
 
 export interface LipinskiResult {
   passes: boolean;

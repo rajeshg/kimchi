@@ -13,7 +13,7 @@ describe('MOL Generator', () => {
     // Check basic structure
     const lines = molfile.split('\n');
     expect(lines[0]).toBe(''); // Title
-    expect(lines[1]).toContain('opencode'); // Program line
+    expect(lines[1]).toContain('openchem'); // Program line
     expect(lines[2]).toBe(''); // Comment
     expect(lines[3]).toContain('V2000'); // Counts line
     expect(lines[4]).toContain(' C  '); // Atom line

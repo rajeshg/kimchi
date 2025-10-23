@@ -143,7 +143,7 @@ describe("ring-analysis", () => {
   describe("analyzeRings", () => {
     it("creates ring info for acyclic molecule", () => {
       const result = parseSMILES("CCC");
-      const ringInfo = analyzeRings(result.molecules[0]!.atoms, result.molecules[0]!.bonds);
+      const ringInfo = analyzeRings(result.molecules[0]!);
       expect(ringInfo.rings.length).toBe(0);
       expect(ringInfo.ringAtomSet.size).toBe(0);
       expect(ringInfo.ringBondSet.size).toBe(0);
@@ -151,7 +151,7 @@ describe("ring-analysis", () => {
 
     it("creates ring info for benzene", () => {
       const result = parseSMILES("c1ccccc1");
-      const ringInfo = analyzeRings(result.molecules[0]!.atoms, result.molecules[0]!.bonds);
+      const ringInfo = analyzeRings(result.molecules[0]!);
       expect(ringInfo.rings.length).toBe(1);
       expect(ringInfo.ringAtomSet.size).toBe(6);
       expect(ringInfo.ringBondSet.size).toBe(6);
@@ -159,7 +159,7 @@ describe("ring-analysis", () => {
 
     it("isAtomInRing works correctly", () => {
       const result = parseSMILES("c1ccccc1CC");
-      const ringInfo = analyzeRings(result.molecules[0]!.atoms, result.molecules[0]!.bonds);
+      const ringInfo = analyzeRings(result.molecules[0]!);
       expect(ringInfo.isAtomInRing(0)).toBe(true);
       expect(ringInfo.isAtomInRing(6)).toBe(false);
       expect(ringInfo.isAtomInRing(7)).toBe(false);
@@ -167,14 +167,14 @@ describe("ring-analysis", () => {
 
     it("isBondInRing works correctly", () => {
       const result = parseSMILES("c1ccccc1CC");
-      const ringInfo = analyzeRings(result.molecules[0]!.atoms, result.molecules[0]!.bonds);
+      const ringInfo = analyzeRings(result.molecules[0]!);
       expect(ringInfo.isBondInRing(0, 1)).toBe(true);
       expect(ringInfo.isBondInRing(6, 7)).toBe(false);
     });
 
     it("getRingsContainingAtom works", () => {
       const result = parseSMILES("c1ccc2ccccc2c1");
-      const ringInfo = analyzeRings(result.molecules[0]!.atoms, result.molecules[0]!.bonds);
+      const ringInfo = analyzeRings(result.molecules[0]!);
       const fusionRings = ringInfo.getRingsContainingAtom(0);
       const singleRings = ringInfo.getRingsContainingAtom(2);
       expect(fusionRings.length).toBeGreaterThanOrEqual(1);
@@ -184,7 +184,7 @@ describe("ring-analysis", () => {
     it("areBothAtomsInSameRing works", () => {
       const result = parseSMILES("c1ccccc1.c1ccccc1");
       const mol1 = result.molecules[0]!;
-      const ringInfo = analyzeRings(mol1.atoms, mol1.bonds);
+      const ringInfo = analyzeRings(mol1);
       expect(ringInfo.areBothAtomsInSameRing(0, 1)).toBe(true);
       expect(ringInfo.areBothAtomsInSameRing(0, 5)).toBe(true);
     });
@@ -240,21 +240,21 @@ describe("ring-analysis", () => {
   describe("getAromaticRings", () => {
     it("returns empty for non-aromatic molecule", () => {
       const result = parseSMILES("C1CCCCC1");
-      const ringInfo = analyzeRings(result.molecules[0]!.atoms, result.molecules[0]!.bonds);
+      const ringInfo = analyzeRings(result.molecules[0]!);
       const aromaticRings = getAromaticRings(ringInfo.rings, result.molecules[0]!.atoms);
       expect(aromaticRings.length).toBe(0);
     });
 
     it("returns aromatic rings for benzene", () => {
       const result = parseSMILES("c1ccccc1");
-      const ringInfo = analyzeRings(result.molecules[0]!.atoms, result.molecules[0]!.bonds);
+      const ringInfo = analyzeRings(result.molecules[0]!);
       const aromaticRings = getAromaticRings(ringInfo.rings, result.molecules[0]!.atoms);
       expect(aromaticRings.length).toBe(1);
     });
 
     it("filters out non-aromatic rings", () => {
       const result = parseSMILES("c1ccccc1C1CCCCC1");
-      const ringInfo = analyzeRings(result.molecules[0]!.atoms, result.molecules[0]!.bonds);
+      const ringInfo = analyzeRings(result.molecules[0]!);
       const aromaticRings = getAromaticRings(ringInfo.rings, result.molecules[0]!.atoms);
       expect(aromaticRings.length).toBeLessThan(ringInfo.rings.length);
     });

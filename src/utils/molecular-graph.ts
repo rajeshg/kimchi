@@ -1,5 +1,7 @@
 import type { Molecule, Atom, Bond } from 'types';
-import { Graph, findSSSR, findCycles, findBiconnectedComponents, findBridges, findConnectedComponents, getInducedSubgraph, findShortestPath, findAllSimplePaths } from 'src/utils/graph';
+import { Graph, findCycles, findBiconnectedComponents, findBridges, findConnectedComponents, getInducedSubgraph, findShortestPath, findAllSimplePaths } from 'src/utils/graph';
+import { findSSSR_Kekule } from './sssr-kekule';
+import { findSSSR as findSSSRGraph } from './graph';
 
 export type EdgeData = {
   bond: Bond;
@@ -32,14 +34,22 @@ export function buildGraphFromMolecule(mol: Molecule): Graph<Atom | undefined, E
 }
 
 export function computeMoleculeGraphInfo(mol: Molecule): MoleculeGraphInfo {
+  return computeMoleculeGraphInfoWithOptions(mol, { sssr: 'kekule' });
+}
+
+export type SSSRAlgorithm = 'kekule';
+
+export function computeMoleculeGraphInfoWithOptions(
+  mol: Molecule,
+  opts?: { sssr?: SSSRAlgorithm }
+): MoleculeGraphInfo {
   const cached = graphCache.get(mol as unknown as object);
-  if (cached) return cached;
+  if (cached && (!opts || opts.sssr === 'kekule')) return cached;
 
   const graph = buildGraphFromMolecule(mol);
-
   const components = findConnectedComponents(graph);
   const cycles = findCycles(graph);
-  const sssr = findSSSR(graph);
+  const sssr = findSSSR_Kekule(Array.from(mol.atoms), Array.from(mol.bonds));
   const biconnected = findBiconnectedComponents(graph);
   const bridges = findBridges(graph);
 
@@ -62,7 +72,9 @@ export function computeMoleculeGraphInfo(mol: Molecule): MoleculeGraphInfo {
     nodeRings,
   };
 
-  graphCache.set(mol as unknown as object, info);
+  if (!opts || opts.sssr === 'kekule') {
+    graphCache.set(mol as unknown as object, info);
+  }
   return info;
 }
 
@@ -72,6 +84,7 @@ export function clearGraphCache(): void {
 
 export class MoleculeGraph {
   private mol: Molecule;
+  private sssrAlgorithm: SSSRAlgorithm;
   private _graph?: Graph<Atom | undefined, EdgeData>;
   private _components?: number[][];
   private _cycles?: number[][];
@@ -80,8 +93,9 @@ export class MoleculeGraph {
   private _bridges?: [number, number][];
   private _nodeRings?: Map<number, number[]>;
 
-  constructor(mol: Molecule) {
+  constructor(mol: Molecule, opts?: { sssr?: SSSRAlgorithm }) {
     this.mol = mol;
+    this.sssrAlgorithm = opts?.sssr || 'kekule';
   }
 
   get graph(): Graph<Atom | undefined, EdgeData> {
@@ -107,7 +121,7 @@ export class MoleculeGraph {
 
   get sssr(): number[][] {
     if (!this._sssr) {
-      this._sssr = findSSSR(this.graph);
+      this._sssr = findSSSR_Kekule(Array.from(this.mol.atoms), Array.from(this.mol.bonds));
     }
     return this._sssr;
   }

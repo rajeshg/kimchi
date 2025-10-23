@@ -1,6 +1,6 @@
 import { parseSMILES, generateSMILES } from 'index';
 
-console.log('opencode SMILES Generation Examples');
+console.log('openchem SMILES Generation Examples');
 console.log('===================================\n');
 
 const smiles = 'CC(C)CC';

@@ -15,12 +15,12 @@ function testPattern(rdkit: any, pattern: string, smiles: string) {
   }
 
   const rdkitResult = getSubstructMatches(rdkit, smiles, pattern);
-  const opencodeResult = matchSMARTS(smartsPattern.pattern!, parsed.molecules[0]!, { uniqueMatches: true });
-  const opencodeMatches = opencodeResult.matches.map(match => 
+  const openchemResult = matchSMARTS(smartsPattern.pattern!, parsed.molecules[0]!, { uniqueMatches: true });
+  const openchemMatches = openchemResult.matches.map(match => 
     match.atoms.map(a => a.moleculeIndex)
   );
 
-  assertMatchesEqual(opencodeMatches, rdkitResult.matches, pattern, smiles);
+  assertMatchesEqual(openchemMatches, rdkitResult.matches, pattern, smiles);
 }
 
 const TEST_MOLECULES = [

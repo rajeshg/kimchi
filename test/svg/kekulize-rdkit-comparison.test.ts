@@ -62,7 +62,7 @@ describe('Kekulize RDKit Comparison', () => {
     const molecule = parseResult.molecules[0]!;
     
     const kekulized = kekulize(molecule);
-    const opencodeCounts = getKekuleBondCounts(kekulized.bonds);
+    const openchemCounts = getKekuleBondCounts(kekulized.bonds);
     
     const rdkitMol = RDKit.get_mol('c1ccccc1');
     rdkitMol.set_new_coords();
@@ -71,11 +71,11 @@ describe('Kekulize RDKit Comparison', () => {
     rdkitMol.delete();
     
     console.log('Benzene kekulization:');
-    console.log('  Opencode:', opencodeCounts);
+    console.log('  openchem:', openchemCounts);
     console.log('  RDKit:', rdkitCounts);
     
-    expect(opencodeCounts.single).toBe(3);
-    expect(opencodeCounts.double).toBe(3);
+    expect(openchemCounts.single).toBe(3);
+    expect(openchemCounts.double).toBe(3);
     expect(rdkitCounts.single).toBe(3);
     expect(rdkitCounts.double).toBe(3);
   });
@@ -92,7 +92,7 @@ describe('Kekulize RDKit Comparison', () => {
     const molecule = parseResult.molecules[0]!;
     
     const kekulized = kekulize(molecule);
-    const opencodeCounts = getKekuleBondCounts(kekulized.bonds);
+    const openchemCounts = getKekuleBondCounts(kekulized.bonds);
     
     const rdkitMol = RDKit.get_mol('c1ccncc1');
     rdkitMol.set_new_coords();
@@ -101,11 +101,11 @@ describe('Kekulize RDKit Comparison', () => {
     rdkitMol.delete();
     
     console.log('Pyridine kekulization:');
-    console.log('  Opencode:', opencodeCounts);
+    console.log('  openchem:', openchemCounts);
     console.log('  RDKit:', rdkitCounts);
     
-    expect(opencodeCounts.single).toBe(3);
-    expect(opencodeCounts.double).toBe(3);
+    expect(openchemCounts.single).toBe(3);
+    expect(openchemCounts.double).toBe(3);
     expect(rdkitCounts.single).toBe(3);
     expect(rdkitCounts.double).toBe(3);
   });
@@ -122,7 +122,7 @@ describe('Kekulize RDKit Comparison', () => {
     const molecule = parseResult.molecules[0]!;
     
     const kekulized = kekulize(molecule);
-    const opencodeCounts = getKekuleBondCounts(kekulized.bonds);
+    const openchemCounts = getKekuleBondCounts(kekulized.bonds);
     
     const rdkitMol = RDKit.get_mol('c1ccc2ccccc2c1');
     rdkitMol.set_new_coords();
@@ -131,11 +131,11 @@ describe('Kekulize RDKit Comparison', () => {
     rdkitMol.delete();
     
     console.log('Naphthalene kekulization:');
-    console.log('  Opencode:', opencodeCounts);
+    console.log('  openchem:', openchemCounts);
     console.log('  RDKit:', rdkitCounts);
     
-    expect(opencodeCounts.single).toBe(6);
-    expect(opencodeCounts.double).toBe(5);
+    expect(openchemCounts.single).toBe(6);
+    expect(openchemCounts.double).toBe(5);
     expect(rdkitCounts.single).toBe(6);
     expect(rdkitCounts.double).toBe(5);
   });
@@ -152,7 +152,7 @@ describe('Kekulize RDKit Comparison', () => {
     const molecule = parseResult.molecules[0]!;
     
     const kekulized = kekulize(molecule);
-    const opencodeCounts = getKekuleBondCounts(kekulized.bonds);
+    const openchemCounts = getKekuleBondCounts(kekulized.bonds);
     
     const rdkitMol = RDKit.get_mol('c1ccoc1');
     rdkitMol.set_new_coords();
@@ -161,11 +161,11 @@ describe('Kekulize RDKit Comparison', () => {
     rdkitMol.delete();
     
     console.log('Furan kekulization:');
-    console.log('  Opencode:', opencodeCounts);
+    console.log('  openchem:', openchemCounts);
     console.log('  RDKit:', rdkitCounts);
     
-    expect(opencodeCounts.single).toBe(3);
-    expect(opencodeCounts.double).toBe(2);
+    expect(openchemCounts.single).toBe(3);
+    expect(openchemCounts.double).toBe(2);
     expect(rdkitCounts.single).toBe(3);
     expect(rdkitCounts.double).toBe(2);
   });
@@ -182,7 +182,7 @@ describe('Kekulize RDKit Comparison', () => {
     const molecule = parseResult.molecules[0]!;
     
     const kekulized = kekulize(molecule);
-    const opencodeCounts = getKekuleBondCounts(kekulized.bonds);
+    const openchemCounts = getKekuleBondCounts(kekulized.bonds);
     
     const rdkitMol = RDKit.get_mol('c1cc[nH]c1');
     rdkitMol.set_new_coords();
@@ -191,11 +191,11 @@ describe('Kekulize RDKit Comparison', () => {
     rdkitMol.delete();
     
     console.log('Pyrrole kekulization:');
-    console.log('  Opencode:', opencodeCounts);
+    console.log('  openchem:', openchemCounts);
     console.log('  RDKit:', rdkitCounts);
     
-    expect(opencodeCounts.single).toBe(3);
-    expect(opencodeCounts.double).toBe(2);
+    expect(openchemCounts.single).toBe(3);
+    expect(openchemCounts.double).toBe(2);
     expect(rdkitCounts.single).toBe(3);
     expect(rdkitCounts.double).toBe(2);
   });
@@ -212,7 +212,7 @@ describe('Kekulize RDKit Comparison', () => {
     const molecule = parseResult.molecules[0]!;
     
     const kekulized = kekulize(molecule);
-    const opencodeCounts = getKekuleBondCounts(kekulized.bonds);
+    const openchemCounts = getKekuleBondCounts(kekulized.bonds);
     
     const rdkitMol = RDKit.get_mol('c1ccc2[nH]ccc2c1');
     rdkitMol.set_new_coords();
@@ -221,11 +221,11 @@ describe('Kekulize RDKit Comparison', () => {
     rdkitMol.delete();
     
     console.log('Indole kekulization:');
-    console.log('  Opencode:', opencodeCounts);
+    console.log('  openchem:', openchemCounts);
     console.log('  RDKit:', rdkitCounts);
     
-    expect(opencodeCounts.single).toBe(rdkitCounts.single);
-    expect(opencodeCounts.double).toBe(rdkitCounts.double);
+    expect(openchemCounts.single).toBe(rdkitCounts.single);
+    expect(openchemCounts.double).toBe(rdkitCounts.double);
   });
   
   it('should kekulize anthracene consistently with RDKit', async () => {
@@ -240,7 +240,7 @@ describe('Kekulize RDKit Comparison', () => {
     const molecule = parseResult.molecules[0]!;
     
     const kekulized = kekulize(molecule);
-    const opencodeCounts = getKekuleBondCounts(kekulized.bonds);
+    const openchemCounts = getKekuleBondCounts(kekulized.bonds);
     
     const rdkitMol = RDKit.get_mol('c1ccc2cc3ccccc3cc2c1');
     rdkitMol.set_new_coords();
@@ -249,11 +249,11 @@ describe('Kekulize RDKit Comparison', () => {
     rdkitMol.delete();
     
     console.log('Anthracene kekulization:');
-    console.log('  Opencode:', opencodeCounts);
+    console.log('  openchem:', openchemCounts);
     console.log('  RDKit:', rdkitCounts);
     
-    expect(opencodeCounts.single).toBe(9);
-    expect(opencodeCounts.double).toBe(7);
+    expect(openchemCounts.single).toBe(9);
+    expect(openchemCounts.double).toBe(7);
     expect(rdkitCounts.single).toBe(9);
     expect(rdkitCounts.double).toBe(7);
   });
@@ -270,7 +270,7 @@ describe('Kekulize RDKit Comparison', () => {
     const molecule = parseResult.molecules[0]!;
     
     const kekulized = kekulize(molecule);
-    const opencodeCounts = getKekuleBondCounts(kekulized.bonds);
+    const openchemCounts = getKekuleBondCounts(kekulized.bonds);
     
     const rdkitMol = RDKit.get_mol('Oc1ccccc1');
     rdkitMol.set_new_coords();
@@ -279,11 +279,11 @@ describe('Kekulize RDKit Comparison', () => {
     rdkitMol.delete();
     
     console.log('Phenol kekulization:');
-    console.log('  Opencode:', opencodeCounts);
+    console.log('  openchem:', openchemCounts);
     console.log('  RDKit:', rdkitCounts);
     
-    expect(opencodeCounts.single).toBe(4);
-    expect(opencodeCounts.double).toBe(3);
+    expect(openchemCounts.single).toBe(4);
+    expect(openchemCounts.double).toBe(3);
     expect(rdkitCounts.single).toBe(4);
     expect(rdkitCounts.double).toBe(3);
   });

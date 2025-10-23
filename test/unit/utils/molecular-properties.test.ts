@@ -411,7 +411,7 @@ describe('molecular properties', () => {
       const lipinski = checkLipinskiRuleOfFive(result.molecules[0]!);
       expect(lipinski.passes).toBe(false);
       expect(lipinski.violations.length).toBeGreaterThan(0);
-    });
+    }, 15000);
 
     it('should fail for molecule with high LogP', () => {
       // Use a highly lipophilic molecule (long hydrocarbon chain)

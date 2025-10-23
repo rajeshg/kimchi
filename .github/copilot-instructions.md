@@ -1,7 +1,7 @@
-# GitHub Copilot Instructions for opencode
+# GitHub Copilot Instructions for openchem
 
 ## Project Overview
-opencode is a TypeScript library for parsing and generating chemical structure formats (SMILES, MOL, SDF) with strict type safety and comprehensive validation.
+openchem is a TypeScript library for parsing and generating chemical structure formats (SMILES, MOL, SDF) with strict type safety and comprehensive validation.
 
 ## Build & Test Commands
 - Run tests: `bun test`

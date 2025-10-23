@@ -5,6 +5,14 @@ import { addExplicitHydrogensWithMapping } from 'src/utils/hydrogen-utils';
 
 const augmentedCache = new WeakMap<Molecule, { molecule: Molecule; augmentedToOriginal: number[] }>();
 
+interface LogPCache {
+  logp: number;
+  mr: number;
+  timestamp: number;
+}
+
+const logpDescriptorCache = new WeakMap<Molecule, LogPCache>();
+
 export interface CrippenParam {
   label: string;
   smarts: string;
@@ -238,9 +246,16 @@ export function getCrippenAtomContribs(mol: Molecule, includeHs = true): { logpC
 }
 
 export function calcCrippenDescriptors(mol: Molecule, includeHs = true): { logp: number; mr: number } {
+  const cached = logpDescriptorCache.get(mol);
+  if (cached !== undefined) {
+    return { logp: cached.logp, mr: cached.mr };
+  }
+
   const { logpContribs, mrContribs } = getCrippenAtomContribs(mol, includeHs);
   const logp = logpContribs.reduce((s, v) => s + (v || 0), 0);
   const mr = mrContribs.reduce((s, v) => s + (v || 0), 0);
+  
+  logpDescriptorCache.set(mol, { logp, mr, timestamp: Date.now() });
   return { logp, mr };
 }
 

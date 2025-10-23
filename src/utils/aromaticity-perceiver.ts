@@ -3,6 +3,7 @@ import { BondType } from 'types';
 import { getRingAtoms, getRingBonds } from './ring-analysis';
  import { getBondsForAtom } from './bond-utils';
  import { MoleculeGraph } from './molecular-graph';
+import { findAllCycles } from './sssr-kekule';
 
 type MutableAtom = { -readonly [K in keyof Atom]: Atom[K] };
 type MutableBond = { -readonly [K in keyof Bond]: Bond[K] };
@@ -85,17 +86,35 @@ function hasExocyclicDoubleBondToElectronegative(
   bonds: Bond[]
 ): boolean {
   const atomBonds = getBondsForAtom(bonds, atom.id);
-  
+
   for (const bond of atomBonds) {
     if (bond.type !== BondType.DOUBLE) continue;
-    
+
     const otherAtomId = bond.atom1 === atom.id ? bond.atom2 : bond.atom1;
-    
+
     if (ringAtoms.has(otherAtomId)) continue;
-    
+
     return true;
   }
-  
+
+  return false;
+}
+
+function hasExocyclicDoubleBondToElectronegativeFromBonds(
+  atom: Atom,
+  ringAtoms: Set<number>,
+  atomBonds: Bond[]
+): boolean {
+  for (const bond of atomBonds) {
+    if (bond.type !== BondType.DOUBLE) continue;
+
+    const otherAtomId = bond.atom1 === atom.id ? bond.atom2 : bond.atom1;
+
+    if (ringAtoms.has(otherAtomId)) continue;
+
+    return true;
+  }
+
   return false;
 }
 
@@ -123,92 +142,91 @@ function ringHasExocyclicDoubleBond(
 function countPiElectronsRDKit(
   atom: Atom,
   ringAtoms: Set<number>,
-  allBonds: Bond[],
+  atomBonds: Bond[],
   originalAromaticFlags: Record<number, boolean>,
   allAtomsWereAromatic: boolean
 ): number {
-  const atomBonds = getBondsForAtom(allBonds, atom.id);
   const bondCount = atomBonds.length;
-  
+
   const ringBonds = atomBonds.filter(b => {
     const otherId = b.atom1 === atom.id ? b.atom2 : b.atom1;
     return ringAtoms.has(otherId);
   });
-  
-  const hasExocyclicDouble = hasExocyclicDoubleBondToElectronegative(atom, ringAtoms, allBonds);
-  
+
+  const hasExocyclicDouble = hasExocyclicDoubleBondToElectronegativeFromBonds(atom, ringAtoms, atomBonds);
+
   switch (atom.symbol) {
     case 'C':
-      const hasDoubleBondInRingC = ringBonds.some(b => 
+      const hasDoubleBondInRingC = ringBonds.some(b =>
         b.type === BondType.DOUBLE || b.type === BondType.AROMATIC
       );
       if (hasDoubleBondInRingC) return 1;
-      
+
       if (hasExocyclicDouble) return 0;
-      
+
       return 0;
-      
+
     case 'N':
       if (hasExocyclicDouble) {
         return 0;
       }
-      
+
       if (atom.charge > 0) {
         return 1;
       }
-      
+
       if (atom.hydrogens > 0) {
         return 2;
       }
-      
+
       if (bondCount === 3 && ringBonds.length === 2) {
         return 2;
       }
-      
+
       if (bondCount === 2) {
         return 1;
       }
-      
+
       return 1;
-      
+
     case 'O':
     case 'S':
       if (atom.charge !== 0) return 0;
       if (hasExocyclicDouble) return 0;
-      
+
       const hasDouble = atomBonds.some(b => b.type === BondType.DOUBLE);
       if (hasDouble) return 0;
-      
+
       if (bondCount === 2) return 2;
       return 0;
-      
+
     case 'B':
       if (atom.charge === -1 || originalAromaticFlags[atom.id]) {
         return 2;
       }
       return 0;
-      
+
     case 'P':
       if (atom.charge > 0) return 0;
-      
+
       const hasPDouble = atomBonds.some(b => b.type === BondType.DOUBLE);
       if (hasPDouble) return 1;
-      
+
       if (atom.hydrogens > 0) return 2;
       return 1;
-      
+
     case 'As':
       return atom.hydrogens > 0 ? 2 : 1;
-      
+
     case 'Se':
       if (atom.charge !== 0) return 0;
-      
+
       const hasSeDouble = atomBonds.some(b => b.type === BondType.DOUBLE);
       if (hasSeDouble) return 0;
-      
+
       if (bondCount === 2) return 2;
       return 0;
-      
+
     default:
       return 0;
   }
@@ -267,29 +285,34 @@ function isRingHuckelAromatic(
   bonds: Bond[],
   originalAromaticFlags: Record<number, boolean>,
   originalBondTypes: Record<string, BondType>,
-  atomMap?: Map<number, Atom>
+  atomMap?: Map<number, Atom>,
+  atomBondsMap?: Map<number, Bond[]>
 ): boolean {
   const ringSet = new Set(ring);
   const map = atomMap || new Map(atoms.map(a => [a.id, a]));
-  
+  const bondsMap = atomBondsMap || new Map(atoms.map(a => [a.id, getBondsForAtom(bonds, a.id)]));
+
   if (!hasConjugatedSystem(ringSet, atoms, bonds, originalBondTypes, map)) {
     return false;
   }
-  
+
   const allAtomsWereAromatic = ring.every(atomId => originalAromaticFlags[atomId]);
-  
+
   let totalPiElectrons = 0;
-  
+
   for (const atomId of ring) {
     const atom = map.get(atomId);
     if (!atom) continue;
-    
-    const piElectrons = countPiElectronsRDKit(atom, ringSet, bonds, originalAromaticFlags, allAtomsWereAromatic);
+
+    const atomBonds = bondsMap.get(atomId);
+    if (!atomBonds) continue;
+
+    const piElectrons = countPiElectronsRDKit(atom, ringSet, atomBonds, originalAromaticFlags, allAtomsWereAromatic);
     totalPiElectrons += piElectrons;
   }
-  
+
   const isAromatic = totalPiElectrons >= 6 && (totalPiElectrons - 2) % 4 === 0;
-  
+
   return isAromatic;
 }
 
@@ -299,62 +322,75 @@ function isFusedSystemAromatic(
   bonds: Bond[],
   originalAromaticFlags: Record<number, boolean>,
   originalBondTypes: Record<string, BondType>,
-  atomMap?: Map<number, Atom>
+  atomMap?: Map<number, Atom>,
+  atomBondsMap?: Map<number, Bond[]>
 ): boolean {
   const systemAtoms = Array.from(fusedSystem.atoms);
   const systemAtomSet = new Set(systemAtoms);
   const map = atomMap || new Map(atoms.map(a => [a.id, a]));
-  
+  const bondsMap = atomBondsMap || new Map(atoms.map(a => [a.id, getBondsForAtom(bonds, a.id)]));
+
   if (!hasConjugatedSystem(systemAtomSet, atoms, bonds, originalBondTypes, map)) {
     return false;
   }
-  
+
   const allAtomsWereAromatic = systemAtoms.every(atomId => originalAromaticFlags[atomId]);
-  
+
   let totalPiElectrons = 0;
   for (const atomId of systemAtoms) {
     const atom = map.get(atomId);
     if (!atom) continue;
-    
-    const piElectrons = countPiElectronsRDKit(atom, systemAtomSet, bonds, originalAromaticFlags, allAtomsWereAromatic);
+
+    const atomBonds = bondsMap.get(atomId);
+    if (!atomBonds) continue;
+
+    const piElectrons = countPiElectronsRDKit(atom, systemAtomSet, atomBonds, originalAromaticFlags, allAtomsWereAromatic);
     totalPiElectrons += piElectrons;
   }
-  
+
   const isAromatic = totalPiElectrons >= 6 && (totalPiElectrons - 2) % 4 === 0;
-  
+
   return isAromatic;
 }
 
-export function perceiveAromaticity(atoms: readonly Atom[], bonds: readonly Bond[]): { atoms: Atom[]; bonds: Bond[] } {
+export function perceiveAromaticity(atoms: readonly Atom[], bonds: readonly Bond[], mg?: MoleculeGraph): { atoms: Atom[]; bonds: Bond[] } {
   const mutableAtoms: MutableAtom[] = atoms.map(a => ({ ...a, ringIds: a.ringIds ? [...a.ringIds] : undefined }));
   const mutableBonds: MutableBond[] = bonds.map(b => ({ ...b, ringIds: b.ringIds ? [...b.ringIds] : undefined }));
-  perceiveAromaticityMutable(mutableAtoms, mutableBonds);
+  perceiveAromaticityMutable(mutableAtoms, mutableBonds, mg);
   return { atoms: mutableAtoms, bonds: mutableBonds };
 }
 
-function perceiveAromaticityMutable(atoms: MutableAtom[], bonds: MutableBond[]): void {
-   const mol: Molecule = { atoms: atoms as Atom[], bonds: bonds as Bond[] };
-   const mg = new MoleculeGraph(mol);
-   const allRings = mg.sssr;
-   if (allRings.length === 0) return;
+function perceiveAromaticityMutable(atoms: MutableAtom[], bonds: MutableBond[], mg?: MoleculeGraph): void {
+    const mol: Molecule = { atoms: atoms as Atom[], bonds: bonds as Bond[] };
+    const graph = mg || new MoleculeGraph(mol);
 
-   const originalBondTypes: Record<string, Bond['type']> = {};
-   const originalAromaticFlags: Record<number, boolean> = {};
-   const atomMap = new Map(atoms.map(a => [a.id, a as Atom]));
-   const bondMap = new Map<string, MutableBond>(
-     bonds.map(b => [bondKey(b.atom1, b.atom2), b])
-   );
+    const allRings = findAllCycles(atoms as Atom[], bonds as Bond[], 7);
+
+    // IMPORTANT: Cache the rings in the graph to avoid recomputation in enrichMolecule
+    if (mg) {
+      (mg as any)._sssr = allRings;
+    }
+
+    if (allRings.length === 0) return;
+
+    const originalBondTypes: Record<string, Bond['type']> = {};
+    const originalAromaticFlags: Record<number, boolean> = {};
+    const atomMap = new Map(atoms.map(a => [a.id, a as Atom]));
+    const atomBondsMap = new Map<number, Bond[]>(atoms.map(a => [a.id, getBondsForAtom(bonds, a.id)]));
+    const bondMap = new Map<string, MutableBond>(
+      bonds.map(b => [bondKey(b.atom1, b.atom2), b])
+    );
 
    for (const b of bonds) {
-     const key = bondKey(b.atom1, b.atom2);
-     originalBondTypes[key] = b.type;
-   }
+      const key = bondKey(b.atom1, b.atom2);
+      originalBondTypes[key] = b.type;
+    }
 
-     for (const atom of atoms) {
-       originalAromaticFlags[atom.id] = atom.aromatic;
-     }
+      for (const atom of atoms) {
+        originalAromaticFlags[atom.id] = atom.aromatic;
+      }
 
-     const aromaticityCheckRings = allRings.filter(r => r.length >= 5 && r.length <= 7);
+      const aromaticityCheckRings = allRings.filter(r => r.length >= 5 && r.length <= 7);
      
      if (aromaticityCheckRings.length === 0) {
        for (const atom of atoms) {
@@ -371,46 +407,44 @@ function perceiveAromaticityMutable(atoms: MutableAtom[], bonds: MutableBond[]):
        return;
      }
 
-     const aromaticRings: number[][] = [];
-     const ringsInFusedSystems = new Set<number[]>();
-     
-      const fusedSystems = findFusedSystems(aromaticityCheckRings);
-     
-     for (const system of fusedSystems) {
+      const aromaticRings: number[][] = [];
+      const ringsInFusedSystems = new Set<number[]>();
+
+       const fusedSystems = findFusedSystems(aromaticityCheckRings);
+      for (const system of fusedSystems) {
        if (system.rings.length === 1) {
          const ring = system.rings[0]!;
-         const isAromatic = isRingHuckelAromatic(ring, atoms, bonds, originalAromaticFlags, originalBondTypes, atomMap);
+          const isAromatic = isRingHuckelAromatic(ring, atoms, bonds, originalAromaticFlags, originalBondTypes, atomMap, atomBondsMap);
          if (isAromatic) {
            aromaticRings.push(ring);
          }
        } else {
-         if (isFusedSystemAromatic(system, atoms, bonds, originalAromaticFlags, originalBondTypes, atomMap)) {
+          if (isFusedSystemAromatic(system, atoms, bonds, originalAromaticFlags, originalBondTypes, atomMap, atomBondsMap)) {
            for (const ring of system.rings) {
              aromaticRings.push(ring);
              ringsInFusedSystems.add(ring);
            }
          } else {
            for (const ring of system.rings) {
-             const isAromatic = isRingHuckelAromatic(ring, atoms, bonds, originalAromaticFlags, originalBondTypes, atomMap);
+             const isAromatic = isRingHuckelAromatic(ring, atoms, bonds, originalAromaticFlags, originalBondTypes, atomMap, atomBondsMap);
              if (isAromatic) {
                aromaticRings.push(ring);
                ringsInFusedSystems.add(ring);
              }
            }
          }
-       }
-     }
+        }
+      }
 
-  const bondAromaticCount: Record<string, number> = {};
-  for (const ring of aromaticRings) {
-    const ringBonds = getRingBonds(ring, bonds);
-    for (const b of ringBonds) {
-      const k = bondKey(b.atom1, b.atom2);
-      bondAromaticCount[k] = (bondAromaticCount[k] || 0) + 1;
-    }
-  }
-
+   const bondAromaticCount: Record<string, number> = {};
    for (const ring of aromaticRings) {
+     const ringBonds = getRingBonds(ring, bonds);
+     for (const b of ringBonds) {
+       const k = bondKey(b.atom1, b.atom2);
+       bondAromaticCount[k] = (bondAromaticCount[k] || 0) + 1;
+     }
+   }
+    for (const ring of aromaticRings) {
      for (const atomId of ring) {
        const atom = atomMap.get(atomId);
        if (atom) {
@@ -428,72 +462,73 @@ function perceiveAromaticityMutable(atoms: MutableAtom[], bonds: MutableBond[]):
          originalBond.type = BondType.AROMATIC;
        }
      }
-   }
-
-    for (const ring of aromaticRings) {
-      if (ringsInFusedSystems.has(ring)) {
-        continue;
-      }
-      
-      const ringSet = new Set(ring);
-      const ringAtoms = getRingAtoms(ring, atoms as Atom[]).map(a => a as MutableAtom);
-      
-      for (const atom of ringAtoms) {
-        const exoDouble = hasExocyclicDoubleBondToElectronegative(
-          atom as Atom,
-          ringSet,
-          bonds as Bond[]
-        );
-
-        if (exoDouble) {
-          for (const ringAtomId of ring) {
-            const ringAtom = atomMap.get(ringAtomId);
-            if (ringAtom) {
-              (ringAtom as MutableAtom).aromatic = false;
-            }
-          }
-          
-          const allRingBonds = getRingBonds(ring, bonds as Bond[]) as MutableBond[];
-          for (const bond of allRingBonds) {
-            const k = bondKey(bond.atom1, bond.atom2);
-            bond.type = originalBondTypes[k] ?? BondType.SINGLE;
-          }
-          
-          break;
-        }
     }
-  }
 
-  // Clear aromatic flags for atoms in rings that failed aromaticity test
-  const aromaticRingSet = new Set(aromaticRings.flat());
-  for (const ring of aromaticityCheckRings) {
-    const isRingAromatic = ring.some(atomId => aromaticRingSet.has(atomId));
-    if (!isRingAromatic) {
-      for (const atomId of ring) {
-        const atom = atomMap.get(atomId);
-        if (atom && originalAromaticFlags[atomId]) {
-          (atom as MutableAtom).aromatic = false;
-        }
-      }
-    }
-  }
 
-  const aromaticBonds = new Set<string>();
-  for (const ring of aromaticRings) {
-    const ringBonds = getRingBonds(ring, bonds);
-    for (const bond of ringBonds) {
-      aromaticBonds.add(bondKey(bond.atom1, bond.atom2));
-    }
-  }
+     for (const ring of aromaticRings) {
+       if (ringsInFusedSystems.has(ring)) {
+         continue;
+       }
 
-   for (const bond of bonds) {
-     const k = bondKey(bond.atom1, bond.atom2);
-     if (!aromaticBonds.has(k) && bond.type === BondType.AROMATIC) {
-       bond.type = originalBondTypes[k] === BondType.AROMATIC ? BondType.SINGLE : (originalBondTypes[k] ?? BondType.SINGLE);
+       const ringSet = new Set(ring);
+       const ringAtoms = getRingAtoms(ring, atoms as Atom[]).map(a => a as MutableAtom);
+
+       for (const atom of ringAtoms) {
+         const exoDouble = hasExocyclicDoubleBondToElectronegative(
+           atom as Atom,
+           ringSet,
+           bonds as Bond[]
+         );
+
+         if (exoDouble) {
+           for (const ringAtomId of ring) {
+             const ringAtom = atomMap.get(ringAtomId);
+             if (ringAtom) {
+               (ringAtom as MutableAtom).aromatic = false;
+             }
+           }
+
+           const allRingBonds = getRingBonds(ring, bonds as Bond[]) as MutableBond[];
+           for (const bond of allRingBonds) {
+             const k = bondKey(bond.atom1, bond.atom2);
+             bond.type = originalBondTypes[k] ?? BondType.SINGLE;
+           }
+
+           break;
+         }
      }
    }
 
-   kekulizeNonAromaticRings(allRings, aromaticRings, atoms, bonds, originalBondTypes);
+   // Clear aromatic flags for atoms in rings that failed aromaticity test
+   const aromaticRingSet = new Set(aromaticRings.flat());
+   for (const ring of aromaticityCheckRings) {
+     const isRingAromatic = ring.some(atomId => aromaticRingSet.has(atomId));
+     if (!isRingAromatic) {
+       for (const atomId of ring) {
+         const atom = atomMap.get(atomId);
+         if (atom && originalAromaticFlags[atomId]) {
+           (atom as MutableAtom).aromatic = false;
+         }
+       }
+     }
+   }
+
+   const aromaticBonds = new Set<string>();
+   for (const ring of aromaticRings) {
+     const ringBonds = getRingBonds(ring, bonds);
+     for (const bond of ringBonds) {
+       aromaticBonds.add(bondKey(bond.atom1, bond.atom2));
+     }
+   }
+
+    for (const bond of bonds) {
+      const k = bondKey(bond.atom1, bond.atom2);
+      if (!aromaticBonds.has(k) && bond.type === BondType.AROMATIC) {
+        bond.type = originalBondTypes[k] === BondType.AROMATIC ? BondType.SINGLE : (originalBondTypes[k] ?? BondType.SINGLE);
+      }
+    }
+
+    kekulizeNonAromaticRings(allRings, aromaticRings, atoms, bonds, originalBondTypes);
 }
 
 function kekulizeNonAromaticRings(

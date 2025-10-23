@@ -152,8 +152,9 @@ export interface RingInfo {
   areBothAtomsInSameRing: (atom1: number, atom2: number) => boolean;
 }
 
-export function analyzeRings(atoms: readonly Atom[], bonds: readonly Bond[]): RingInfo {
-  const rings = findMCB(atoms, bonds);
+export function analyzeRings(mol: Molecule, mg?: MoleculeGraph): RingInfo {
+  const moleculeGraph = mg || new MoleculeGraph(mol);
+  const rings = moleculeGraph.sssr;
   const ringAtomSet = new Set<number>();
   const ringBondSet = new Set<string>();
 
@@ -163,7 +164,7 @@ export function analyzeRings(atoms: readonly Atom[], bonds: readonly Bond[]): Ri
     }
   }
 
-  for (const bond of bonds) {
+  for (const bond of mol.bonds) {
     for (let ringIdx = 0; ringIdx < rings.length; ringIdx++) {
       const ring = rings[ringIdx]!;
       const ringSet = new Set(ring);
