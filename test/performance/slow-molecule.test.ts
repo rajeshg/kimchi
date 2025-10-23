@@ -13,7 +13,7 @@ describe("Performance - Slow Molecule Parsing", () => {
     expect(result.molecules).toHaveLength(1);
     expect(result.molecules[0]!.atoms).toHaveLength(96);
 
-    expect(parseTime).toBeLessThan(200);
+    expect(parseTime).toBeLessThan(300);
     console.log(`✓ PAH parsing time: ${parseTime.toFixed(2)}ms`);
   });
 

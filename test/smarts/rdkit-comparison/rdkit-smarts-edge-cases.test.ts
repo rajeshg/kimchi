@@ -65,28 +65,48 @@ describe("SMARTS Edge Cases - RDKit Comparison", () => {
     );
   });
 
-  describe("Bridged Ring Systems", () => {
-    testMatch(
-      "C1CC2CCC1C2",
-      "[R2]",
-      "Bicyclo[2.2.1]heptane - R2 atoms"
-    );
-    testMatch(
-      "C1CC2CCC1C2",
-      "[R3]",
-      "Bicyclo[2.2.1]heptane - R3 atoms"
-    );
-    testMatch(
-      "C1CCC2CC3CCC(C1)C32",
-      "[R3]",
-      "Adamantane - R3 atoms"
-    );
-    testMatch(
-      "C1CC2CCC3CC(C1)C23",
-      "[R3]",
-      "Bicyclo[3.2.1]octane - R3 atoms"
-    );
-  });
+   describe("Bridged Ring Systems", () => {
+      testMatch(
+        "C1CC2CCC1C2",
+        "[R2]",
+        "Bicyclo[2.2.1]heptane - R2 atoms",
+        {
+          openchem: 3,
+          rdkit: 3,
+          reason: "SSSR count: 2 rings, 3 atoms in exactly 2 rings"
+        }
+      );
+       testMatch(
+         "C1CC2CCC1C2",
+         "[R3]",
+         "Bicyclo[2.2.1]heptane - R3 atoms",
+         {
+           openchem: 0,
+           rdkit: 0,
+           reason: "SSSR: no atoms in 3 rings. RDKit also finds no atoms in 3 rings for this structure."
+         }
+       );
+      testMatch(
+        "C1CCC2CC3CCC(C1)C32",
+        "[R3]",
+        "Adamantane - R3 atoms",
+        {
+          openchem: 1,
+          rdkit: 1,
+          reason: "Both find 1 atom in exactly 3 SSSR rings (this is a 11-atom bridged system, not standard 10-atom adamantane)"
+        }
+      );
+      testMatch(
+        "C1CC2CCC3CC(C1)C23",
+        "[R3]",
+        "Bicyclo[3.2.1]octane - R3 atoms",
+        {
+          openchem: 1,
+          rdkit: 1,
+          reason: "SSSR: 1 bridgehead atom in exactly 3 rings. Both agree."
+        }
+      );
+   });
 
   describe("Large Fused Systems", () => {
     testMatch(

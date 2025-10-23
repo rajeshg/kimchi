@@ -1,48 +1,5 @@
-// SSSR (Smallest Set of Smallest Rings) algorithm
-// Ported from Kekule.js (based on Hanser et al. approach)
-//
-// ALGORITHM OVERVIEW:
-// ==================
-// SSSR finds the minimum set of linearly independent cycles needed to represent
-// all rings in a molecule. The size is deterministic: ringCount = edges - nodes + components
-//
-// Implementation strategy:
-// 1. Find all simple cycles up to a maximum length (performance-optimized per molecule size)
-// 2. Sort cycles by length (shortest cycles prioritized)
-// 3. Greedily select linearly independent cycles using XOR on edge sets
-// 4. Stop when exactly `ringCount` cycles are selected
-//
-// CORRECTNESS GUARANTEE:
-// =====================
-// For any connected molecule:
-//   |SSSR| = |bonds| - |atoms| + |components|
-//
-// This formula is mathematically guaranteed by cycle space theory. The SSSR is unique
-// in size, though the specific rings may vary slightly based on tie-breaking.
-//
-// PERFORMANCE OPTIMIZATION:
-// =========================
-// For very large molecules, we limit the maximum cycle length to avoid exponential
-// time complexity. These limits do NOT affect correctness for typical drug molecules:
-//
-// - Molecules ≤ 50 atoms: Full DFS-based cycle detection (complete solution)
-// - Molecules 50-100 atoms: BFS-based approach (more efficient for large rings)
-// - Molecules 100-200 atoms: Limit cycle detection to 30-atom rings
-// - Molecules > 200 atoms: Limit cycle detection to 20-atom rings
-//
-// Why this works in practice:
-// - Most real organic rings are ≤ 20 atoms
-// - Bridged polycyclic systems (adamantane, cubane, basketane) all have rings < 15 atoms
-// - Drug-like molecules rarely exceed 100 atoms with large polycyclic cores
-//
-// Testing shows that all SSSR counts match expected values even with these limits,
-// including complex bridged systems. If you encounter a large molecule with unexpectedly
-// large rings, either increase the limits or file an issue.
-
 import type { Atom, Bond } from 'types';
 
-// --- Minimum Cycle Basis SSSR ---
-// Utility: Build adjacency list
 function buildAdj(atoms: Atom[], bonds: Bond[]): Record<number, Set<number>> {
   const adj: Record<number, Set<number>> = {};
   for (const atom of atoms) adj[atom.id] = new Set();
@@ -53,30 +10,8 @@ function buildAdj(atoms: Atom[], bonds: Bond[]): Record<number, Set<number>> {
   return adj;
 }
 
-// Find all simple cycles in the molecular graph, up to a maximum length.
-// Used by both SSSR computation and ring membership counting ([R] primitive in SMARTS).
-//
-// PERFORMANCE HEURISTICS:
-// - maxLen = 40 by default (allows most polycyclic systems)
-// - Adjusted downward based on graph density and molecular size to prevent exponential time complexity
-// - Uses atom count and bond count to estimate cycle search complexity
-//
-// Algorithm for choosing maxLen:
-// 1. Calculate graph density: d = bonds / atoms (typical: 1.0-1.5 for organic molecules)
-// 2. Estimate SSSR count: sssr_est = bonds - atoms + 1
-// 3. For dense graphs (d > 1.3) with large SSSR, reduce maxLen aggressively
-// 4. For sparse graphs (d < 1.1), use full maxLen for completeness
-//
-// Rationale:
-// - Sparse graphs (trees, chains): complete cycle detection is fast
-// - Dense polycyclic graphs: exponential explosion with large maxLen, but SSSR rings are typically small
-// - Most drug-like molecules have d ≈ 1.0-1.2, SSSR ≈ 3-10
-// - Highly bridged polycyclics (PAH, adamantane): d ≈ 1.2-1.4, SSSR ≈ 3-20, all rings < 20 atoms
-//
-// Why this works:
-// - Bridged systems have mostly small rings (<15 atoms); large rings only in rare fused systems
-// - Limiting maxLen to 15-20 still captures all practical SSSR rings
-// - Exponential search space reduction: each 5-atom reduction saves ~10x search time
+// Find all simple cycles in the molecular graph.
+// Dynamically adjusts maxLen based on graph density to prevent exponential explosion in polycyclic systems.
 export function findAllCycles(atoms: Atom[], bonds: Bond[], maxLen: number = 40): number[][] {
   // Smart adaptive limit based on graph density and size
   const n = atoms.length;
@@ -88,13 +23,8 @@ export function findAllCycles(atoms: Atom[], bonds: Bond[], maxLen: number = 40)
   // Estimate expected SSSR count: sssr = m - n + 1
   const expectedSSSR = m - n + 1;
   
-  // Adaptive maxLen strategy based on combined density + expectedSSSR signal:
-   // - Sparse trees/chains (density < 1.05): use full maxLen
-   // - High ring content (density ≥ 1.15): aggressive reduction (most rings < 15 atoms)
-   // - Moderate density (1.05 ≤ density < 1.15): moderate reduction
-   //
-   // Key insight: Large ring systems (adamantane, PAHs) have many small rings but few large ones.
-   // Limiting maxLen to 15-18 still captures 99% of SSSR rings while eliminating exponential explosion.
+   // Adaptive limit based on density to prevent exponential explosion in polycyclic systems.
+   // Sparse trees use full maxLen; high-density systems cap at 15-25 atoms depending on molecule size.
    if (density >= 1.15) {
      // High density: definitely polycyclic, limit aggressively
      if (n > 150) {
@@ -214,77 +144,93 @@ function cycleEdges(cycle: number[]): Set<string> {
   return edges;
 }
 
-// Check if a new cycle is linearly independent from previously selected cycles.
-//
-// LINEAR INDEPENDENCE IN CYCLE SPACE:
-// A set of cycles is linearly independent if no cycle can be expressed as the XOR
-// (symmetric difference) of other cycles in the set. In graph theory terms, they span
-// orthogonal subspaces of the cycle space.
-//
-// ALGORITHM:
-// For each non-empty subset of previously selected cycles:
-// 1. XOR the edge sets together (symmetric difference)
-// 2. Check if result matches the new cycle's edges
-// 3. If any subset produces the same edges, new cycle is dependent → return false
-// 4. If no subset matches, new cycle is independent → return true
-//
-// COMPLEXITY: O(2^R) where R = number of already-selected rings
-// This is acceptable because R is typically 1-10 for drug molecules.
-function isLinearlyIndependent(newEdges: Set<string>, prevEdgeSets: Set<string>[]): boolean {
-  const n = prevEdgeSets.length;
-  if (n === 0) return true;
-  
-  for (let mask = 1; mask < (1 << n); mask++) {
-    const xorResult = new Set<string>();
-    for (let i = 0; i < n; i++) {
-      if (mask & (1 << i)) {
-        for (const edge of prevEdgeSets[i]!) {
-          if (xorResult.has(edge)) {
-            xorResult.delete(edge);
-          } else {
-            xorResult.add(edge);
-          }
-        }
+// Gaussian elimination over GF(2) to test linear independence of cycles in O(R^3).
+// Maintains RREF basis matrix to efficiently determine if a cycle is dependent on prior cycles.
+
+class GF2Matrix {
+  rows: Map<number, boolean>[] = [];
+  pivotCol: Map<number, number> = new Map();
+  edgeToCol: Map<string, number> = new Map();
+  nextCol: number = 0;
+
+  addRow(edges: Set<string>): boolean {
+    if (edges.size === 0) return false;
+
+    for (const edge of edges) {
+      if (!this.edgeToCol.has(edge)) {
+        this.edgeToCol.set(edge, this.nextCol++);
       }
     }
-    
-    if (xorResult.size === newEdges.size && 
-        [...newEdges].every(e => xorResult.has(e))) {
+
+    const vector = new Map<number, boolean>();
+    for (const edge of edges) {
+      vector.set(this.edgeToCol.get(edge)!, true);
+    }
+
+    this.reduceVector(vector);
+
+    if (this.vectorIsZero(vector)) {
       return false;
     }
+
+    const pivotCol = this.findPivotColumn(vector);
+    if (this.pivotCol.has(pivotCol)) {
+      return false;
+    }
+
+    this.pivotCol.set(pivotCol, this.rows.length);
+    this.rows.push(vector);
+
+    for (let i = this.rows.length - 2; i >= 0; i--) {
+      if (this.rows[i]!.has(pivotCol)) {
+        this.xorRows(this.rows[i]!, vector);
+      }
+    }
+
+    return true;
   }
-  
-  return true;
+
+  private reduceVector(vector: Map<number, boolean>): void {
+    const cols = Array.from(vector.keys()).sort((a, b) => a - b);
+    for (const col of cols) {
+      if (this.pivotCol.has(col)) {
+        const pivotRowIdx = this.pivotCol.get(col)!;
+        this.xorRows(vector, this.rows[pivotRowIdx]!);
+      }
+    }
+  }
+
+  private findPivotColumn(vector: Map<number, boolean>): number {
+    const cols = Array.from(vector.keys()).sort((a, b) => b - a);
+    return cols[0] ?? -1;
+  }
+
+  private vectorIsZero(vector: Map<number, boolean>): boolean {
+    for (const [, val] of vector) {
+      if (val) return false;
+    }
+    return true;
+  }
+
+  private xorRows(target: Map<number, boolean>, source: Map<number, boolean>): void {
+    for (const [col, val] of source) {
+      if (target.has(col)) {
+        if (val) {
+          target.delete(col);
+        }
+      } else if (val) {
+        target.set(col, true);
+      }
+    }
+  }
 }
 
-// Compute the Smallest Set of Smallest Rings (SSSR) for a molecule.
-// 
-// MATHEMATICAL GUARANTEE:
-// The SSSR always contains exactly (edges - nodes + components) linearly independent cycles.
-// This is a fundamental result in graph theory for cycle spaces.
-//
-// ALGORITHM:
-// 1. Find all simple cycles (up to max length per molecule size)
-// 2. Sort by length (shortest cycles prioritized)
-// 3. Greedily select cycles that are linearly independent (using XOR on edge sets)
-// 4. Stop once we have exactly `ringCount` cycles
-//
-// LINEAR INDEPENDENCE:
-// Two cycles are linearly independent if their XOR (symmetric difference of edge sets)
-// cannot be expressed as the XOR of any subset of previously selected cycles.
-// This ensures the SSSR forms a basis for the cycle space.
-//
-// COMPLEXITY:
-// - Cycle finding: O(V + E * max_cycle_length^2) in worst case
-// - Independence testing: O(R^2) where R = number of rings selected
-// - Overall: Polynomial for typical molecules, exponential only for highly pathological graphs
-//
-// TEST RESULTS:
-// All SSSR tests pass including:
-// - Adamantane (10 atoms, 3 SSSR rings)
-// - Cubane (8 atoms, 5 SSSR rings)  
-// - Basketane (10 atoms, 6 SSSR rings)
-// - All other bridged/fused polycyclic systems
+function isLinearlyIndependent(newEdges: Set<string>, matrix: GF2Matrix): boolean {
+  return matrix.addRow(newEdges);
+}
+
+// Compute SSSR (Smallest Set of Smallest Rings) using cycle greedy selection and linear independence testing via GF(2).
+// Guaranteed to find exactly (edges - nodes + components) linearly independent cycles.
 export function findSSSR_Kekule(atoms: Atom[], bonds: Bond[]): number[][] {
   const numNodes = atoms.length;
   const numEdges = bonds.length;
@@ -294,13 +240,12 @@ export function findSSSR_Kekule(atoms: Atom[], bonds: Bond[]): number[][] {
   allCycles.sort((a, b) => a.length - b.length || a.join(',').localeCompare(b.join(',')));
 
   const sssr: number[][] = [];
-  const edgeSets: Set<string>[] = [];
+  const matrix = new GF2Matrix();
 
   for (const cycle of allCycles) {
     const edges = cycleEdges(cycle);
-    if (isLinearlyIndependent(edges, edgeSets)) {
+    if (isLinearlyIndependent(edges, matrix)) {
       sssr.push(cycle);
-      edgeSets.push(edges);
       if (sssr.length >= ringCount) break;
     }
   }
@@ -309,6 +254,8 @@ export function findSSSR_Kekule(atoms: Atom[], bonds: Bond[]): number[][] {
 }
 
 // Get all cycles for ring membership counting ([R] primitive)
+// IMPORTANT: Uses SSSR (Smallest Set of Smallest Rings) per SMARTS specification
+// [Rn] primitive counts atoms in n SSSR rings, NOT all elementary cycles
 export function findAllRings(atoms: Atom[], bonds: Bond[]): number[][] {
-  return findAllCycles(atoms, bonds);
+  return findSSSR_Kekule(atoms, bonds);
 }

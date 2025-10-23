@@ -1,8 +1,10 @@
 import type { Molecule, Bond, Atom } from 'types';
 import { BondType, StereoType } from 'types';
+import type { RingInfo } from 'src/utils/ring-analysis';
 import { isOrganicAtom } from 'src/utils/atom-utils';
 import { perceiveAromaticity } from 'src/utils/aromaticity-perceiver';
 import { removeInvalidStereo } from 'src/utils/symmetry-detector';
+import { analyzeRings } from 'src/utils/ring-analysis';
 import { getBondsForAtom, getOtherAtomId, bondKey as utilBondKey } from 'src/utils/bond-utils';
 
 type MutableAtom = {
@@ -18,9 +20,9 @@ type MutableMolecule = {
   bonds: MutableBond[];
 };
 
-export function generateSMILES(input: Molecule | Molecule[], canonical = true): string {
+export function generateSMILES(input: Molecule | Molecule[], canonical = true, ringInfo?: RingInfo): string {
   if (Array.isArray(input)) {
-    return input.map(mol => generateSMILES(mol, canonical)).join('.');
+    return input.map(mol => generateSMILES(mol, canonical, ringInfo)).join('.');
   }
   const molecule = input as Molecule;
   let cloned: MutableMolecule = {
@@ -37,6 +39,11 @@ export function generateSMILES(input: Molecule | Molecule[], canonical = true): 
       atoms: validated.atoms.map(a => ({ ...a })),
       bonds: validated.bonds.map(b => ({ ...b }))
     };
+  }
+
+  // Compute ring information if not provided
+  if (!ringInfo) {
+    ringInfo = analyzeRings(cloned as Molecule);
   }
 
   for (const atom of cloned.atoms) {
@@ -68,9 +75,14 @@ export function generateSMILES(input: Molecule | Molecule[], canonical = true): 
 
   for (const bond of cloned.bonds) {
     if (bond.type === BondType.DOUBLE) {
-      const inSmallRing = isInSmallRing(bond.atom1, bond.atom2, cloned, 8);
+      const inSmallRing = ringInfo.areBothAtomsInSameRing(bond.atom1, bond.atom2);
       if (inSmallRing) {
-        const ringAtoms = findRingAtoms(bond.atom1, bond.atom2, cloned);
+        const ringsContainingAtom1 = ringInfo.getRingsContainingAtom(bond.atom1);
+        const ringsContainingBond = ringsContainingAtom1.filter(ring => ring.includes(bond.atom2));
+        const ringAtoms = new Set<number>();
+        for (const ring of ringsContainingBond) {
+          ring.forEach(atomId => ringAtoms.add(atomId));
+        }
         for (const b of cloned.bonds) {
           if (b.type === BondType.SINGLE && b.stereo && b.stereo !== StereoType.NONE) {
             const connectsToRingAtom = ringAtoms.has(b.atom1) || ringAtoms.has(b.atom2);
@@ -78,7 +90,7 @@ export function generateSMILES(input: Molecule | Molecule[], canonical = true): 
               const otherAtom = ringAtoms.has(b.atom1) ? b.atom2 : b.atom1;
               const partOfExocyclicDoubleBond = cloned.bonds.some(b2 => 
                 b2.type === BondType.DOUBLE && 
-                !isInSmallRing(b2.atom1, b2.atom2, cloned, 8) &&
+                !ringInfo.areBothAtomsInSameRing(b2.atom1, b2.atom2) &&
                 (b2.atom1 === otherAtom || b2.atom2 === otherAtom)
               );
               if (!partOfExocyclicDoubleBond) {
@@ -638,58 +650,6 @@ function bondKey(a: number, b: number): string {
 function getNeighbors(atomId: number, molecule: Molecule): [number, Bond][] {
   const bonds = getBondsForAtom(molecule.bonds, atomId);
   return bonds.map((bond: Bond) => [getOtherAtomId(bond, atomId), bond]);
-}
-
-function findRingAtoms(atom1: number, atom2: number, molecule: Molecule): Set<number> {
-  const ringAtoms = new Set<number>();
-  const queue: [number, number[]][] = [[atom2, [atom1, atom2]]];
-  const visited = new Set<number>([atom1, atom2]);
-  const directBond = molecule.bonds.find(b => 
-    (b.atom1 === atom1 && b.atom2 === atom2) || (b.atom1 === atom2 && b.atom2 === atom1)
-  );
-  
-  while (queue.length > 0) {
-    const [current, path] = queue.shift()!;
-    
-    for (const [neighbor, bond] of getNeighbors(current, molecule)) {
-      if (bond === directBond) continue;
-      
-      if (neighbor === atom1) {
-        if (path.length >= 2) {
-          path.forEach(a => ringAtoms.add(a));
-          return ringAtoms;
-        }
-      } else if (!visited.has(neighbor)) {
-        visited.add(neighbor);
-        queue.push([neighbor, [...path, neighbor]]);
-      }
-    }
-  }
-  
-  return ringAtoms;
-}
-
-function isInSmallRing(atom1: number, atom2: number, molecule: Molecule, maxSize: number): boolean {
-  // BFS to find shortest path from atom2 back to atom1 without using the direct bond
-  const queue: [number, number][] = [[atom2, 0]];
-  const visited = new Set<number>([atom1, atom2]);
-  
-  while (queue.length > 0) {
-    const [current, dist] = queue.shift()!;
-    if (dist >= maxSize - 1) continue;
-    
-    for (const [neighbor] of getNeighbors(current, molecule)) {
-      if (neighbor === atom1 && dist > 0) {
-        return dist + 1 < maxSize;
-      }
-      if (!visited.has(neighbor)) {
-        visited.add(neighbor);
-        queue.push([neighbor, dist + 1]);
-      }
-    }
-  }
-  
-  return false;
 }
 
 // Normalize stereo markers to canonical form

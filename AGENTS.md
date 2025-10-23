@@ -71,8 +71,9 @@
 - Compare with RDKit where possible for validation
 
 ### Comments
-- DO NOT ADD COMMENTS unless explicitly requested
-- Code should be self-documenting with clear naming
+- Avoid verbose method documentation (e.g., JSDoc). Limit to 3 lines maximum if needed.
+- Do not add comments unless explicitly requested.
+- Ensure code is self-documenting through clear and descriptive naming.
 
 ## File Locations
 
