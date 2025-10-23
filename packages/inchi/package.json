@@ -1,0 +1,31 @@
+{
+  "name": "openchem-inchi",
+  "version": "0.1.0",
+  "description": "Lightweight wrapper to load InChI/InChIKey via inchi-js (dynamic runtime loader)",
+  "private": false,
+  "type": "module",
+  "main": "dist/index.js",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "bunx tsc -p tsconfig.json",
+    "test": "bun test"
+  },
+  "optionalDependencies": {
+    "inchi-js": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
