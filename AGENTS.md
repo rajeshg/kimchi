@@ -178,6 +178,138 @@ const result2 = checkLipinskiRuleOfFive(aspirin);
 - SSSR rings still computed and stored in `molecule.rings`
 - Reference: `docs/SMARTS_RING_MEMBERSHIP_ANALYSIS.md`
 
+## Ring Analysis and SSSR
+
+### Overview
+
+openchem provides comprehensive ring detection via `src/utils/ring-analysis.ts`, including:
+- **Elementary ring detection** via depth-first search (DFS) cycle detection
+- **SSSR (Smallest Set of Smallest Rings)** computation (also called Minimum Cycle Basis, MCB)
+- **Ring classification** (isolated, fused, spiro, bridged)
+- **Ring queries** (which rings contain an atom, aromatic rings, etc.)
+
+### Mathematical Basis
+
+**SSSR Count Formula** (for connected graphs):
+```
+rank = M - N + 1
+where:
+  M = number of bonds (edges)
+  N = number of atoms (vertices)
+  rank = minimum number of independent cycles
+```
+
+**Examples:**
+- **Cyclohexane** (C₆H₁₂): M=6, N=6 → rank=1 (one 6-membered ring)
+- **Bicyclo[2.2.1]heptane** (C₇H₁₂): M=7, N=7 → rank=1 (fused 5+6 membered rings share edge)
+- **Adamantane** (C₁₀H₁₆): M=12, N=10 → rank=3 (three independent 6-membered rings)
+
+### Key Functions
+
+**Ring Detection:**
+- `findRings(atoms, bonds)` — Detect all elementary (simple) cycles using DFS
+- `findSSSR(rings)` — Compute SSSR from elementary rings
+- `findMCB(atoms, bonds)` — Alias for `findSSSR` (MCB = SSSR)
+
+**Ring Classification:**
+- `classifyRingSystems(atoms, bonds, rings)` — Categorize rings as isolated/fused/spiro/bridged
+- `isPartOfFusedSystem(ringIdx, classification)` — Check if ring is part of fused system
+
+**Ring Queries:**
+- `analyzeRings(molecule)` — Get comprehensive `RingInfo` query interface
+- `getRingsContainingAtom(atom, rings)` — Which rings contain this atom?
+- `getRingAtoms(ring, atoms)` — Get Atom objects for a ring
+- `getRingBonds(ring, bonds)` — Get Bond objects for a ring
+- `getAromaticRings(rings, atoms)` — Filter to aromatic rings only
+
+### Performance Characteristics
+
+| Operation | Time Complexity | Notes |
+|-----------|------------------|-------|
+| `findRings()` | O(N²) to O(N³) | DFS-based; worst case for dense graphs |
+| `findSSSR()` | O(rank²) | Fast for simple molecules; rank ≈ 3-5 typical |
+| `classifyRingSystems()` | O(rank²) | Analyzes relationships between rings |
+| Ring queries | O(rank) or O(N) | Linear in ring count or atom count |
+
+**Practical performance:**
+- Simple molecules (< 30 atoms): < 1 ms
+- Drug-like molecules (30-60 atoms): 1-5 ms
+- Complex polycyclic (60+ atoms): 5-50 ms
+- Caching ring analysis via `analyzeRings()` provides O(1) query access
+
+### When to Use SSSR vs All Rings
+
+**Use SSSR when:**
+- Computing molecular properties (# rings, aromaticity)
+- SMARTS `[Rn]` pattern matching (strict spec compliance)
+- Need minimal representation of ring structure
+- Memory efficiency is important
+
+**Use all elementary rings when:**
+- Need complete understanding of all possible cycles
+- Analyzing ring similarity or resonance structures
+- Debugging ring perception issues
+- Chemical intuition requires all cycles (e.g., bridgehead analysis)
+
+**Practical guideline:**
+- For molecules < 20 atoms with up to 5 rings: both are equivalent
+- For polycyclic systems (adamantane, cubane, basketane): SSSR is more efficient
+- For fused aromatics (naphthalene, anthracene): both methods identify the same 2-3 core rings
+
+### Implementation Details
+
+**SSSR Algorithm (implemented in openchem):**
+1. Find all elementary rings using DFS
+2. Select minimal set that represents all bonds and atoms in rings
+3. Verify mathematical rank constraint (M - N + 1 = number of SSSR rings)
+4. Validate fused ring geometry
+
+**Ring membership counting for `[Rn]` primitives:**
+- Count how many SSSR rings contain each atom
+- Atom in N SSSR rings → matches `[RN]` in SMARTS
+- Example: adamantane atom #3 is in 3 SSSR rings → matches `[R3]`
+
+### Known Differences with RDKit
+
+**Adamantane ring membership:**
+- openchem `[R3]`: 1 atom (atom #3, the bridgehead) — **correct per SMARTS spec**
+- RDKit `[R3]`: 4 atoms (bridgehead carbons #1,3,5,7) — uses extended ring set
+
+**Root cause:**
+- openchem uses strict SSSR (3 rings for adamantane)
+- RDKit uses extended ring detection (includes bridging cycles)
+
+For compliance with SMARTS specification, openchem's approach is correct. RDKit's behavior is more chemically intuitive but deviates from the formal SMARTS definition.
+
+See `docs/SMARTS_RING_MEMBERSHIP_ANALYSIS.md` for detailed analysis.
+
+### Usage Examples
+
+```typescript
+import { parseSMILES, analyzeRings } from 'index';
+
+const benzene = parseSMILES('c1ccccc1').molecules[0];
+const ringInfo = analyzeRings(benzene);
+
+// Query methods
+console.log(ringInfo.ringCount);                    // 1
+console.log(ringInfo.aromaticRings.length);        // 1
+console.log(ringInfo.getRingsContainingAtom(0));   // [ring 0]
+
+// Adamantane has 3 SSSR rings
+const adamantane = parseSMILES('C1C2CC3CC1CC(C2)C3').molecules[0];
+const adamRings = analyzeRings(adamantane);
+console.log(adamRings.ringCount);                  // 3
+console.log(adamRings.classifyRingSystems());      // bridged system
+```
+
+### References
+
+- SSSR algorithm: Smallest Set of Smallest Rings (Horton 1987, SSSR uniqueness proof)
+- Minimum Cycle Basis: Algebraic graph theory foundation (Whitney 1935)
+- SMARTS `[Rn]`: `docs/SMARTS_RING_MEMBERSHIP_ANALYSIS.md`
+- Ring analysis source: `src/utils/ring-analysis.ts` (19 functions, comprehensive JSDoc)
+
 ## Common Development Tasks
 
 ### Adding a New Feature

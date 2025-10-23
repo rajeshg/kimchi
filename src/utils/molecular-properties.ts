@@ -6,12 +6,36 @@ import { getBondsForAtom, getHeavyNeighborCount, hasMultipleBond, hasTripleBond,
 import { MoleculeGraph } from 'src/utils/molecular-graph';
 import { computeLogP } from 'src/utils/logp';
 
+/**
+ * Options for molecular property calculations.
+ * @property {boolean} [includeImplicitH=true] - Include implicit hydrogens in formula and counts
+ * @property {number} [tolerance] - Tolerance for floating-point comparisons
+ * @property {boolean} [includeIsotopeLabels=false] - Include isotope labels in formula (e.g., "13C")
+ */
 export interface MolecularOptions {
   includeImplicitH?: boolean; // default true
   tolerance?: number;
   includeIsotopeLabels?: boolean; // default false
 }
 
+/**
+ * Compute the molecular formula of a molecule.
+ * 
+ * @param {Molecule} mol - The molecule to analyze
+ * @param {MolecularOptions} [opts={}] - Calculation options
+ * @returns {string} Molecular formula (e.g., "C6H12O" for cyclohexanol)
+ * 
+ * @example
+ * const formula = getMolecularFormula(cyclohexane);
+ * console.log(formula); // "C6H12"
+ * 
+ * @example
+ * const formulaWithH = getMolecularFormula(cyclohexane, { includeImplicitH: true });
+ * const formulaWithoutH = getMolecularFormula(cyclohexane, { includeImplicitH: false });
+ * 
+ * @complexity O(N) where N = number of atoms
+ * @see getMolecularMass for atomic mass calculation
+ */
 export function getMolecularFormula(mol: Molecule, opts: MolecularOptions = {}): string {
   const includeImplicitH = opts.includeImplicitH ?? true;
   const includeIsotopeLabels = opts.includeIsotopeLabels ?? false;

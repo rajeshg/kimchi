@@ -10,9 +10,12 @@ export function enrichMolecule(mol: Molecule, mg?: MoleculeGraph): Molecule {
   // For SMARTS [R] primitive, use all cycles (not just SSSR) to match RDKit behavior
   const allCycles = findAllRings(mol.atoms as Atom[], mol.bonds as Bond[]);
 
+  const atomRings = buildAtomRingsMap(allCycles);
+  const bondRings = buildBondRingsMap(allCycles, mol.bonds);
+
   const enrichedRingInfo = {
-    atomRings: buildAtomRingsMap(allCycles),
-    bondRings: buildBondRingsMap(allCycles, mol.bonds),
+    atomRings,
+    bondRings,
     rings: ringInfo.rings, // Keep SSSR for other purposes
   };
 
