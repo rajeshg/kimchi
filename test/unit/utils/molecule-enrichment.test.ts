@@ -137,10 +137,11 @@ describe("molecule-enrichment", () => {
     it("handles fused ring systems", () => {
       const result = parseSMILES("c1ccc2ccccc2c1");
       const enriched = enrichMolecule(result.molecules[0]!);
-      
-      expect(enriched.rings!.length).toBe(2);
-      
-      const fusionAtoms = enriched.atoms.filter(a => a.ringIds && a.ringIds.length === 2);
+
+      expect(enriched.rings!.length).toBe(2); // SSSR still has 2 rings
+
+      // With all cycles, fusion atoms are in 3 cycles (2 SSSR + 1 perimeter)
+      const fusionAtoms = enriched.atoms.filter(a => a.ringIds && a.ringIds.length === 3);
       expect(fusionAtoms.length).toBe(2);
     });
 

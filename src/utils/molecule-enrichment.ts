@@ -2,19 +2,23 @@ import type { Atom, Bond, Molecule } from 'types';
 import { analyzeRings } from './ring-analysis';
 import { bondKey, getBondsForAtom, getHeavyNeighborCount, hasDoubleBond, hasTripleBond, hasCarbonylBond } from './bond-utils';
 import { MoleculeGraph } from './molecular-graph';
+import { findAllRings } from './sssr-kekule';
 
 export function enrichMolecule(mol: Molecule, mg?: MoleculeGraph): Molecule {
   const ringInfo = analyzeRings(mol, mg);
-  
+
+  // For SMARTS [R] primitive, use all cycles (not just SSSR) to match RDKit behavior
+  const allCycles = findAllRings(mol.atoms as Atom[], mol.bonds as Bond[]);
+
   const enrichedRingInfo = {
-    atomRings: buildAtomRingsMap(ringInfo.rings),
-    bondRings: buildBondRingsMap(ringInfo.rings, mol.bonds),
-    rings: ringInfo.rings,
+    atomRings: buildAtomRingsMap(allCycles),
+    bondRings: buildBondRingsMap(allCycles, mol.bonds),
+    rings: ringInfo.rings, // Keep SSSR for other purposes
   };
-  
+
   const enrichedAtoms = enrichAtoms(mol, ringInfo, enrichedRingInfo);
   const enrichedBonds = enrichBonds(mol, ringInfo, enrichedRingInfo);
-  
+
   return {
     atoms: enrichedAtoms,
     bonds: enrichedBonds,
