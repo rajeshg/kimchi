@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.3] - 2025-10-22
+
+### Performance
+- Optimized SMILES parser with improved tokenization and parsing efficiency
+- Refactored aromaticity perceiver for faster perception of aromatic rings
+- Enhanced ring analysis algorithms for improved performance on complex molecules
+- Optimized graph utility functions for faster traversal and analysis
+- New SMILES tokenizer for streamlined lexical analysis
+
+### Changed
+- Internal parser implementations refined for better performance characteristics
+- Ring detection now uses optimized cycle basis computation
+
 ## [0.1.2] - 2025-10-21
 
 ### Changed
