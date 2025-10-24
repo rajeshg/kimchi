@@ -122,7 +122,7 @@ describe('computeMorganFingerprint', () => {
       const result = parseSMILES('C');
       expect(result.errors).toEqual([]);
       const fp = computeMorganFingerprint(result.molecules[0]!);
-      expect(fp.length).toBe(512);
+      expect(fp.length).toBe(64);
       expect(getBitsSet(fp)).toBeGreaterThan(0);
     });
 
@@ -130,7 +130,7 @@ describe('computeMorganFingerprint', () => {
       const result = parseSMILES('CCO');
       expect(result.errors).toEqual([]);
       const fp = computeMorganFingerprint(result.molecules[0]!);
-      expect(fp.length).toBe(512);
+      expect(fp.length).toBe(64);
       expect(getBitsSet(fp)).toBeGreaterThan(0);
     });
 
@@ -138,7 +138,7 @@ describe('computeMorganFingerprint', () => {
       const result = parseSMILES('c1ccccc1');
       expect(result.errors).toEqual([]);
       const fp = computeMorganFingerprint(result.molecules[0]!);
-      expect(fp.length).toBe(512);
+      expect(fp.length).toBe(64);
       expect(getBitsSet(fp)).toBeGreaterThan(0);
     });
 

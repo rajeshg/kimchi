@@ -5,30 +5,12 @@ import { initializeRDKit } from '../smarts/rdkit-comparison/rdkit-smarts-api';
 
 // Test documents fingerprint generation from OpenChem and attempts comparison with RDKit-JS
 //
-// IMPORTANT: OpenChem's Morgan fingerprint implementation matches RDKit C++ exactly.
-// However, RDKit-JS Morgan fingerprint methods are BROKEN or incompatible.
-//
-// KNOWN ISSUE WITH RDKit-JS:
-// - RDKit-JS get_morgan_fp() returns invalid fingerprints (often all zeros)
-// - This is a confirmed bug/limitation in RDKit-JS, not OpenChem
-// - Python RDKit works correctly with rdMolDescriptors.GetMorganFingerprintAsBitVect()
-// - RDKit-JS WASM implementation has incomplete or broken fingerprint functionality
-//
 // This test validates:
 // ✓ OpenChem produces valid 512-bit fingerprints
 // ✓ OpenChem handles all test molecules without crashing
 // ✓ OpenChem's implementation is internally consistent
 // ✓ RDKit-JS produces some output (though invalid)
 //
-// KNOWN DIFFERENCE (EXPECTED):
-// Tanimoto similarity between OpenChem and RDKit-JS fingerprints is very low (< 0.01).
-// This is EXPECTED because RDKit-JS fingerprint methods are broken.
-// With RDKit C++, OpenChem would produce bit-for-bit identical fingerprints.
-//
-// Use Tanimoto similarity or other metrics to compare fingerprints semantically
-// rather than bitwise. OpenChem produces valid fingerprints for molecular similarity
-// searching, compatible with RDKit C++.
-
 const skipTest = false;
 
 // Bulk SMILES set (should match the one in the OpenChem test)
@@ -80,7 +62,6 @@ function fpToHex(fp: number[]): string {
 
 it('compares OpenChem and RDKit-JS Morgan fingerprints (radius=2, nBits=2048)', async () => {
   if (skipTest) {
-    console.log('Skipping RDKit-JS fingerprint test - fingerprint methods are currently broken in RDKit-JS');
     return;
   }
   const RDKit: any = await initializeRDKit();
@@ -111,8 +92,7 @@ it('compares OpenChem and RDKit-JS Morgan fingerprints (radius=2, nBits=2048)', 
     try {
       rdkitMol = RDKit.get_mol(smi);
       if (!rdkitMol) throw new Error('RDKit failed to parse');
-      
-      // Get RDKit fingerprint (known to be broken in RDKit-JS)
+
       const rdkitFpStr: any = rdkitMol.get_morgan_fp();
     // Convert RDKit fingerprint to array of bits (0 or 1)
     if (rdkitFpStr != null && typeof rdkitFpStr === 'string') {
@@ -133,8 +113,19 @@ it('compares OpenChem and RDKit-JS Morgan fingerprints (radius=2, nBits=2048)', 
     }
     if (rdkitMol && rdkitMol.delete) rdkitMol.delete();
 
+    // Convert openchemFp (Uint8Array of bytes) to array of bits
+    const openchemBits: number[] = [];
+    for (let i = 0; i < openchemFp.length; i++) {
+      const byte = openchemFp[i] ?? 0;
+      for (let bit = 0; bit < 8; bit++) {
+        openchemBits.push((byte >> bit) & 1);
+      }
+    }
+    // Truncate to 2048 bits if necessary
+    openchemBits.length = 2048;
+
     // Compute semantic similarity metrics
-    const tanimoto = tanimotoSimilarity(openchemFp, rdkitFp);
+    const tanimoto = tanimotoSimilarity(new Uint8Array(openchemBits), new Uint8Array(rdkitFp));
     const hamming = hammingDistance(openchemFp, rdkitFp);
     similarities.push(tanimoto);
 
@@ -157,11 +148,17 @@ it('compares OpenChem and RDKit-JS Morgan fingerprints (radius=2, nBits=2048)', 
    console.log(`Average Tanimoto Similarity: ${avgSimilarity.toFixed(3)}`);
    console.log(`Min Tanimoto Similarity: ${minSimilarity.toFixed(3)}`);
    console.log(`Max Tanimoto Similarity: ${maxSimilarity.toFixed(3)}`);
-   console.log(`\nNote: OpenChem matches RDKit C++ exactly; RDKit-JS fingerprint methods are broken`);
-   console.log(`      This test documents the RDKit-JS limitation, not an OpenChem issue`);
-
+   
   // Both implementations should produce valid fingerprints that can be compared semantically
   expect(successCount).toBeGreaterThan(0);
   expect(avgSimilarity).toBeGreaterThanOrEqual(0);
   expect(avgSimilarity).toBeLessThanOrEqual(1);
+
+  // With the fixes, we should achieve reasonable similarity with RDKit-JS
+  // Note: Perfect byte-to-byte identity may not be possible due to:
+  // - Different ring detection algorithms
+  // - Different aromaticity perception
+  // - RDKit-JS implementation differences
+  // But we should achieve >15% average Tanimoto similarity
+  expect(avgSimilarity).toBeGreaterThan(0.15);
 });

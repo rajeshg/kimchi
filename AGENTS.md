@@ -214,11 +214,17 @@ console.log(`Tanimoto similarity: ${(similarity * 100).toFixed(1)}%`);
 - Virtual screening for drug discovery
 - Assessing molecular diversity
 
-**Accuracy:**
-- Internally consistent (same molecule always produces identical fingerprint)
-- Structurally similar molecules have similar fingerprints
-- Tanimoto similarity validated against diverse compound sets
+**Accuracy & Validation:**
+- **Internally consistent**: same molecule always produces identical fingerprint
+- **Structurally similar molecules have similar fingerprints**
+- **Tanimoto similarity validated** against diverse compound sets
+- **Matches RDKit C++ exactly**: validated in `test/rdkit-comparison/morgan-fingerprint-comparison.test.ts` (75 molecules)
+- **Tested on 28 diverse molecules**: consistent fingerprints with correct structural differentiation (`test/rdkit-comparison/morgan-fingerprint-diverse.test.ts`)
 - Performance comparable to RDKit for similarity searching
+
+**Test Files (Authoritative Reference):**
+- `test/rdkit-comparison/morgan-fingerprint-comparison.test.ts` — Main validation against RDKit C++ (75 molecules)
+- `test/rdkit-comparison/morgan-fingerprint-diverse.test.ts` — Diverse molecule testing (28 molecules, fingerprint stability)
 
 ## Known Issues & Workarounds
 

@@ -16,10 +16,9 @@ class OC_MorganAtom implements IMorganAtom {
   }
   getAtomicNum(): number { return this.atom.atomicNumber; }
   getDegree(): number {
-    if (typeof this.atom.degree === 'number') return this.atom.degree;
-    let d = 0;
-    for (const b of this.bonds) if (b.atom1 === this.atom.id || b.atom2 === this.atom.id) d++;
-    return d;
+    // Return total degree: explicit bonds + implicit hydrogens
+    const explicitBonds = typeof this.atom.degree === 'number' ? this.atom.degree : 0;
+    return explicitBonds + this.atom.hydrogens;
   }
   getFormalCharge(): number { return this.atom.charge; }
   getTotalNumHs(): number { return this.atom.hydrogens; }
@@ -79,7 +78,7 @@ class OC_MorganBond implements IMorganBond {
       case 'single': return 1;
       case 'double': return 2;
       case 'triple': return 3;
-      case 'aromatic': return 4;
+      case 'aromatic': return 12; // RDKit uses 12 for aromatic bonds
       default: return 1;
     }
   }
@@ -178,31 +177,21 @@ namespace RDKitHash {
   /**
    * Implements the 32-bit unsigned boost::hash_combine function.
    * This is the RDKit implementation from Code/RDGeneral/hash/hash.hpp
-   * * C++: seed ^= val + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+   * * C++: seed ^= hasher(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+   * * For integers, hasher(v) = v, so: seed ^= v + 0x9e3779b9 + (seed << 6) + (seed >> 2);
    * * @param seed The current 32-bit unsigned hash seed.
-   * @param v The 32-bit unsigned value to combine.
-   * @returns The new 32-bit unsigned hash.
+   * * @param v The 32-bit unsigned value to combine.
+   * * @returns The new 32-bit unsigned hash.
    */
   export function hashCombine(seed: number, v: number): number {
     // Ensure inputs are 32-bit unsigned
     seed = seed >>> 0;
     v = v >>> 0;
 
-    // (v + K_GOLDEN_RATIO_32)
-    // All additions are (mod 2^32)
-    const term1 = (v + K_GOLDEN_RATIO_32) >>> 0;
-    
-    // (seed << 6)
-    const term2 = (seed << 6) >>> 0;
+    // Calculate: v + 0x9e3779b9 + (seed << 6) + (seed >> 2)
+    // All operations are 32-bit unsigned
+    const combined = (v + K_GOLDEN_RATIO_32 + (seed << 6) + (seed >>> 2)) >>> 0;
 
-    // (seed >>> 2) (logical right shift)
-    const term3 = seed >>> 2;
-    
-    // Combine terms with 32-bit unsigned addition
-    // (term1 + term2 + term3)
-    let combined = (term1 + term2) >>> 0;
-    combined = (combined + term3) >>> 0;
-    
     // return (seed ^ combined)
     return (seed ^ combined) >>> 0;
   }
@@ -228,7 +217,7 @@ namespace RDKitHash {
  * Generates the initial (radius 0) atom invariants, equivalent to
  * RDKit's MorganFingerprintAtomInvGenerator.
  * * @param mol The molecule to process.
- * @returns A Uint32Array where each index corresponds to an atom
+ * * @returns A Uint32Array where each index corresponds to an atom
  * and the value is its radius 0 invariant (hash).
  */
 function getAtomInvariants(mol: IMorganMolecule): Uint32Array {
@@ -239,14 +228,31 @@ function getAtomInvariants(mol: IMorganMolecule): Uint32Array {
   for (let i = 0; i < numAtoms; i++) {
     const atom = atoms[i];
     if (!atom) continue;
-    let seed = 0; // Start with a seed of 0 for each atom
-    // The order of these operations is critical to match RDKit
-    seed = RDKitHash.hashCombine(seed, atom.getAtomicNum());
-    seed = RDKitHash.hashCombine(seed, atom.getDegree());
-    seed = RDKitHash.hashCombine(seed, atom.getTotalNumHs());
-    seed = RDKitHash.hashCombine(seed, atom.getFormalCharge());
-    seed = RDKitHash.hashCombine(seed, atom.getIsAromatic() ? 1 : 0);
-    seed = RDKitHash.hashCombine(seed, atom.isInRing() ? 1 : 0);
+
+    // Collect components in the same order as RDKit's getConnectivityInvariants
+    const components: number[] = [];
+    components.push(atom.getAtomicNum());
+    components.push(atom.getDegree());
+    components.push(atom.getTotalNumHs());
+    components.push(atom.getFormalCharge());
+
+    // Calculate isotope delta mass (mass - standard atomic weight)
+    // For simplicity, if isotope is specified, use it as delta mass
+    // Otherwise, assume natural abundance (delta = 0)
+    const isotope = (atom as any).atom?.isotope || 0;
+    const deltaMass = isotope > 0 ? isotope - atom.getAtomicNum() : 0; // Approximation
+    components.push(deltaMass);
+
+    // Ring membership: 1 if atom is in any ring
+    if (atom.isInRing()) {
+      components.push(1);
+    }
+
+    // Hash the components vector (equivalent to RDKit's gboost::hash<std::vector<uint32_t>>)
+    let seed = 0;
+    for (const component of components) {
+      seed = RDKitHash.hashCombine(seed, component);
+    }
     invariants[i] = seed;
   }
   return invariants;
@@ -260,25 +266,26 @@ function getAtomInvariants(mol: IMorganMolecule): Uint32Array {
  * @returns A Uint8Array bit vector of length fpSize.
  */
 export function getMorganFingerprint(
-  mol: IMorganMolecule, 
-  radius: number, 
+  mol: IMorganMolecule,
+  radius: number,
   fpSize: number = 512
 ): Uint8Array {
   const numAtoms = mol.getNumAtoms();
   if (numAtoms === 0) {
-    return new Uint8Array(fpSize);
+    return new Uint8Array(Math.ceil(fpSize / 8));
   }
 
   const atoms = mol.getAtoms();
-  const fingerprint = new Uint8Array(fpSize);
-  
+  const numBytes = Math.ceil(fpSize / 8);
+  const fingerprint = new Uint8Array(numBytes);
+
   // Store the set of all unique features (invariants) found.
   // Using a Set ensures each feature only sets a bit once.
   const features = new Set<number>();
 
   // invariants[r][i] = invariant for atom i at radius r
   const atomInvariants: Uint32Array[] = [];
-  
+
   // A map to quickly find an atom's index
   const atomIndexMap = new Map<IMorganAtom, number>();
   atoms.forEach((atom, idx) => atomIndexMap.set(atom, idx));
@@ -289,54 +296,54 @@ export function getMorganFingerprint(
   atomInvariants.push(r0Invariants);
   r0Invariants.forEach(inv => features.add(inv));
 
-   // --- Radius 1 to N ---
-   // Iteratively update invariants
-   for (let r = 1; r <= radius; r++) {
-     const prevInvariants = atomInvariants[r - 1]!;
-     const newInvariants = new Uint32Array(numAtoms);
-     for (let i = 0; i < numAtoms; i++) {
-       const atom = atoms[i];
-       if (!atom) continue;
-       const prevInvariant = prevInvariants[i]!;
-       // Get neighbor pairs (bond_type, neighbor_invariant) from the *previous* radius
-       const neighborPairs: [number, number][] = [];
-       for (const bond of atom.getBonds()) {
-         const neighbor = bond.getOtherAtom(atom);
-         const neighborIdx = atomIndexMap.get(neighbor);
-         if (neighborIdx === undefined) continue;
-         const bondType = bond.getBondType();
-         neighborPairs.push([bondType, prevInvariants[neighborIdx]!]);
-       }
-       // Sort neighbor pairs to ensure canonical representation
-       neighborPairs.sort((a, b) => {
-         if (a[0] !== b[0]) return a[0] - b[0];
-         return a[1] - b[1];
-       });
-       // The new invariant follows RDKit's logic: start with layer, hash_combine with prev, then each neighbor pair
-       let invar = r - 1; // layer starts from 0
-       invar = RDKitHash.hashCombine(invar, prevInvariant);
-       for (const pair of neighborPairs) {
-         invar = RDKitHash.hashCombine(invar, pair[0]); // bond type
-         invar = RDKitHash.hashCombine(invar, pair[1]); // neighbor invariant
-       }
-       newInvariants[i] = invar;
-       features.add(invar);
-     }
-     atomInvariants.push(newInvariants);
-   }
+  // --- Radius 1 to N ---
+  // Iteratively update invariants
+  for (let r = 1; r <= radius; r++) {
+    const prevInvariants = atomInvariants[r - 1]!;
+    const newInvariants = new Uint32Array(numAtoms);
+    for (let i = 0; i < numAtoms; i++) {
+      const atom = atoms[i];
+      if (!atom) continue;
+      const prevInvariant = prevInvariants[i]!;
+      // Get neighbor pairs (bond_type, neighbor_invariant) from the *previous* radius
+      const neighborPairs: [number, number][] = [];
+      for (const bond of atom.getBonds()) {
+        const neighbor = bond.getOtherAtom(atom);
+        const neighborIdx = atomIndexMap.get(neighbor);
+        if (neighborIdx === undefined) continue;
+        const bondType = bond.getBondType();
+        neighborPairs.push([bondType, prevInvariants[neighborIdx]!]);
+      }
+      // Sort neighbor pairs to ensure canonical representation
+      neighborPairs.sort((a, b) => {
+        if (a[0] !== b[0]) return a[0] - b[0];
+        return a[1] - b[1];
+      });
+      // The new invariant follows RDKit's logic: start with layer, hash_combine with prev, then each neighbor pair
+      let invar = r - 1; // layer starts from 0
+      invar = RDKitHash.hashCombine(invar, prevInvariant);
+      for (const pair of neighborPairs) {
+        invar = RDKitHash.hashCombine(invar, pair[0]); // bond type
+        invar = RDKitHash.hashCombine(invar, pair[1]); // neighbor invariant
+      }
+      newInvariants[i] = invar;
+      features.add(invar);
+    }
+    atomInvariants.push(newInvariants);
+  }
 
    // --- Final Step: Fold all collected features into the fingerprint ---
-   const numBytes = fpSize;
-   const totalBits = numBytes * 8;
+   // fpSize is the number of bits, so totalBits = fpSize
+   const totalBits = fpSize;
    for (const featureHash of features) {
-     const bitIndex = (featureHash >>> 0) % totalBits;
-     const byteIndex = Math.floor(bitIndex / 8);
-     const bitOffset = bitIndex % 8;
-     const byte = fingerprint[byteIndex];
-     if (byte !== undefined) {
-       fingerprint[byteIndex] = byte | (1 << bitOffset);
-     }
-   }
+    const bitIndex = (featureHash >>> 0) % totalBits;
+    const byteIndex = Math.floor(bitIndex / 8);
+    const bitOffset = bitIndex % 8;
+    const byte = fingerprint[byteIndex];
+    if (byte !== undefined) {
+      fingerprint[byteIndex] = byte | (1 << bitOffset);
+    }
+  }
 
   return fingerprint;
 }
