@@ -4,6 +4,7 @@
 // Usage: computeMorganFingerprint(mol, { radius: 2, nBits: 2048 })
 
 import type { Molecule, Atom, Bond } from 'types';
+import { findRings } from './ring-analysis';
 
 export interface MorganFingerprintOptions {
   radius?: number; // ECFP4 = 2
@@ -56,8 +57,41 @@ function hashVector(components: number[]): number {
   return hash;
 }
 
+// Check if an atom is in any ring (cache for performance)
+function isAtomInRing(atom: Atom, mol: Molecule, ringCache?: Map<number, boolean>): boolean {
+  if (ringCache?.has(atom.id)) {
+    return ringCache.get(atom.id)!;
+  }
+
+  const rings = findRings(mol.atoms, mol.bonds);
+  const cache = ringCache || new Map<number, boolean>();
+  
+  for (const ring of rings) {
+    for (const atomId of ring) {
+      cache.set(atomId, true);
+    }
+  }
+
+  // Mark atoms not in any ring
+  for (const a of mol.atoms) {
+    if (!cache.has(a.id)) {
+      cache.set(a.id, false);
+    }
+  }
+
+  if (ringCache) {
+    return ringCache.get(atom.id)!;
+  }
+  return cache.get(atom.id) ?? false;
+}
+
 // Compute atom invariant matching RDKit's getConnectivityInvariants
-function atomInvariant(atom: Atom, mol: Molecule, atomIdToIdx: Map<number, number>): number {
+function atomInvariant(
+  atom: Atom,
+  mol: Molecule,
+  atomIdToIdx: Map<number, number>,
+  ringCache?: Map<number, boolean>
+): number {
   // RDKit's getConnectivityInvariants components:
   // 1. Atomic number
   // 2. Total degree (number of bonds)
@@ -83,16 +117,13 @@ function atomInvariant(atom: Atom, mol: Molecule, atomIdToIdx: Map<number, numbe
   const charge = atom.charge || 0;
   components.push(charge);
 
-  // 5. Delta mass (isotope difference)
-  // For simplicity, assume standard isotopes (deltaMass = 0)
-  // TODO: Add isotope support when available in Atom type
-  const deltaMass = 0;
-  components.push(deltaMass);
+   // 5. Delta mass (isotope difference)
+   const deltaMass = atom.isotope || 0;
+   components.push(deltaMass);
 
-  // 6. Ring membership (1 if in any ring)
-  // TODO: Add ring detection when available
-  const inRing = 0; // Placeholder - need ring analysis
-  components.push(inRing);
+   // 6. Ring membership (1 if in any ring)
+   const inRing = isAtomInRing(atom, mol, ringCache) ? 1 : 0;
+   components.push(inRing);
 
   // Hash the components vector (like boost::hash<vector<uint32_t>>)
   return hashVector(components);
@@ -114,22 +145,37 @@ function atomInvariant(atom: Atom, mol: Molecule, atomIdToIdx: Map<number, numbe
  *   const fp = computeMorganFingerprint(mol, { radius: 2, nBits: 1024 });
  */
 export function computeMorganFingerprint(
-  mol: Molecule,
-  options?: MorganFingerprintOptions
+   mol: Molecule,
+   options?: MorganFingerprintOptions
 ): number[] {
-  const radius = options?.radius ?? 2;
-  const nBits = options?.nBits ?? 2048;
-  // Build atomId to index map
-  const atomIdToIdx = new Map<number, number>();
-  for (let i = 0; i < mol.atoms.length; i++) {
-    atomIdToIdx.set(mol.atoms[i]!.id, i);
-  }
+   const radius = options?.radius ?? 2;
+   const nBits = options?.nBits ?? 2048;
+   
+   // Build atomId to index map
+   const atomIdToIdx = new Map<number, number>();
+   for (let i = 0; i < mol.atoms.length; i++) {
+     atomIdToIdx.set(mol.atoms[i]!.id, i);
+   }
 
-  // 1. Initial atom invariants
-  let invariants: number[] = [];
-  for (let i = 0; i < mol.atoms.length; i++) {
-    invariants[i] = atomInvariant(mol.atoms[i]!, mol, atomIdToIdx);
-  }
+   // Build ring cache once for all atomInvariant calls
+   const rings = findRings(mol.atoms, mol.bonds);
+   const ringCache = new Map<number, boolean>();
+   for (const ring of rings) {
+     for (const atomId of ring) {
+       ringCache.set(atomId, true);
+     }
+   }
+   for (const atom of mol.atoms) {
+     if (!ringCache.has(atom.id)) {
+       ringCache.set(atom.id, false);
+     }
+   }
+
+   // 1. Initial atom invariants
+   let invariants: number[] = [];
+   for (let i = 0; i < mol.atoms.length; i++) {
+     invariants[i] = atomInvariant(mol.atoms[i]!, mol, atomIdToIdx, ringCache);
+   }
 
   // 2. Iterative update (matching RDKit's Morgan algorithm)
   let currentInvariants = [...invariants];
