@@ -237,6 +237,12 @@ function parseSingleSMILES(smiles: string, timings?: any): { molecule: Molecule;
       i++;
       continue;
     }
+    if (ch === ':') {
+      pendingBondType = BondType.AROMATIC;
+      pendingBondExplicit = true;
+      i++;
+      continue;
+    }
 
     // Branching
     if (ch === '(') {

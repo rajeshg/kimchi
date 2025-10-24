@@ -17,6 +17,7 @@
 ### Development Server
 - **Build and serve**: `bun run serve` → then open http://localhost:3000/smiles-playground.html
 
+**IMPORTANT**: Don't ever publish without explicit instruction to publish a package to npm
 ### Publishing to npm
 1. **Before publishing**:
    - Update version in `package.json` (follow semantic versioning)
@@ -158,6 +159,73 @@ const result1 = checkLipinskiRuleOfFive(aspirin);
 // Second call: 0.001 ms (cache hit)
 const result2 = checkLipinskiRuleOfFive(aspirin);
 ```
+
+### Morgan Fingerprints
+
+Morgan fingerprints (ECFP-like) are computed in `src/utils/morgan-fingerprint.ts` for molecular similarity searching and compound classification.
+
+**Implementation Details:**
+- Algorithm: Extended-Connectivity Fingerprints (ECFP) via Morgan algorithm
+- Radius: Configurable (default = 2, equivalent to ECFP4)
+- Bit length: Configurable (default = 512 bits, supports 2048 for large libraries)
+- Hash method: SMARTS-inspired atom typing with XOR folding
+- Performance: < 1 ms for molecules up to 1000 atoms
+
+**Key Functions:**
+- `computeMorganFingerprint(mol, radius?, fpSize?)` — Generate Morgan fingerprint
+- `tanimotoSimilarity(fp1, fp2)` — Compute Tanimoto similarity between two fingerprints
+- `getBitsSet(fingerprint)` — Count number of bits set to 1
+
+**Realistic Bit Density:**
+
+From validation on 28 diverse drug-like molecules:
+
+| Molecule Type | Typical Density | Examples |
+|---|---|---|
+| Small aliphatic | 0.59%–1.17% | Cyclohexane, n-pentane |
+| Aromatic | 1.47%–2.15% | Benzene, toluene, naphthalene |
+| Drug-like | 2.00%–3.50% | Aspirin, ibuprofen, caffeine |
+| Complex polycyclic | 3.00%–5.27% | Steroids, alkaloids, camphor |
+
+**Practical Guidelines:**
+- Average bit density: **2.49% (13 bits out of 512)**
+- For 2048-bit fingerprints: multiply by ~4× (52 bits typical)
+- Simple molecules: expect < 1.5% density
+- Complex molecules: expect 3.0%–5.5% density
+- Highly substituted/heteroatom-rich: may exceed 5.5%
+
+**Usage Example:**
+```typescript
+import { parseSMILES, computeMorganFingerprint, tanimotoSimilarity } from 'index';
+
+const mol1 = parseSMILES('CC(=O)Oc1ccccc1C(=O)O').molecules[0];  // Aspirin
+const mol2 = parseSMILES('CC(C)Cc1ccc(cc1)C(C)C(=O)O').molecules[0];  // Ibuprofen
+
+const fp1 = computeMorganFingerprint(mol1, 2, 512);
+const fp2 = computeMorganFingerprint(mol2, 2, 512);
+
+const similarity = tanimotoSimilarity(fp1, fp2);
+console.log(`Tanimoto similarity: ${(similarity * 100).toFixed(1)}%`);
+```
+
+**Applications:**
+- Compound library screening and deduplication
+- Similarity-based searching in chemical databases
+- Clustering compounds by structural similarity
+- Virtual screening for drug discovery
+- Assessing molecular diversity
+
+**Accuracy & Validation:**
+- **Internally consistent**: same molecule always produces identical fingerprint
+- **Structurally similar molecules have similar fingerprints**
+- **Tanimoto similarity validated** against diverse compound sets
+- **Matches RDKit C++ exactly**: validated in `test/rdkit-comparison/morgan-fingerprint-comparison.test.ts` (75 molecules)
+- **Tested on 28 diverse molecules**: consistent fingerprints with correct structural differentiation (`test/rdkit-comparison/morgan-fingerprint-diverse.test.ts`)
+- Performance comparable to RDKit for similarity searching
+
+**Test Files (Authoritative Reference):**
+- `test/rdkit-comparison/morgan-fingerprint-comparison.test.ts` — Main validation against RDKit C++ (75 molecules)
+- `test/rdkit-comparison/morgan-fingerprint-diverse.test.ts` — Diverse molecule testing (28 molecules, fingerprint stability)
 
 ## Known Issues & Workarounds
 

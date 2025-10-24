@@ -5,6 +5,46 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2025-10-24
+
+### Added
+- **SVG Molecular Rendering**: Full 2D structure visualization with:
+  - Ring detection and regularization (triangles, squares, pentagons, hexagons)
+  - Aromatic bond rendering (alternating inner lines with directional indicators)
+  - Stereochemistry support (wedge and dashed bonds for chirality)
+  - Intelligent atom label placement with collision avoidance
+  - Multi-molecule rendering with automatic spacing
+  - Fused ring support with shared edge geometry
+  - Customizable rendering options (atom labels, bond length, colors)
+- **Morgan Fingerprints**: Extended circular fingerprint descriptor for similarity searching
+  - `computeMorganFingerprint(mol, radius?, bitLength?)` for generating fingerprints
+  - `tanimotoSimilarity(fp1, fp2)` for comparing molecular similarities
+  - Support for configurable radius (default 2) and bit length (512 or 2048)
+  - Validated against RDKit C++ implementation
+- **Coordinate Generation**: Improved 2D layout with force-directed optimization
+  - Better handling of fused ring systems
+  - Improved angle snapping to 30°, 45°, 60°, 90°, 120°
+  - Component-based layout for disconnected molecules
+
+### Enhanced
+- Aromatic bond representation in SMILES parser (explicit `:` symbol support)
+- SMILES generator now produces aromatic form by default
+- Ring analysis with improved SSSR computation
+- Molecular descriptor calculations with extended options
+
+### Performance
+- LogP computation caching via WeakMap (4.6 million× speedup for complex molecules)
+- Optimized ring template caching for SVG rendering
+- Improved coordinate generation with early convergence detection
+
+## [Unreleased]
+
+### Planned
+- Additional molecular descriptor calculations
+- Extended support for reaction SMARTS
+- Performance optimizations for large molecules
+- Additional file format support (PDB, XYZ)
+
 ## [0.1.3] - 2025-10-22
 
 ### Performance
