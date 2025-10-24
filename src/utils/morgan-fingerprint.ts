@@ -16,10 +16,11 @@ class OC_MorganAtom implements IMorganAtom {
   }
   getAtomicNum(): number { return this.atom.atomicNumber; }
   getDegree(): number {
-    // Return total degree: explicit bonds + implicit hydrogens
-    const explicitBonds = typeof this.atom.degree === 'number' ? this.atom.degree : 0;
-    return explicitBonds + this.atom.hydrogens;
-  }
+     // Return total degree: explicit bonds + implicit hydrogens
+     // Calculate explicit bonds from the bonds array
+     const explicitBonds = this.bonds.filter(b => b.atom1 === this.atom.id || b.atom2 === this.atom.id).length;
+     return explicitBonds + (this.atom.hydrogens || 0);
+   }
   getFormalCharge(): number { return this.atom.charge; }
   getTotalNumHs(): number { return this.atom.hydrogens; }
   getIsAromatic(): boolean { return !!this.atom.aromatic; }

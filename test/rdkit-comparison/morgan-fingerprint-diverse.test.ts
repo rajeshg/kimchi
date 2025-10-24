@@ -45,12 +45,19 @@ function fpToHex(fp: Uint8Array): string {
 function tanimotoSimilarity(fp1: Uint8Array, fp2: Uint8Array): number {
   let intersection = 0;
   let union = 0;
+  
   for (let i = 0; i < Math.min(fp1.length, fp2.length); i++) {
-    const bit1 = fp1[i] ?? 0;
-    const bit2 = fp2[i] ?? 0;
-    if (bit1 === 1 && bit2 === 1) intersection++;
-    if (bit1 === 1 || bit2 === 1) union++;
+    const byte1 = fp1[i] ?? 0;
+    const byte2 = fp2[i] ?? 0;
+    
+    for (let bit = 0; bit < 8; bit++) {
+      const bit1 = (byte1 >> bit) & 1;
+      const bit2 = (byte2 >> bit) & 1;
+      if (bit1 === 1 && bit2 === 1) intersection++;
+      if (bit1 === 1 || bit2 === 1) union++;
+    }
   }
+  
   if (union === 0) return 1.0;
   return intersection / union;
 }
@@ -58,7 +65,12 @@ function tanimotoSimilarity(fp1: Uint8Array, fp2: Uint8Array): number {
 function hammingDistance(fp1: Uint8Array, fp2: Uint8Array): number {
   let distance = 0;
   for (let i = 0; i < Math.min(fp1.length, fp2.length); i++) {
-    if ((fp1[i] ?? 0) !== (fp2[i] ?? 0)) distance++;
+    const byte1 = fp1[i] ?? 0;
+    const byte2 = fp2[i] ?? 0;
+    const xor = byte1 ^ byte2;
+    for (let bit = 0; bit < 8; bit++) {
+      if ((xor >> bit) & 1) distance++;
+    }
   }
   return distance;
 }
