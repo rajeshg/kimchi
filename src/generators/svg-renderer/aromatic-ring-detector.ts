@@ -16,7 +16,7 @@ export function detectAromaticRings(molecule: Molecule): AromaticRing[] {
     const ring = molecule.ringInfo.rings[rid];
     if (!ring) continue;
     
-    const ringAtomIds = Array.from(ring);
+    const ringAtomIds: number[] = Array.from(ring);
     const allAromatic = ringAtomIds.every(atomId => {
       const atom = molecule.atoms.find(a => a.id === atomId);
       return atom?.aromatic === true;

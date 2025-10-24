@@ -5,6 +5,7 @@ import {
   writeSDF,
   parseSMARTS,
   matchSMARTS,
+  renderSVG,
   getMolecularFormula,
   getMolecularMass,
   computeLogP,
@@ -18,7 +19,12 @@ import {
   getHeavyAtomCount,
   getRingCount,
   getAromaticRingCount,
+  getRingInfo,
   getFractionCSP3,
+  computeMorganFingerprint,
+  tanimotoSimilarity,
+  generateInChI,
+  generateInChIKey,
 } from 'index';
 
 console.log('openchem Comprehensive Capabilities Demo');
@@ -61,16 +67,19 @@ if (parseResult.molecules.length > 0) {
   const hBondAcceptors = getHBondAcceptorCount(molecule);
   const tpsa = getTPSA(molecule);
   const rotatableBonds = getRotatableBondCount(molecule);
-  const ringCount = getRingCount(molecule);
-  const aromaticRingCount = getAromaticRingCount(molecule);
-  const fractionCSP3 = getFractionCSP3(molecule);
+    const ringCount = getRingCount(molecule);
+    const aromaticRingCount = getAromaticRingCount(molecule);
+    const ringInfo = getRingInfo(molecule);
+    const fractionCSP3 = getFractionCSP3(molecule);
 
-  console.log(`✓ Molecular Formula: ${formula}`);
-  console.log(`  Molecular Mass: ${mass.toFixed(3)} Da`);
-  console.log(`  LogP: ${logP.toFixed(3)}`);
-  console.log(`  Heavy Atoms: ${getHeavyAtomCount(molecule)}`);
-  console.log(`  Rings: ${ringCount} (Aromatic: ${aromaticRingCount})`);
-  console.log(`  Fraction sp³ carbons: ${(fractionCSP3 * 100).toFixed(1)}%`);
+   console.log(`✓ Molecular Formula: ${formula}`);
+   console.log(`  Molecular Mass: ${mass.toFixed(3)} Da`);
+   console.log(`  LogP: ${logP.toFixed(3)}`);
+   console.log(`  Heavy Atoms: ${getHeavyAtomCount(molecule)}`);
+   console.log(`  Rings: ${ringCount} (Aromatic: ${aromaticRingCount})`);
+    console.log(`  Ring Information:`);
+    console.log(`    SSSR Rings: ${ringInfo.numRings()}`);
+    console.log(`  Fraction sp³ carbons: ${(fractionCSP3 * 100).toFixed(1)}%`);
   console.log(`  H-bond Donors: ${hBondDonors}`);
   console.log(`  H-bond Acceptors: ${hBondAcceptors}`);
   console.log(`  Rotatable Bonds: ${rotatableBonds}`);
@@ -166,10 +175,89 @@ if (smartsResult.errors.length > 0) {
   }
 }
 
+// 6. Morgan Fingerprints and Similarity
+console.log('\n6. Morgan Fingerprints and Similarity');
+console.log('------------------------------------');
+
+const fingerprintMolecules = ['CCO', 'CC(=O)O', 'CC(=O)Oc1ccccc1C(=O)O'];
+const fingerprints: Uint8Array[] = [];
+for (const smiles of fingerprintMolecules) {
+  const result = parseSMILES(smiles);
+  if (result.errors.length === 0 && result.molecules[0]) {
+    const fp = computeMorganFingerprint(result.molecules[0], 2, 512);
+    if (fp) {
+      fingerprints.push(fp);
+    }
+  }
+}
+
+if (fingerprints.length >= 2) {
+  console.log('✓ Generated Morgan fingerprints for 3 molecules');
+
+  // Calculate similarity between ethanol and acetic acid
+  const similarity1 = tanimotoSimilarity(fingerprints[0]!, fingerprints[1]!);
+  console.log(`  Ethanol vs Acetic Acid similarity: ${(similarity1 * 100).toFixed(1)}%`);
+
+  // Calculate similarity between acetic acid and aspirin
+  const similarity2 = tanimotoSimilarity(fingerprints[1]!, fingerprints[2]!);
+  console.log(`  Acetic Acid vs Aspirin similarity: ${(similarity2 * 100).toFixed(1)}%`);
+
+  // Calculate similarity between ethanol and aspirin
+  const similarity3 = tanimotoSimilarity(fingerprints[0]!, fingerprints[2]!);
+  console.log(`  Ethanol vs Aspirin similarity: ${(similarity3 * 100).toFixed(1)}%`);
+}
+
+// 7. InChI Generation
+console.log('\n7. InChI Generation');
+console.log('-------------------');
+
+if (parseResult.molecules.length > 0) {
+  const molecule = parseResult.molecules[0]!;
+
+  // Note: InChI generation requires async/await
+  (async () => {
+    try {
+      const inchi = await generateInChI(molecule);
+      const inchikey = await generateInChIKey(inchi);
+
+      console.log('✓ Generated InChI for aspirin');
+      console.log(`  InChI: ${inchi.substring(0, 50)}...`);
+      console.log(`  InChIKey: ${inchikey}`);
+    } catch (error) {
+      console.log('InChI generation requires WebAssembly support');
+    }
+  })();
+}
+
+// 8. SVG Rendering
+console.log('\n8. SVG Rendering');
+console.log('-----------------');
+
+if (parseResult.molecules.length > 0) {
+  const molecule = parseResult.molecules[0]!;
+  const svgResult = renderSVG(molecule, {
+    width: 300,
+    height: 200,
+    showCarbonLabels: false,
+    bondLength: 30,
+  });
+
+  if (svgResult.errors.length > 0) {
+    console.log('SVG rendering errors:', svgResult.errors);
+  } else {
+    console.log('✓ Generated SVG for aspirin');
+    console.log(`  SVG size: ${svgResult.svg.length} characters`);
+    console.log(`  Canvas: ${svgResult.width}x${svgResult.height} pixels`);
+  }
+}
+
 console.log('\nDemo completed! openchem supports:');
 console.log('- SMILES parsing and generation');
 console.log('- Molecular property calculations');
 console.log('- Drug-likeness assessment');
 console.log('- MOL and SDF file I/O');
 console.log('- SMARTS pattern matching');
+console.log('- Morgan fingerprints and similarity');
+console.log('- InChI generation');
+console.log('- 2D SVG rendering');
 console.log('- And much more!');

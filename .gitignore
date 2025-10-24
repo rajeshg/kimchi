@@ -5,6 +5,7 @@ node_modules
 out
 dist
 *.tgz
+test/output
 
 # code coverage
 coverage

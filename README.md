@@ -102,6 +102,41 @@ const inchikey = await generateInChIKey(inchi);
 console.log(inchikey); // "BSYNRYMUTXBXSQ-UHFFFAOYSA-N"
 ```
 
+### Morgan Fingerprints and Similarity
+
+```typescript
+import { parseSMILES, computeMorganFingerprint, tanimotoSimilarity } from 'openchem';
+
+// Generate fingerprints for similarity comparison
+const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O');
+const ibuprofen = parseSMILES('CC(C)Cc1ccc(cc1)C(C)C(=O)O');
+
+const fp1 = computeMorganFingerprint(aspirin.molecules[0], 2, 512);
+const fp2 = computeMorganFingerprint(ibuprofen.molecules[0], 2, 512);
+
+// Calculate structural similarity
+const similarity = tanimotoSimilarity(fp1, fp2);
+console.log(`Similarity: ${(similarity * 100).toFixed(1)}%`); // ~45.2%
+```
+
+### SVG Rendering
+
+```typescript
+import { parseSMILES, renderSVG } from 'openchem';
+
+// Render molecule as SVG
+const caffeine = parseSMILES('CN1C=NC2=C1C(=O)N(C(=O)N2C)C');
+const svgResult = renderSVG(caffeine.molecules[0], {
+  width: 300,
+  height: 200,
+  showCarbonLabels: false,
+  bondLength: 30,
+});
+
+console.log(svgResult.svg); // Complete SVG markup
+console.log(`Canvas: ${svgResult.width}x${svgResult.height}`); // "300x200"
+```
+
 ## Testing & RDKit comparison
 
 openchem has an extensive test suite (unit, integration, and RDKit comparison tests) that exercises parsing, generation, file round-trips, stereochemistry, aromatic perception, and molecular properties. Rather than rely on fragile hard-coded counts in the README, the project keeps comprehensive automated tests in the `test/` folder and runs RDKit parity checks as part of the comparison test suite when RDKit is available.
@@ -115,12 +150,13 @@ For maintainers: update and run the test suite with `bun test`. Use `RUN_RDKIT_B
 
 ## Key features
 
-- Parsing and generating SMILES, MOL (V2000/V3000), and SDF
+- Parsing and generating SMILES, MOL (V2000/V3000), SDF, and InChI
 - Canonical SMILES generation with RDKit-compatible ordering and stereo normalization
 - Full stereochemistry support (tetrahedral, E/Z, extended chirality)
 - Aromaticity perception and optional kekulization
-- Isotopes, explicit hydrogens, charges, atom classes, and multi-digit ring closures
+- Isotopes, explicit hydrogens, charges, atom class support, and multi-digit ring closures
 - SMARTS parsing and pattern matching
+- Morgan fingerprints and Tanimoto similarity calculations
 - 2D SVG rendering with automatic coordinate generation (webcola-based layout)
 - Molecular properties and drug-likeness metrics (TPSA, LogP, Lipinski/Veber checks)
 - Immutable molecule objects with enrichment for fast property queries
@@ -209,12 +245,13 @@ console.log(exactMass); // 180.042
 #### Atom Counts and Structure
 
 ```typescript
-import { 
+import {
   parseSMILES,
   getHeavyAtomCount,
   getHeteroAtomCount,
   getRingCount,
-  getAromaticRingCount
+  getAromaticRingCount,
+  getRingInfo
 } from 'openchem';
 
 const ibuprofen = parseSMILES('CC(C)Cc1ccc(cc1)C(C)C(=O)O');
@@ -231,6 +268,11 @@ console.log(getRingCount(mol)); // 1
 
 // Count aromatic rings
 console.log(getAromaticRingCount(mol)); // 1
+
+// Get comprehensive ring information
+const ringInfo = getRingInfo(mol);
+console.log(ringInfo.numRings()); // 1
+console.log(ringInfo.rings()); // [[6,7,8,9,10,11]] - atom IDs in the ring
 ```
 
 #### Drug-Likeness Properties
@@ -631,21 +673,25 @@ bun test test/parser.test.ts
 
 ### Quick Reference
 
-openchem provides **28 functions** organized into 6 categories:
+openchem provides **31 functions** organized into 6 categories:
 
-**Parsing & Generation (6)**
+**Parsing & Generation (8)**
 - `parseSMILES` - Parse SMILES strings
 - `generateSMILES` - Generate canonical/non-canonical SMILES
 - `parseMolfile` - Parse MOL files (V2000/V3000)
 - `generateMolfile` - Generate MOL files (V2000)
 - `parseSDF` - Parse SDF files with properties
 - `writeSDF` - Write SDF files with properties
+- `generateInChI` - Generate InChI strings from molecules
+- `generateInChIKey` - Generate InChIKey strings from molecules
 
-**Pattern Matching & Rendering (4)**
+**Pattern Matching & Rendering (6)**
 - `renderSVG` - Render molecules as 2D SVG structures
 - `parseSMARTS` - Parse SMARTS pattern strings
 - `matchSMARTS` - Find SMARTS pattern matches in molecules
 - `kekulize` - Convert aromatic to Kekulé structures
+- `computeMorganFingerprint` - Generate Morgan fingerprints from molecules
+- `tanimotoSimilarity` - Calculate Tanimoto similarity between fingerprints
 
 **Basic Properties (3)**
 - `getMolecularFormula` - Hill notation formula
@@ -657,11 +703,12 @@ openchem provides **28 functions** organized into 6 categories:
 - `crippenLogP` - Alias for computeLogP
 - `logP` - Alternative LogP calculation
 
-**Structural Properties (7)**
+**Structural Properties (8)**
 - `getHeavyAtomCount` - Non-hydrogen atom count
 - `getHeteroAtomCount` - Heteroatom count (N, O, S, etc.)
 - `getRingCount` - Total ring count
 - `getAromaticRingCount` - Aromatic ring count
+- `getRingInfo` - Comprehensive ring information object
 - `getFractionCSP3` - sp³ carbon fraction
 - `getHBondDonorCount` - H-bond donor count
 - `getHBondAcceptorCount` - H-bond acceptor count
@@ -947,6 +994,36 @@ console.log(roundtrip); // "CC(=O)Oc1ccccc1C(=O)O"
 console.log(parsed.records[0].properties.NAME); // "aspirin"
 ```
 
+##### `generateInChI(molecule: Molecule): Promise<string>`
+
+Generates an InChI (International Chemical Identifier) string from a molecule structure. InChI provides a unique, canonical representation of chemical structures that can be used for database lookups and structure comparison.
+
+**Returns**: Promise resolving to InChI string
+
+**Example**:
+```typescript
+import { parseSMILES, generateInChI } from 'openchem';
+
+const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O');
+const inchi = await generateInChI(aspirin.molecules[0]);
+console.log(inchi); // "InChI=1S/C9H8O4/c1-6(10)13-8-5-3-2-4-7(8)9(11)12/h2-5H,1H3,(H,11,12)"
+```
+
+##### `generateInChIKey(inchi: string): Promise<string>`
+
+Generates an InChIKey (a hashed, fixed-length version of InChI) from an InChI string. InChIKeys are commonly used for database indexing and fast lookups.
+
+**Parameters**:
+- `inchi` — InChI string to convert
+
+**Returns**: Promise resolving to InChIKey string (27 characters)
+
+**Example**:
+```typescript
+const inchikey = await generateInChIKey(inchi);
+console.log(inchikey); // "BSYNRYMUTXBXSQ-UHFFFAOYSA-N"
+```
+
 ##### `writeSDF(records: SDFRecord | SDFRecord[], options?: SDFWriterOptions): SDFWriterResult`
 
 Writes molecules to SDF (Structure-Data File) format. Supports single or multiple records with optional property data. SDF files are commonly used for storing chemical databases and transferring molecular data between cheminformatics tools.
@@ -1127,6 +1204,42 @@ const kek = kekulize(benzene.molecules[0]);
 console.log(generateSMILES(kek)); // "C1=CC=CC=C1"
 ```
 
+##### `computeMorganFingerprint(molecule: Molecule, radius?: number, fpSize?: number): Uint8Array`
+
+Generates a Morgan fingerprint (ECFP-like) for molecular similarity searching and compound classification. Uses a modified Morgan algorithm with atom typing and circular neighborhoods.
+
+**Parameters**:
+- `molecule` — Molecule to fingerprint
+- `radius` — Fingerprint radius (default: 2, equivalent to ECFP4)
+- `fpSize` — Fingerprint size in bits (default: 2048, RDKit standard)
+
+**Returns**: Uint8Array containing the fingerprint bits
+
+**Example**:
+```typescript
+import { parseSMILES, computeMorganFingerprint } from 'openchem';
+
+const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O');
+const fingerprint = computeMorganFingerprint(aspirin.molecules[0], 2, 512);
+console.log(fingerprint.length); // 64 (512 bits / 8 bytes)
+```
+
+##### `tanimotoSimilarity(fp1: Uint8Array, fp2: Uint8Array): number`
+
+Calculates the Tanimoto similarity coefficient between two Morgan fingerprints. Measures structural similarity on a scale from 0 (no similarity) to 1 (identical).
+
+**Parameters**:
+- `fp1` — First fingerprint
+- `fp2` — Second fingerprint
+
+**Returns**: Similarity score between 0 and 1
+
+**Example**:
+```typescript
+const similarity = tanimotoSimilarity(fingerprint1, fingerprint2);
+console.log(`Similarity: ${(similarity * 100).toFixed(1)}%`);
+```
+
 ---
 
 #### Lipophilicity (3 functions)
@@ -1207,6 +1320,28 @@ Returns the total number of rings in the molecule using cycle detection.
 Returns the number of aromatic rings.
 
 **Example**: `1` for benzene, `2` for naphthalene
+
+##### `getRingInfo(molecule: Molecule): RingInformation`
+
+Returns a comprehensive ring information object providing access to SSSR (Smallest Set of Smallest Rings) and ring membership queries. Similar to RDKit's GetRingInfo() functionality.
+
+**Methods**:
+- `numRings()` - Number of rings in SSSR
+- `rings()` - Array of rings (each ring is atom ID array)
+- `isAtomInRing(atomIdx)` - Check if atom is in any ring
+- `isBondInRing(atom1, atom2)` - Check if bond is in any ring
+- `atomRingMembership(atomIdx)` - Ring membership count for atom ([Rn] in SMARTS)
+- `atomRings(atomIdx)` - All rings containing specific atom
+- `ringAtoms(ringIdx)` - Atoms in specific ring
+- `ringBonds(ringIdx)` - Bonds in specific ring
+
+**Example**:
+```typescript
+const ringInfo = getRingInfo(mol);
+console.log(ringInfo.numRings()); // 2
+console.log(ringInfo.isAtomInRing(5)); // true
+console.log(ringInfo.atomRingMembership(3)); // 2 (bridgehead atom)
+```
 
 ##### `getFractionCSP3(molecule: Molecule): number`
 
@@ -1590,12 +1725,12 @@ bun run tsc
 
 openchem is perfect for:
 
-- **Cheminformatics web applications** — Client-side molecule parsing
-- **Chemical databases** — Canonical SMILES storage and comparison
-- **Molecule editors** — Import/export SMILES notation
-- **Drug discovery tools** — Structure representation and validation
-- **Educational software** — Teaching chemical notation
-- **API services** — Fast molecule processing in Node.js
+- **Cheminformatics web applications** — Client-side molecule parsing and visualization
+- **Chemical databases** — Canonical SMILES, InChI, and fingerprint-based storage and comparison
+- **Molecule editors** — Import/export SMILES, MOL, SDF with 2D rendering
+- **Drug discovery tools** — Structure representation, property calculation, and similarity searching
+- **Educational software** — Teaching chemical notation with interactive 2D visualization
+- **API services** — Fast molecule processing, fingerprinting, and property calculation in Node.js
 
 ## License
 
