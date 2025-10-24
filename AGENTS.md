@@ -167,7 +167,7 @@ Morgan fingerprints (ECFP-like) are computed in `src/utils/morgan-fingerprint.ts
 **Implementation Details:**
 - Algorithm: Extended-Connectivity Fingerprints (ECFP) via Morgan algorithm
 - Radius: Configurable (default = 2, equivalent to ECFP4)
-- Bit length: Configurable (default = 512 bits, supports 2048 for large libraries)
+- Bit length: Configurable (default = 2048 bits, RDKit standard)
 - Hash method: SMARTS-inspired atom typing with XOR folding
 - Performance: < 1 ms for molecules up to 1000 atoms
 

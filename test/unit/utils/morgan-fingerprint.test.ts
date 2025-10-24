@@ -119,28 +119,28 @@ describe('computeMorganFingerprint', () => {
   });
 
     it('generates a fingerprint for methane', () => {
-      const result = parseSMILES('C');
-      expect(result.errors).toEqual([]);
-      const fp = computeMorganFingerprint(result.molecules[0]!);
-      expect(fp.length).toBe(64);
-      expect(getBitsSet(fp)).toBeGreaterThan(0);
-    });
+       const result = parseSMILES('C');
+       expect(result.errors).toEqual([]);
+       const fp = computeMorganFingerprint(result.molecules[0]!);
+       expect(fp.length).toBe(256);
+       expect(getBitsSet(fp)).toBeGreaterThan(0);
+     });
 
     it('generates a fingerprint for ethanol', () => {
-      const result = parseSMILES('CCO');
-      expect(result.errors).toEqual([]);
-      const fp = computeMorganFingerprint(result.molecules[0]!);
-      expect(fp.length).toBe(64);
-      expect(getBitsSet(fp)).toBeGreaterThan(0);
-    });
+       const result = parseSMILES('CCO');
+       expect(result.errors).toEqual([]);
+       const fp = computeMorganFingerprint(result.molecules[0]!);
+       expect(fp.length).toBe(256);
+       expect(getBitsSet(fp)).toBeGreaterThan(0);
+     });
 
     it('generates a fingerprint for benzene', () => {
-      const result = parseSMILES('c1ccccc1');
-      expect(result.errors).toEqual([]);
-      const fp = computeMorganFingerprint(result.molecules[0]!);
-      expect(fp.length).toBe(64);
-      expect(getBitsSet(fp)).toBeGreaterThan(0);
-    });
+       const result = parseSMILES('c1ccccc1');
+       expect(result.errors).toEqual([]);
+       const fp = computeMorganFingerprint(result.molecules[0]!);
+       expect(fp.length).toBe(256);
+       expect(getBitsSet(fp)).toBeGreaterThan(0);
+     });
 
   it('fingerprints are stable for the same molecule', () => {
     const result1 = parseSMILES('CCO');

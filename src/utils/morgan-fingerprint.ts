@@ -108,7 +108,7 @@ class OC_MorganMolecule implements IMorganMolecule {
  * @param fpSize fingerprint bit length (default 2048)
  * @returns Uint8Array bit vector
  */
-export function computeMorganFingerprint(mol: Molecule, radius = 2, fpSize = 512): Uint8Array {
+export function computeMorganFingerprint(mol: Molecule, radius = 2, fpSize = 2048): Uint8Array {
   const morganMol = new OC_MorganMolecule(mol);
   return getMorganFingerprint(morganMol, radius, fpSize);
 }
