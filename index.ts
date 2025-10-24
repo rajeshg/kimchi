@@ -1,4 +1,4 @@
-export { computeMorganFingerprint } from 'src/utils/morgan-fingerprint';
+export { computeMorganFingerprint, tanimotoSimilarity } from 'src/utils/morgan-fingerprint';
 export { parseSMILES } from 'src/parsers/smiles-parser';
 export { generateSMILES } from 'src/generators/smiles-generator';
 export { generateMolfile } from 'src/generators/mol-generator';

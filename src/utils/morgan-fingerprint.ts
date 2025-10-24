@@ -325,18 +325,18 @@ export function getMorganFingerprint(
      atomInvariants.push(newInvariants);
    }
 
-  // --- Final Step: Fold all collected features into the fingerprint ---
-  const numBytes = fpSize;
-  const totalBits = numBytes * 8;
-  for (const featureHash of features) {
-    const bitIndex = Math.abs(featureHash) % totalBits;
-    const byteIndex = Math.floor(bitIndex / 8);
-    const bitOffset = bitIndex % 8;
-    const byte = fingerprint[byteIndex];
-    if (byte !== undefined) {
-      fingerprint[byteIndex] = byte | (1 << bitOffset);
-    }
-  }
+   // --- Final Step: Fold all collected features into the fingerprint ---
+   const numBytes = fpSize;
+   const totalBits = numBytes * 8;
+   for (const featureHash of features) {
+     const bitIndex = (featureHash >>> 0) % totalBits;
+     const byteIndex = Math.floor(bitIndex / 8);
+     const bitOffset = bitIndex % 8;
+     const byte = fingerprint[byteIndex];
+     if (byte !== undefined) {
+       fingerprint[byteIndex] = byte | (1 << bitOffset);
+     }
+   }
 
   return fingerprint;
 }
