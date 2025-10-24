@@ -28,3 +28,4 @@ export {
   checkVeberRules,
   checkBBBPenetration,
 } from 'src/utils/molecular-properties';
+export { generateInChI, generateInChIKey } from 'src/generators/inchi-generator';

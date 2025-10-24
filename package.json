@@ -39,7 +39,8 @@
     "index.ts",
     "types.ts",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "src/third-party"
   ],
   "scripts": {
     "test": "bun test",

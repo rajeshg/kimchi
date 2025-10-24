@@ -18,7 +18,7 @@ try {
 
 // Generate type definitions
 console.log('Generating type definitions...');
-execSync('bunx tsc --noEmit false --declaration --emitDeclarationOnly --outDir dist --skipLibCheck', {
+execSync('bunx tsc -p tsconfig.decl.json --declaration --emitDeclarationOnly --outDir dist', {
   cwd,
   stdio: 'inherit',
 });
@@ -30,14 +30,28 @@ execSync('bun build index.ts --outdir ./dist --format esm', {
   stdio: 'inherit',
 });
 
+// Build third-party modules (if index.ts exists)
+import { existsSync } from 'fs';
+if (existsSync(join(cwd, 'src/third-party/inchi-wasm/index.ts'))) {
+  console.log('Building third-party modules...');
+  execSync('bun build src/third-party/inchi-wasm/index.ts --outdir ./dist/third-party/inchi-wasm --format esm --target node', {
+    cwd,
+    stdio: 'inherit',
+  });
+}
+
+// Copy third-party directory
+console.log('Copying third-party directory...');
+cpSync(join(cwd, 'src/third-party'), join(distDir, 'third-party'), { recursive: true });
+
 // Clean up unwanted .d.ts files
 console.log('Cleaning up generated files...');
 const distFiles = readdirSync(distDir, { recursive: true });
 for (const file of distFiles) {
   const filePath = join(distDir, file);
-  // Keep only index.d.ts, types.d.ts, and index.js
+  // Keep only index.d.ts, types.d.ts, index.js, and third-party
   if (
-    (file.endsWith('.d.ts') && !file.includes('index.d.ts') && !file.includes('types.d.ts')) ||
+    (file.endsWith('.d.ts') && !file.includes('index.d.ts') && !file.includes('types.d.ts') && !file.includes('third-party')) ||
     (typeof file === 'string' && (file.includes('src/') || file.includes('test/') || file.includes('docs/') || file.includes('scripts/')))
   ) {
     try {

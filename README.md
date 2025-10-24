@@ -93,6 +93,15 @@ console.log(sdfResult.records[0].molecule?.atoms.length); // 3
 console.log(sdfResult.records[0].properties.NAME); // "Ethanol"
 ```
 
+// Generate InChI from molecule
+const inchi = await generateInChI(aspirin.molecules[0]);
+console.log(inchi); // "InChI=1S/C9H8O4/c1-6(10)13-8-5-3-2-4-7(8)9(11)12/h2-5H,1H3,(H,11,12)"
+
+// Generate InChIKey
+const inchikey = await generateInChIKey(inchi);
+console.log(inchikey); // "BSYNRYMUTXBXSQ-UHFFFAOYSA-N"
+```
+
 ## Testing & RDKit comparison
 
 openchem has an extensive test suite (unit, integration, and RDKit comparison tests) that exercises parsing, generation, file round-trips, stereochemistry, aromatic perception, and molecular properties. Rather than rely on fragile hard-coded counts in the README, the project keeps comprehensive automated tests in the `test/` folder and runs RDKit parity checks as part of the comparison test suite when RDKit is available.

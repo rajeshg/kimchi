@@ -175,15 +175,38 @@ function formatHeader(options: MolGeneratorOptions): string[] {
 
 /**
  * Format the counts line: aaabbblllfffcccsssxxxrrrpppiiimmmvvvvvv
+ * Format: each field is 3 characters, right-aligned
+ * aaa: atom count
+ * bbb: bond count
+ * lll: atom list count (not used)
+ * fff: (not used)
+ * ccc: chiral flag (0 or 1)
+ * sss: stext entries count
+ * xxx: (not used)
+ * rrr: (not used)
+ * ppp: (not used)
+ * iii: (not used)
+ * mmm: (not used)
+ * vvvvvv: version (V2000)
  */
 function formatCountsLine(molecule: Molecule): string {
   const numAtoms = molecule.atoms.length;
   const numBonds = molecule.bonds.length;
   const chiralFlag = molecule.atoms.some(atom => atom.chiral) ? 1 : 0;
 
-  // Format: 3d 3d 3d 3d 3d 3d 3d 3d 3d 3d V2000
-  // Each field is 3 characters, right-aligned
-  return `${numAtoms.toString().padStart(3)}${numBonds.toString().padStart(3)}  0  0${chiralFlag}  0  0  0  0 0999 V2000`;
+  const aaa = numAtoms.toString().padStart(3);
+  const bbb = numBonds.toString().padStart(3);
+  const lll = '0'.padStart(3);
+  const fff = '0'.padStart(3);
+  const ccc = chiralFlag.toString().padStart(3);
+  const sss = '0'.padStart(3);
+  const xxx = '0'.padStart(3);
+  const rrr = '0'.padStart(3);
+  const ppp = '0'.padStart(3);
+  const iii = '0'.padStart(3);
+  const mmm = '0'.padStart(3);
+
+  return `${aaa}${bbb}${lll}${fff}${ccc}${sss}${xxx}${rrr}${ppp}${iii}${mmm}999 V2000`;
 }
 
 /**

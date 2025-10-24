@@ -28,31 +28,46 @@
 </head>
 <body>
   <div class="container">
-     <header>
-       <div>
-         <h1>SMILES Playground — molecular visualization & descriptors</h1>
-         <div class="status">Type a SMILES string and see the 2D structure, compute descriptors, and check drug-likeness rules.</div>
-       </div>
-     </header>
+      <header>
+        <div>
+          <h1>SMILES Playground — molecular visualization, descriptors & InChI</h1>
+          <div class="status">Type a SMILES string and see the 2D structure, InChI representation, compute descriptors, and check drug-likeness rules.</div>
+        </div>
+      </header>
 
     <div class="card">
       <div>
-        <label for="smiles">SMILES</label>
-        <div class="input-row">
-          <input id="smiles" class="smiles" placeholder="e.g. CC(=O)Oc1ccccc1C(=O)O" />
-          <button id="go">Compute</button>
-        </div>
+         <label for="smiles">SMILES</label>
+         <div class="input-row">
+           <input id="smiles" class="smiles" placeholder="e.g. CC(=O)Oc1ccccc1C(=O)O" />
+           <button id="go">Compute</button>
+         </div>
 
-        <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-          <span style="color:var(--muted);font-size:13px">Examples:</span>
-          <button class="example" data-smiles="CC(=O)Oc1ccccc1C(=O)O">Aspirin</button>
-          <button class="example" data-smiles="Cn1cnc2c1c(=O)n(C)c(=O)n2C">Caffeine</button>
-          <button class="example" data-smiles="CC(C)Cc1ccc(cc1)[C@@H](C)C(=O)O">Ibuprofen</button>
-          <button class="example" data-smiles="c1ccccc1">Benzene</button>
-          <button class="example" data-smiles="CCO">Ethanol</button>
-          <button class="example" data-smiles="C(C1C(C(C(C(O1)O)O)O)O)O">Glucose</button>
-        </div>
-      </div>
+         <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:12px">
+           <div>
+             <label style="font-size:12px;color:var(--muted)">SMILES</label>
+             <div class="card" style="background:rgba(255,255,255,0.02);margin-top:4px">
+               <pre id="smiles-output" style="margin:0;font-size:12px;word-break:break-all"></pre>
+             </div>
+           </div>
+           <div>
+             <label style="font-size:12px;color:var(--muted)">InChI</label>
+             <div class="card" style="background:rgba(255,255,255,0.02);margin-top:4px">
+               <pre id="inchi-output" style="margin:0;font-size:12px;word-break:break-all;color:#60a5fa"></pre>
+             </div>
+           </div>
+         </div>
+
+         <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+           <span style="color:var(--muted);font-size:13px">Examples:</span>
+           <button class="example" data-smiles="CC(=O)Oc1ccccc1C(=O)O">Aspirin</button>
+           <button class="example" data-smiles="Cn1cnc2c1c(=O)n(C)c(=O)n2C">Caffeine</button>
+           <button class="example" data-smiles="CC(C)Cc1ccc(cc1)[C@@H](C)C(=O)O">Ibuprofen</button>
+           <button class="example" data-smiles="c1ccccc1">Benzene</button>
+           <button class="example" data-smiles="CCO">Ethanol</button>
+           <button class="example" data-smiles="C(C1C(C(C(C(O1)O)O)O)O)O">Glucose</button>
+         </div>
+       </div>
 
        <div class="grid">
          <div>
@@ -227,12 +242,14 @@
       }
 
       // UI wiring
-      const smilesInput = document.getElementById('smiles');
-      const go = document.getElementById('go');
-      const propsEl = document.getElementById('props');
-      const descTable = document.getElementById('desc-table');
-      const diag = document.getElementById('diagnostics');
-      const checksContainer = document.getElementById('checks-container');
+       const smilesInput = document.getElementById('smiles');
+       const go = document.getElementById('go');
+       const propsEl = document.getElementById('props');
+       const descTable = document.getElementById('desc-table');
+       const diag = document.getElementById('diagnostics');
+       const checksContainer = document.getElementById('checks-container');
+       const smilesOutput = document.getElementById('smiles-output');
+       const inchiOutput = document.getElementById('inchi-output');
 
       let lib = null;
       diag.textContent = 'Library auto-detection: attempting dynamic import of common bundle locations...';
@@ -254,51 +271,75 @@
         renderCheck('BBB', checks.bbb, {tpsa: checks.bbb.tpsa});
       }
 
-        function renderResult(parseResult){
-         // Render SVG structure
-         const svgEl = document.getElementById('structure-svg');
-         if(lib && lib.renderSVG){
-           try{
-             const result = lib.renderSVG(parseResult, { width: 250, height: 200 });
-             svgEl.innerHTML = result.svg;
-           }catch(e){
-             svgEl.innerHTML = `<div style="color:#ef4444">SVG rendering error: ${e.message}</div>`;
-           }
-         } else {
-              svgEl.innerHTML = '<div>SVG rendering requires the full openchem library.<br>Use fallback parser for descriptors only.</div>';
-         }
+        async function renderResult(parseResult){
+          // Render SVG structure
+          const svgEl = document.getElementById('structure-svg');
+          if(lib && lib.renderSVG){
+            try{
+              const result = lib.renderSVG(parseResult, { width: 250, height: 200 });
+              svgEl.innerHTML = result.svg;
+            }catch(e){
+              svgEl.innerHTML = `<div style="color:#ef4444">SVG rendering error: ${e.message}</div>`;
+            }
+          } else {
+               svgEl.innerHTML = '<div>SVG rendering requires the full openchem library.<br>Use fallback parser for descriptors only.</div>';
+          }
 
-         // Extract molecule for descriptor calculations
-         const mol = parseResult.molecules ? parseResult.molecules[0] : (parseResult.molecule || parseResult);
+          // Extract molecule for descriptor calculations
+          const mol = parseResult.molecules ? parseResult.molecules[0] : (parseResult.molecule || parseResult);
 
-         const formula = getMolecularFormula(mol,{includeImplicitH:true});
-         const mw = getMolecularMass(mol);
-         const em = mw; // fallback
-         const heavy = getHeavyAtomCount(mol);
-         const hetero = getHeteroAtomCount(mol);
-         const rings = getRingCount(mol);
-         const arom = getAromaticRingCount(mol);
-         const fraction = getFractionCSP3(mol);
-         const acc = getHBondAcceptorCount(mol);
-         const don = getHBondDonorCount(mol);
-         const tpsa = getTPSA(mol);
-         const rot = getRotatableBondCount(mol);
+          // Display SMILES
+          if (lib && lib.generateSMILES) {
+            try {
+              const smilesStr = lib.generateSMILES(mol);
+              smilesOutput.textContent = smilesStr;
+            } catch (e) {
+              smilesOutput.textContent = `Error: ${e.message}`;
+            }
+          } else {
+            smilesOutput.textContent = '(SMILES generation requires full library)';
+          }
 
-         const summary = [
-           ['Formula',formula],['Molecular mass',mw],["Exact mass",em],['Atoms',mol.atoms.length],['Bonds',mol.bonds.length],['Heavy atoms',heavy],['Heteroatoms',hetero],['Ring count',rings],['Aromatic rings',arom],['Frac cSP3',fraction],['H-bond acceptors',acc],['H-bond donors',don],['TPSA',tpsa],['Rotatable bonds',rot]
-         ];
-         propsEl.innerHTML = '';
-         for(const [k,v] of summary){ const d=document.createElement('div'); d.className='prop'; d.innerHTML=`<b>${k}</b><div>${v}</div>`; propsEl.appendChild(d) }
+          // Display InChI
+          if (lib && lib.generateInChI) {
+            try {
+              const inchiStr = await lib.generateInChI(mol);
+              inchiOutput.textContent = inchiStr;
+            } catch (e) {
+              inchiOutput.textContent = `Error: ${e.message}`;
+            }
+          } else {
+            inchiOutput.textContent = '(InChI generation requires full library)';
+          }
 
-         const desc = computeDescriptors(mol);
-         descTable.innerHTML = '';
-         for(const k of Object.keys(desc)){
-           const row = document.createElement('tr'); row.innerHTML = `<td><b>${k}</b></td><td>${JSON.stringify(desc[k])}</td>`; descTable.appendChild(row);
-         }
+          const formula = getMolecularFormula(mol,{includeImplicitH:true});
+          const mw = getMolecularMass(mol);
+          const em = mw; // fallback
+          const heavy = getHeavyAtomCount(mol);
+          const hetero = getHeteroAtomCount(mol);
+          const rings = getRingCount(mol);
+          const arom = getAromaticRingCount(mol);
+          const fraction = getFractionCSP3(mol);
+          const acc = getHBondAcceptorCount(mol);
+          const don = getHBondDonorCount(mol);
+          const tpsa = getTPSA(mol);
+          const rot = getRotatableBondCount(mol);
 
-         const checks = computeChecks(mol);
-         renderChecks(checks);
-       }
+          const summary = [
+            ['Formula',formula],['Molecular mass',mw],["Exact mass",em],['Atoms',mol.atoms.length],['Bonds',mol.bonds.length],['Heavy atoms',heavy],['Heteroatoms',hetero],['Ring count',rings],['Aromatic rings',arom],['Frac cSP3',fraction],['H-bond acceptors',acc],['H-bond donors',don],['TPSA',tpsa],['Rotatable bonds',rot]
+          ];
+          propsEl.innerHTML = '';
+          for(const [k,v] of summary){ const d=document.createElement('div'); d.className='prop'; d.innerHTML=`<b>${k}</b><div>${v}</div>`; propsEl.appendChild(d) }
+
+          const desc = computeDescriptors(mol);
+          descTable.innerHTML = '';
+          for(const k of Object.keys(desc)){
+            const row = document.createElement('tr'); row.innerHTML = `<td><b>${k}</b></td><td>${JSON.stringify(desc[k])}</td>`; descTable.appendChild(row);
+          }
+
+          const checks = computeChecks(mol);
+          renderChecks(checks);
+        }
 
        function computeFromSmiles(smiles){
          if(!smiles||!smiles.trim()){ 
