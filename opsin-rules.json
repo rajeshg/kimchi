@@ -1,0 +1,4163 @@
+{
+  "alkanes": {
+    "C": "meth",
+    "CC": "eth",
+    "CCC": "prop",
+    "CCCC": "but",
+    "CCCCC": "pent",
+    "CCCCCC": "hex",
+    "CCCCCCC": "hept",
+    "CCCCCCCC": "oct",
+    "CCCCCCCCC": "non",
+    "CCCCCCCCCC": "dec",
+    "CCCCCCCCCCC": "undec"
+  },
+  "alkaneStemComponents": {
+    "units": {
+      "1": "hen",
+      "2": "do",
+      "3": "tri",
+      "4": "tetr",
+      "5": "pent",
+      "6": "hex",
+      "7": "hept",
+      "8": "oct",
+      "9": "non"
+    },
+    "tens": {
+      "10": "dec|dic",
+      "20": "cos|icos|eicos",
+      "30": "triacont|tricont",
+      "40": "tetracont",
+      "50": "pentacont",
+      "60": "hexacont",
+      "70": "heptacont",
+      "80": "octacont",
+      "90": "nonacont",
+      "100": "decacont"
+    },
+    "hundreds": {}
+  },
+  "multipliers": {
+    "basic": {
+      "1": "mon",
+      "2": "di",
+      "3": "tri",
+      "4": "tetr",
+      "5": "pent",
+      "6": "hex",
+      "7": "hept",
+      "8": "oct",
+      "9": "non",
+      "10": "dec",
+      "11": "undec",
+      "12": "dodec",
+      "13": "tridec",
+      "14": "tetradec",
+      "15": "pentadec",
+      "16": "hexadec",
+      "17": "heptadec",
+      "18": "octadec",
+      "19": "nonadec",
+      "20": "eicos",
+      "21": "henicos",
+      "22": "docos",
+      "23": "tricos",
+      "24": "tetracos",
+      "25": "pentacos",
+      "26": "hexacos",
+      "27": "heptacos",
+      "28": "octacos",
+      "29": "nonacos",
+      "30": "triacont",
+      "31": "hentriacont",
+      "32": "dotriacont",
+      "33": "tritriacont",
+      "34": "tetratriacont",
+      "35": "pentatriacont",
+      "36": "hexatriacont",
+      "37": "heptatriacont",
+      "38": "octatriacont",
+      "39": "nonatriacont",
+      "40": "tetracont",
+      "41": "hentetracont",
+      "42": "dotetracont",
+      "43": "tritetracont",
+      "44": "tetratetracont",
+      "45": "pentatetracont",
+      "46": "hexatetracont",
+      "47": "heptatetracont",
+      "48": "octatetracont",
+      "49": "nonatetracont",
+      "50": "pentacont"
+    },
+    "group": {
+      "2": "bis",
+      "3": "tris",
+      "4": "tetrakis",
+      "5": "pentakis",
+      "6": "hexakis",
+      "7": "heptakis",
+      "8": "octakis",
+      "9": "nonakis",
+      "10": "decakis",
+      "11": "undecakis",
+      "12": "dodecakis",
+      "13": "tridecakis",
+      "14": "tetradecakis",
+      "15": "pentadecakis",
+      "16": "hexadecakis",
+      "17": "heptadecakis",
+      "18": "octadecakis",
+      "19": "nonadecakis",
+      "20": "eicosakis",
+      "21": "henicosakis",
+      "22": "docosakis",
+      "23": "tricosakis",
+      "24": "tetracosakis",
+      "25": "pentacosakis",
+      "26": "hexacosakis",
+      "27": "heptacosakis",
+      "28": "octacosakis",
+      "29": "nonacosakis",
+      "30": "triacontakis"
+    },
+    "vonBaeyer": {
+      "2": "bi",
+      "3": "tri",
+      "4": "tetra",
+      "5": "penta",
+      "6": "hexa",
+      "7": "hepta",
+      "8": "octa",
+      "9": "nona",
+      "10": "deca",
+      "11": "undeca",
+      "12": "dodeca",
+      "13": "trideca",
+      "14": "tetradeca",
+      "15": "pentadeca",
+      "16": "hexadeca",
+      "17": "heptadeca",
+      "18": "octadeca",
+      "19": "nonadeca",
+      "20": "eicosa"
+    },
+    "ringAssembly": {
+      "2": "bi",
+      "3": "ter",
+      "4": "quater",
+      "5": "quinque",
+      "6": "sexi",
+      "7": "septi",
+      "8": "octi",
+      "9": "novi",
+      "10": "deci",
+      "11": "undeci",
+      "12": "dodeci",
+      "13": "trideci",
+      "14": "tetradeci",
+      "15": "pentadeci"
+    },
+    "fractional": {
+      "1/2": "hemi",
+      "3/2": "sesqui",
+      "5/2": "hemipenta",
+      "7/2": "hemihepta"
+    }
+  },
+  "suffixes": {
+    "amine": {
+      "aliases": [
+        "amine",
+        "amin"
+      ],
+      "type": "root"
+    },
+    "aminide": {
+      "aliases": [
+        "aminide",
+        "aminid"
+      ],
+      "type": "root"
+    },
+    "aminium": {
+      "aliases": [
+        "aminium"
+      ],
+      "type": "root"
+    },
+    "aminylium": {
+      "aliases": [
+        "aminylium"
+      ],
+      "type": "root"
+    },
+    "carbonylium": {
+      "aliases": [
+        "carbonylium"
+      ],
+      "type": "root"
+    },
+    "carboxamide": {
+      "aliases": [
+        "carboxyamide",
+        "carboxyamid"
+      ],
+      "type": "root"
+    },
+    "carboxylate": {
+      "aliases": [
+        "carboxylate",
+        "carboxylat"
+      ],
+      "type": "root"
+    },
+    "carboxylic": {
+      "aliases": [
+        "carboxylic",
+        "carboxylicacid",
+        "carboxylic acid"
+      ],
+      "type": "root"
+    },
+    "carboxylite": {
+      "aliases": [
+        "carboxylite",
+        "carboxylit"
+      ],
+      "type": "root"
+    },
+    "diazonium": {
+      "aliases": [
+        "diazonium"
+      ],
+      "type": "root"
+    },
+    "imine": {
+      "aliases": [
+        "imine",
+        "imin"
+      ],
+      "type": "root"
+    },
+    "iminide": {
+      "aliases": [
+        "iminide",
+        "iminid"
+      ],
+      "type": "root"
+    },
+    "iminium": {
+      "aliases": [
+        "iminium"
+      ],
+      "type": "root"
+    },
+    "iminylium": {
+      "aliases": [
+        "iminylium"
+      ],
+      "type": "root"
+    },
+    "one": {
+      "aliases": [
+        "one",
+        "on"
+      ],
+      "type": "root"
+    },
+    "ol": {
+      "aliases": [
+        "ol"
+      ],
+      "type": "root"
+    },
+    "olate": {
+      "aliases": [
+        "olate",
+        "olat"
+      ],
+      "type": "root"
+    },
+    "selone": {
+      "aliases": [
+        "selone",
+        "selon"
+      ],
+      "type": "root"
+    },
+    "selenenate": {
+      "aliases": [
+        "selenenate",
+        "selenenat"
+      ],
+      "type": "root"
+    },
+    "selenenic": {
+      "aliases": [
+        "selenenic",
+        "selenenicacid",
+        "selenenic acid"
+      ],
+      "type": "root"
+    },
+    "sulfenoselenoate": {
+      "aliases": [
+        "sulfenoselenoate",
+        "sulfenoselenoat"
+      ],
+      "type": "root"
+    },
+    "sulfenoselenoic": {
+      "aliases": [
+        "sulfenoselenoic",
+        "sulfenoselenoicacid",
+        "sulfenoselenoic acid"
+      ],
+      "type": "root"
+    },
+    "sulfenothioate": {
+      "aliases": [
+        "sulfenothioate",
+        "sulfenothioat"
+      ],
+      "type": "root"
+    },
+    "sulfenothioic": {
+      "aliases": [
+        "sulfenothioic",
+        "sulfenothioicacid",
+        "sulfenothioic acid"
+      ],
+      "type": "root"
+    },
+    "sulfenamide": {
+      "aliases": [
+        "sulfenamide",
+        "sulfenamid"
+      ],
+      "type": "root"
+    },
+    "sulfenate": {
+      "aliases": [
+        "sulfenate",
+        "sulfenat"
+      ],
+      "type": "root"
+    },
+    "sulfenic": {
+      "aliases": [
+        "sulfenic",
+        "sulfenicacid",
+        "sulfenic acid"
+      ],
+      "type": "root"
+    },
+    "tellone": {
+      "aliases": [
+        "tellone",
+        "tellon"
+      ],
+      "type": "root"
+    },
+    "tellurenate": {
+      "aliases": [
+        "tellurenate",
+        "tellurenat"
+      ],
+      "type": "root"
+    },
+    "tellurenic": {
+      "aliases": [
+        "tellurenic",
+        "tellurenicacid",
+        "tellurenic acid"
+      ],
+      "type": "root"
+    },
+    "arsonite": {
+      "aliases": [
+        "arsonite",
+        "arsonit"
+      ],
+      "type": "root"
+    },
+    "arsonous": {
+      "aliases": [
+        "arsonous",
+        "arsonousacid",
+        "arsonous acid"
+      ],
+      "type": "root"
+    },
+    "azonic": {
+      "aliases": [
+        "azonic",
+        "azonicacid",
+        "azonic acid"
+      ],
+      "type": "root"
+    },
+    "azonate": {
+      "aliases": [
+        "azonate",
+        "azonat"
+      ],
+      "type": "root"
+    },
+    "azonite": {
+      "aliases": [
+        "azonite",
+        "azonit"
+      ],
+      "type": "root"
+    },
+    "azonous": {
+      "aliases": [
+        "azonous",
+        "azonousacid",
+        "azonous acid"
+      ],
+      "type": "root"
+    },
+    "boronate": {
+      "aliases": [
+        "boronate",
+        "boronat"
+      ],
+      "type": "root"
+    },
+    "boronic": {
+      "aliases": [
+        "boronic",
+        "boronicacid",
+        "boronic acid"
+      ],
+      "type": "root"
+    },
+    "boronicacidpinacolester": {
+      "aliases": [
+        "boronic pinacol ester",
+        "boronic acid pinacol ester",
+        "boronicacid pinacol ester",
+        "boronicacidpinacol ester",
+        "boronicacid pinacolester",
+        "boronicacidpinacolester",
+        "boronic acidpinacol ester",
+        "boronic acidpinacolester",
+        "boronic acid pinacolester"
+      ],
+      "type": "root"
+    },
+    "carbamate": {
+      "aliases": [
+        "carbamate",
+        "carbamat"
+      ],
+      "type": "root"
+    },
+    "carbamic": {
+      "aliases": [
+        "carbamic",
+        "carbamicacid",
+        "carbamic acid"
+      ],
+      "type": "root"
+    },
+    "phosphonite": {
+      "aliases": [
+        "phosphonite",
+        "phosphonit"
+      ],
+      "type": "root"
+    },
+    "phosphonous": {
+      "aliases": [
+        "phosphonous",
+        "phosphonousacid",
+        "phosphonous acid"
+      ],
+      "type": "root"
+    },
+    "stibonite": {
+      "aliases": [
+        "stibonite",
+        "stibonit"
+      ],
+      "type": "root"
+    },
+    "stibonous": {
+      "aliases": [
+        "stibonous",
+        "stibonousacid",
+        "stibonous acid"
+      ],
+      "type": "root"
+    },
+    "sulfamate": {
+      "aliases": [
+        "sulfamate",
+        "sulfamat"
+      ],
+      "type": "root"
+    },
+    "sulfamic": {
+      "aliases": [
+        "sulfamic",
+        "sulfamicacid",
+        "sulfamic acid"
+      ],
+      "type": "root"
+    },
+    "al": {
+      "aliases": [
+        "al"
+      ],
+      "type": "root"
+    },
+    "ic": {
+      "aliases": [
+        "ic",
+        "icacid",
+        "ic acid"
+      ],
+      "type": "root"
+    },
+    "aldoxime": {
+      "aliases": [
+        "aldoxime",
+        "aldoxim"
+      ],
+      "type": "root"
+    },
+    "ate": {
+      "aliases": [
+        "ic acid anion"
+      ],
+      "type": "root"
+    },
+    "ite": {
+      "aliases": [
+        "ite",
+        "it"
+      ],
+      "type": "root"
+    },
+    "nitrolic acid": {
+      "aliases": [
+        "nitrolic acid",
+        "nitrolicacid"
+      ],
+      "type": "root"
+    },
+    "onaphthone": {
+      "aliases": [
+        "onaphthone",
+        "onaphthon",
+        "naphthone",
+        "naphthon"
+      ],
+      "type": "root"
+    },
+    "ophenone": {
+      "aliases": [
+        "ophenone",
+        "ophenon",
+        "phenone",
+        "phenon"
+      ],
+      "type": "root"
+    },
+    "ous": {
+      "aliases": [
+        "ous",
+        "ousacid",
+        "ous acid"
+      ],
+      "type": "root"
+    },
+    "aldehyde": {
+      "aliases": [
+        "aldehyde",
+        "aldehyd"
+      ],
+      "type": "root"
+    },
+    "amide": {
+      "aliases": [
+        "amide",
+        "amid"
+      ],
+      "type": "root"
+    },
+    "amidium": {
+      "aliases": [
+        "amidium"
+      ],
+      "type": "root"
+    },
+    "anilide": {
+      "aliases": [
+        "anilide",
+        "anilid"
+      ],
+      "type": "root"
+    },
+    "amidine": {
+      "aliases": [
+        "amidine",
+        "amidin"
+      ],
+      "type": "root"
+    },
+    "amidinium": {
+      "aliases": [
+        "amidinium"
+      ],
+      "type": "root"
+    },
+    "amidrazone": {
+      "aliases": [
+        "amidrazone",
+        "amidrazon"
+      ],
+      "type": "root"
+    },
+    "amidylium": {
+      "aliases": [
+        "amidylium"
+      ],
+      "type": "root"
+    },
+    "hydrazide": {
+      "aliases": [
+        "hydrazide",
+        "hydrazid"
+      ],
+      "type": "root"
+    },
+    "hydroxamic": {
+      "aliases": [
+        "hydroxamic",
+        "hydroxamicacid",
+        "hydroxamic acid"
+      ],
+      "type": "root"
+    },
+    "hydroxamate": {
+      "aliases": [
+        "hydroxamate",
+        "hydroxamat"
+      ],
+      "type": "root"
+    },
+    "ic_O_acid": {
+      "aliases": [
+        "ic o-acid"
+      ],
+      "type": "root"
+    },
+    "ic_S_acid": {
+      "aliases": [
+        "ic s-acid"
+      ],
+      "type": "root"
+    },
+    "ic_Se_acid": {
+      "aliases": [
+        "ic se-acid"
+      ],
+      "type": "root"
+    },
+    "ic_Te_acid": {
+      "aliases": [
+        "ic te-acid"
+      ],
+      "type": "root"
+    },
+    "nitrile": {
+      "aliases": [
+        "nitrile",
+        "nitril"
+      ],
+      "type": "root"
+    },
+    "nitrilium": {
+      "aliases": [
+        "nitrilium"
+      ],
+      "type": "root"
+    },
+    "acylium": {
+      "aliases": [
+        "ylium"
+      ],
+      "type": "root"
+    },
+    "thione": {
+      "aliases": [
+        "thione",
+        "thion"
+      ],
+      "type": "root"
+    },
+    "imide": {
+      "aliases": [
+        "imide",
+        "ic imide",
+        "ic acid imide",
+        "imid",
+        "ic imid",
+        "ic acid imid"
+      ],
+      "type": "root"
+    },
+    "imidium": {
+      "aliases": [
+        "imidium",
+        "ic imidium",
+        "ic acid imidium"
+      ],
+      "type": "root"
+    },
+    "imidylium": {
+      "aliases": [
+        "imidylium",
+        "ic imidylium",
+        "ic acid imidylium"
+      ],
+      "type": "root"
+    },
+    "carbolactone": {
+      "aliases": [
+        "carbolactone",
+        "carbolacton"
+      ],
+      "type": "root"
+    },
+    "dicarboximide": {
+      "aliases": [
+        "dicarboximide",
+        "dicarboximid"
+      ],
+      "type": "root"
+    },
+    "lactam": {
+      "aliases": [
+        "lactam"
+      ],
+      "type": "root"
+    },
+    "lactim": {
+      "aliases": [
+        "lactim"
+      ],
+      "type": "root"
+    },
+    "lactone": {
+      "aliases": [
+        "lactone",
+        "lacton"
+      ],
+      "type": "root"
+    },
+    "olide": {
+      "aliases": [
+        "olide",
+        "olid"
+      ],
+      "type": "root"
+    },
+    "sultam": {
+      "aliases": [
+        "sultam"
+      ],
+      "type": "root"
+    },
+    "sultim": {
+      "aliases": [
+        "sultim"
+      ],
+      "type": "root"
+    },
+    "sultine": {
+      "aliases": [
+        "sultine",
+        "sultin"
+      ],
+      "type": "root"
+    },
+    "sultone": {
+      "aliases": [
+        "sultone",
+        "sulton"
+      ],
+      "type": "root"
+    }
+  },
+  "substituents": {
+    "-N=NC=NN": {
+      "aliases": [
+        "1-formazano"
+      ]
+    },
+    "-NC(O)=N": {
+      "aliases": [
+        "isoureido"
+      ]
+    },
+    "-NC(S)=N": {
+      "aliases": [
+        "isothioureido"
+      ]
+    },
+    "-N=C(O)N": {
+      "aliases": [
+        "3-isoureido"
+      ]
+    },
+    "-N=C(S)N": {
+      "aliases": [
+        "3-isothioureido"
+      ]
+    },
+    "-NN=CN=N": {
+      "aliases": [
+        "5-formazano"
+      ]
+    },
+    "C[C@@]1([C@H]2[C@@](CCC1)(C)[C@H]3CCC(C(C)C)=CC3=CC2)C(=O)N-": {
+      "aliases": [
+        "abietamido"
+      ]
+    },
+    "-OC(=O)C": {
+      "aliases": [
+        "acetoxyl"
+      ]
+    },
+    "-NC(=O)C": {
+      "aliases": [
+        "acetamino"
+      ]
+    },
+    "-C#C": {
+      "aliases": [
+        "acetenyl"
+      ]
+    },
+    "=[N+]([O-])O": {
+      "aliases": [
+        "aci-nitro"
+      ]
+    },
+    "-C(=O)C=C": {
+      "aliases": [
+        "acryl"
+      ]
+    },
+    "-CC(C)CC": {
+      "aliases": [
+        "active amyl",
+        "active-amyl",
+        "activeamyl"
+      ]
+    },
+    "-C(=O)C(=O)N": {
+      "aliases": [
+        "amidoxalyl"
+      ]
+    },
+    "-[NH-]": {
+      "aliases": [
+        "amidyl"
+      ]
+    },
+    "=[N-]": {
+      "aliases": [
+        "amidylidene",
+        "amidyliden"
+      ]
+    },
+    "-ON": {
+      "aliases": [
+        "aminoxy",
+        "aminoxyl"
+      ]
+    },
+    "-N": {
+      "aliases": [
+        "amido"
+      ]
+    },
+    "=N": {
+      "aliases": [
+        "imido"
+      ]
+    },
+    "#N": {
+      "aliases": [
+        "nitrido"
+      ]
+    },
+    "-OCCCCC": {
+      "aliases": [
+        "amoxy"
+      ]
+    },
+    "=Cc1ccccc1": {
+      "aliases": [
+        "benzal",
+        "benzylene"
+      ]
+    },
+    "-c1c(OC)cc(OC)c(OC)c1": {
+      "aliases": [
+        "asaryl"
+      ]
+    },
+    "-N=[N+]=[N-]": {
+      "aliases": [
+        "azido"
+      ]
+    },
+    "-OCCC(C)C": {
+      "aliases": [
+        "iso-amoxy",
+        "isoamoxy"
+      ]
+    },
+    "-Nc1ccccc1": {
+      "aliases": [
+        "xylidino"
+      ]
+    },
+    "COc1ccccc1": {
+      "aliases": [
+        "anisidino"
+      ]
+    },
+    "c1(ccc3cc1)c2ccc(N)cc2.N3-": {
+      "aliases": [
+        "4,4'-benzidino"
+      ]
+    },
+    "-S(=O)(=O)c1ccccc1": {
+      "aliases": [
+        "nosyl"
+      ]
+    },
+    "-C(C)=C": {
+      "aliases": [
+        "beta-allyl"
+      ]
+    },
+    "-c1ccccc1-c2ccccc2": {
+      "aliases": [
+        "biphen-2-yl"
+      ]
+    },
+    "-c1cccc(c1)-c2ccccc2": {
+      "aliases": [
+        "biphen-3-yl"
+      ]
+    },
+    "-c1ccc(cc1)-c2ccccc2": {
+      "aliases": [
+        "xenyl"
+      ]
+    },
+    "-C(=O)OC(C)(C)C": {
+      "aliases": [
+        "carbo-tertiary-butoxy",
+        "carbo-tertbutoxy",
+        "carbo-tert.butoxy",
+        "carbo-tert-butoxy",
+        "carbo-tert.-butoxy",
+        "carbo-t-butoxy",
+        "carb-tertiarybutoxy",
+        "carb-tertiary-butoxy",
+        "carb-tertbutoxy",
+        "carb-tert.butoxy",
+        "carb-tert-butoxy",
+        "carb-tert.-butoxy",
+        "carb-t-butoxy",
+        "carbotertiarybutoxy",
+        "carbotertiary-butoxy",
+        "carbotertbutoxy",
+        "carbotert.butoxy",
+        "carbotert-butoxy",
+        "carbotert.-butoxy",
+        "carbot-butoxy",
+        "carbtertiarybutoxy",
+        "carbtertiary-butoxy",
+        "carbtertbutoxy",
+        "carbtert.butoxy",
+        "carbtert-butoxy",
+        "carbtert.-butoxy",
+        "carbt-butoxy"
+      ]
+    },
+    "-B(O)O": {
+      "aliases": [
+        "borono"
+      ]
+    },
+    "-S(=O)(=O)c1ccc(Br)cc1": {
+      "aliases": [
+        "brosyl"
+      ]
+    },
+    "-OCCCC": {
+      "aliases": [
+        "butoxyl"
+      ]
+    },
+    "-[As](C)C": {
+      "aliases": [
+        "cacodyl"
+      ]
+    },
+    "-NC(=N)N": {
+      "aliases": [
+        "guanidino"
+      ]
+    },
+    "-NNC(=O)N=N": {
+      "aliases": [
+        "carbazono"
+      ]
+    },
+    "-N=NC(=O)N=N": {
+      "aliases": [
+        "carbodiazono"
+      ]
+    },
+    "-NNC(=O)NN": {
+      "aliases": [
+        "carbonohydrazido",
+        "carbohydrazido",
+        "carbazido"
+      ]
+    },
+    "-C(=O)OC": {
+      "aliases": [
+        "carbomethoxy"
+      ]
+    },
+    "-C(=O)OCC": {
+      "aliases": [
+        "carbethoxy",
+        "carboethoxy"
+      ]
+    },
+    "-C(=O)OCCC": {
+      "aliases": [
+        "carbopropoxy",
+        "carbpropoxy"
+      ]
+    },
+    "-C(=O)OCCCC": {
+      "aliases": [
+        "carbobutoxy",
+        "carbbutoxy"
+      ]
+    },
+    "-C(=O)OCCCCC": {
+      "aliases": [
+        "carbopentoxy",
+        "carbpentoxy"
+      ]
+    },
+    "-C(=O)OCCCCCC": {
+      "aliases": [
+        "carbohexoxy",
+        "carbhexoxy"
+      ]
+    },
+    "-C(=O)OCCCCCCC": {
+      "aliases": [
+        "carboheptoxy",
+        "carbheptoxy"
+      ]
+    },
+    "-C(=O)OCCCCCCCC": {
+      "aliases": [
+        "carbooctoxy",
+        "carboctoxy"
+      ]
+    },
+    "-C(=O)OCCCCCCCCC": {
+      "aliases": [
+        "carbononoxy",
+        "carbnonoxy"
+      ]
+    },
+    "-C(=O)OCCCCCCCCCC": {
+      "aliases": [
+        "carbodecoxy",
+        "carbdecoxy"
+      ]
+    },
+    "-C(=O)OCCCCCCCCCCC": {
+      "aliases": [
+        "carboundecoxy",
+        "carbundecoxy"
+      ]
+    },
+    "-C(=O)OCCCCCCCCCCCC": {
+      "aliases": [
+        "carbododecoxy",
+        "carbdodecoxy"
+      ]
+    },
+    "-C(=O)OCCCCCCCCCCCCC": {
+      "aliases": [
+        "carbotridecoxy",
+        "carbtridecoxy"
+      ]
+    },
+    "-C(=O)OCCCCCCCCCCCCCC": {
+      "aliases": [
+        "carbotetradecoxy",
+        "carbtetradecoxy"
+      ]
+    },
+    "-C(=O)OCCCCCCCCCCCCCCC": {
+      "aliases": [
+        "carbopentadecoxy",
+        "carbpentadecoxy"
+      ]
+    },
+    "-C(=O)OCC=C": {
+      "aliases": [
+        "carballoxy",
+        "carboalloxy",
+        "carballyloxy",
+        "carboallyloxy"
+      ]
+    },
+    "-C(=O)OCc1ccccc1": {
+      "aliases": [
+        "cbz"
+      ]
+    },
+    "-C(=O)OC(C)C": {
+      "aliases": [
+        "carbisopropoxy",
+        "carboisopropoxy",
+        "carb-i-propoxy",
+        "carbo-i-propoxy"
+      ]
+    },
+    "-C(=O)Oc1ccccc1": {
+      "aliases": [
+        "carbphenoxy",
+        "carbophenoxy",
+        "carbphenyloxy",
+        "carbophenyloxy"
+      ]
+    },
+    "#C": {
+      "aliases": [
+        "carbyne"
+      ]
+    },
+    "-[CH2+]": {
+      "aliases": [
+        "carbynium"
+      ]
+    },
+    "-c1cc(C(C)C)ccc1C": {
+      "aliases": [
+        "carvacryl"
+      ]
+    },
+    "-CCCCCCCCCCCCCCCC": {
+      "aliases": [
+        "cetyl"
+      ]
+    },
+    "=CC=Cc1ccccc1": {
+      "aliases": [
+        "cinnamal"
+      ]
+    },
+    "-c1ccccc1": {
+      "aliases": [
+        "phenetyl"
+      ]
+    },
+    "-CC=CC": {
+      "aliases": [
+        "crotyl"
+      ]
+    },
+    "-Cc1ccc(C(C)C)cc1": {
+      "aliases": [
+        "cuminyl"
+      ]
+    },
+    "=Cc1ccc(C(C)C)cc1": {
+      "aliases": [
+        "cuminylidene",
+        "cuminyliden",
+        "cumal"
+      ]
+    },
+    "-C(=O)c1ccc(C(C)C)cc1": {
+      "aliases": [
+        "cumoyl"
+      ]
+    },
+    "-C(C)(C)c1ccccc1": {
+      "aliases": [
+        "cumyl",
+        "alpha-cumyl"
+      ]
+    },
+    "-NC#N": {
+      "aliases": [
+        "cyanamido"
+      ]
+    },
+    "-C#N": {
+      "aliases": [
+        "cyano"
+      ]
+    },
+    "-C1C=CC=C1": {
+      "aliases": [
+        "cyclopentadienyl"
+      ]
+    },
+    "-S(=O)(=O)c1ccc(N=Nc2ccc(N(C)C)cc2)cc1": {
+      "aliases": [
+        "dabsyl"
+      ]
+    },
+    "-S(=O)(=O)c1cccc2c(N(C)C)cccc12": {
+      "aliases": [
+        "dansyl"
+      ]
+    },
+    "c1(ccccc1)C(=O)Cc2ccccc2": {
+      "aliases": [
+        "desyl"
+      ]
+    },
+    "-[2H]": {
+      "aliases": [
+        "perdeuterio",
+        "perdeutero"
+      ]
+    },
+    "-[N+]#N": {
+      "aliases": [
+        "diazonio"
+      ]
+    },
+    "-c1c(C)c(C)cc(C)c1C": {
+      "aliases": [
+        "duryl"
+      ]
+    },
+    "-OCC": {
+      "aliases": [
+        "ethoxyl"
+      ]
+    },
+    "-N1CC1": {
+      "aliases": [
+        "ethylenimino"
+      ]
+    },
+    "-c1c(OC)cc(CC=C)cc1": {
+      "aliases": [
+        "eugenyl"
+      ]
+    },
+    "-C=N": {
+      "aliases": [
+        "formimino"
+      ]
+    },
+    "-c1c(OC)cccc1": {
+      "aliases": [
+        "guaiacyl"
+      ]
+    },
+    "-N1CCCCCC1": {
+      "aliases": [
+        "hexamethyleneimino",
+        "hexamethylenimino"
+      ]
+    },
+    "-CCC=C": {
+      "aliases": [
+        "homoallyl"
+      ]
+    },
+    "O1CCNCCC1": {
+      "aliases": [
+        "homomorpholino"
+      ]
+    },
+    "-C(=O)CNC(=O)N": {
+      "aliases": [
+        "hydantoyl"
+      ]
+    },
+    "-NN": {
+      "aliases": [
+        "hydrazido"
+      ]
+    },
+    "=NN": {
+      "aliases": [
+        "hydrazono"
+      ]
+    },
+    "-[H]": {
+      "aliases": [
+        "hydrogen"
+      ]
+    },
+    "-[SeH]": {
+      "aliases": [
+        "selenyl"
+      ]
+    },
+    "-[SeH](=O)": {
+      "aliases": [
+        "hydroseleninyl"
+      ]
+    },
+    "-[SeH](=O)(=O)": {
+      "aliases": [
+        "hydroselenonyl"
+      ]
+    },
+    "-[SH](=O)": {
+      "aliases": [
+        "hydrosulfinyl"
+      ]
+    },
+    "-[SH](=O)(=O)": {
+      "aliases": [
+        "hydrosulfonyl"
+      ]
+    },
+    "-[TeH]": {
+      "aliases": [
+        "telluryl"
+      ]
+    },
+    "-[TeH](=O)": {
+      "aliases": [
+        "hydrotellurinyl"
+      ]
+    },
+    "-[TeH](=O)(=O)": {
+      "aliases": [
+        "hydrotelluronyl"
+      ]
+    },
+    "-OCC(C)C": {
+      "aliases": [
+        "isobutoxyl",
+        "iso-butoxyl"
+      ]
+    },
+    "-C=C(C)C": {
+      "aliases": [
+        "isocrotyl"
+      ]
+    },
+    "-NNC(O)=NN": {
+      "aliases": [
+        "isocarbonohydrazido"
+      ]
+    },
+    "-[N+]#[C-]": {
+      "aliases": [
+        "isocyano"
+      ]
+    },
+    "-c1c(OC)cc(C=CC)cc1": {
+      "aliases": [
+        "isoeugenyl"
+      ]
+    },
+    "-CCC(=C)C": {
+      "aliases": [
+        "isopentenyl"
+      ]
+    },
+    "-NNC(O)=N": {
+      "aliases": [
+        "isosemicarbazido"
+      ]
+    },
+    "n1ccccc1": {
+      "aliases": [
+        "lutidin-4-yl"
+      ]
+    },
+    "-C(=O)C(=O)C(=O)O": {
+      "aliases": [
+        "mesoxalo"
+      ]
+    },
+    "-S(=O)(=O)C": {
+      "aliases": [
+        "mesyl"
+      ]
+    },
+    "-CC(C)=C": {
+      "aliases": [
+        "methallyl"
+      ]
+    },
+    "-OC": {
+      "aliases": [
+        "methoxyl"
+      ]
+    },
+    "-CO": {
+      "aliases": [
+        "methylol"
+      ]
+    },
+    "O1CCNCC1": {
+      "aliases": [
+        "morpholino"
+      ]
+    },
+    "-C(=O)CC(=O)C(=O)O": {
+      "aliases": [
+        "oxalaceto"
+      ]
+    },
+    "-NO": {
+      "aliases": [
+        "hydroxamino"
+      ]
+    },
+    "=NO": {
+      "aliases": [
+        "oximino"
+      ]
+    },
+    "-OC(C)C": {
+      "aliases": [
+        "isopropoxyl"
+      ]
+    },
+    "-C(C)(C=C)CCC=C(C)C": {
+      "aliases": [
+        "linalyl"
+      ]
+    },
+    "-C(=O)C(=C)C": {
+      "aliases": [
+        "methacryl"
+      ]
+    },
+    "-CC(C)(C)c1ccccc1": {
+      "aliases": [
+        "neophyl"
+      ]
+    },
+    "-C(C)(C=C)CCC=C(C)CCC=C(C)C": {
+      "aliases": [
+        "nerolidyl"
+      ]
+    },
+    "-N[N+](=O)[O-]": {
+      "aliases": [
+        "nitramino"
+      ]
+    },
+    "-O[N+](=O)[O-]": {
+      "aliases": [
+        "nitroxy"
+      ]
+    },
+    "-N=O": {
+      "aliases": [
+        "nitroso"
+      ]
+    },
+    "-[N+](=O)[O-]": {
+      "aliases": [
+        "nitro"
+      ]
+    },
+    "-[SeH5]": {
+      "aliases": [
+        "perselenuranyl"
+      ]
+    },
+    "=[SeH4]": {
+      "aliases": [
+        "perselenuranylidene",
+        "perselenuranyliden"
+      ]
+    },
+    "-[SH5]": {
+      "aliases": [
+        "persulfuranyl"
+      ]
+    },
+    "=[SH4]": {
+      "aliases": [
+        "persulfuranylidene",
+        "persulfuranyliden"
+      ]
+    },
+    "CCOc1ccccc1": {
+      "aliases": [
+        "phenetidino"
+      ]
+    },
+    "-Oc1ccccc1": {
+      "aliases": [
+        "phenoxy",
+        "phenoxyl"
+      ]
+    },
+    "-c1c([N+](=O)[O-])cc([N+](=O)[O-])cc1[N+](=O)[O-]": {
+      "aliases": [
+        "picryl"
+      ]
+    },
+    "-C(C)C(C)(C)C": {
+      "aliases": [
+        "pinacolyl"
+      ]
+    },
+    "-N1CCNCC1": {
+      "aliases": [
+        "piperazino"
+      ]
+    },
+    "-N1CCCCC1": {
+      "aliases": [
+        "piperidino"
+      ]
+    },
+    "-CC=C(C)C": {
+      "aliases": [
+        "prenyl"
+      ]
+    },
+    "-CC#C": {
+      "aliases": [
+        "propargyl"
+      ]
+    },
+    "-OCCC": {
+      "aliases": [
+        "propoxyl"
+      ]
+    },
+    "-c1c(C)c(C)cc(C)c1": {
+      "aliases": [
+        "as-pseudocumyl"
+      ]
+    },
+    "-c1c(C)c(C)ccc1C": {
+      "aliases": [
+        "v-pseudocumyl"
+      ]
+    },
+    "-c1c(C)cc(C)c(C)c1": {
+      "aliases": [
+        "s-pseudocumyl"
+      ]
+    },
+    "-NCCCCN": {
+      "aliases": [
+        "putrescinyl"
+      ]
+    },
+    "-N1CCCC1": {
+      "aliases": [
+        "pyrrolidino"
+      ]
+    },
+    "=Cc1c(O)cccc1": {
+      "aliases": [
+        "salicylal"
+      ]
+    },
+    "-C(C)C(C)C": {
+      "aliases": [
+        "siamyl"
+      ]
+    },
+    "-OC(C)CC": {
+      "aliases": [
+        "sec-butoxyl",
+        "sec.-butoxyl",
+        "secbutoxyl"
+      ]
+    },
+    "-[Se](O)": {
+      "aliases": [
+        "seleneno"
+      ]
+    },
+    "-[Se](=O)(O)": {
+      "aliases": [
+        "selenino"
+      ]
+    },
+    "-[Se](=O)(=O)(O)": {
+      "aliases": [
+        "selenono"
+      ]
+    },
+    "-[SeH3]": {
+      "aliases": [
+        "selenuranyl"
+      ]
+    },
+    "-[SeH4+]": {
+      "aliases": [
+        "selenuraniumyl"
+      ]
+    },
+    "=[SeH2]": {
+      "aliases": [
+        "selenuranylidene",
+        "selenuranyliden"
+      ]
+    },
+    "-NNC(=O)N": {
+      "aliases": [
+        "semicarbazido"
+      ]
+    },
+    "-S(=O)O": {
+      "aliases": [
+        "sulfino"
+      ]
+    },
+    "-S(=O)(=O)O": {
+      "aliases": [
+        "sulfo"
+      ]
+    },
+    "-OS(=O)(=O)O": {
+      "aliases": [
+        "sulfoxy"
+      ]
+    },
+    "-[SH3]": {
+      "aliases": [
+        "sulfuranyl"
+      ]
+    },
+    "-[SH4+]": {
+      "aliases": [
+        "sulfuraniumyl"
+      ]
+    },
+    "=[SH2]": {
+      "aliases": [
+        "sulfuranylidene",
+        "sulfuranyliden"
+      ]
+    },
+    "-[Te](O)": {
+      "aliases": [
+        "tellureno"
+      ]
+    },
+    "-[Te](=O)(O)": {
+      "aliases": [
+        "tellurino"
+      ]
+    },
+    "-[Te](=O)(=O)(O)": {
+      "aliases": [
+        "tellurono"
+      ]
+    },
+    "-OC(C)(C)C": {
+      "aliases": [
+        "tertiary-butoxyl",
+        "tertiarybutoxyl",
+        "tert-butoxyl",
+        "tertbutoxyl",
+        "tert.-butoxyl",
+        "tert.butoxyl",
+        "t-butoxyl",
+        "tbutoxyl"
+      ]
+    },
+    "-Cc1cccs1": {
+      "aliases": [
+        "then-2-yl"
+      ]
+    },
+    "=Cc1cccs1": {
+      "aliases": [
+        "then-2-ylidene",
+        "then-2-yliden"
+      ]
+    },
+    "#Cc1cccs1": {
+      "aliases": [
+        "then-2-ylidyne",
+        "then-2-ylidyn"
+      ]
+    },
+    "-C(=O)c1cccs1": {
+      "aliases": [
+        "then-2-oyl"
+      ]
+    },
+    "-Cc1ccsc1": {
+      "aliases": [
+        "then-3-yl"
+      ]
+    },
+    "=Cc1ccsc1": {
+      "aliases": [
+        "then-3-ylidene",
+        "then-3-yliden"
+      ]
+    },
+    "#Cc1ccsc1": {
+      "aliases": [
+        "then-3-ylidyne",
+        "then-3-ylidyn"
+      ]
+    },
+    "-C(=O)c1ccsc1": {
+      "aliases": [
+        "then-3-oyl"
+      ]
+    },
+    "-C(C)(C)C(C)C": {
+      "aliases": [
+        "thexyl"
+      ]
+    },
+    "-S": {
+      "aliases": [
+        "mercapto",
+        "sulfhydryl",
+        "sulfydryl"
+      ]
+    },
+    "-c1cc(C)ccc1C(C)C": {
+      "aliases": [
+        "thymyl"
+      ]
+    },
+    "c12ccccc1.C2": {
+      "aliases": [
+        "toluidino"
+      ]
+    },
+    "-S(=O)(=O)c1ccc(C)cc1": {
+      "aliases": [
+        "tosyl"
+      ]
+    },
+    "-OS(=O)(=O)C(F)(F)F": {
+      "aliases": [
+        "trifloxy"
+      ]
+    },
+    "-S(=O)(=O)C(F)(F)F": {
+      "aliases": [
+        "triflyl"
+      ]
+    },
+    "-[3H]": {
+      "aliases": [
+        "pertritio"
+      ]
+    },
+    "-C(c1ccccc1)(c1ccccc1)c1ccccc1": {
+      "aliases": [
+        "trityl"
+      ]
+    },
+    "-NC(=O)N": {
+      "aliases": [
+        "ureido"
+      ]
+    },
+    "=Cc1cc(OC)c(O)cc1": {
+      "aliases": [
+        "vanillal"
+      ]
+    },
+    "=Cc1cc(OC)c(OC)cc1": {
+      "aliases": [
+        "veratral"
+      ]
+    },
+    "-Cc1c(OC)c(OC)ccc1": {
+      "aliases": [
+        "o-veratryl"
+      ]
+    },
+    "-[N|4+]": {
+      "aliases": [
+        "ammonio"
+      ]
+    },
+    "-[P|4+]": {
+      "aliases": [
+        "phosphonio"
+      ]
+    },
+    "-[As|4+]": {
+      "aliases": [
+        "arsonio"
+      ]
+    },
+    "-[Sb|4+]": {
+      "aliases": [
+        "stibonio"
+      ]
+    },
+    "-[Bi|4+]": {
+      "aliases": [
+        "bismuthonio"
+      ]
+    },
+    "-[O|3+]": {
+      "aliases": [
+        "oxonio"
+      ]
+    },
+    "-[S|3+]": {
+      "aliases": [
+        "sulfonio"
+      ]
+    },
+    "-[Se|3+]": {
+      "aliases": [
+        "selenonio"
+      ]
+    },
+    "-[Te|3+]": {
+      "aliases": [
+        "telluronio"
+      ]
+    },
+    "-[F|2+]": {
+      "aliases": [
+        "fluoronio"
+      ]
+    },
+    "-[Cl|2+]": {
+      "aliases": [
+        "chloronio"
+      ]
+    },
+    "-[Br|2+]": {
+      "aliases": [
+        "bromonio"
+      ]
+    },
+    "-[I|2+]": {
+      "aliases": [
+        "iodonio"
+      ]
+    },
+    "=[N+]=[N-]": {
+      "aliases": [
+        "diazo"
+      ]
+    },
+    "-[NH2+][O-]": {
+      "aliases": [
+        "azinoyl"
+      ]
+    },
+    "-[N+](O)(O)[O-]": {
+      "aliases": [
+        "azono"
+      ]
+    },
+    "-[F|3]=O": {
+      "aliases": [
+        "fluorosyl"
+      ]
+    },
+    "-Br=O": {
+      "aliases": [
+        "bromosyl"
+      ]
+    },
+    "-Cl=O": {
+      "aliases": [
+        "chloroso"
+      ]
+    },
+    "-I=O": {
+      "aliases": [
+        "iodoso"
+      ]
+    },
+    "-[At]=O": {
+      "aliases": [
+        "astatosyl"
+      ]
+    },
+    "-[F|5](=O)(=O)": {
+      "aliases": [
+        "fluoryl"
+      ]
+    },
+    "-Br(=O)(=O)": {
+      "aliases": [
+        "bromyl"
+      ]
+    },
+    "-Cl(=O)(=O)": {
+      "aliases": [
+        "chloroxy"
+      ]
+    },
+    "-I(=O)(=O)": {
+      "aliases": [
+        "iodoxy"
+      ]
+    },
+    "-[At](=O)(=O)": {
+      "aliases": [
+        "astatoxy"
+      ]
+    },
+    "-[F|7](=O)(=O)(=O)": {
+      "aliases": [
+        "perfluoryl"
+      ]
+    },
+    "-Br(=O)(=O)(=O)": {
+      "aliases": [
+        "perbromyl"
+      ]
+    },
+    "-Cl(=O)(=O)(=O)": {
+      "aliases": [
+        "perchloryl"
+      ]
+    },
+    "-I(=O)(=O)(=O)": {
+      "aliases": [
+        "periodyl"
+      ]
+    },
+    "-O[N+]#[C-]": {
+      "aliases": [
+        "fulminato"
+      ]
+    },
+    "-[Se]C#N": {
+      "aliases": [
+        "selenocyano"
+      ]
+    },
+    "-[Te]C#N": {
+      "aliases": [
+        "tellurocyano"
+      ]
+    },
+    "-SC#N": {
+      "aliases": [
+        "thiocyano"
+      ]
+    },
+    "-N=C=[Se]": {
+      "aliases": [
+        "isoselenocyanato"
+      ]
+    },
+    "-N=C=[Te]": {
+      "aliases": [
+        "isotellurocyanato"
+      ]
+    },
+    "-N=C=S": {
+      "aliases": [
+        "isothiocyanato"
+      ]
+    },
+    "-O": {
+      "aliases": [
+        "oxyl"
+      ]
+    },
+    "-OO": {
+      "aliases": [
+        "peroxyl",
+        "dioxyl"
+      ]
+    },
+    "=O": {
+      "aliases": [
+        "oxo",
+        "keto"
+      ]
+    },
+    "=S": {
+      "aliases": [
+        "thiono"
+      ]
+    },
+    "=[Se]": {
+      "aliases": [
+        "selenoxo"
+      ]
+    },
+    "=[Te]": {
+      "aliases": [
+        "telluroxo"
+      ]
+    },
+    "-[P|5]=N": {
+      "aliases": [
+        "phosphinimyl"
+      ]
+    },
+    "-P=O": {
+      "aliases": [
+        "phosphoroso"
+      ]
+    },
+    "-P": {
+      "aliases": [
+        "phosphino"
+      ]
+    },
+    "=[P|5]=O": {
+      "aliases": [
+        "phosphinylidene",
+        "phosphinyliden"
+      ]
+    },
+    "=[P|5]=S": {
+      "aliases": [
+        "phosphinothioylidene",
+        "phosphinothioyliden"
+      ]
+    },
+    "=P": {
+      "aliases": [
+        "phosphinidene",
+        "phosphiniden"
+      ]
+    },
+    "-[As|5](=O)(O)O": {
+      "aliases": [
+        "arsono"
+      ]
+    },
+    "-[As|5](=O)([O-])[O-]": {
+      "aliases": [
+        "arsonato"
+      ]
+    },
+    "-[As|5](=O)=O": {
+      "aliases": [
+        "arso"
+      ]
+    },
+    "-[As|5]=N": {
+      "aliases": [
+        "arsinimyl"
+      ]
+    },
+    "-[As]=O": {
+      "aliases": [
+        "arsoroso",
+        "arsenoso"
+      ]
+    },
+    "-[AsH2]": {
+      "aliases": [
+        "arsino"
+      ]
+    },
+    "=[As|5]=O": {
+      "aliases": [
+        "arsinylidene",
+        "arsinyliden"
+      ]
+    },
+    "=[As|5]=S": {
+      "aliases": [
+        "arsinothioylidene",
+        "arsinothioyliden"
+      ]
+    },
+    "=[AsH]": {
+      "aliases": [
+        "arsinidene",
+        "arsiniden"
+      ]
+    },
+    "-[Sb|5](=O)(O)O": {
+      "aliases": [
+        "stibono"
+      ]
+    },
+    "-[Sb|5](=O)([O-])[O-]": {
+      "aliases": [
+        "stibonato"
+      ]
+    },
+    "-[Sb|5](=O)=O": {
+      "aliases": [
+        "stibo"
+      ]
+    },
+    "-[Sb]=O": {
+      "aliases": [
+        "stiboso"
+      ]
+    },
+    "-[SbH2]": {
+      "aliases": [
+        "stibino"
+      ]
+    },
+    "=[SbH]": {
+      "aliases": [
+        "stibylene",
+        "stibylen"
+      ]
+    },
+    "-[BiH2]": {
+      "aliases": [
+        "bismuthino"
+      ]
+    },
+    "=[BiH]": {
+      "aliases": [
+        "bismuthylene",
+        "bismuthylen"
+      ]
+    },
+    "=S(=O)=O": {
+      "aliases": [
+        "sulfonylidene",
+        "sulfonyliden"
+      ]
+    },
+    "-S(=O)(=O)[O-]": {
+      "aliases": [
+        "sulfonato"
+      ]
+    },
+    "-S(=O)[O-]": {
+      "aliases": [
+        "sulfinato"
+      ]
+    },
+    "-SO": {
+      "aliases": [
+        "sulfeno"
+      ]
+    },
+    "-C(=O)O": {
+      "aliases": [
+        "carboxy",
+        "carboxyl"
+      ]
+    },
+    "-C(=O)[O-]": {
+      "aliases": [
+        "carboxylato"
+      ]
+    },
+    "-C(N)=N": {
+      "aliases": [
+        "amidino",
+        "guanyl"
+      ]
+    },
+    "-C(=O)C(=O)O": {
+      "aliases": [
+        "oxalo"
+      ]
+    },
+    "-C(=O)C(=O)OC": {
+      "aliases": [
+        "methoxalyl"
+      ]
+    },
+    "-C(=O)C(=O)OCC": {
+      "aliases": [
+        "ethoxalyl"
+      ]
+    },
+    "-C(=O)OCC1c2ccccc2c3ccccc13": {
+      "aliases": [
+        "fmoc"
+      ]
+    },
+    "-[Si](C)(C)C": {
+      "aliases": [
+        "tms"
+      ]
+    },
+    "-[Si](C)(C)C(C)(C)C": {
+      "aliases": [
+        "t-butyl(dimethyl)silanyl",
+        "t-butyl(dimethyl)silyl",
+        "t-butyl-dimethylsilanyl",
+        "t-butyl-dimethylsilyl",
+        "t-butyldimethylsilanyl",
+        "t-butyldimethylsilyl",
+        "tert-butyl(dimethyl)silanyl",
+        "tert-butyl(dimethyl)silyl",
+        "tert-butyl-dimethylsilanyl",
+        "tert-butyl-dimethylsilyl",
+        "tert-butyldimethylsilanyl",
+        "tert-butyldimethylsilyl"
+      ]
+    },
+    "-[Si](c1ccccc1)(c1ccccc1)C(C)(C)C": {
+      "aliases": [
+        "t-butyl(diphenyl)silanyl",
+        "t-butyl(diphenyl)silyl",
+        "t-butyl-diphenylsilanyl",
+        "t-butyl-diphenylsilyl",
+        "t-butyldiphenylsilanyl",
+        "t-butyldiphenylsilyl",
+        "tert-butyl(diphenyl)silanyl",
+        "tert-butyl(diphenyl)silyl",
+        "tert-butyl-diphenylsilanyl",
+        "tert-butyl-diphenylsilyl",
+        "tert-butyldiphenylsilanyl",
+        "tert-butyldiphenylsilyl"
+      ]
+    },
+    "-O[Si](C)(C)C(C)(C)C": {
+      "aliases": [
+        "t-butyl(dimethyl)silanoxy",
+        "t-butyl(dimethyl)siloxy",
+        "t-butyl-dimethylsilanoxy",
+        "t-butyl-dimethylsiloxy",
+        "t-butyldimethylsilanoxy",
+        "t-butyldimethylsiloxy",
+        "tert-butyl(dimethyl)silanoxy",
+        "tert-butyl(dimethyl)siloxy",
+        "tert-butyl-dimethylsilanoxy",
+        "tert-butyl-dimethylsiloxy",
+        "tert-butyldimethylsilanoxy",
+        "tert-butyldimethylsiloxy"
+      ]
+    },
+    "-O[Si](c1ccccc1)(c1ccccc1)C(C)(C)C": {
+      "aliases": [
+        "t-butyl(diphenyl)silanoxy",
+        "t-butyl(diphenyl)siloxy",
+        "t-butyl-diphenylsilanoxy",
+        "t-butyl-diphenylsiloxy",
+        "t-butyldiphenylsilanoxy",
+        "t-butyldiphenylsiloxy",
+        "tert-butyl(diphenyl)silanoxy",
+        "tert-butyl(diphenyl)siloxy",
+        "tert-butyl-diphenylsilanoxy",
+        "tert-butyl-diphenylsiloxy",
+        "tert-butyldiphenylsilanoxy",
+        "tert-butyldiphenylsiloxy"
+      ]
+    },
+    "-[Ac]": {
+      "aliases": [
+        "actinio"
+      ]
+    },
+    "-[Al]": {
+      "aliases": [
+        "aluminio"
+      ]
+    },
+    "-[Am]": {
+      "aliases": [
+        "americio"
+      ]
+    },
+    "-[Sb]": {
+      "aliases": [
+        "antimonio"
+      ]
+    },
+    "-[Ar|2]": {
+      "aliases": [
+        "argonio"
+      ]
+    },
+    "-[As]": {
+      "aliases": [
+        "arsenio"
+      ]
+    },
+    "-[At]": {
+      "aliases": [
+        "astatio"
+      ]
+    },
+    "-[Ba]": {
+      "aliases": [
+        "bario"
+      ]
+    },
+    "-[Bk]": {
+      "aliases": [
+        "berkelio"
+      ]
+    },
+    "-[Be]": {
+      "aliases": [
+        "beryllio"
+      ]
+    },
+    "-[Bi]": {
+      "aliases": [
+        "bismuthio"
+      ]
+    },
+    "-[B]": {
+      "aliases": [
+        "borio"
+      ]
+    },
+    "-[Br]": {
+      "aliases": [
+        "bromio"
+      ]
+    },
+    "-[Cd]": {
+      "aliases": [
+        "cadmio"
+      ]
+    },
+    "-[Cs]": {
+      "aliases": [
+        "caesio"
+      ]
+    },
+    "-[Ca]": {
+      "aliases": [
+        "calcio"
+      ]
+    },
+    "-[Cf]": {
+      "aliases": [
+        "californio"
+      ]
+    },
+    "-[Ce]": {
+      "aliases": [
+        "cerio"
+      ]
+    },
+    "-[Cl]": {
+      "aliases": [
+        "chlorio"
+      ]
+    },
+    "-[Cr]": {
+      "aliases": [
+        "chromio"
+      ]
+    },
+    "-[Co]": {
+      "aliases": [
+        "cobaltio"
+      ]
+    },
+    "-[Cu]": {
+      "aliases": [
+        "cuprio"
+      ]
+    },
+    "-[Cm]": {
+      "aliases": [
+        "curio"
+      ]
+    },
+    "-[Dy]": {
+      "aliases": [
+        "dysprosio"
+      ]
+    },
+    "-[Es]": {
+      "aliases": [
+        "einsteinio"
+      ]
+    },
+    "-[Er]": {
+      "aliases": [
+        "erbio"
+      ]
+    },
+    "-[Eu]": {
+      "aliases": [
+        "europio"
+      ]
+    },
+    "-[Fm]": {
+      "aliases": [
+        "fermio"
+      ]
+    },
+    "-[F]": {
+      "aliases": [
+        "fluorio"
+      ]
+    },
+    "-[Fr]": {
+      "aliases": [
+        "francio"
+      ]
+    },
+    "-[Gd]": {
+      "aliases": [
+        "gadolinio"
+      ]
+    },
+    "-[Ga]": {
+      "aliases": [
+        "gallio"
+      ]
+    },
+    "-[Ge]": {
+      "aliases": [
+        "germanio"
+      ]
+    },
+    "-[Au]": {
+      "aliases": [
+        "aurio"
+      ]
+    },
+    "-[Hf]": {
+      "aliases": [
+        "hafnio"
+      ]
+    },
+    "-[He|2]": {
+      "aliases": [
+        "helio"
+      ]
+    },
+    "-[Ho]": {
+      "aliases": [
+        "holmio"
+      ]
+    },
+    "-[In]": {
+      "aliases": [
+        "indio"
+      ]
+    },
+    "-[I]": {
+      "aliases": [
+        "iodio"
+      ]
+    },
+    "-[Ir]": {
+      "aliases": [
+        "iridio"
+      ]
+    },
+    "-[Fe]": {
+      "aliases": [
+        "ferrio"
+      ]
+    },
+    "-[Kr]": {
+      "aliases": [
+        "kryptonio"
+      ]
+    },
+    "-[La]": {
+      "aliases": [
+        "lanthanio"
+      ]
+    },
+    "-[Lr]": {
+      "aliases": [
+        "lawrencio"
+      ]
+    },
+    "-[Pb]": {
+      "aliases": [
+        "plumbio"
+      ]
+    },
+    "-[Li]": {
+      "aliases": [
+        "lithio"
+      ]
+    },
+    "-[Lu]": {
+      "aliases": [
+        "lutetio"
+      ]
+    },
+    "-[Mg]": {
+      "aliases": [
+        "magnesio"
+      ]
+    },
+    "-[Mn]": {
+      "aliases": [
+        "manganio"
+      ]
+    },
+    "-[Md]": {
+      "aliases": [
+        "mendelevio"
+      ]
+    },
+    "-[Hg]": {
+      "aliases": [
+        "mercurio"
+      ]
+    },
+    "-[Mo]": {
+      "aliases": [
+        "molybdenio"
+      ]
+    },
+    "-[Nd]": {
+      "aliases": [
+        "neodymio"
+      ]
+    },
+    "-[Ne|2]": {
+      "aliases": [
+        "neonio"
+      ]
+    },
+    "-[Np]": {
+      "aliases": [
+        "neptunio"
+      ]
+    },
+    "-[Ni]": {
+      "aliases": [
+        "nickelio"
+      ]
+    },
+    "-[Nb]": {
+      "aliases": [
+        "niobio"
+      ]
+    },
+    "-[No]": {
+      "aliases": [
+        "nobelio"
+      ]
+    },
+    "-[Os]": {
+      "aliases": [
+        "osmio"
+      ]
+    },
+    "-[Pd]": {
+      "aliases": [
+        "palladio"
+      ]
+    },
+    "-[P]": {
+      "aliases": [
+        "phosphorio"
+      ]
+    },
+    "-[Pt]": {
+      "aliases": [
+        "platinio"
+      ]
+    },
+    "-[Pu]": {
+      "aliases": [
+        "plutonio"
+      ]
+    },
+    "-[Po]": {
+      "aliases": [
+        "polonio"
+      ]
+    },
+    "-[K]": {
+      "aliases": [
+        "potassio",
+        "kalio"
+      ]
+    },
+    "-[Pr]": {
+      "aliases": [
+        "praseodymio"
+      ]
+    },
+    "-[Pm]": {
+      "aliases": [
+        "promethio"
+      ]
+    },
+    "-[Pa]": {
+      "aliases": [
+        "protactinio"
+      ]
+    },
+    "-[Ra]": {
+      "aliases": [
+        "radio"
+      ]
+    },
+    "-[Rn]": {
+      "aliases": [
+        "radonio"
+      ]
+    },
+    "-[Re]": {
+      "aliases": [
+        "rhenio"
+      ]
+    },
+    "-[Rh]": {
+      "aliases": [
+        "rhodio"
+      ]
+    },
+    "-[Rb]": {
+      "aliases": [
+        "rubidio"
+      ]
+    },
+    "-[Ru]": {
+      "aliases": [
+        "ruthenio"
+      ]
+    },
+    "-[Sm]": {
+      "aliases": [
+        "samario"
+      ]
+    },
+    "-[Sc]": {
+      "aliases": [
+        "scandio"
+      ]
+    },
+    "-[Se]": {
+      "aliases": [
+        "selenio"
+      ]
+    },
+    "-[Si]": {
+      "aliases": [
+        "silicio"
+      ]
+    },
+    "-[Ag]": {
+      "aliases": [
+        "argentio"
+      ]
+    },
+    "-[Na]": {
+      "aliases": [
+        "sodio",
+        "natrio"
+      ]
+    },
+    "-[Sr]": {
+      "aliases": [
+        "strontio"
+      ]
+    },
+    "-[S]": {
+      "aliases": [
+        "sulfurio"
+      ]
+    },
+    "-[Ta]": {
+      "aliases": [
+        "tantalio"
+      ]
+    },
+    "-[Tc]": {
+      "aliases": [
+        "technetio"
+      ]
+    },
+    "-[Te]": {
+      "aliases": [
+        "tellurio"
+      ]
+    },
+    "-[Tb]": {
+      "aliases": [
+        "terbio"
+      ]
+    },
+    "-[Tl]": {
+      "aliases": [
+        "thallio"
+      ]
+    },
+    "-[Th]": {
+      "aliases": [
+        "thorio"
+      ]
+    },
+    "-[Tm]": {
+      "aliases": [
+        "thulio"
+      ]
+    },
+    "-[Sn]": {
+      "aliases": [
+        "stannio"
+      ]
+    },
+    "-[Ti]": {
+      "aliases": [
+        "titanio"
+      ]
+    },
+    "-[W]": {
+      "aliases": [
+        "tungstenio",
+        "wolframio"
+      ]
+    },
+    "-[U]": {
+      "aliases": [
+        "uranio"
+      ]
+    },
+    "-[V]": {
+      "aliases": [
+        "vanadio"
+      ]
+    },
+    "-[Xe]": {
+      "aliases": [
+        "xenonio"
+      ]
+    },
+    "-[Yb]": {
+      "aliases": [
+        "ytterbio"
+      ]
+    },
+    "-[Y]": {
+      "aliases": [
+        "yttrio"
+      ]
+    },
+    "-[Zn]": {
+      "aliases": [
+        "zincio"
+      ]
+    },
+    "-[Zr]": {
+      "aliases": [
+        "zirconio"
+      ]
+    },
+    "-P(=O)(O)OP(=O)(O)O": {
+      "aliases": [
+        "diphospho"
+      ]
+    },
+    "-P(=O)(O)OCC(O)CO": {
+      "aliases": [
+        "glycero-1-phospho",
+        "glycero-1-phosphoryl"
+      ]
+    },
+    "OCC(OP(=O)O)CO": {
+      "aliases": [
+        "glycero-2-phospho",
+        "glycero-2-phosphoryl"
+      ]
+    },
+    "OCC(O)COP(=O)O": {
+      "aliases": [
+        "glycero-3-phospho",
+        "glycero-3-phosphoryl"
+      ]
+    },
+    "-[P|5](=O)(O)O": {
+      "aliases": [
+        "phosphono"
+      ]
+    },
+    "-[P|5](=O)([O-])[O-]": {
+      "aliases": [
+        "phosphonato"
+      ]
+    },
+    "-[P|5](=O)=O": {
+      "aliases": [
+        "phospho"
+      ]
+    },
+    "-P(=O)(O)OC[C@@H](O)CO": {
+      "aliases": [
+        "sn-glycero-1-phospho",
+        "sn-glycero-1-phosphoryl"
+      ]
+    },
+    "OC[C@@H](OP(=O)O)CO": {
+      "aliases": [
+        "sn-glycero-2-phospho",
+        "sn-glycero-2-phosphoryl"
+      ]
+    },
+    "OC[C@@H](O)COP(=O)O": {
+      "aliases": [
+        "sn-glycero-3-phospho",
+        "sn-glycero-3-phosphoryl"
+      ]
+    },
+    "-P(=O)(O)OP(=O)(O)OP(=O)(O)O": {
+      "aliases": [
+        "triphospho"
+      ]
+    },
+    "-Cc1c(CO)cnc(C)c1O": {
+      "aliases": [
+        "pyridoxyl"
+      ]
+    },
+    "=Cc1c(CO)cnc(C)c1O": {
+      "aliases": [
+        "pyridoxylidene",
+        "pyridoxyliden"
+      ]
+    },
+    "-Cc1c(COP(=O)(O)O)cnc(C)c1O": {
+      "aliases": [
+        "p-pyridoxyl",
+        "5'-p-pyridoxyl"
+      ]
+    },
+    "=Cc1c(COP(=O)(O)O)cnc(C)c1O": {
+      "aliases": [
+        "p-pyridoxylidene",
+        "p-pyridoxyliden",
+        "5'-p-pyridoxylidene",
+        "5'-p-pyridoxyliden"
+      ]
+    },
+    "-S(=O)(=O)CCN": {
+      "aliases": [
+        "tauryl"
+      ]
+    },
+    "-CNCCS(=O)(=O)O": {
+      "aliases": [
+        "taurinomethyl",
+        "taurino-methyl"
+      ]
+    },
+    "[C@@H]1([C@H](O)[C@H](OP(=O)O)[C@@H](CO)O1)n2cnc3c([nH2])ncnc23": {
+      "aliases": [
+        "3'-adenylyl"
+      ]
+    },
+    "[C@@H]1(C[C@H](OP(=O)O)[C@@H](CO)O1)n2c(=O)[nH]c(=O)c(C)c2": {
+      "aliases": [
+        "3'-thymidylyl"
+      ]
+    },
+    "[C@@H]1([C@H](O)[C@H](OP(=O)O)[C@@H](CO)O1)n2cnc3c(=O)[nH]c(N)nc23": {
+      "aliases": [
+        "3'-guanylyl"
+      ]
+    },
+    "[C@@H]1([C@H](O)[C@H](OP(=O)O)[C@@H](CO)O1)n2cnc3c(N)[nH]c(=O)nc23": {
+      "aliases": [
+        "3'-isoguanylyl"
+      ]
+    },
+    "[C@@H]1([C@H](O)[C@H](OP(=O)O)[C@@H](CO)O1)n2cnc3c([oH])ncnc23": {
+      "aliases": [
+        "3'-inosinylyl"
+      ]
+    },
+    "[C@@H]1([C@H](O)[C@H](OP(=O)O)[C@@H](CO)O1)n2cnc3c(=O)[nH]c(=O)[nH]c23": {
+      "aliases": [
+        "3'-xanthylyl"
+      ]
+    },
+    "[C@@H]1([C@H](O)[C@H](OP(=O)O)[C@@H](CO)O1)n2c(=O)nc([nH2])cc2": {
+      "aliases": [
+        "3'-cytidylyl"
+      ]
+    },
+    "[C@@H]1([C@H](O)[C@H](OP(=O)O)[C@@H](CO)O1)n2c(N)nc(=O)cc2": {
+      "aliases": [
+        "3'-isocytidylyl"
+      ]
+    },
+    "[C@@H]1([C@H](O)[C@H](OP(=O)O)[C@@H](CO)O1)n2c(=O)[nH]c(=O)cc2": {
+      "aliases": [
+        "3'-uridylyl"
+      ]
+    },
+    "[C@@H]1([C@H](O)[C@H](OP(=O)O)[C@@H](CO)O1)n2c(=O)[nH]c(=O)cc2C(=O)O": {
+      "aliases": [
+        "3'-orotidylyl"
+      ]
+    },
+    "[C@@H]1([C@H](O)[C@H](OP(=O)O)[C@@H](CO)O1)c2c[nH]c(=O)[nH]c2(=O)": {
+      "aliases": [
+        "3'-pseudouridylyl"
+      ]
+    },
+    "[C@@H]1([C@H](O)[C@H](O)[C@@H](COP(=O)O)O1)n2cnc3c([nH2])ncnc23": {
+      "aliases": [
+        "5'-adenylyl"
+      ]
+    },
+    "[C@@H]1(C[C@H](O)[C@@H](COP(=O)O)O1)n2c(=O)[nH]c(=O)c(C)c2": {
+      "aliases": [
+        "5'-thymidylyl"
+      ]
+    },
+    "[C@@H]1([C@H](O)[C@H](O)[C@@H](COP(=O)O)O1)n2cnc3c(=O)[nH]c(N)nc23": {
+      "aliases": [
+        "5'-guanylyl"
+      ]
+    },
+    "[C@@H]1([C@H](O)[C@H](O)[C@@H](COP(=O)O)O1)n2cnc3c(N)[nH]c(=O)nc23": {
+      "aliases": [
+        "5'-isoguanylyl"
+      ]
+    },
+    "[C@@H]1([C@H](O)[C@H](O)[C@@H](COP(=O)O)O1)n2cnc3c([oH])ncnc23": {
+      "aliases": [
+        "5'-inosinylyl"
+      ]
+    },
+    "[C@@H]1([C@H](O)[C@H](O)[C@@H](COP(=O)O)O1)n2cnc3c(=O)[nH]c(=O)[nH]c23": {
+      "aliases": [
+        "5'-xanthylyl"
+      ]
+    },
+    "[C@@H]1([C@H](O)[C@H](O)[C@@H](COP(=O)O)O1)n2c(=O)nc([nH2])cc2": {
+      "aliases": [
+        "5'-cytidylyl"
+      ]
+    },
+    "[C@@H]1([C@H](O)[C@H](O)[C@@H](COP(=O)O)O1)n2c(N)nc(=O)cc2": {
+      "aliases": [
+        "5'-isocytidylyl"
+      ]
+    },
+    "[C@@H]1([C@H](O)[C@H](O)[C@@H](COP(=O)O)O1)n2c(=O)[nH]c(=O)cc2": {
+      "aliases": [
+        "5'-uridylyl"
+      ]
+    },
+    "[C@@H]1([C@H](O)[C@H](O)[C@@H](COP(=O)O)O1)n2c(=O)[nH]c(=O)cc2C(=O)O": {
+      "aliases": [
+        "5'-orotidylyl"
+      ]
+    },
+    "[C@@H]1([C@H](O)[C@H](O)[C@@H](COP(=O)O)O1)c2c[nH]c(=O)[nH]c2(=O)": {
+      "aliases": [
+        "5'-pseudouridylyl"
+      ]
+    },
+    "[C@@H]1([C@H](O)[C@H](O)[C@@H](C)O1)n2cnc3c([nH2])ncnc23": {
+      "aliases": [
+        "5'-adenosyl",
+        "5'-deoxy-5'-adenosyl",
+        "adenosyl"
+      ]
+    },
+    "[C@@H]1(C[C@H](O)[C@@H](C)O1)n2c(=O)[nH]c(=O)c(C)c2": {
+      "aliases": [
+        "5'-thymidyl"
+      ]
+    },
+    "[C@@H]1([C@H](O)[C@H](O)[C@@H](C)O1)n2cnc3c(=O)[nH]c(N)nc23": {
+      "aliases": [
+        "5'-guanosyl"
+      ]
+    },
+    "[C@@H]1([C@H](O)[C@H](O)[C@@H](C)O1)n2cnc3c(N)[nH]c(=O)nc23": {
+      "aliases": [
+        "5'-isoguanosyl"
+      ]
+    },
+    "[C@@H]1([C@H](O)[C@H](O)[C@@H](C)O1)n2cnc3c([oH])ncnc23": {
+      "aliases": [
+        "5'-inosyl"
+      ]
+    },
+    "[C@@H]1([C@H](O)[C@H](O)[C@@H](C)O1)n2cnc3c(=O)[nH]c(=O)[nH]c23": {
+      "aliases": [
+        "5'-xanthosyl"
+      ]
+    },
+    "[C@@H]1([C@H](O)[C@H](O)[C@@H](C)O1)n2c(=O)nc([nH2])cc2": {
+      "aliases": [
+        "5'-cytidyl"
+      ]
+    },
+    "[C@@H]1([C@H](O)[C@H](O)[C@@H](C)O1)n2c(N)nc(=O)cc2": {
+      "aliases": [
+        "5'-isocytidyl"
+      ]
+    },
+    "[C@@H]1([C@H](O)[C@H](O)[C@@H](C)O1)n2c(=O)[nH]c(=O)cc2": {
+      "aliases": [
+        "5'-uridyl"
+      ]
+    },
+    "[C@@H]1([C@H](O)[C@H](O)[C@@H](C)O1)n2c(=O)[nH]c(=O)cc2C(=O)O": {
+      "aliases": [
+        "5'-orotidyl"
+      ]
+    },
+    "[C@@H]1([C@H](O)[C@H](O)[C@@H](C)O1)c2c[nH]c(=O)[nH]c2(=O)": {
+      "aliases": [
+        "5'-pseudouridyl"
+      ]
+    },
+    "[C@@H]1([C@H](O)[C@H](O)[C@@H](CO)O1)n2cnc3c([nH2])ncnc23.P(=O)O": {
+      "aliases": [
+        "adenylyl"
+      ]
+    },
+    "[C@@H]1(C[C@H](O)[C@@H](CO)O1)n2c(=O)[nH]c(=O)c(C)c2.P(=O)O": {
+      "aliases": [
+        "thymidylyl"
+      ]
+    },
+    "[C@@H]1([C@H](O)[C@H](O)[C@@H](CO)O1)n2cnc3c(=O)[nH]c(N)nc23.P(=O)O": {
+      "aliases": [
+        "guanylyl"
+      ]
+    },
+    "[C@@H]1([C@H](O)[C@H](O)[C@@H](CO)O1)n2cnc3c(N)[nH]c(=O)nc23.P(=O)O": {
+      "aliases": [
+        "isoguanylyl"
+      ]
+    },
+    "[C@@H]1([C@H](O)[C@H](O)[C@@H](CO)O1)n2cnc3c([oH])ncnc23.P(=O)O": {
+      "aliases": [
+        "inosinylyl"
+      ]
+    },
+    "[C@@H]1([C@H](O)[C@H](O)[C@@H](CO)O1)n2cnc3c(=O)[nH]c(=O)[nH]c23.P(=O)O": {
+      "aliases": [
+        "xanthylyl"
+      ]
+    },
+    "[C@@H]1([C@H](O)[C@H](O)[C@@H](CO)O1)n2c(=O)nc([nH2])cc2.P(=O)O": {
+      "aliases": [
+        "cytidylyl"
+      ]
+    },
+    "[C@@H]1([C@H](O)[C@H](O)[C@@H](CO)O1)n2c(N)nc(=O)cc2.P(=O)O": {
+      "aliases": [
+        "isocytidylyl"
+      ]
+    },
+    "[C@@H]1([C@H](O)[C@H](O)[C@@H](CO)O1)n2c(=O)[nH]c(=O)cc2.P(=O)O": {
+      "aliases": [
+        "uridylyl"
+      ]
+    },
+    "[C@@H]1([C@H](O)[C@H](O)[C@@H](CO)O1)n2c(=O)[nH]c(=O)cc2C(=O)O.P(=O)O": {
+      "aliases": [
+        "orotidylyl"
+      ]
+    },
+    "[C@@H]1([C@H](O)[C@H](O)[C@@H](CO)O1)c2c[nH]c(=O)[nH]c2(=O).P(=O)O": {
+      "aliases": [
+        "pseudouridylyl"
+      ]
+    },
+    "-[At|1]": {
+      "aliases": [
+        "astato"
+      ]
+    },
+    "-[Br|1]": {
+      "aliases": [
+        "perbromo"
+      ]
+    },
+    "-[Cl|1]": {
+      "aliases": [
+        "perchloro"
+      ]
+    },
+    "-OC#N": {
+      "aliases": [
+        "cyanato"
+      ]
+    },
+    "-[F|1]": {
+      "aliases": [
+        "perfluoro"
+      ]
+    },
+    "-I": {
+      "aliases": [
+        "iodo"
+      ]
+    },
+    "-N=C=O": {
+      "aliases": [
+        "isocyanato"
+      ]
+    },
+    "-[O-]": {
+      "aliases": [
+        "oxido"
+      ]
+    },
+    "-[S-]": {
+      "aliases": [
+        "sulfido"
+      ]
+    },
+    "-[Se-]": {
+      "aliases": [
+        "selenido"
+      ]
+    },
+    "-[Te-]": {
+      "aliases": [
+        "tellurido"
+      ]
+    },
+    "-[I|1]": {
+      "aliases": [
+        "periodo"
+      ]
+    },
+    "-CCCCC": {
+      "aliases": [
+        "amyl"
+      ]
+    },
+    "=CCCCC": {
+      "aliases": [
+        "amylidene",
+        "amyliden"
+      ]
+    }
+  },
+  "functionalGroups": {
+    "ester": {
+      "aliases": [
+        "ester"
+      ],
+      "type": "functionalClass"
+    },
+    "salt": {
+      "aliases": [
+        "salt"
+      ],
+      "type": "functionalClass"
+    },
+    "O": {
+      "aliases": [
+        "oxide",
+        "oxid"
+      ],
+      "type": "diValentGroup"
+    },
+    "F": {
+      "aliases": [
+        "fluorohydrin"
+      ],
+      "type": "functionalClass"
+    },
+    "Cl": {
+      "aliases": [
+        "chlorohydrin"
+      ],
+      "type": "functionalClass"
+    },
+    "Br": {
+      "aliases": [
+        "bromohydrin"
+      ],
+      "type": "functionalClass"
+    },
+    "I": {
+      "aliases": [
+        "iodohydrin"
+      ],
+      "type": "functionalClass"
+    },
+    "C#N": {
+      "aliases": [
+        "cyanohydrin"
+      ],
+      "type": "functionalClass"
+    },
+    "=NO": {
+      "aliases": [
+        "oxime",
+        "oxim"
+      ],
+      "type": "functionalClass"
+    },
+    "=NS": {
+      "aliases": [
+        "thioxime",
+        "thioxim",
+        "thiooxime",
+        "thiooxim",
+        "thio-oxime",
+        "thio-oxim"
+      ],
+      "type": "functionalClass"
+    },
+    "=N[Se|2]": {
+      "aliases": [
+        "selenoxime",
+        "selenoxim",
+        "selenooxime",
+        "selenooxim",
+        "seleno-oxime",
+        "seleno-oxim"
+      ],
+      "type": "functionalClass"
+    },
+    "=N[Te|2]": {
+      "aliases": [
+        "telluroxime",
+        "telluroxim",
+        "tellurooxime",
+        "tellurooxim",
+        "telluro-oxime",
+        "telluro-oxim"
+      ],
+      "type": "functionalClass"
+    },
+    "=NO.Br-": {
+      "aliases": [
+        "bromoxime",
+        "bromoxim",
+        "bromooxime",
+        "bromooxim",
+        "bromo-oxime",
+        "bromo-oxim"
+      ],
+      "type": "functionalClass"
+    },
+    "=NO.Cl-": {
+      "aliases": [
+        "chloroxime",
+        "chloroxim",
+        "chlorooxime",
+        "chlorooxim",
+        "chloro-oxime",
+        "chloro-oxim"
+      ],
+      "type": "functionalClass"
+    },
+    "=NO.F-": {
+      "aliases": [
+        "fluoroxime",
+        "fluoroxim",
+        "fluorooxime",
+        "fluorooxim",
+        "fluoro-oxime",
+        "fluoro-oxim"
+      ],
+      "type": "functionalClass"
+    },
+    "=NO.I-": {
+      "aliases": [
+        "iodoxime",
+        "iodoxim",
+        "iodooxime",
+        "iodooxim",
+        "iodo-oxime",
+        "iodo-oxim"
+      ],
+      "type": "functionalClass"
+    },
+    "=NN": {
+      "aliases": [
+        "hydrazone",
+        "hydrazon"
+      ],
+      "type": "functionalClass"
+    },
+    "=NNC(=O)N": {
+      "aliases": [
+        "semicarbazone",
+        "semicarbazon"
+      ],
+      "type": "functionalClass"
+    },
+    "=NNC(=S)N": {
+      "aliases": [
+        "thiosemicarbazone",
+        "thiosemicarbazon",
+        "thio-semicarbazone",
+        "thio-semicarbazon"
+      ],
+      "type": "functionalClass"
+    },
+    "=NNC(=[Se])N": {
+      "aliases": [
+        "selenosemicarbazone",
+        "selenosemicarbazon",
+        "seleno-semicarbazone",
+        "seleno-semicarbazon"
+      ],
+      "type": "functionalClass"
+    },
+    "=NNC(=[Te])N": {
+      "aliases": [
+        "tellurosemicarbazone",
+        "tellurosemicarbazon",
+        "telluro-semicarbazone",
+        "telluro-semicarbazon"
+      ],
+      "type": "functionalClass"
+    },
+    "=NNC(O)=N": {
+      "aliases": [
+        "isosemicarbazone",
+        "isosemicarbazon"
+      ],
+      "type": "functionalClass"
+    },
+    "=NNC(S)=N": {
+      "aliases": [
+        "isothiosemicarbazone",
+        "isothiosemicarbazon"
+      ],
+      "type": "functionalClass"
+    },
+    "=NNC([SeH])=N": {
+      "aliases": [
+        "isoselenosemicarbazone",
+        "isoselenosemicarbazon"
+      ],
+      "type": "functionalClass"
+    },
+    "=NNC([TeH])=N": {
+      "aliases": [
+        "isotellurosemicarbazone",
+        "isotellurosemicarbazon"
+      ],
+      "type": "functionalClass"
+    },
+    "=NNC(=O)C(=O)N": {
+      "aliases": [
+        "semioxamazone",
+        "semioxamazon"
+      ],
+      "type": "functionalClass"
+    },
+    "=N": {
+      "aliases": [
+        "imine",
+        "imin"
+      ],
+      "type": "functionalClass"
+    },
+    "S": {
+      "aliases": [
+        "thioether"
+      ],
+      "type": "diValentGroup"
+    },
+    "[Se|2]": {
+      "aliases": [
+        "selenoether"
+      ],
+      "type": "diValentGroup"
+    },
+    "[Te|2]": {
+      "aliases": [
+        "telluroether"
+      ],
+      "type": "diValentGroup"
+    },
+    "[NH2-]": {
+      "aliases": [
+        "amide",
+        "amid"
+      ],
+      "type": "acidReplacingFunctionalGroup"
+    },
+    "Nc1ccccc1": {
+      "aliases": [
+        "anilide",
+        "anilid"
+      ],
+      "type": "acidReplacingFunctionalGroup"
+    },
+    "N1CCC1": {
+      "aliases": [
+        "azetidide",
+        "azetidid"
+      ],
+      "type": "acidReplacingFunctionalGroup"
+    },
+    "NN": {
+      "aliases": [
+        "hydrazide",
+        "hydrazid"
+      ],
+      "type": "acidReplacingFunctionalGroup"
+    },
+    "N1CCOCC1": {
+      "aliases": [
+        "morpholide",
+        "morpholid"
+      ],
+      "type": "acidReplacingFunctionalGroup"
+    },
+    "N1CCNCC1": {
+      "aliases": [
+        "piperazide",
+        "piperazid"
+      ],
+      "type": "acidReplacingFunctionalGroup"
+    },
+    "N1CCCCC1": {
+      "aliases": [
+        "piperidide",
+        "piperidid"
+      ],
+      "type": "acidReplacingFunctionalGroup"
+    },
+    "N1CCCC1": {
+      "aliases": [
+        "pyrrolidide",
+        "pyrrolidid"
+      ],
+      "type": "acidReplacingFunctionalGroup"
+    },
+    "S,S": {
+      "aliases": [
+        "hemidithioacetal",
+        "hemidithioketal"
+      ],
+      "type": "functionalClass"
+    },
+    "O,O": {
+      "aliases": [
+        "hemiacetal",
+        "hemiketal"
+      ],
+      "type": "functionalClass"
+    },
+    "S,O": {
+      "aliases": [
+        "hemithioacetal",
+        "hemithioketal"
+      ],
+      "type": "functionalClass"
+    },
+    "OO": {
+      "aliases": [
+        "peroxyanhydride",
+        "peroxyanhydrid"
+      ],
+      "type": "functionalClass"
+    },
+    "SS": {
+      "aliases": [
+        "dithioperoxyanhydride",
+        "dithioperoxyanhydrid"
+      ],
+      "type": "functionalClass"
+    },
+    "[Se|2][Se|2]": {
+      "aliases": [
+        "diselenoperoxyanhydride",
+        "diselenoperoxyanhydrid"
+      ],
+      "type": "functionalClass"
+    },
+    "[Te|2][Te|2]": {
+      "aliases": [
+        "ditelluroperoxyanhydride",
+        "ditelluroperoxyanhydrid"
+      ],
+      "type": "functionalClass"
+    },
+    "oligo": {
+      "aliases": [
+        "oligo"
+      ]
+    },
+    "poly": {
+      "aliases": [
+        "poly"
+      ]
+    },
+    "cyclo": {
+      "aliases": [
+        "cyclo"
+      ]
+    },
+    "[O-]": {
+      "aliases": [
+        "alcoholate"
+      ],
+      "type": "monoValentGroup"
+    },
+    "C=O": {
+      "aliases": [
+        "ketone",
+        "keton"
+      ],
+      "type": "diValentGroup"
+    },
+    "C(=O)C(=O)-": {
+      "aliases": [
+        "diketone",
+        "diketon"
+      ],
+      "type": "diValentGroup"
+    },
+    "C(=O)C(=O)C(=O)-": {
+      "aliases": [
+        "triketone",
+        "triketon"
+      ],
+      "type": "diValentGroup"
+    },
+    "C=NO": {
+      "aliases": [
+        "ketoxime",
+        "ketoxim"
+      ],
+      "type": "diValentGroup"
+    },
+    "OO-": {
+      "aliases": [
+        "peroxide",
+        "peroxid"
+      ],
+      "type": "diValentGroup"
+    },
+    "[Se|2][Se|2]-": {
+      "aliases": [
+        "diselenide",
+        "diselenid"
+      ],
+      "type": "diValentGroup"
+    },
+    "[Se|2][Se|2][Se|2]-": {
+      "aliases": [
+        "triselenide",
+        "triselenid"
+      ],
+      "type": "diValentGroup"
+    },
+    "[Se|6](=O)=O": {
+      "aliases": [
+        "selenone",
+        "selenon"
+      ],
+      "type": "diValentGroup"
+    },
+    "[Se|6](=O)(=O)[Se|6](=O)(=O)-": {
+      "aliases": [
+        "diselenone",
+        "diselenon"
+      ],
+      "type": "diValentGroup"
+    },
+    "[Se|4]=O": {
+      "aliases": [
+        "selenoxide",
+        "selenoxid"
+      ],
+      "type": "diValentGroup"
+    },
+    "[Se|4](=O)[Se|4](=O)-": {
+      "aliases": [
+        "diselenoxide",
+        "diselenoxid"
+      ],
+      "type": "diValentGroup"
+    },
+    "C=[Se]": {
+      "aliases": [
+        "selenoketone",
+        "selenoketon"
+      ],
+      "type": "diValentGroup"
+    },
+    "SS-": {
+      "aliases": [
+        "disulfide",
+        "disulfid"
+      ],
+      "type": "diValentGroup"
+    },
+    "SSS-": {
+      "aliases": [
+        "trisulfide",
+        "trisulfid"
+      ],
+      "type": "diValentGroup"
+    },
+    "SSSS-": {
+      "aliases": [
+        "tetrasulfide",
+        "tetrasulfid"
+      ],
+      "type": "diValentGroup"
+    },
+    "SSSSS-": {
+      "aliases": [
+        "pentasulfide",
+        "pentasulfid"
+      ],
+      "type": "diValentGroup"
+    },
+    "SSSSSS-": {
+      "aliases": [
+        "hexasulfide",
+        "hexasulfid"
+      ],
+      "type": "diValentGroup"
+    },
+    "S(=O)=O": {
+      "aliases": [
+        "sulfone",
+        "sulfon"
+      ],
+      "type": "diValentGroup"
+    },
+    "S((=O)=O)S((=O)=O)-": {
+      "aliases": [
+        "disulfone",
+        "disulfon"
+      ],
+      "type": "diValentGroup"
+    },
+    "S=O": {
+      "aliases": [
+        "sulfoxide",
+        "sulfoxid"
+      ],
+      "type": "diValentGroup"
+    },
+    "S(=O)S(=O)-": {
+      "aliases": [
+        "disulfoxide",
+        "disulfoxid"
+      ],
+      "type": "diValentGroup"
+    },
+    "[Te|2][Te|2]-": {
+      "aliases": [
+        "ditelluride",
+        "ditellurid"
+      ],
+      "type": "diValentGroup"
+    },
+    "[Te|2][Te|2][Te|2]-": {
+      "aliases": [
+        "tritelluride",
+        "tritellurid"
+      ],
+      "type": "diValentGroup"
+    },
+    "C=[Te]": {
+      "aliases": [
+        "telluroketone",
+        "telluroketon"
+      ],
+      "type": "diValentGroup"
+    },
+    "[Te|6](=O)=O": {
+      "aliases": [
+        "tellurone",
+        "telluron"
+      ],
+      "type": "diValentGroup"
+    },
+    "[Te|6](=O)(=O)[Te|6](=O)(=O)-": {
+      "aliases": [
+        "ditellurone",
+        "ditelluron"
+      ],
+      "type": "diValentGroup"
+    },
+    "[Te|4]=O": {
+      "aliases": [
+        "telluroxide",
+        "telluroxid"
+      ],
+      "type": "diValentGroup"
+    },
+    "[Te|4](=O)[Te|4](=O)-": {
+      "aliases": [
+        "ditelluroxide",
+        "ditelluroxid"
+      ],
+      "type": "diValentGroup"
+    },
+    "C=S": {
+      "aliases": [
+        "thioketone",
+        "thioketon"
+      ],
+      "type": "diValentGroup"
+    },
+    "[N-]=[N+]=[N-]": {
+      "aliases": [
+        "azide",
+        "azid"
+      ],
+      "type": "monoValentStandaloneGroup"
+    },
+    "[Br-]": {
+      "aliases": [
+        "bromide",
+        "bromid"
+      ],
+      "type": "monoValentStandaloneGroup"
+    },
+    "[Cl-]": {
+      "aliases": [
+        "chloride",
+        "chlorid"
+      ],
+      "type": "monoValentStandaloneGroup"
+    },
+    "[O-]C#N": {
+      "aliases": [
+        "cyanate",
+        "cyanat"
+      ],
+      "type": "monoValentStandaloneGroup"
+    },
+    "[C-]#N": {
+      "aliases": [
+        "cyanide",
+        "cyanid"
+      ],
+      "type": "monoValentStandaloneGroup"
+    },
+    "[2H-]": {
+      "aliases": [
+        "deuteride",
+        "deuterid"
+      ],
+      "type": "monoValentStandaloneGroup"
+    },
+    "[O-][2H]": {
+      "aliases": [
+        "deuteroxide",
+        "deuteroxid"
+      ],
+      "type": "monoValentStandaloneGroup"
+    },
+    "[F-]": {
+      "aliases": [
+        "fluoride",
+        "fluorid"
+      ],
+      "type": "monoValentStandaloneGroup"
+    },
+    "[O-][N+]#[C-]": {
+      "aliases": [
+        "isofulminate",
+        "isofulminat"
+      ],
+      "type": "monoValentStandaloneGroup"
+    },
+    "[H-]": {
+      "aliases": [
+        "hydride",
+        "hydrid"
+      ],
+      "type": "monoValentStandaloneGroup"
+    },
+    "[O-]O": {
+      "aliases": [
+        "hydroperoxide",
+        "hydroperoxid"
+      ],
+      "type": "monoValentStandaloneGroup"
+    },
+    "[SeH-]": {
+      "aliases": [
+        "hydroselenide",
+        "hydroselenid"
+      ],
+      "type": "monoValentStandaloneGroup"
+    },
+    "[Se-][SeH]": {
+      "aliases": [
+        "hydrodiselenide",
+        "hydrodiselenid"
+      ],
+      "type": "monoValentStandaloneGroup"
+    },
+    "[Se-][Se][SeH]": {
+      "aliases": [
+        "hydrotriselenide",
+        "hydrotriselenid"
+      ],
+      "type": "monoValentStandaloneGroup"
+    },
+    "[SH-]": {
+      "aliases": [
+        "hydrosulfide",
+        "hydrosulfid"
+      ],
+      "type": "monoValentStandaloneGroup"
+    },
+    "[S-]S": {
+      "aliases": [
+        "hydrodisulfide",
+        "hydrodisulfid"
+      ],
+      "type": "monoValentStandaloneGroup"
+    },
+    "[S-]SS": {
+      "aliases": [
+        "hydrotrisulfide",
+        "hydrotrisulfid"
+      ],
+      "type": "monoValentStandaloneGroup"
+    },
+    "[S-]SSS": {
+      "aliases": [
+        "hydrotetrasulfide",
+        "hydrotetrasulfid"
+      ],
+      "type": "monoValentStandaloneGroup"
+    },
+    "[TeH-]": {
+      "aliases": [
+        "hydrotelluride",
+        "hydrotellurid"
+      ],
+      "type": "monoValentStandaloneGroup"
+    },
+    "[Te-][TeH]": {
+      "aliases": [
+        "hydroditelluride",
+        "hydroditellurid"
+      ],
+      "type": "monoValentStandaloneGroup"
+    },
+    "[Te-][Te][TeH]": {
+      "aliases": [
+        "hydrotritelluride",
+        "hydrotritellurid"
+      ],
+      "type": "monoValentStandaloneGroup"
+    },
+    "[OH-]": {
+      "aliases": [
+        "hydroxide",
+        "hydroxid"
+      ],
+      "type": "monoValentStandaloneGroup"
+    },
+    "[I-]": {
+      "aliases": [
+        "iodide",
+        "iodid"
+      ],
+      "type": "monoValentStandaloneGroup"
+    },
+    "[N-]=C=O": {
+      "aliases": [
+        "isocyanate",
+        "isocyanat"
+      ],
+      "type": "monoValentStandaloneGroup"
+    },
+    "N#[C-]": {
+      "aliases": [
+        "isonitrile",
+        "isonitril"
+      ],
+      "type": "monoValentStandaloneGroup"
+    },
+    "[N-]=C=[Se]": {
+      "aliases": [
+        "isoselenocyanate",
+        "isoselenocyanat"
+      ],
+      "type": "monoValentStandaloneGroup"
+    },
+    "[N-]=C=[Te]": {
+      "aliases": [
+        "isotellurocyanate",
+        "isotellurocyanat"
+      ],
+      "type": "monoValentStandaloneGroup"
+    },
+    "[N-]=C=S": {
+      "aliases": [
+        "isothiocyanate",
+        "isothiocyanat"
+      ],
+      "type": "monoValentStandaloneGroup"
+    },
+    "[Se-]C#N": {
+      "aliases": [
+        "selenocyanate",
+        "selenocyanat"
+      ],
+      "type": "monoValentStandaloneGroup"
+    },
+    "[Se-][N+]#[C-]": {
+      "aliases": [
+        "selenofulminate",
+        "selenofulminat"
+      ],
+      "type": "monoValentStandaloneGroup"
+    },
+    "[Te-]C#N": {
+      "aliases": [
+        "tellurocyanate",
+        "tellurocyanat"
+      ],
+      "type": "monoValentStandaloneGroup"
+    },
+    "[Te-][N+]#[C-]": {
+      "aliases": [
+        "tellurofulminate",
+        "tellurofulminat"
+      ],
+      "type": "monoValentStandaloneGroup"
+    },
+    "[S-]C#N": {
+      "aliases": [
+        "thiocyanate",
+        "thiocyanat"
+      ],
+      "type": "monoValentStandaloneGroup"
+    },
+    "[S-][N+]#[C-]": {
+      "aliases": [
+        "thiofulminate",
+        "thiofulminat"
+      ],
+      "type": "monoValentStandaloneGroup"
+    },
+    "[3H-]": {
+      "aliases": [
+        "tritide",
+        "tritid"
+      ],
+      "type": "monoValentStandaloneGroup"
+    }
+  },
+  "functionalGroupsRules": {
+    "description": "Functional groups ordered by priority (lower priority number = higher priority in naming)",
+    "groups": [
+      {
+        "priority": 1,
+        "name": "carboxylic acid",
+        "smarts": "[CX3](=O)[OX2H1]",
+        "suffix": "oic acid",
+        "parenthesized": false
+      },
+      {
+        "priority": 2,
+        "name": "aldehyde",
+        "smarts": "[CX3H1](=O)[#6]",
+        "suffix": "al",
+        "parenthesized": false
+      },
+      {
+        "priority": 3,
+        "name": "ketone",
+        "smarts": "[#6][CX3](=O)[#6]",
+        "suffix": "one",
+        "parenthesized": false
+      },
+      {
+        "priority": 4,
+        "name": "alcohol",
+        "smarts": "[OX2H]",
+        "suffix": "ol",
+        "parenthesized": false
+      },
+      {
+        "priority": 5,
+        "name": "amine",
+        "smarts": "[NX3;H2,H1]",
+        "suffix": "amine",
+        "parenthesized": false
+      },
+      {
+        "priority": 6,
+        "name": "ether",
+        "smarts": "[OD2]([#6])[#6]",
+        "suffix": "ether",
+        "parenthesized": true,
+        "ignoreIfInRing": true
+      },
+      {
+        "priority": 7,
+        "name": "amide",
+        "smarts": "[NX3][CX3](=[OX1])[#6]",
+        "suffix": "amide",
+        "parenthesized": true
+      },
+      {
+        "priority": 8,
+        "name": "ester",
+        "smarts": "[OX2H0][CX3](=[OX1])[#6]",
+        "suffix": "ate",
+        "parenthesized": false
+      }
+    ]
+  },
+  "substituentPatterns": {
+    "description": "Common substituent patterns for prefix generation",
+    "patterns": [
+      {
+        "name": "methyl",
+        "smarts": "C",
+        "prefix": "methyl"
+      },
+      {
+        "name": "ethyl",
+        "smarts": "CC",
+        "prefix": "ethyl"
+      },
+      {
+        "name": "propyl",
+        "smarts": "CCC",
+        "prefix": "propyl"
+      },
+      {
+        "name": "butyl",
+        "smarts": "CCCC",
+        "prefix": "butyl"
+      },
+      {
+        "name": "phenyl",
+        "smarts": "c1ccccc1",
+        "prefix": "phenyl"
+      },
+      {
+        "name": "hydroxyl",
+        "smarts": "O",
+        "prefix": "hydroxy"
+      },
+      {
+        "name": "amino",
+        "smarts": "N",
+        "prefix": "amino"
+      },
+      {
+        "name": "chloro",
+        "smarts": "Cl",
+        "prefix": "chloro"
+      },
+      {
+        "name": "bromo",
+        "smarts": "Br",
+        "prefix": "bromo"
+      },
+      {
+        "name": "iodo",
+        "smarts": "I",
+        "prefix": "iodo"
+      },
+      {
+        "name": "fluoro",
+        "smarts": "F",
+        "prefix": "fluoro"
+      }
+    ]
+  },
+  "chainSelectionRules": {
+    "description": "Rules for selecting the principal chain (in priority order)",
+    "rules": [
+      {
+        "priority": 1,
+        "name": "principal functional group",
+        "description": "Chain must contain the principal functional group"
+      },
+      {
+        "priority": 2,
+        "name": "longest carbon chain",
+        "description": "If multiple chains available, select the one with most carbon atoms"
+      },
+      {
+        "priority": 3,
+        "name": "most substituents",
+        "description": "Chain with the most substituent branches"
+      },
+      {
+        "priority": 4,
+        "name": "best numbering",
+        "description": "Chain that gives lowest locants to substituents"
+      }
+    ]
+  },
+  "numberingRules": {
+    "description": "Rules for numbering the principal chain (in priority order)",
+    "rules": [
+      {
+        "priority": 1,
+        "name": "functional group at lowest position",
+        "description": "Principal functional group gets lowest numbered position"
+      },
+      {
+        "priority": 2,
+        "name": "locant sum",
+        "description": "Use numbering that gives lowest sum of locant positions"
+      },
+      {
+        "priority": 3,
+        "name": "first difference rule",
+        "description": "Compare locant sequences from both ends, choose numbering with lowest number at first difference"
+      }
+    ]
+  },
+  "vowelElisionRules": {
+    "description": "Rules for vowel elision when combining name parts",
+    "rules": [
+      {
+        "description": "Drop 'a' or 'e' from end of alkane stem before suffix starting with vowel",
+        "pattern": "([aeiou])$",
+        "condition": "suffixStartsWithVowel",
+        "action": "removeTrailingVowel"
+      },
+      {
+        "description": "Keep 'a' in certain cases like 'methanal' and 'ethanal'",
+        "exceptions": ["methanal", "ethanal"],
+        "action": "keepVowel"
+      }
+    ]
+  }
+}

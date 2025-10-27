@@ -31,3 +31,5 @@ export {
 export { getRingInfo } from 'src/utils/ring-information';
 export type { RingInformation } from 'src/utils/ring-information';
 export { generateInChI, generateInChIKey } from 'src/generators/inchi-generator';
+export { generateIUPACName } from 'src/utils/iupac/iupac-generator';
+export type { IUPACGenerationResult, IUPACGeneratorOptions } from 'src/utils/iupac/iupac-generator';

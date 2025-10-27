@@ -30,8 +30,8 @@
   <div class="container">
       <header>
         <div>
-          <h1>SMILES Playground — molecular visualization, descriptors & InChI</h1>
-          <div class="status">Type a SMILES string and see the 2D structure, InChI representation, compute descriptors, and check drug-likeness rules.</div>
+          <h1>SMILES Playground — molecular visualization, descriptors, InChI & IUPAC names</h1>
+          <div class="status">Type a SMILES string and see the 2D structure, InChI representation, IUPAC name, compute descriptors, and check drug-likeness rules.</div>
         </div>
       </header>
 
@@ -43,20 +43,26 @@
            <button id="go">Compute</button>
          </div>
 
-         <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:12px">
-           <div>
-             <label style="font-size:12px;color:var(--muted)">SMILES</label>
-             <div class="card" style="background:rgba(255,255,255,0.02);margin-top:4px">
-               <pre id="smiles-output" style="margin:0;font-size:12px;word-break:break-all"></pre>
-             </div>
-           </div>
-           <div>
-             <label style="font-size:12px;color:var(--muted)">InChI</label>
-             <div class="card" style="background:rgba(255,255,255,0.02);margin-top:4px">
-               <pre id="inchi-output" style="margin:0;font-size:12px;word-break:break-all;color:#60a5fa"></pre>
-             </div>
-           </div>
-         </div>
+          <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+            <div>
+              <label style="font-size:12px;color:var(--muted)">SMILES</label>
+              <div class="card" style="background:rgba(255,255,255,0.02);margin-top:4px">
+                <pre id="smiles-output" style="margin:0;font-size:12px;word-break:break-all"></pre>
+              </div>
+            </div>
+            <div>
+              <label style="font-size:12px;color:var(--muted)">InChI</label>
+              <div class="card" style="background:rgba(255,255,255,0.02);margin-top:4px">
+                <pre id="inchi-output" style="margin:0;font-size:12px;word-break:break-all;color:#60a5fa"></pre>
+              </div>
+            </div>
+            <div>
+              <label style="font-size:12px;color:var(--muted)">IUPAC Name</label>
+              <div class="card" style="background:rgba(255,255,255,0.02);margin-top:4px">
+                <pre id="iupac-output" style="margin:0;font-size:12px;word-break:break-word;color:#34d399"></pre>
+              </div>
+            </div>
+          </div>
 
          <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
            <span style="color:var(--muted);font-size:13px">Examples:</span>
@@ -242,14 +248,15 @@
       }
 
       // UI wiring
-       const smilesInput = document.getElementById('smiles');
-       const go = document.getElementById('go');
-       const propsEl = document.getElementById('props');
-       const descTable = document.getElementById('desc-table');
-       const diag = document.getElementById('diagnostics');
-       const checksContainer = document.getElementById('checks-container');
-       const smilesOutput = document.getElementById('smiles-output');
-       const inchiOutput = document.getElementById('inchi-output');
+        const smilesInput = document.getElementById('smiles');
+        const go = document.getElementById('go');
+        const propsEl = document.getElementById('props');
+        const descTable = document.getElementById('desc-table');
+        const diag = document.getElementById('diagnostics');
+        const checksContainer = document.getElementById('checks-container');
+        const smilesOutput = document.getElementById('smiles-output');
+        const inchiOutput = document.getElementById('inchi-output');
+        const iupacOutput = document.getElementById('iupac-output');
 
       let lib = null;
       diag.textContent = 'Library auto-detection: attempting dynamic import of common bundle locations...';
@@ -300,17 +307,30 @@
             smilesOutput.textContent = '(SMILES generation requires full library)';
           }
 
-          // Display InChI
-          if (lib && lib.generateInChI) {
-            try {
-              const inchiStr = await lib.generateInChI(mol);
-              inchiOutput.textContent = inchiStr;
-            } catch (e) {
-              inchiOutput.textContent = `Error: ${e.message}`;
-            }
-          } else {
-            inchiOutput.textContent = '(InChI generation requires full library)';
-          }
+           // Display InChI
+           if (lib && lib.generateInChI) {
+             try {
+               const inchiStr = await lib.generateInChI(mol);
+               inchiOutput.textContent = inchiStr;
+             } catch (e) {
+               inchiOutput.textContent = `Error: ${e.message}`;
+             }
+           } else {
+             inchiOutput.textContent = '(InChI generation requires full library)';
+           }
+
+           // Display IUPAC Name
+           if (lib && lib.generateIUPACName) {
+             try {
+               const iupacResult = lib.generateIUPACName(mol);
+               const iupacName = iupacResult.name || iupacResult;
+               iupacOutput.textContent = iupacName;
+             } catch (e) {
+               iupacOutput.textContent = `(IUPAC: ${e.message})`;
+             }
+           } else {
+             iupacOutput.textContent = '(IUPAC generation requires full library)';
+           }
 
           const formula = getMolecularFormula(mol,{includeImplicitH:true});
           const mw = getMolecularMass(mol);

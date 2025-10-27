@@ -165,10 +165,9 @@ function parseSingleSMILES(smiles: string, timings?: any): { molecule: Molecule;
       } else {
         i++;
       }
-      // Only consider atoms aromatic if they are in the aromatic organic subset
-      // or explicitly written in lowercase (like 'c' for carbon)
-      const isAromaticOrganic = /^[bcnosp]$/.test(symbol);
-      const aromatic = isAromaticOrganic;
+      // Check if atom is aromatic (either from lowercase symbol or aromatic organic subset)
+      const isAromaticOrganic = /^[bcnops]$/.test(symbol);
+      const aromatic = isAromaticOrganic; // Will be updated by bracket parser if needed
       const atom = createAtom(symbol, atomId++, aromatic, false, 0) as MutableAtom;
       atoms.push(atom);
 
@@ -422,14 +421,16 @@ function parseSingleSMILES(smiles: string, timings?: any): { molecule: Molecule;
      if (singleA && singleB && singleA.stereo === singleB.stereo) bd.stereo = singleA.stereo;
    }
 
-   // Aromatic bond detection: O(N) with O(1) atom lookup
-   for (const bond of bonds) {
-     const a1 = atomMap.get(bond.atom1);
-     const a2 = atomMap.get(bond.atom2);
-     if (a1 && a2 && a1.aromatic && a2.aromatic && !explicitBonds.has(bondKey(bond.atom1, bond.atom2))) {
-       bond.type = BondType.AROMATIC;
-     }
-   }
+    // Aromatic bond detection: O(N) with O(1) atom lookup
+    for (const bond of bonds) {
+      const a1 = atomMap.get(bond.atom1);
+      const a2 = atomMap.get(bond.atom2);
+      if (a1 && a2 && a1.aromatic && a2.aromatic) {
+        // Convert to aromatic bond if both atoms are aromatic
+        // For heterocycles, convert single bonds to aromatic too
+        bond.type = BondType.AROMATIC;
+      }
+    }
 
    // Hydrogen calculation: O(N·M) -> O(N) with adjacency index
    for (const atom of atoms) {

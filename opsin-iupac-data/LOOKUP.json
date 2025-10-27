@@ -1,0 +1,63 @@
+{
+  "description": "Quick lookup for IUPAC nomenclature data files",
+  "dataDirectory": "opsin-iupac-data",
+  "sourceUrl": "https://github.com/dan2097/opsin",
+  "files": {
+    "core_elements": [
+      "elementaryAtoms",
+      "heteroAtoms",
+      "hwHeteroAtoms"
+    ],
+    "hydrocarbons": [
+      "alkanes",
+      "unsaturators",
+      "cyclicUnsaturableHydrocarbon"
+    ],
+    "functional_groups": [
+      "suffixes",
+      "carboxylicAcids",
+      "nonCarboxylicAcids",
+      "functionalTerms",
+      "inlineSuffixes",
+      "inlineChargeSuffixes"
+    ],
+    "substituents": [
+      "simpleSubstituents",
+      "multiRadicalSubstituents",
+      "arylSubstituents",
+      "suffixPrefix"
+    ],
+    "ring_systems": [
+      "simpleCyclicGroups",
+      "arylGroups",
+      "fusionComponents",
+      "simpleGroups"
+    ],
+    "multipliers_and_connectors": [
+      "multipliers",
+      "infixes"
+    ],
+    "specialized": [
+      "carbohydrates",
+      "carbohydrateSuffixes",
+      "aminoAcids",
+      "naturalProducts",
+      "atomHydrides"
+    ],
+    "validation_and_rules": [
+      "wordRules",
+      "regexes",
+      "suffixApplicability",
+      "groupStemsAllowingAllSuffixes",
+      "groupStemsAllowingInlineSuffixes",
+      "chargeAndOxidationNumberSpecifiers",
+      "miscTokens"
+    ],
+    "special": [
+      "germanTokens",
+      "index",
+      "substituents",
+      "regexTokens"
+    ]
+  }
+}

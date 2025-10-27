@@ -1,0 +1,259 @@
+import type { Molecule } from 'types';
+import { BondType } from 'types';
+import { getElementCounts } from '../molecular-descriptors';
+import { analyzeRings } from '../ring-analysis';
+import { matchSMARTS } from 'src/matchers/smarts-matcher';
+
+import { generateCyclicName } from './iupac-rings/index';
+import {
+  findMainChain,
+  generateHeteroPrefixes,
+  generateChainBaseName,
+  findSubstituents,
+  generateSubstitutedName,
+} from './iupac-chains';
+import {
+  combineName,
+  generateSimpleNameFromFormula,
+  identifyPrincipalFunctionalGroup,
+} from './iupac-helpers';
+import { selectPrincipalChain } from './chain-selection';
+import { numberChain } from './chain-numbering';
+import { generateAliphaticName } from './iupac-aliphatic';
+import { createDefaultPipeline } from './pipeline';
+
+export interface IUPACGenerationResult {
+  name: string;
+  errors: string[];
+  warnings: string[];
+}
+
+export interface IUPACGeneratorOptions {
+  includeStereochemistry?: boolean;
+  useSystematicNaming?: boolean;
+  includeCommonNames?: boolean;
+}
+
+export function generateIUPACName(
+  molecule: Molecule,
+  options?: IUPACGeneratorOptions
+): IUPACGenerationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  try {
+    if (molecule.atoms.length === 0) {
+      errors.push('Molecule has no atoms');
+      return { name: '', errors, warnings };
+    }
+
+    const components = extractConnectedComponents(molecule);
+    if (components.length === 0) {
+      errors.push('Could not identify connected components');
+      return { name: '', errors, warnings };
+    }
+
+    const componentNames: string[] = [];
+    for (const component of components) {
+      const name = generateNameForComponent(component, molecule, options);
+      if (name) componentNames.push(name);
+    }
+
+    if (componentNames.length === 0) {
+      errors.push('Could not generate names for any components');
+      return { name: '', errors, warnings };
+    }
+
+    const finalName = components.length === 1 ? componentNames[0] ?? '' : componentNames.sort().join('.');
+    return { name: finalName, errors, warnings };
+  } catch (err) {
+    errors.push(`IUPAC name generation failed: ${err instanceof Error ? err.message : String(err)}`);
+    return { name: '', errors, warnings };
+  }
+}
+
+function extractConnectedComponents(molecule: Molecule): Molecule[] {
+  const atomCount = molecule.atoms.length;
+  if (atomCount === 0) return [];
+
+  const visited = new Set<number>();
+  const components: Molecule[] = [];
+
+  for (let startAtom = 0; startAtom < atomCount; startAtom++) {
+    if (visited.has(startAtom)) continue;
+
+    const componentAtoms = new Set<number>();
+    const queue: number[] = [startAtom];
+    visited.add(startAtom);
+    componentAtoms.add(startAtom);
+
+    while (queue.length > 0) {
+      const atomIdx = queue.shift()!;
+      for (const bond of molecule.bonds) {
+        let neighborIdx = -1;
+        if (bond.atom1 === atomIdx) neighborIdx = bond.atom2;
+        else if (bond.atom2 === atomIdx) neighborIdx = bond.atom1;
+        if (neighborIdx >= 0 && !visited.has(neighborIdx)) {
+          visited.add(neighborIdx);
+          componentAtoms.add(neighborIdx);
+          queue.push(neighborIdx);
+        }
+      }
+    }
+
+    const atomIndices = Array.from(componentAtoms).sort((a, b) => a - b);
+    const atoms = atomIndices.map(i => molecule.atoms[i]).filter(Boolean) as typeof molecule.atoms;
+    const indexMap = new Map<number, number>();
+    atomIndices.forEach((oldIdx, newIdx) => indexMap.set(oldIdx, newIdx));
+    const bonds = molecule.bonds.filter(b => componentAtoms.has(b.atom1) && componentAtoms.has(b.atom2));
+    const remappedBonds = bonds.map(b => ({ ...b, atom1: indexMap.get(b.atom1)!, atom2: indexMap.get(b.atom2)! }));
+    components.push({ atoms, bonds: remappedBonds });
+  }
+
+  return components;
+}
+
+function generateNameForComponent(
+  molecule: Molecule,
+  _originalMolecule: Molecule,
+  options?: IUPACGeneratorOptions
+): string {
+  if (molecule.atoms.length === 1) {
+    const atom = molecule.atoms[0]!;
+    if (atom.symbol === 'H') return 'hydrogen';
+    if (atom.symbol === 'O') return 'oxygen';
+    if (atom.symbol === 'N') return 'nitrogen';
+    if (atom.symbol === 'C') {
+      const hydrogens = atom.hydrogens ?? 0;
+      if (hydrogens > 0 || (molecule.bonds.length === 0 && !atom.charge)) return 'methane';
+      return 'carbon';
+    }
+  }
+
+  const elementCounts = getElementCounts(molecule, { includeImplicitH: true });
+  if (Object.keys(elementCounts).length === 2 && elementCounts['H'] === 2 && elementCounts['O'] === 1) return 'water';
+
+   // Check if the molecule has major functional groups
+   // (carboxylic acid, aldehyde, ketone, alcohol)
+   // If it does AND the functional group is ON a chain (not on a ring), prioritize aliphatic chain selection
+   const ringInfo = analyzeRings(molecule);
+   
+   // Find functional group atoms
+   const functionalGroupAtoms = new Set<number>();
+   const hasCarboxyl = molecule.atoms.some((atom, idx) => {
+     if (atom.symbol !== 'C') return false;
+     const bonds = molecule.bonds.filter(b => b.atom1 === idx || b.atom2 === idx);
+     
+     // Check for C=O (carboxylic acid, aldehyde, ketone)
+     const hasDoubleO = bonds.some(b => {
+       const neighborIdx = b.atom1 === idx ? b.atom2 : b.atom1;
+       const neighbor = molecule.atoms[neighborIdx];
+       return neighbor?.symbol === 'O' && b.type === BondType.DOUBLE;
+     });
+     
+     if (hasDoubleO) {
+       functionalGroupAtoms.add(idx);
+       return true;
+     }
+     return false;
+   });
+
+   const hasAlcohol = molecule.atoms.some((atom, idx) => {
+     if (atom.symbol !== 'C') return false;
+     const bonds = molecule.bonds.filter(b => b.atom1 === idx || b.atom2 === idx);
+     
+     // Check for alcohol (C-OH)
+     const hasOH = bonds.some(b => {
+       const neighborIdx = b.atom1 === idx ? b.atom2 : b.atom1;
+       const neighbor = molecule.atoms[neighborIdx];
+       return neighbor?.symbol === 'O' && b.type === BondType.SINGLE && neighbor.hydrogens! > 0;
+     });
+     
+     if (hasOH) {
+       functionalGroupAtoms.add(idx);
+       return true;
+     }
+     return false;
+   });
+
+   const hasMajorFunctionalGroup = hasCarboxyl || hasAlcohol;
+
+   // Check if any functional group atoms are NOT on rings (i.e., on chains)
+   let functionalGroupOnChain = false;
+   for (const atomIdx of functionalGroupAtoms) {
+     const ringsContainingAtom = ringInfo.getRingsContainingAtom(atomIdx);
+     if (ringsContainingAtom.length === 0) {
+       functionalGroupOnChain = true;
+       break;
+     }
+   }
+
+     // If has major functional group on a chain (not on a ring), use aliphatic methods
+     const hasAromaticAtoms = molecule.atoms.some(atom => atom.aromatic);
+     if (hasMajorFunctionalGroup && (ringInfo.rings.length === 0 || functionalGroupOnChain)) {
+       // For molecules with aromatic atoms and functional group on chain,
+       // use aliphatic naming (the aromatic ring becomes a substituent)
+       // For purely aliphatic molecules, use the new pipeline
+       if (!hasAromaticAtoms) {
+         try {
+           const pipeline = createDefaultPipeline({ verbose: false });
+           const result = pipeline.process(molecule);
+           if (!result.hasErrors && result.name) {
+             return result.name;
+           }
+         } catch {
+           // Fall back to old aliphatic method if pipeline fails
+         }
+       }
+
+       // Use aliphatic naming for molecules with aliphatic main chains
+       const chainSelectionResult = selectPrincipalChain(molecule);
+       if (chainSelectionResult.chain.length > 0) {
+         const numberingResult = numberChain(chainSelectionResult.chain, molecule);
+         const aliphaticName = generateAliphaticName(
+           numberingResult.orderedChain,
+           numberingResult.numbering,
+           molecule
+         );
+         if (aliphaticName.fullName) {
+           return aliphaticName.fullName;
+         }
+       }
+     }
+
+   // For cyclic molecules or fallback cases
+   // (This was previously checking for rings again, now we already have ringInfo)
+    // Quick SMARTS-based detection for common fused heterocycles (robust fallback)
+    try {
+      if (matchSMARTS('c1ccc2c(c1)[nH]c2', molecule).success) return 'indole';
+      if (matchSMARTS('c1ccc2oc(c1)c2', molecule).success) return 'benzofuran';
+      if (matchSMARTS('c1ccc2sc(c1)c2', molecule).success) return 'benzothiophene';
+    } catch {
+      // ignore SMARTS errors and continue
+    }
+   if (ringInfo.rings.length > 0) {
+     const cyclicName = generateCyclicName(molecule, ringInfo, options);
+     if (cyclicName) {
+       const functionalGroup = identifyPrincipalFunctionalGroup(molecule, options);
+       if (functionalGroup) return combineName(cyclicName, functionalGroup);
+       return cyclicName;
+     }
+   }
+
+  // Fallback for acyclic molecules without carboxyl group
+  const mainChain = findMainChain(molecule);
+  const chainLength = mainChain.length;
+  if (chainLength > 0) {
+    const heteroPrefixes = generateHeteroPrefixes(mainChain, molecule);
+    const baseResult = generateChainBaseName(mainChain, molecule);
+    if (!baseResult) return 'hydrocarbon';
+    const { hydrocarbonBase, unsaturation } = baseResult;
+    const substituents = findSubstituents(molecule, mainChain);
+    const functionalGroup = identifyPrincipalFunctionalGroup(molecule, options);
+    let finalName = generateSubstitutedName(hydrocarbonBase, substituents, heteroPrefixes, unsaturation);
+    if (functionalGroup) finalName = combineName(finalName, functionalGroup);
+    return finalName;
+  }
+
+  return generateSimpleNameFromFormula(elementCounts);
+}
