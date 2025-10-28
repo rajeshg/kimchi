@@ -1,0 +1,1162 @@
+[
+  {
+    "smiles": "C1CC(OC1)CN2C(=O)C3=CC=CC=C3N=C2SCC(=O)NC4=CC(=CC(=C4)Cl)Cl",
+    "iupacName": "N-(3,5-dichlorophenyl)-2-[4-oxo-3-(oxolan-2-ylmethyl)quinazolin-2-yl]sulfanylacetamide"
+  },
+  {
+    "smiles": "C1=CC(=CC(=C1)C(F)(F)F)C(=O)ONC(=O)C2=CC=C(C=C2)C(F)(F)F",
+    "iupacName": "[[4-(trifluoromethyl)benzoyl]amino] 3-(trifluoromethyl)benzoate"
+  },
+  {
+    "smiles": "C1COCCN1C(=O)CN(C2=CC(=CC=C2)Cl)S(=O)(=O)C3=CC=CC=C3",
+    "iupacName": "N-(3-chlorophenyl)-N-(2-morpholin-4-yl-2-oxoethyl)benzenesulfonamide"
+  },
+  {
+    "smiles": "CC1=CC=CC=C1C(=O)NC2=CC=C(C=C2)[NH+](C)C",
+    "iupacName": "dimethyl-[4-[(2-methylbenzoyl)amino]phenyl]azanium"
+  },
+  {
+    "smiles": "CC1=CC(=CC=C1)S(=O)(=O)C2=C(N(C3=NC4=CC=CC=C4N=C23)N=CC5=CC=CC=N5)N",
+    "iupacName": "3-(3-methylphenyl)sulfonyl-1-(pyridin-2-ylmethylideneamino)pyrrolo[3,2-b]quinoxalin-2-amine"
+  },
+  {
+    "smiles": "C1CCN(CC1)CN2C3=CC=CC=C3C(=C2O)N=NC(=S)NC4=CC=C(C=C4)F",
+    "iupacName": "1-(4-fluorophenyl)-3-[2-hydroxy-1-(piperidin-1-ylmethyl)indol-3-yl]iminothiourea"
+  },
+  {
+    "smiles": "CC1=NC2=C(C=NN2C(=C1)NCCC3=CC(=C(C=C3)OC)OC)C4=CC=CC=C4",
+    "iupacName": "N-[2-(3,4-dimethoxyphenyl)ethyl]-5-methyl-3-phenylpyrazolo[1,5-a]pyrimidin-7-amine"
+  },
+  {
+    "smiles": "CCOC(=O)C1=CC=C(C=C1)N2C(=O)[C@H]3CS[C@H](N3C2=S)C4=CC=C(C=C4)OC",
+    "iupacName": "ethyl 4-[(3S,7aS)-3-(4-methoxyphenyl)-7-oxo-5-sulfanylidene-3,7a-dihydro-1H-imidazo[1,5-c][1,3]thiazol-6-yl]benzoate"
+  },
+  {
+    "smiles": "C1=COC(=C1)CN2C(C(=C(C2=O)O)C(=O)C3=CC=CO3)C4=CC=CS4",
+    "iupacName": "3-(furan-2-carbonyl)-1-(furan-2-ylmethyl)-4-hydroxy-2-thiophen-2-yl-2H-pyrrol-5-one"
+  },
+  {
+    "smiles": "CC(C)CNC(=O)C1=CSC(=N1)CN(CC(C)C)C(=O)C2=CC(=CC=C2)OC",
+    "iupacName": "2-[[(3-methoxybenzoyl)-(2-methylpropyl)amino]methyl]-N-(2-methylpropyl)-1,3-thiazole-4-carboxamide"
+  },
+  {
+    "smiles": "CN(C)S(=O)(=O)C1=CC=C(C=C1)C(=O)NC2=NN=C(S2)SCC(=O)N3CCCC4=CC=CC=C43",
+    "iupacName": "N-[5-[2-(3,4-dihydro-2H-quinolin-1-yl)-2-oxoethyl]sulfanyl-1,3,4-thiadiazol-2-yl]-4-(dimethylsulfamoyl)benzamide"
+  },
+  {
+    "smiles": "COC1=CC(=C(C=C1)C(=O)NN=CC2=CC(=C(C(=C2)Br)O)Br)OC",
+    "iupacName": "N-[(3,5-dibromo-4-hydroxyphenyl)methylideneamino]-2,4-dimethoxybenzamide"
+  },
+  {
+    "smiles": "CC1=CCC2(C(C1)C(=O)OC2=O)C",
+    "iupacName": "5,7a-dimethyl-4,7-dihydro-3aH-2-benzofuran-1,3-dione"
+  },
+  {
+    "smiles": "CN1C(=O)C(=CC2=CC3=C(C=C2)N(CCC3)CC4=CC=CC=C4)C(=O)N(C1=O)C",
+    "iupacName": "5-[(1-benzyl-3,4-dihydro-2H-quinolin-6-yl)methylidene]-1,3-dimethyl-1,3-diazinane-2,4,6-trione"
+  },
+  {
+    "smiles": "C1C(CN(C1=O)C2=CC=C(C=C2)F)C(=O)OCC(=O)C3=CC=C(C=C3)[N+](=O)[O-]",
+    "iupacName": "[2-(4-nitrophenyl)-2-oxoethyl] 1-(4-fluorophenyl)-5-oxopyrrolidine-3-carboxylate"
+  },
+  {
+    "smiles": "C1CC(N(C1)C(C2=CC=CC=C2)C3=CC=C(C=C3)C(F)(F)F)C(=O)O",
+    "iupacName": "1-[phenyl-[4-(trifluoromethyl)phenyl]methyl]pyrrolidine-2-carboxylic acid"
+  },
+  {
+    "smiles": "CCOC(=O)C1=CC=C(C=C1)N2C(=O)[C@]3(C4=C(CCN3C2=O)C5=CC=CC=C5N4)C",
+    "iupacName": "ethyl 4-[(2R)-2-methyl-3,5-dioxo-4,6,16-triazatetracyclo[7.7.0.02,6.010,15]hexadeca-1(9),10,12,14-tetraen-4-yl]benzoate"
+  },
+  {
+    "smiles": "COC1=CC(=C(C=C1)C(=O)COC(=O)C2=C(C(=CC=C2)Cl)Cl)OC",
+    "iupacName": "[2-(2,4-dimethoxyphenyl)-2-oxoethyl] 2,3-dichlorobenzoate"
+  },
+  {
+    "smiles": "CC1=CC=CC=C1OC2=C(C(=O)N3C=CC=CC3=N2)C=C(C#N)C(=O)OC",
+    "iupacName": "methyl 2-cyano-3-[2-(2-methylphenoxy)-4-oxopyrido[1,2-a]pyrimidin-3-yl]prop-2-enoate"
+  },
+  {
+    "smiles": "CC1=C(N=C(S1)NC(=O)CSC2=NN=C(O2)C3=CC=CC=C3)C4=CC=CC=C4",
+    "iupacName": "N-(5-methyl-4-phenyl-1,3-thiazol-2-yl)-2-[(5-phenyl-1,3,4-oxadiazol-2-yl)sulfanyl]acetamide"
+  },
+  {
+    "smiles": "C1=CC=C(C=C1)/C=C/C=C\\2/C(=O)C3=C(O2)C=C(C=C3)OCC(=O)C4=CC=C(C=C4)Br",
+    "iupacName": "(2Z)-6-[2-(4-bromophenyl)-2-oxoethoxy]-2-[(E)-3-phenylprop-2-enylidene]-1-benzofuran-3-one"
+  },
+  {
+    "smiles": "C1=C(N=C(S1)C2C(C(C(O2)CO)O)O)C(=O)N",
+    "iupacName": "2-[3,4-dihydroxy-5-(hydroxymethyl)oxolan-2-yl]-1,3-thiazole-4-carboxamide"
+  },
+  {
+    "smiles": "CC(C)CCN(CC1=CC=C(C=C1)OS(=O)(=O)C)C(=O)COC2=CC=CC=C2",
+    "iupacName": "[4-[[3-methylbutyl-(2-phenoxyacetyl)amino]methyl]phenyl] methanesulfonate"
+  },
+  {
+    "smiles": "CCOCC(=O)NC1=CC=CC=C1C(C)C",
+    "iupacName": "2-ethoxy-N-(2-propan-2-ylphenyl)acetamide"
+  },
+  {
+    "smiles": "CC1(C[C@H](CCO1)NCC2=CC=CO2)C",
+    "iupacName": "(4S)-N-(furan-2-ylmethyl)-2,2-dimethyloxan-4-amine"
+  },
+  {
+    "smiles": "C1=CC(=CC=C1OC(=O)C2=CSC(=N2)COC3=CC4=NON=C4C=C3)Cl",
+    "iupacName": "(4-chlorophenyl) 2-(2,1,3-benzoxadiazol-5-yloxymethyl)-1,3-thiazole-4-carboxylate"
+  },
+  {
+    "smiles": "CP(=O)(N1CCOC1=O)OC2=CC=CC=C2",
+    "iupacName": "3-[methyl(phenoxy)phosphoryl]-1,3-oxazolidin-2-one"
+  },
+  {
+    "smiles": "CCOC1=CC=C(C=C1)C(=O)NN=CC2=CC=C(S2)Br",
+    "iupacName": "N-[(5-bromothiophen-2-yl)methylideneamino]-4-ethoxybenzamide"
+  },
+  {
+    "smiles": "CCC(C)(C)C1=CC(=C(C=C1)OCCCCNC(=O)C2=CC(=NN2C3=CC=CC=C3Cl)C4=CC=C(C=C4)F)C(C)(C)CC",
+    "iupacName": "N-[4-[2,4-bis(2-methylbutan-2-yl)phenoxy]butyl]-1-(2-chlorophenyl)-3-(4-fluorophenyl)pyrazole-5-carboxamide"
+  },
+  {
+    "smiles": "CC[C@@H](C1=NN=NN1CC(=O)OCC)N(CC2=CC=C(C=C2)F)CC3=CC4=CC5=C(C=C4NC3=O)OCCO5",
+    "iupacName": "ethyl 2-[5-[(1S)-1-[(4-fluorophenyl)methyl-[(7-oxo-3,6-dihydro-2H-[1,4]dioxino[2,3-g]quinolin-8-yl)methyl]amino]propyl]tetrazol-1-yl]acetate"
+  },
+  {
+    "smiles": "CCOC(=O)C1=CC=C(C=C1)N2C(C3C(C24C(=O)C5=CC=CC=C5C4=O)C(=O)OC3=O)C6=CC=C(C=C6)C",
+    "iupacName": "ethyl 4-[6-(4-methylphenyl)-1,1',3,3'-tetraoxospiro[6,6a-dihydro-3aH-furo[3,4-c]pyrrole-4,2'-indene]-5-yl]benzoate"
+  },
+  {
+    "smiles": "C1=CC=C2C=C(C(=CC2=C1)C3=NC4=C(O3)C=CC(=C4)N=CC5=C(C=CC(=C5)[N+](=O)[O-])O)O",
+    "iupacName": "3-[5-[(2-hydroxy-5-nitrophenyl)methylideneamino]-1,3-benzoxazol-2-yl]naphthalen-2-ol"
+  },
+  {
+    "smiles": "C[NH+](C)CCNC(=O)CCN1C(=O)C=CC(=N1)C2=CC=C(C=C2)Cl",
+    "iupacName": "2-[3-[3-(4-chlorophenyl)-6-oxopyridazin-1-yl]propanoylamino]ethyl-dimethylazanium"
+  },
+  {
+    "smiles": "CCOC1=CC2=C(C=C1)OC(=C2C(=O)OC3=CC4=C(C=C3)C(=O)/C(=C/C5=C(C=CC(=C5)OC)OC)/O4)C6=CC=CC=C6",
+    "iupacName": "[(2Z)-2-[(2,5-dimethoxyphenyl)methylidene]-3-oxo-1-benzofuran-6-yl] 5-ethoxy-2-phenyl-1-benzofuran-3-carboxylate"
+  },
+  {
+    "smiles": "C1CN(CCN1CC2=C(C=CC(=C2)[N+](=O)[O-])O)C3=CC=CC=C3",
+    "iupacName": "4-nitro-2-[(4-phenylpiperazin-1-yl)methyl]phenol"
+  },
+  {
+    "smiles": "CCC(C)(C)NC(=S)NC1=C(C=CC(=C1)C)C",
+    "iupacName": "1-(2,5-dimethylphenyl)-3-(2-methylbutan-2-yl)thiourea"
+  },
+  {
+    "smiles": "C1=CC=C(C=C1)C=CC(=O)NC(=S)NNC(=O)COC2=C(C=C(C=C2)Cl)Cl",
+    "iupacName": "N-[[[2-(2,4-dichlorophenoxy)acetyl]amino]carbamothioyl]-3-phenylprop-2-enamide"
+  },
+  {
+    "smiles": "CCOC1=C(C=C(C=C1)C(=O)C)CSC2=NC3=CC=CC=C3C(=O)N2C4=CC(=CC=C4)OC",
+    "iupacName": "2-[(5-acetyl-2-ethoxyphenyl)methylsulfanyl]-3-(3-methoxyphenyl)quinazolin-4-one"
+  },
+  {
+    "smiles": "COC1=CC=CC(=C1)C(=O)C=CC2=CN(N=C2C3=CC4=C(C=C3)OCCO4)C5=CC=CC=C5",
+    "iupacName": "3-[3-(2,3-dihydro-1,4-benzodioxin-6-yl)-1-phenylpyrazol-4-yl]-1-(3-methoxyphenyl)prop-2-en-1-one"
+  },
+  {
+    "smiles": "CC1=CC2=C([C@H](C(=C(O2)N)C#N)C3=C(C=CC=C3Cl)Cl)C(=O)N1CCOC",
+    "iupacName": "(4S)-2-amino-4-(2,6-dichlorophenyl)-6-(2-methoxyethyl)-7-methyl-5-oxo-4H-pyrano[3,2-c]pyridine-3-carbonitrile"
+  },
+  {
+    "smiles": "CCOC1=CC=CC(=C1)N(C(C2=CC=CC=C2)C(=O)NCC3CCCO3)C(=O)CNC(=O)C4=CC=CS4",
+    "iupacName": "N-[2-(3-ethoxy-N-[2-oxo-2-(oxolan-2-ylmethylamino)-1-phenylethyl]anilino)-2-oxoethyl]thiophene-2-carboxamide"
+  },
+  {
+    "smiles": "CC1=CC(=C2C=C(C(=O)NC2=C1)CN(C3CCCCC3)C(=S)NCCC4=CC(=C(C=C4)OC)OC)C",
+    "iupacName": "1-cyclohexyl-3-[2-(3,4-dimethoxyphenyl)ethyl]-1-[(5,7-dimethyl-2-oxo-1H-quinolin-3-yl)methyl]thiourea"
+  },
+  {
+    "smiles": "C1CCN(CC1)C(=O)CSC2=NC3=CC=CC=C3C4=NC5=CC=CC=C5N42",
+    "iupacName": "2-(benzimidazolo[1,2-c]quinazolin-6-ylsulfanyl)-1-piperidin-1-ylethanone"
+  },
+  {
+    "smiles": "COC1=CC=C(C=C1)CN(CC2=CC=CC=N2)C(=S)NC3=CC(=CC=C3)OC",
+    "iupacName": "3-(3-methoxyphenyl)-1-[(4-methoxyphenyl)methyl]-1-(pyridin-2-ylmethyl)thiourea"
+  },
+  {
+    "smiles": "C[C@H]1C[C@@]([C@H](CN1C)C)(C2=C(C=CC(=C2)C)C)O",
+    "iupacName": "(2S,4R,5S)-4-(2,5-dimethylphenyl)-1,2,5-trimethylpiperidin-4-ol"
+  },
+  {
+    "smiles": "COC1=C(C=CC(=C1)/C=C(/C#N)\\C(=S)N)OCC2=CC=CC=C2Cl",
+    "iupacName": "(Z)-3-[4-[(2-chlorophenyl)methoxy]-3-methoxyphenyl]-2-cyanoprop-2-enethioamide"
+  },
+  {
+    "smiles": "CCOC1=CC=C(C=C1)NC(=O)CSC2=NC3=C(C(=O)N2CC4=CC=C(C=C4)C(=O)[O-])SC=C3",
+    "iupacName": "4-[[2-[2-(4-ethoxyanilino)-2-oxoethyl]sulfanyl-4-oxothieno[3,2-d]pyrimidin-3-yl]methyl]benzoate"
+  },
+  {
+    "smiles": "C1=COC(=C1)CN2C(=NN=C2SCC(=O)C3=CC=C(C=C3)Cl)C4=CC=CO4",
+    "iupacName": "1-(4-chlorophenyl)-2-[[5-(furan-2-yl)-4-(furan-2-ylmethyl)-1,2,4-triazol-3-yl]sulfanyl]ethanone"
+  },
+  {
+    "smiles": "C1CCN(CC1)C(=O)C2=CC=C(C=C2)NC(=O)NC3=CC=C(C=C3)F",
+    "iupacName": "1-(4-fluorophenyl)-3-[4-(piperidine-1-carbonyl)phenyl]urea"
+  },
+  {
+    "smiles": "CCCN1C(=NN=N1)NC(=S)NC(=O)C2=CC=C(C=C2)C(C)(C)C",
+    "iupacName": "4-tert-butyl-N-[(1-propyltetrazol-5-yl)carbamothioyl]benzamide"
+  },
+  {
+    "smiles": "CCCC(=O)NCCCN1C=CN=C1",
+    "iupacName": "N-(3-imidazol-1-ylpropyl)butanamide"
+  },
+  {
+    "smiles": "CC1=CC(=C(O1)C)C(=O)NN=CC2=CC(=CC=C2)OC",
+    "iupacName": "N-[(3-methoxyphenyl)methylideneamino]-2,5-dimethylfuran-3-carboxamide"
+  },
+  {
+    "smiles": "CC1=C([C@@H](N2C(=NC=N2)N1)C3=C(C=CC=C3Cl)F)C(=O)OC(C)C",
+    "iupacName": "propan-2-yl (7R)-7-(2-chloro-6-fluorophenyl)-5-methyl-4,7-dihydro-[1,2,4]triazolo[1,5-a]pyrimidine-6-carboxylate"
+  },
+  {
+    "smiles": "CC(COCC(COCC(C)O)OCC(C)O)O",
+    "iupacName": "1-[2,3-bis(2-hydroxypropoxy)propoxy]propan-2-ol"
+  },
+  {
+    "smiles": "CC1=CC(=C[N+](=C1)C2=C(SC(=O)N2)C=NNC(=O)C3=CC=NC=C3)C",
+    "iupacName": "N-[[4-(3,5-dimethylpyridin-1-ium-1-yl)-2-oxo-3H-1,3-thiazol-5-yl]methylideneamino]pyridine-4-carboxamide"
+  },
+  {
+    "smiles": "C1=CC(=CC=C1/C=C/2\\C(=O)N(C(=S)S2)C3=CC=C(C=C3)C(=O)[O-])C#N",
+    "iupacName": "4-[(5E)-5-[(4-cyanophenyl)methylidene]-4-oxo-2-sulfanylidene-1,3-thiazolidin-3-yl]benzoate"
+  },
+  {
+    "smiles": "CC1=NC(=C(C=C1)OC(=O)C23CC4CC(C2)CC(C4)C3)C",
+    "iupacName": "(2,6-dimethyl-3-pyridinyl) adamantane-1-carboxylate"
+  },
+  {
+    "smiles": "C1COC(O1)C2=CC=C(S2)[N+](=O)[O-]",
+    "iupacName": "2-(5-nitrothiophen-2-yl)-1,3-dioxolane"
+  },
+  {
+    "smiles": "C1CCCN(CC1)S(=O)(=O)C2=CC3=C(C=C2)NC(=C3C=O)C4=CC=C(C=C4)C5=CC=CC=C5",
+    "iupacName": "5-(azepan-1-ylsulfonyl)-2-(4-phenylphenyl)-1H-indole-3-carbaldehyde"
+  },
+  {
+    "smiles": "CCOC(=O)C1=C(C=CC(=C1)NC(=S)C2=CC=CC=C2)Cl",
+    "iupacName": "ethyl 5-(benzenecarbonothioylamino)-2-chlorobenzoate"
+  },
+  {
+    "smiles": "CCOC1=CC=CC(=C1)N(C(C2=CC=CC=C2)C(=O)NCC3CCCO3)C(=O)CNC(=O)C4=CC=CS4",
+    "iupacName": "N-[2-(3-ethoxy-N-[2-oxo-2-(oxolan-2-ylmethylamino)-1-phenylethyl]anilino)-2-oxoethyl]thiophene-2-carboxamide"
+  },
+  {
+    "smiles": "CC1=CC(=C2C=C(C(=O)NC2=C1)CN(C3CCCCC3)C(=S)NCCC4=CC(=C(C=C4)OC)OC)C",
+    "iupacName": "1-cyclohexyl-3-[2-(3,4-dimethoxyphenyl)ethyl]-1-[(5,7-dimethyl-2-oxo-1H-quinolin-3-yl)methyl]thiourea"
+  },
+  {
+    "smiles": "C1CCN(CC1)C(=O)CSC2=NC3=CC=CC=C3C4=NC5=CC=CC=C5N42",
+    "iupacName": "2-(benzimidazolo[1,2-c]quinazolin-6-ylsulfanyl)-1-piperidin-1-ylethanone"
+  },
+  {
+    "smiles": "COC1=CC=C(C=C1)CN(CC2=CC=CC=N2)C(=S)NC3=CC(=CC=C3)OC",
+    "iupacName": "3-(3-methoxyphenyl)-1-[(4-methoxyphenyl)methyl]-1-(pyridin-2-ylmethyl)thiourea"
+  },
+  {
+    "smiles": "C[C@H]1C[C@@]([C@H](CN1C)C)(C2=C(C=CC(=C2)C)C)O",
+    "iupacName": "(2S,4R,5S)-4-(2,5-dimethylphenyl)-1,2,5-trimethylpiperidin-4-ol"
+  },
+  {
+    "smiles": "COC1=C(C=CC(=C1)/C=C(/C#N)\\C(=S)N)OCC2=CC=CC=C2Cl",
+    "iupacName": "(Z)-3-[4-[(2-chlorophenyl)methoxy]-3-methoxyphenyl]-2-cyanoprop-2-enethioamide"
+  },
+  {
+    "smiles": "CCOC1=CC=C(C=C1)NC(=O)CSC2=NC3=C(C(=O)N2CC4=CC=C(C=C4)C(=O)[O-])SC=C3",
+    "iupacName": "4-[[2-[2-(4-ethoxyanilino)-2-oxoethyl]sulfanyl-4-oxothieno[3,2-d]pyrimidin-3-yl]methyl]benzoate"
+  },
+  {
+    "smiles": "C1=COC(=C1)CN2C(=NN=C2SCC(=O)C3=CC=C(C=C3)Cl)C4=CC=CO4",
+    "iupacName": "1-(4-chlorophenyl)-2-[[5-(furan-2-yl)-4-(furan-2-ylmethyl)-1,2,4-triazol-3-yl]sulfanyl]ethanone"
+  },
+  {
+    "smiles": "C1CCN(CC1)C(=O)C2=CC=C(C=C2)NC(=O)NC3=CC=C(C=C3)F",
+    "iupacName": "1-(4-fluorophenyl)-3-[4-(piperidine-1-carbonyl)phenyl]urea"
+  },
+  {
+    "smiles": "CCCN1C(=NN=N1)NC(=S)NC(=O)C2=CC=C(C=C2)C(C)(C)C",
+    "iupacName": "4-tert-butyl-N-[(1-propyltetrazol-5-yl)carbamothioyl]benzamide"
+  },
+  {
+    "smiles": "CCCC(=O)NCCCN1C=CN=C1",
+    "iupacName": "N-(3-imidazol-1-ylpropyl)butanamide"
+  },
+  {
+    "smiles": "CC1=CC(=C(O1)C)C(=O)NN=CC2=CC(=CC=C2)OC",
+    "iupacName": "N-[(3-methoxyphenyl)methylideneamino]-2,5-dimethylfuran-3-carboxamide"
+  },
+  {
+    "smiles": "CC1=C([C@@H](N2C(=NC=N2)N1)C3=C(C=CC=C3Cl)F)C(=O)OC(C)C",
+    "iupacName": "propan-2-yl (7R)-7-(2-chloro-6-fluorophenyl)-5-methyl-4,7-dihydro-[1,2,4]triazolo[1,5-a]pyrimidine-6-carboxylate"
+  },
+  {
+    "smiles": "CC(COCC(COCC(C)O)OCC(C)O)O",
+    "iupacName": "1-[2,3-bis(2-hydroxypropoxy)propoxy]propan-2-ol"
+  },
+  {
+    "smiles": "CC1=CC(=C[N+](=C1)C2=C(SC(=O)N2)C=NNC(=O)C3=CC=NC=C3)C",
+    "iupacName": "N-[[4-(3,5-dimethylpyridin-1-ium-1-yl)-2-oxo-3H-1,3-thiazol-5-yl]methylideneamino]pyridine-4-carboxamide"
+  },
+  {
+    "smiles": "C1=CC(=CC=C1/C=C/2\\C(=O)N(C(=S)S2)C3=CC=C(C=C3)C(=O)[O-])C#N",
+    "iupacName": "4-[(5E)-5-[(4-cyanophenyl)methylidene]-4-oxo-2-sulfanylidene-1,3-thiazolidin-3-yl]benzoate"
+  },
+  {
+    "smiles": "CC1=NC(=C(C=C1)OC(=O)C23CC4CC(C2)CC(C4)C3)C",
+    "iupacName": "(2,6-dimethyl-3-pyridinyl) adamantane-1-carboxylate"
+  },
+  {
+    "smiles": "C1COC(O1)C2=CC=C(S2)[N+](=O)[O-]",
+    "iupacName": "2-(5-nitrothiophen-2-yl)-1,3-dioxolane"
+  },
+  {
+    "smiles": "C1CCCN(CC1)S(=O)(=O)C2=CC3=C(C=C2)NC(=C3C=O)C4=CC=C(C=C4)C5=CC=CC=C5",
+    "iupacName": "5-(azepan-1-ylsulfonyl)-2-(4-phenylphenyl)-1H-indole-3-carbaldehyde"
+  },
+  {
+    "smiles": "CCOC(=O)C1=C(C=CC(=C1)NC(=S)C2=CC=CC=C2)Cl",
+    "iupacName": "ethyl 5-(benzenecarbonothioylamino)-2-chlorobenzoate"
+  },
+  {
+    "smiles": "C1=CC=C(C=C1)C2=C(NC(=N2)C3=CC(=CC=C3)Cl)C4=CC=CC5=CC=CC=C54",
+    "iupacName": "2-(3-chlorophenyl)-5-naphthalen-1-yl-4-phenyl-1H-imidazole"
+  },
+  {
+    "smiles": "C1=CC=C(C=C1)CCCNC(=O)COC2=CC(=C(C=C2)Cl)Cl",
+    "iupacName": "2-(3,4-dichlorophenoxy)-N-(3-phenylpropyl)acetamide"
+  },
+  {
+    "smiles": "CCOC1=C(C=C(C=C1)C(=O)NC2=CC(=CC=C2)[N+](=O)[O-])Cl",
+    "iupacName": "3-chloro-4-ethoxy-N-(3-nitrophenyl)benzamide"
+  },
+  {
+    "smiles": "CC1=C(C=CC(=C1)C(=O)OC2=CC3=C(C=C2)C(=O)C(=C(O3)C(F)(F)F)C4=CC=C(C=C4)Cl)[N+](=O)[O-]",
+    "iupacName": "[3-(4-chlorophenyl)-4-oxo-2-(trifluoromethyl)chromen-7-yl] 3-methyl-4-nitrobenzoate"
+  },
+  {
+    "smiles": "CCN(CC)CC1=C(C=CC2=C1C(=C(O2)C)C(=O)C3=CC=C(C=C3)Br)O",
+    "iupacName": "(4-bromophenyl)-[4-(diethylaminomethyl)-5-hydroxy-2-methyl-1-benzofuran-3-yl]methanone"
+  },
+  {
+    "smiles": "CC1=C(C(=O)OC2=CC3=C(C=C12)C(=C(O3)C)C4=CC=CC=C4)CCC(=O)N5CC[C@@]6(CCCC[C@@H]6C5)O",
+    "iupacName": "6-[3-[(4aR,8aR)-4a-hydroxy-1,3,4,5,6,7,8,8a-octahydroisoquinolin-2-yl]-3-oxopropyl]-2,5-dimethyl-3-phenylfuro[3,2-g]chromen-7-one"
+  },
+  {
+    "smiles": "C1=CC=C(C(=C1)COC2=C(C=C(C=C2)C=C3C(=O)N=C(S3)N)Cl)F",
+    "iupacName": "5-[[3-chloro-4-[(2-fluorophenyl)methoxy]phenyl]methylidene]-2-imino-1,3-thiazolidin-4-one"
+  },
+  {
+    "smiles": "COC1=C(C=C(C=C1)C(C2=NN=NN2C3CCCCC3)N4CCN(CC4)C5=CC=C(C=C5)F)OC",
+    "iupacName": "1-[(1-cyclohexyltetrazol-5-yl)-(3,4-dimethoxyphenyl)methyl]-4-(4-fluorophenyl)piperazine"
+  },
+  {
+    "smiles": "C1=CC=C(C=C1)C(CCCOC2=CC=CC=C2)C#N",
+    "iupacName": "5-phenoxy-2-phenylpentanenitrile"
+  },
+  {
+    "smiles": "CC1=CC=CC=C1N(C(C2=CC=C(C=C2)F)C(=O)NC3CCCC3)C(=O)CNC(=O)C4=CC=CS4",
+    "iupacName": "N-[2-(N-[2-(cyclopentylamino)-1-(4-fluorophenyl)-2-oxoethyl]-2-methylanilino)-2-oxoethyl]thiophene-2-carboxamide"
+  },
+  {
+    "smiles": "C1CCN(CC1)CCNC(=O)/C(=C/C2=CC=C(O2)C3=CC=C(C=C3)Br)/C#N",
+    "iupacName": "(E)-3-[5-(4-bromophenyl)furan-2-yl]-2-cyano-N-(2-piperidin-1-ylethyl)prop-2-enamide"
+  },
+  {
+    "smiles": "CC1CCC(=O)N1CC#CCN(C)CCBr",
+    "iupacName": "1-[4-[2-bromoethyl(methyl)amino]but-2-ynyl]-5-methylpyrrolidin-2-one"
+  },
+  {
+    "smiles": "CC1=CC(=C(C=C1)NS(=O)(=O)C2=CC=C(C=C2)N=CC3=CC=C(C=C3)F)C",
+    "iupacName": "N-(2,4-dimethylphenyl)-4-[(4-fluorophenyl)methylideneamino]benzenesulfonamide"
+  },
+  {
+    "smiles": "CC(=O)NC1=CC=C(C=C1)CN2CCCN(CC2)C(=S)NC3=C(C(=C(C=C3F)F)F)F",
+    "iupacName": "N-[4-[[4-[(2,3,4,6-tetrafluorophenyl)carbamothioyl]-1,4-diazepan-1-yl]methyl]phenyl]acetamide"
+  },
+  {
+    "smiles": "CC(C)(C)OC(=O)N[C@@H](CCSC)C1=NN=C2N1NC(=CS2)C3=CC=C(C=C3)OC",
+    "iupacName": "tert-butyl N-[(1S)-1-[6-(4-methoxyphenyl)-5H-[1,2,4]triazolo[3,4-b][1,3,4]thiadiazin-3-yl]-3-methylsulfanylpropyl]carbamate"
+  },
+  {
+    "smiles": "CCOC1=CC=C(C=C1)NC(=O)CSC2=NN=C(N2C3=C(C=CC(=C3)OC)OC)C4=CNC5=CC=CC=C54",
+    "iupacName": "2-[[4-(2,5-dimethoxyphenyl)-5-(1H-indol-3-yl)-1,2,4-triazol-3-yl]sulfanyl]-N-(4-ethoxyphenyl)acetamide"
+  },
+  {
+    "smiles": "CC1=C(OC2=CC3=C(C=C12)C(=C(C(=O)O3)CCC(=O)NC4=C(C=C(C=C4)F)F)C)C",
+    "iupacName": "N-(2,4-difluorophenyl)-3-(2,3,5-trimethyl-7-oxofuro[3,2-g]chromen-6-yl)propanamide"
+  },
+  {
+    "smiles": "CCOC1=C(C=C(C=C1)C)S(=O)(=O)N2CCOCC2",
+    "iupacName": "4-(2-ethoxy-5-methylphenyl)sulfonylmorpholine"
+  },
+  {
+    "smiles": "C1CCN(C1)S(=O)(=O)C2=C(C=CC(=C2)C(=O)OCC(=O)NCC3=CC=C(C=C3)F)Cl",
+    "iupacName": "[2-[(4-fluorophenyl)methylamino]-2-oxoethyl] 4-chloro-3-pyrrolidin-1-ylsulfonylbenzoate"
+  },
+  {
+    "smiles": "CC1CCN(CC1)C(C)C(=O)NC2=C(NC3=C2C(=CC=C3)OC)C(=O)OC",
+    "iupacName": "methyl 4-methoxy-3-[2-(4-methylpiperidin-1-yl)propanoylamino]-1H-indole-2-carboxylate"
+  },
+  {
+    "smiles": "C1CN(CCC1C(=O)NC2CCN(CC2)CC3=CC=CC=C3)S(=O)(=O)C4=CC=CC5=NSN=C54",
+    "iupacName": "1-(2,1,3-benzothiadiazol-4-ylsulfonyl)-N-(1-benzylpiperidin-4-yl)piperidine-4-carboxamide"
+  },
+  {
+    "smiles": "CC(C)CN(CC(C)C)S(=O)(=O)C1=CC=C(C=C1)OP(=S)(OC)OC",
+    "iupacName": "4-dimethoxyphosphinothioyloxy-N,N-bis(2-methylpropyl)benzenesulfonamide"
+  },
+  {
+    "smiles": "CCCCOC1=CC=C(C=C1)C(=C2C(N(C(=O)C2=O)C3=NC(=C(S3)C(=O)OC)C)C4=CC(=CC=C4)OC)O",
+    "iupacName": "methyl 2-[3-[(4-butoxyphenyl)-hydroxymethylidene]-2-(3-methoxyphenyl)-4,5-dioxopyrrolidin-1-yl]-4-methyl-1,3-thiazole-5-carboxylate"
+  },
+  {
+    "smiles": "CC1=CC=C(C=C1)NC(=O)C2=CC=CC=C2NC(=O)[C@H]3CC=CC[C@H]3C(=O)O",
+    "iupacName": "(1R,6S)-6-[[2-[(4-methylphenyl)carbamoyl]phenyl]carbamoyl]cyclohex-3-ene-1-carboxylic acid"
+  },
+  {
+    "smiles": "CC1=C(C(=NC2=NC3=CC=CC=C3N12)C)CC=CC4=CC=CC=C4",
+    "iupacName": "2,4-dimethyl-3-(3-phenylprop-2-enyl)pyrimido[1,2-a]benzimidazole"
+  },
+  {
+    "smiles": "CC1=NN2[C@H](C3=C(C=CC(=C3)[N+](=O)[O-])SC2=N1)O",
+    "iupacName": "(9S)-2-methyl-7-nitro-9H-[1,2,4]triazolo[5,1-b][1,3]benzothiazin-9-ol"
+  },
+  {
+    "smiles": "CC1=CC(=NC(=N1)N=C(N)NC2=C(C=C(C=C2)OC)OC)C",
+    "iupacName": "1-(2,4-dimethoxyphenyl)-2-(4,6-dimethylpyrimidin-2-yl)guanidine"
+  },
+  {
+    "smiles": "COC1=CC=C(C=C1)C(=O)NNC(=O)/C=C/C2=CC=CO2",
+    "iupacName": "N'-[(E)-3-(furan-2-yl)prop-2-enoyl]-4-methoxybenzohydrazide"
+  },
+  {
+    "smiles": "C1=CC=C(C(=C1)CNC(=O)COC(=O)C2=C(C=C(C=C2)[N+](=O)[O-])Cl)Cl",
+    "iupacName": "[2-[(2-chlorophenyl)methylamino]-2-oxoethyl] 2-chloro-4-nitrobenzoate"
+  },
+  {
+    "smiles": "C1[C@H](CC(=O)C2=C1OC(=C([C@]23C4=CC=CC=C4N(C3=O)CO)C#N)N)C5=CC=CO5",
+    "iupacName": "(4R,7R)-2-amino-7-(furan-2-yl)-1'-(hydroxymethyl)-2',5-dioxospiro[7,8-dihydro-6H-chromene-4,3'-indole]-3-carbonitrile"
+  },
+  {
+    "smiles": "CCN(CC)CCNC1=CC=CC=C1N.Cl.Cl",
+    "iupacName": "2-N-[2-(diethylamino)ethyl]benzene-1,2-diamine;dihydrochloride"
+  },
+  {
+    "smiles": "C(CSC#N)C(=O)O",
+    "iupacName": "3-thiocyanatopropanoic acid"
+  },
+  {
+    "smiles": "C1=CC=C2C(=C1)NC(=N2)CCC(=O)C(C#N)C3=NC4=CC=CC=C4S3",
+    "iupacName": "5-(1H-benzimidazol-2-yl)-2-(1,3-benzothiazol-2-yl)-3-oxopentanenitrile"
+  },
+  {
+    "smiles": "CCOC1=C(C2=CC=CC=C2C=C1)C(=O)NC3=C4CS(=O)CC4=NN3C5=C(C=C(C=C5)C)C",
+    "iupacName": "N-[2-(2,4-dimethylphenyl)-5-oxo-4,6-dihydrothieno[3,4-c]pyrazol-3-yl]-2-ethoxynaphthalene-1-carboxamide"
+  },
+  {
+    "smiles": "CC(C)CNC(=O)C1=CC(=NN1C2=CC=CC=C2Cl)C3=CC=CC=C3",
+    "iupacName": "1-(2-chlorophenyl)-N-(2-methylpropyl)-3-phenylpyrazole-5-carboxamide"
+  },
+  {
+    "smiles": "CC(=O)[CH-]C(=O)C.CC(=O)[CH-]C(=O)C.COC1=C(C(=C2C(=C1)C=C(N2)C(=O)N3CC(C4=C3C=C(C=C4)[N-]CC[NH-])CCl)OC)OC.[O-]Cl(=O)(=O)=O.[Cr+5]",
+    "iupacName": "[6-(2-azanidylethylamino)-3-(chloromethyl)-2,3-dihydroindol-1-yl]-(5,6,7-trimethoxyindol-2-ylidene)methanolate;chromium(5+);bis(4-oxopent-2-en-2-olate);perchlorate"
+  },
+  {
+    "smiles": "CN1CCN(CC1)C(=O)NCCC2CCCCC2",
+    "iupacName": "N-(2-cyclohexylethyl)-4-methylpiperazine-1-carboxamide"
+  },
+  {
+    "smiles": "CCN(CC1=CC=CC=C1)S(=O)(=O)C2=CC=C(C=C2)S(=O)(=O)N(CC3=CC=CC=C3)CC4=CC=CO4",
+    "iupacName": "1-N,4-N-dibenzyl-1-N-ethyl-4-N-(furan-2-ylmethyl)benzene-1,4-disulfonamide"
+  },
+  {
+    "smiles": "COC1=CC=C(C=C1)NC(=O)N2CCN(CC2)C3=NC=NC4=C3SN=C4C5=CC=C(C=C5)F",
+    "iupacName": "4-[3-(4-fluorophenyl)-[1,2]thiazolo[4,5-d]pyrimidin-7-yl]-N-(4-methoxyphenyl)piperazine-1-carboxamide"
+  },
+  {
+    "smiles": "CC1=C(C(=CC=C1)C)NC(=O)[C@H]2[C@H]3C[C@@H]([C@@H]2C(=O)NCC4=CC=CC=N4)C=C3",
+    "iupacName": "(1R,2S,3S,4S)-3-N-(2,6-dimethylphenyl)-2-N-(pyridin-2-ylmethyl)bicyclo[2.2.1]hept-5-ene-2,3-dicarboxamide"
+  },
+  {
+    "smiles": "COC1=C(C(=CC(=C1)/C=C/C(=O)OCC2=CC=C(O2)C(=O)OC)Cl)OC",
+    "iupacName": "methyl 5-[[(E)-3-(3-chloro-4,5-dimethoxyphenyl)prop-2-enoyl]oxymethyl]furan-2-carboxylate"
+  },
+  {
+    "smiles": "CCCOC1=CC=CC(=C1)C2C(=C(C3=CC=C(C=C3)OCC)O)C(=O)C(=O)N2CCN(CC)CC",
+    "iupacName": "1-[2-(diethylamino)ethyl]-4-[(4-ethoxyphenyl)-hydroxymethylidene]-5-(3-propoxyphenyl)pyrrolidine-2,3-dione"
+  },
+  {
+    "smiles": "C1=CC=C2C(=C1)C3=CC=CC=C3C2=NNC(=O)CN4C5=CC=CC=C5N=C4C(F)(F)F",
+    "iupacName": "N-(fluoren-9-ylideneamino)-2-[2-(trifluoromethyl)benzimidazol-1-yl]acetamide"
+  },
+  {
+    "smiles": "C[C@@H]1C2=C(C3=C(N2CCN1)C=CC(=C3)C)C",
+    "iupacName": "(1R)-1,8,10-trimethyl-1,2,3,4-tetrahydropyrazino[1,2-a]indole"
+  },
+  {
+    "smiles": "COC1=CC=C(C=C1)CC(C#N)C2=NC3=CC=CC=C3S2",
+    "iupacName": "2-(1,3-benzothiazol-2-yl)-3-(4-methoxyphenyl)propanenitrile"
+  },
+  {
+    "smiles": "C1=CC(=C(C=C1C(F)(F)F)NC(=O)CSC2=NC3=C(O2)C=CC(=C3)Cl)Cl",
+    "iupacName": "2-[(5-chloro-1,3-benzoxazol-2-yl)sulfanyl]-N-[2-chloro-5-(trifluoromethyl)phenyl]acetamide"
+  },
+  {
+    "smiles": "CCOC1=CC=CC=C1NC(=O)COC(=O)C2=CC(=CC=C2)Br",
+    "iupacName": "[2-(2-ethoxyanilino)-2-oxoethyl] 3-bromobenzoate"
+  },
+  {
+    "smiles": "CC(C)(C)C1=CC=C(C=C1)C=NN2C(=NNC2=S)C3=CC=C(C=C3)Cl",
+    "iupacName": "4-[(4-tert-butylphenyl)methylideneamino]-3-(4-chlorophenyl)-1H-1,2,4-triazole-5-thione"
+  },
+  {
+    "smiles": "CC1=CC=CC=C1C(=O)N[C@@H](C(C)C)C(=O)OCC(=O)NC2=C(C=CC=C2F)F",
+    "iupacName": "[2-(2,6-difluoroanilino)-2-oxoethyl] (2S)-3-methyl-2-[(2-methylbenzoyl)amino]butanoate"
+  },
+  {
+    "smiles": "CC1=CC(=C(C=C1)C)NC(=O)C[NH+](C)CC2=C(C(=CC=C2)Cl)Cl",
+    "iupacName": "(2,3-dichlorophenyl)methyl-[2-(2,5-dimethylanilino)-2-oxoethyl]-methylazanium"
+  },
+  {
+    "smiles": "CC1=CC(=CC=C1)NC(=O)CSC2=C(C(=CC(=N2)C3=CC=CS3)C4=CC=CS4)C#N",
+    "iupacName": "2-[(3-cyano-4,6-dithiophen-2-yl-2-pyridinyl)sulfanyl]-N-(3-methylphenyl)acetamide"
+  },
+  {
+    "smiles": "C1CC(=O)N(C1)CCCNC(=O)CN2C(=O)[C@@]3(CCC4=CC=CC=C43)NC2=O",
+    "iupacName": "2-[(3S)-2',5'-dioxospiro[1,2-dihydroindene-3,4'-imidazolidine]-1'-yl]-N-[3-(2-oxopyrrolidin-1-yl)propyl]acetamide"
+  },
+  {
+    "smiles": "CCOCCOC(=O)C1=C(NC(=O)CC1C2=CC=CC=C2OCC)C",
+    "iupacName": "2-ethoxyethyl 4-(2-ethoxyphenyl)-6-methyl-2-oxo-3,4-dihydro-1H-pyridine-5-carboxylate"
+  },
+  {
+    "smiles": "CC1=C(NN=C1C2=CC=CC=C2)C(=O)NNC(=C)C3=CC=C(C=C3)Cl",
+    "iupacName": "N'-[1-(4-chlorophenyl)ethenyl]-4-methyl-3-phenyl-1H-pyrazole-5-carbohydrazide"
+  },
+  {
+    "smiles": "COC1=C(C=C(C=C1)C(=O)CC2(C3=CC=CC=C3N(C2=O)CC4=CC(=CC=C4)F)O)[N+](=O)[O-]",
+    "iupacName": "1-[(3-fluorophenyl)methyl]-3-hydroxy-3-[2-(4-methoxy-3-nitrophenyl)-2-oxoethyl]indol-2-one"
+  },
+  {
+    "smiles": "CC1=CC=CC=C1N2CC[NH+](CC2)CC(=O)NC3=CC=C(C=C3)C(=O)OC",
+    "iupacName": "methyl 4-[[2-[4-(2-methylphenyl)piperazin-1-ium-1-yl]acetyl]amino]benzoate"
+  },
+  {
+    "smiles": "CC(=O)C1=C(C(=O)N([C@H]1C2=CC=C(C=C2)OC)C3=CC=CC=C3F)O",
+    "iupacName": "(2S)-3-acetyl-1-(2-fluorophenyl)-4-hydroxy-2-(4-methoxyphenyl)-2H-pyrrol-5-one"
+  },
+  {
+    "smiles": "CCC1=NN([C@@](C1)(C(F)(F)F)O)C(=O)COC2=C(C=C(C=C2C)C)C",
+    "iupacName": "1-[(5R)-3-ethyl-5-hydroxy-5-(trifluoromethyl)-4H-pyrazol-1-yl]-2-(2,4,6-trimethylphenoxy)ethanone"
+  },
+  {
+    "smiles": "CC(C)C1CC(OC(=C1)C(=O)NCCCCC(=O)NC2=CC=CC=C2N)OCC3=CC=C(C=C3)CO",
+    "iupacName": "N-[5-(2-aminoanilino)-5-oxopentyl]-2-[[4-(hydroxymethyl)phenyl]methoxy]-4-propan-2-yl-3,4-dihydro-2H-pyran-6-carboxamide"
+  },
+  {
+    "smiles": "CC(C)(C)C1=CC2=C(C(=C1)S(=O)(=O)O)OC(=CC2=O)C3=CC=CC=C3",
+    "iupacName": "6-tert-butyl-4-oxo-2-phenylchromene-8-sulfonic acid"
+  },
+  {
+    "smiles": "CC1=CC(=C(C=C1)NC(=O)CSC2=NN=C(N2N)C3CCCCC3)Br",
+    "iupacName": "2-[(4-amino-5-cyclohexyl-1,2,4-triazol-3-yl)sulfanyl]-N-(2-bromo-4-methylphenyl)acetamide"
+  },
+  {
+    "smiles": "COCCCNC(=O)NC1=C(C=C(C=C1)F)F",
+    "iupacName": "1-(2,4-difluorophenyl)-3-(3-methoxypropyl)urea"
+  },
+  {
+    "smiles": "CC1=CC(=CC=C1)C2=NC(=NO2)C3=CN=CC=C3",
+    "iupacName": "5-(3-methylphenyl)-3-pyridin-3-yl-1,2,4-oxadiazole"
+  },
+  {
+    "smiles": "CCCCCCCCCCCCC(CCC1=CC=CC=C1)C2=CC=NC=C2",
+    "iupacName": "4-(1-phenylpentadecan-3-yl)pyridine"
+  },
+  {
+    "smiles": "COC1=C(C=C(C=C1)Br)C=C2C(=O)NC(=O)N(C2=O)CCC3=CCCCC3",
+    "iupacName": "5-[(5-bromo-2-methoxyphenyl)methylidene]-1-[2-(cyclohexen-1-yl)ethyl]-1,3-diazinane-2,4,6-trione"
+  },
+  {
+    "smiles": "COC(=O)C1=C(C=CS1)NC(=O)C2=CC(=C(C=C2)Cl)[N+](=O)[O-]",
+    "iupacName": "methyl 3-[(4-chloro-3-nitrobenzoyl)amino]thiophene-2-carboxylate"
+  },
+  {
+    "smiles": "C1=CC=C(C=C1)CN2C=CN=C2SCC(=O)NC3=NC=CS3",
+    "iupacName": "2-(1-benzylimidazol-2-yl)sulfanyl-N-(1,3-thiazol-2-yl)acetamide"
+  },
+  {
+    "smiles": "CCC1=CC=C(O1)C2N(C(=O)CCS2)CC3=NC=C(N=C3)C",
+    "iupacName": "2-(5-ethylfuran-2-yl)-3-[(5-methylpyrazin-2-yl)methyl]-1,3-thiazinan-4-one"
+  },
+  {
+    "smiles": "C1CN(CCC12OCCO2)[C@H](C3=CC=CO3)C4=C(N5C(=NC=N5)S4)O",
+    "iupacName": "5-[(R)-1,4-dioxa-8-azaspiro[4.5]decan-8-yl(furan-2-yl)methyl]-[1,3]thiazolo[3,2-b][1,2,4]triazol-6-ol"
+  },
+  {
+    "smiles": "CCOC1=C(C(=CC(=C1)[C@@H]2C(=C(NC(=S)N2)C)C(=O)OC)I)OC",
+    "iupacName": "methyl (4R)-4-(3-ethoxy-5-iodo-4-methoxyphenyl)-6-methyl-2-sulfanylidene-3,4-dihydro-1H-pyrimidine-5-carboxylate"
+  },
+  {
+    "smiles": "CC1=C(C(NC(=O)N1)C2=CC=CC=C2Br)C(=O)NC3=C(C=CC(=C3)Cl)OC",
+    "iupacName": "4-(2-bromophenyl)-N-(5-chloro-2-methoxyphenyl)-6-methyl-2-oxo-3,4-dihydro-1H-pyrimidine-5-carboxamide"
+  },
+  {
+    "smiles": "CC(C)NC(=O)COC(=O)C1=CC=CC=C1NC(=O)CC2=CC=CC=C2",
+    "iupacName": "[2-oxo-2-(propan-2-ylamino)ethyl] 2-[(2-phenylacetyl)amino]benzoate"
+  },
+  {
+    "smiles": "CCCCC(C(CCC)CCC)C(=O)O",
+    "iupacName": "2-butyl-3-propylhexanoic acid"
+  },
+  {
+    "smiles": "CC1=C([C@H](C2=C(N1)CCCC2=O)C3=CC(=CC=C3)O)C(=O)OCCC4=CC=CC=C4",
+    "iupacName": "2-phenylethyl (4S)-4-(3-hydroxyphenyl)-2-methyl-5-oxo-4,6,7,8-tetrahydro-1H-quinoline-3-carboxylate"
+  },
+  {
+    "smiles": "CCOC(=O)C1=C(N(N=N1)[C@H]2[C@@H](C3([C@H](O2)CO[Si](C)(C)C(C)(C)C)C(=CS(=O)(=O)O3)N)O[Si](C)(C)C(C)(C)C)C(=O)OCC",
+    "iupacName": "diethyl 1-[(6R,8R,9R)-4-amino-9-[tert-butyl(dimethyl)silyl]oxy-6-[[tert-butyl(dimethyl)silyl]oxymethyl]-2,2-dioxo-1,7-dioxa-2lambda6-thiaspiro[4.4]non-3-en-8-yl]triazole-4,5-dicarboxylate"
+  },
+  {
+    "smiles": "CC1=CC=C(C=C1)SC2=C(C=C(C=C2)C=NNC(=O)C3=CC(=CC=C3)NC(=O)C)[N+](=O)[O-]",
+    "iupacName": "3-acetamido-N-[[4-(4-methylphenyl)sulfanyl-3-nitrophenyl]methylideneamino]benzamide"
+  },
+  {
+    "smiles": "CCN(CC)S(=O)(=O)C1=CC=C(C=C1)/C=C/C(=O)NC2=CC(=C(C=C2)OC)OC",
+    "iupacName": "(E)-3-[4-(diethylsulfamoyl)phenyl]-N-(3,4-dimethoxyphenyl)prop-2-enamide"
+  },
+  {
+    "smiles": "CCOC1=CC=CC=C1C(=O)N(CC2=CC(=CC=C2)Br)C3CCS(=O)(=O)C3",
+    "iupacName": "N-[(3-bromophenyl)methyl]-N-(1,1-dioxothiolan-3-yl)-2-ethoxybenzamide"
+  },
+  {
+    "smiles": "CC1=CC=C(C=C1)OCCNC(=O)C2=CC=CC3=CC=CC=C32",
+    "iupacName": "N-[2-(4-methylphenoxy)ethyl]naphthalene-1-carboxamide"
+  },
+  {
+    "smiles": "C1CN2C=CN(OC2C3=CC=CC=C31)C4=CC=CC=C4",
+    "iupacName": "2-phenyl-7,11b-dihydro-6H-[1,2,5]oxadiazino[6,5-a]isoquinoline"
+  },
+  {
+    "smiles": "CC(C)(C)N/C=C(\\C#N)/S(=O)(=O)C1=CC=C(C=C1)Br",
+    "iupacName": "(E)-2-(4-bromophenyl)sulfonyl-3-(tert-butylamino)prop-2-enenitrile"
+  },
+  {
+    "smiles": "CCN1CCN(CC1)C(=O)C2=CC=C(C=C2)C=C3C(=O)N(C4=CC=CC=C4S3)CC5=CC(=CC=C5)Cl",
+    "iupacName": "4-[(3-chlorophenyl)methyl]-2-[[4-(4-ethylpiperazine-1-carbonyl)phenyl]methylidene]-1,4-benzothiazin-3-one"
+  },
+  {
+    "smiles": "CCOC1=CC=C(C=C1)CC(=O)NC2=CC=C(C=C2)S(=O)(=O)N3CCOCC3",
+    "iupacName": "2-(4-ethoxyphenyl)-N-(4-morpholin-4-ylsulfonylphenyl)acetamide"
+  },
+  {
+    "smiles": "COC1=CC=C(C=C1)C2=NC(=NC=C2)C3=CC=CS3",
+    "iupacName": "4-(4-methoxyphenyl)-2-thiophen-2-ylpyrimidine"
+  },
+  {
+    "smiles": "CCC1=CC=C(C=C1)NC(=O)COC(=O)C2=CC(=C(C(=C2)[N+](=O)[O-])C)[N+](=O)[O-]",
+    "iupacName": "[2-(4-ethylanilino)-2-oxoethyl] 4-methyl-3,5-dinitrobenzoate"
+  },
+  {
+    "smiles": "C=CCN1C2=C(C=C(C=C2)Br)C(=C1O)N=NC(=S)NC3=CC=CC=C3F",
+    "iupacName": "1-(5-bromo-2-hydroxy-1-prop-2-enylindol-3-yl)imino-3-(2-fluorophenyl)thiourea"
+  },
+  {
+    "smiles": "CC1=CC=C(C=C1)C2=CSC(=N2)NN",
+    "iupacName": "[4-(4-methylphenyl)-1,3-thiazol-2-yl]hydrazine"
+  },
+  {
+    "smiles": "C1=CC=C(C=C1)CNC2=CC=CC3=C2C=CN3",
+    "iupacName": "N-benzyl-1H-indol-4-amine"
+  },
+  {
+    "smiles": "C1=CC(=CC=C1C2=CSC(=O)S2)Br",
+    "iupacName": "4-(4-bromophenyl)-1,3-dithiol-2-one"
+  },
+  {
+    "smiles": "CCC1=C(C(=C(N1CC2=CC(=CC=C2)Cl)C)C(=O)N)C3=C(N(N(C3=O)C4=CC=CC=C4)C)C",
+    "iupacName": "1-[(3-chlorophenyl)methyl]-4-(1,5-dimethyl-3-oxo-2-phenylpyrazol-4-yl)-5-ethyl-2-methylpyrrole-3-carboxamide"
+  },
+  {
+    "smiles": "COC(=O)[C@@H]1CS[C@@H](N1C(=O)NC2=CC(=C(C=C2)Cl)Cl)C(=O)OC",
+    "iupacName": "dimethyl (2R,4R)-3-[(3,4-dichlorophenyl)carbamoyl]-1,3-thiazolidine-2,4-dicarboxylate"
+  },
+  {
+    "smiles": "CC1=C(C2=CC=CC=C2C=C1)COC3=C(C=C4C5=C(CCC5)C(=O)OC4=C3)Cl",
+    "iupacName": "8-chloro-7-[(2-methylnaphthalen-1-yl)methoxy]-2,3-dihydro-1H-cyclopenta[c]chromen-4-one"
+  },
+  {
+    "smiles": "COC1=C(C=C(C=C1)C(=O)NNC(=S)NC(=O)C2=CC(=CC(=C2)[N+](=O)[O-])[N+](=O)[O-])I",
+    "iupacName": "N-[[(3-iodo-4-methoxybenzoyl)amino]carbamothioyl]-3,5-dinitrobenzamide"
+  },
+  {
+    "smiles": "C1=CC=C(C=C1)C2=NC3=CC=CC=C3C(=C2)C(=O)NC4=C(C=CC=C4Cl)Cl",
+    "iupacName": "N-(2,6-dichlorophenyl)-2-phenylquinoline-4-carboxamide"
+  },
+  {
+    "smiles": "CC(=NN1CCN(CC1)C2C3=CC=CC=C3C4=CC=CC=C24)C5=CC=C(C=C5)[N+](=O)[O-]",
+    "iupacName": "N-[4-(9H-fluoren-9-yl)piperazin-1-yl]-1-(4-nitrophenyl)ethanimine"
+  },
+  {
+    "smiles": "C/C(=C/C1=CC=CC=C1)/C(=O)NC[C@@H]2CCCO2",
+    "iupacName": "(Z)-2-methyl-N-[[(2S)-oxolan-2-yl]methyl]-3-phenylprop-2-enamide"
+  },
+  {
+    "smiles": "CCC(O)(P(=O)(O)O)P(=O)(O)O",
+    "iupacName": "(1-hydroxy-1-phosphonopropyl)phosphonic acid"
+  },
+  {
+    "smiles": "CC(C)C(C(=O)NCC1=CC=C(C=C1)OC)NS(=O)(=O)C2=CC3=C(C=C2)N(CCC3)C(=O)C",
+    "iupacName": "2-[(1-acetyl-3,4-dihydro-2H-quinolin-6-yl)sulfonylamino]-N-[(4-methoxyphenyl)methyl]-3-methylbutanamide"
+  },
+  {
+    "smiles": "CC1=CC=C(C=C1)C2=NC3=CC=CC=C3C(=C2C)C(=O)NC4=C(C(=C(S4)C(=O)OC)C)C(=O)OC",
+    "iupacName": "dimethyl 3-methyl-5-[[3-methyl-2-(4-methylphenyl)quinoline-4-carbonyl]amino]thiophene-2,4-dicarboxylate"
+  },
+  {
+    "smiles": "C1CN(CC[NH2+]1)S(=O)(=O)C2=CC(=C(C=C2)F)Cl",
+    "iupacName": "1-(3-chloro-4-fluorophenyl)sulfonylpiperazin-4-ium"
+  },
+  {
+    "smiles": "CCN1C(=NN=C1SCC(=O)NC2=NC=C(S2)C)CNC3=C(C=C(C=C3)C)C",
+    "iupacName": "2-[[5-[(2,4-dimethylanilino)methyl]-4-ethyl-1,2,4-triazol-3-yl]sulfanyl]-N-(5-methyl-1,3-thiazol-2-yl)acetamide"
+  },
+  {
+    "smiles": "C1OC2=C(O1)C=C(C=C2)C(=O)NC3=C(C=CS3)C(=O)N",
+    "iupacName": "N-(3-carbamoylthiophen-2-yl)-1,3-benzodioxole-5-carboxamide"
+  },
+  {
+    "smiles": "C1=CC=C(C=C1)CN=C2N(C(=O)/C(=C/C3=CC=C(O3)C4=CC=C(C=C4)C(=O)O)/S2)CC5=CC=CC=C5",
+    "iupacName": "4-[5-[(Z)-(3-benzyl-2-benzylimino-4-oxo-1,3-thiazolidin-5-ylidene)methyl]furan-2-yl]benzoic acid"
+  },
+  {
+    "smiles": "CC1(C2=CC=CC=C2N(C13C=CC4=CC(=C(C(=C4O3)Br)OC)[N+](=O)[O-])C)C",
+    "iupacName": "8-bromo-7-methoxy-1',3',3'-trimethyl-6-nitrospiro[chromene-2,2'-indole]"
+  },
+  {
+    "smiles": "CCOC(=O)NC(=O)COC(=O)/C=C/C1=C(C=C(C=C1)OC)OC",
+    "iupacName": "[2-(ethoxycarbonylamino)-2-oxoethyl] (E)-3-(2,4-dimethoxyphenyl)prop-2-enoate"
+  },
+  {
+    "smiles": "CN(C)C(=O)C1=CC=CC=C1C2=NC(=NO2)C3=CC=CC=C3Cl",
+    "iupacName": "2-[3-(2-chlorophenyl)-1,2,4-oxadiazol-5-yl]-N,N-dimethylbenzamide"
+  },
+  {
+    "smiles": "COC1=CC=C(C=C1)N2CC(CC2=O)C(=O)OCC(=O)C3=CC(=CC=C3)OC",
+    "iupacName": "[2-(3-methoxyphenyl)-2-oxoethyl] 1-(4-methoxyphenyl)-5-oxopyrrolidine-3-carboxylate"
+  },
+  {
+    "smiles": "CC1=CC(=C(C=C1)C)N(C(C2=CC(=C(C(=C2)OC)OC)OC)C(=O)NC3CCCC3)C(=O)C4=CC=CO4",
+    "iupacName": "N-[2-(cyclopentylamino)-2-oxo-1-(3,4,5-trimethoxyphenyl)ethyl]-N-(2,5-dimethylphenyl)furan-2-carboxamide"
+  },
+  {
+    "smiles": "C[N+]1(CCCCCCC1)CCCCCCCCCC[N+]2(CCCCCCC2)C",
+    "iupacName": "1-methyl-1-[10-(1-methylazocan-1-ium-1-yl)decyl]azocan-1-ium"
+  },
+  {
+    "smiles": "C1=CC=C2C(=C1)N=C3C4=C(C=CC(=C4)Br)N(C3=N2)CC#N",
+    "iupacName": "2-(9-bromoindolo[3,2-b]quinoxalin-6-yl)acetonitrile"
+  },
+  {
+    "smiles": "C1[C@H](C=CP1(=O)C2=CC=CC=C2)O",
+    "iupacName": "(3S)-1-oxo-1-phenyl-2,3-dihydro-1lambda5-phosphol-3-ol"
+  },
+  {
+    "smiles": "COC1=C(C=CC(=C1)CC=C)OCCOC2=CC=CC(=C2)C=NN3C=NN=C3",
+    "iupacName": "1-[3-[2-(2-methoxy-4-prop-2-enylphenoxy)ethoxy]phenyl]-N-(1,2,4-triazol-4-yl)methanimine"
+  },
+  {
+    "smiles": "CC1=CC=C(C=C1)NCC2=CC(=O)OC3=CC4=C(C=C23)OCO4",
+    "iupacName": "8-[(4-methylanilino)methyl]-[1,3]dioxolo[4,5-g]chromen-6-one"
+  },
+  {
+    "smiles": "C1CN(CCN1C(=O)C2=CC=CC=C2)C(=O)C3=NN4[C@@H](C[C@H](NC4=C3Cl)C5=CC=C(C=C5)Br)C(F)(F)F",
+    "iupacName": "[4-[(5S,7S)-5-(4-bromophenyl)-3-chloro-7-(trifluoromethyl)-4,5,6,7-tetrahydropyrazolo[1,5-a]pyrimidine-2-carbonyl]piperazin-1-yl]-phenylmethanone"
+  },
+  {
+    "smiles": "CCC1=CC(=C(S1)NC(=O)C2=CC3=C(C=C2)OCO3)C(=O)OCC",
+    "iupacName": "ethyl 2-(1,3-benzodioxole-5-carbonylamino)-5-ethylthiophene-3-carboxylate"
+  },
+  {
+    "smiles": "CCOC(=O)C1=C(SC(=C1)C)NC(=S)NC2=CC=CC=C2",
+    "iupacName": "ethyl 5-methyl-2-(phenylcarbamothioylamino)thiophene-3-carboxylate"
+  },
+  {
+    "smiles": "C[C@H]1CCCC[C@@H]1NC(=O)CSC2=C(C=C3C=C(C=CC3=N2)C)C#N",
+    "iupacName": "2-(3-cyano-6-methylquinolin-2-yl)sulfanyl-N-[(1S,2S)-2-methylcyclohexyl]acetamide"
+  },
+  {
+    "smiles": "C[C@H](C(=O)[O-])NC(=O)/C(=C/C1=CC=CC=C1)/NC(=O)C2=CC=CO2",
+    "iupacName": "(2R)-2-[[(Z)-2-(furan-2-carbonylamino)-3-phenylprop-2-enoyl]amino]propanoate"
+  },
+  {
+    "smiles": "CC1CC(C2=C(N1C(=O)CN3C(=O)C4=CC=CC=C4C3=O)C(=CC(=C2)OC)OC)NC5=C(C=C(C=C5)OC)OC",
+    "iupacName": "2-[2-[4-(2,4-dimethoxyanilino)-6,8-dimethoxy-2-methyl-3,4-dihydro-2H-quinolin-1-yl]-2-oxoethyl]isoindole-1,3-dione"
+  },
+  {
+    "smiles": "CC(=O)CSC1=NC2=C(C=CC(=C2)Cl)C(=O)N1CC3=CC=CC=C3",
+    "iupacName": "3-benzyl-7-chloro-2-(2-oxopropylsulfanyl)quinazolin-4-one"
+  },
+  {
+    "smiles": "C1CCC(C1)NC(=O)CN(C2=C(C=C(C=C2)Cl)Cl)S(=O)(=O)C3=CC=CC=C3",
+    "iupacName": "2-[N-(benzenesulfonyl)-2,4-dichloroanilino]-N-cyclopentylacetamide"
+  },
+  {
+    "smiles": "CN1C=C(C2=CC=CC=C21)C=C(C#N)C(=O)NC3=CC=C(C=C3)O",
+    "iupacName": "2-cyano-N-(4-hydroxyphenyl)-3-(1-methylindol-3-yl)prop-2-enamide"
+  },
+  {
+    "smiles": "C1=CC(=CN=C1)C2=NNC(=N2)C3=CC=C(C=C3)O",
+    "iupacName": "4-(3-pyridin-3-yl-1H-1,2,4-triazol-5-yl)phenol"
+  },
+  {
+    "smiles": "CCCOC1=CC=C(C=C1)C(=O)NC2=CC=CC=C2N3CCN(CC3)C(=O)C4=CC=C(C=C4)Cl",
+    "iupacName": "N-[2-[4-(4-chlorobenzoyl)piperazin-1-yl]phenyl]-4-propoxybenzamide"
+  },
+  {
+    "smiles": "C1C[C@H](OC1)CNC(=O)CN(C2=CC=C(C=C2)Cl)S(=O)(=O)C3=CC=CC=C3",
+    "iupacName": "2-[N-(benzenesulfonyl)-4-chloroanilino]-N-[[(2S)-oxolan-2-yl]methyl]acetamide"
+  },
+  {
+    "smiles": "CC(=O)OC1=CCCCCCC1",
+    "iupacName": "cycloocten-1-yl acetate"
+  },
+  {
+    "smiles": "C1CCC(CC1)NC(=O)N2C3=C(C=C(C=C3)[N+](=O)[O-])C=N2",
+    "iupacName": "N-cyclohexyl-5-nitroindazole-1-carboxamide"
+  },
+  {
+    "smiles": "C1CCC(CC1)NC2=NN=C(S2)SCC(=O)N3CC(=O)NC4=CC=CC=C43",
+    "iupacName": "4-[2-[[5-(cyclohexylamino)-1,3,4-thiadiazol-2-yl]sulfanyl]acetyl]-1,3-dihydroquinoxalin-2-one"
+  },
+  {
+    "smiles": "C1C2=C(C=CC(=C2)S(=O)(=O)OCC(C(C(C(C(F)(F)F)(F)F)(F)F)(F)F)(F)F)C3=C1C=C(C=C3)S(=O)(=O)OCC(C(C(C(C(F)(F)F)(F)F)(F)F)(F)F)(F)F",
+    "iupacName": "bis(2,2,3,3,4,4,5,5,6,6,6-undecafluorohexyl) 9H-fluorene-2,7-disulfonate"
+  },
+  {
+    "smiles": "CC1=C(C=C(C=C1)N2C(=O)C3=C(C2=O)C=C(C=C3)C(=O)NC4=CC=C(C=C4)C(=O)C)C",
+    "iupacName": "N-(4-acetylphenyl)-2-(3,4-dimethylphenyl)-1,3-dioxoisoindole-5-carboxamide"
+  },
+  {
+    "smiles": "CC1=CC(=[N+](C=C1)CC(=O)C23CC4CC(C2)CC(C4)C3)N",
+    "iupacName": "1-(1-adamantyl)-2-(2-amino-4-methylpyridin-1-ium-1-yl)ethanone"
+  },
+  {
+    "smiles": "CC1=CC(=CC=C1)N2CCN(CC2)C[C@@H](CN3C(=O)C4=CC=CC=C4C3=O)O",
+    "iupacName": "2-[(2S)-2-hydroxy-3-[4-(3-methylphenyl)piperazin-1-yl]propyl]isoindole-1,3-dione"
+  },
+  {
+    "smiles": "C1=CC(=CC=C1[N+](=O)[O-])OC(C(=O)O)OC2=CC=C(C=C2)[N+](=O)[O-]",
+    "iupacName": "2,2-bis(4-nitrophenoxy)acetic acid"
+  },
+  {
+    "smiles": "C1=CC=C(C(=C1)C2=NC3=CC(=C(C=C3N2)F)Cl)C(=O)O",
+    "iupacName": "2-(5-chloro-6-fluoro-1H-benzimidazol-2-yl)benzoic acid"
+  },
+  {
+    "smiles": "CN1C2=CC=CC=C2N=C1C3=CC=C(O3)C4=CC=CC=C4",
+    "iupacName": "1-methyl-2-(5-phenylfuran-2-yl)benzimidazole"
+  },
+  {
+    "smiles": "COC1=CC(=CC(=C1OC)OC)C2=CC(=O)C3=C(O2)C=CC(=C3)OCC(=O)NC4=CC(=CC(=C4)Cl)Cl",
+    "iupacName": "N-(3,5-dichlorophenyl)-2-[4-oxo-2-(3,4,5-trimethoxyphenyl)chromen-6-yl]oxyacetamide"
+  },
+  {
+    "smiles": "C1(=C(C(=C(C(=O)O)Cl)C(=C1Cl)Cl)Cl)Cl",
+    "iupacName": "2-chloro-2-(2,3,4,5-tetrachlorocyclopenta-2,4-dien-1-ylidene)acetic acid"
+  },
+  {
+    "smiles": "CN(C)S(=O)(=O)C1=CC=CC(=C1)C(=O)NC2=CC=C(C=C2)OC3=CC=CC=C3",
+    "iupacName": "3-(dimethylsulfamoyl)-N-(4-phenoxyphenyl)benzamide"
+  },
+  {
+    "smiles": "CC1=CC=C(C=C1)N2C[C@]34C=C[C@H](O3)[C@@H]([C@H]4C2=O)C(=O)OCC(C)C",
+    "iupacName": "2-methylpropyl (1R,5R,6R,7S)-3-(4-methylphenyl)-4-oxo-10-oxa-3-azatricyclo[5.2.1.01,5]dec-8-ene-6-carboxylate"
+  },
+  {
+    "smiles": "COC1=C(C=C(C=C1)N)CCC(=O)O",
+    "iupacName": "3-(5-amino-2-methoxyphenyl)propanoic acid"
+  },
+  {
+    "smiles": "CCCCN(CC(=O)NC1=CC(=NN1C2=CC=C(C=C2)OC)C(C)(C)C)C(=O)C3=CC(=CC=C3)C(F)(F)F",
+    "iupacName": "N-butyl-N-[2-[[3-tert-butyl-1-(4-methoxyphenyl)pyrazol-5-yl]amino]-2-oxoethyl]-3-(trifluoromethyl)benzamide"
+  },
+  {
+    "smiles": "C1C=CCN1C(=O)CN2C(=O)OC(=N2)C3=CC=CC=C3",
+    "iupacName": "3-[2-(2,5-dihydropyrrol-1-yl)-2-oxoethyl]-5-phenyl-1,3,4-oxadiazol-2-one"
+  },
+  {
+    "smiles": "CCOP(=O)(C)C",
+    "iupacName": "1-dimethylphosphoryloxyethane"
+  },
+  {
+    "smiles": "CCCCN(C(C1=CC=CC=C1Cl)C(=O)NC2CCCC2)C(=O)CC3=CC=CS3",
+    "iupacName": "2-[butyl-(2-thiophen-2-ylacetyl)amino]-2-(2-chlorophenyl)-N-cyclopentylacetamide"
+  },
+  {
+    "smiles": "CC1=CC=C(C=C1)C2NC3=C(C(=O)N2)SC(=S)N3C4=CC=CC=C4",
+    "iupacName": "5-(4-methylphenyl)-3-phenyl-2-sulfanylidene-5,6-dihydro-4H-[1,3]thiazolo[4,5-d]pyrimidin-7-one"
+  },
+  {
+    "smiles": "C1CN([C@@H](C2=CC=CC=C21)CC(=O)NC3=CN=CC=C3)S(=O)(=O)C4=CC=CC=C4",
+    "iupacName": "2-[(1R)-2-(benzenesulfonyl)-3,4-dihydro-1H-isoquinolin-1-yl]-N-pyridin-3-ylacetamide"
+  },
+  {
+    "smiles": "CC1=CC2=NC(=C(N2C=C1)CN3CCC(CC3)C(=O)O)C4=CC(=C(C=C4)OC)OC",
+    "iupacName": "1-[[2-(3,4-dimethoxyphenyl)-7-methylimidazo[1,2-a]pyridin-3-yl]methyl]piperidine-4-carboxylic acid"
+  },
+  {
+    "smiles": "C1=CC(=C(C=C1Cl)Cl)C2=CSC(=N2)C3=NC(=CS3)C4=C(C=C(C=C4)Cl)Cl",
+    "iupacName": "4-(2,4-dichlorophenyl)-2-[4-(2,4-dichlorophenyl)-1,3-thiazol-2-yl]-1,3-thiazole"
+  },
+  {
+    "smiles": "CC1=CC(=NC(=N1)NNC2=NC(=CC(=N2)C)C)C",
+    "iupacName": "1,2-bis(4,6-dimethylpyrimidin-2-yl)hydrazine"
+  },
+  {
+    "smiles": "C1=CC=C(C(=C1)C(=O)N2[C@@H](C=C(N2)C3=CC=CS3)C4=CC(=CC=C4)O)Cl",
+    "iupacName": "(2-chlorophenyl)-[(3S)-3-(3-hydroxyphenyl)-5-thiophen-2-yl-1,3-dihydropyrazol-2-yl]methanone"
+  },
+  {
+    "smiles": "CCOC1=CC=C(C=C1)C2=C(SC(=N2)NC(=O)CC3=CC=C(C=C3)C4=CC=CC=C4)C",
+    "iupacName": "N-[4-(4-ethoxyphenyl)-5-methyl-1,3-thiazol-2-yl]-2-(4-phenylphenyl)acetamide"
+  },
+  {
+    "smiles": "CC(C(=O)NC1=CC=CC=C1[N+](=O)[O-])OC2=C(C=C(C=C2)Cl)Cl",
+    "iupacName": "2-(2,4-dichlorophenoxy)-N-(2-nitrophenyl)propanamide"
+  },
+  {
+    "smiles": "C1=CC(=CC(=C1)F)NCC2=C(C=CC(=C2)Cl)[N+](=O)[O-]",
+    "iupacName": "N-[(5-chloro-2-nitrophenyl)methyl]-3-fluoroaniline"
+  },
+  {
+    "smiles": "C1CN(CCC1C(=O)N2CCOCC2)CC3=CC=CC=C3",
+    "iupacName": "(1-benzylpiperidin-4-yl)-morpholin-4-ylmethanone"
+  },
+  {
+    "smiles": "CC1=C(C(=O)N(N1C)C2=CC=CC=C2)N3C(=NN=C3SCC45CC6CC(C4)CC(C6)C5)C7=CC=CC=C7Cl",
+    "iupacName": "4-[3-(1-adamantylmethylsulfanyl)-5-(2-chlorophenyl)-1,2,4-triazol-4-yl]-1,5-dimethyl-2-phenylpyrazol-3-one"
+  },
+  {
+    "smiles": "C1CCCN(CC1)S(=O)(=O)C2=C(C=CC(=C2)C(=O)NC3=CC=C(C=C3)C(=O)[O-])Br",
+    "iupacName": "4-[[3-(azepan-1-ylsulfonyl)-4-bromobenzoyl]amino]benzoate"
+  },
+  {
+    "smiles": "C1=CC=C2C(=C1)C(=CN2)[C@@H](C(=O)[O-])C(F)(F)F",
+    "iupacName": "(2S)-3,3,3-trifluoro-2-(1H-indol-3-yl)propanoate"
+  },
+  {
+    "smiles": "C1C[C@H](OC1)CNCC2=NC3=CC=CC=C3C(=O)N2C4=CC=C(C=C4)F",
+    "iupacName": "3-(4-fluorophenyl)-2-[[[(2S)-oxolan-2-yl]methylamino]methyl]quinazolin-4-one"
+  },
+  {
+    "smiles": "CC(=O)C(C(CO)O)O",
+    "iupacName": "3,4,5-trihydroxypentan-2-one"
+  },
+  {
+    "smiles": "CCN(CC)CC(C)CNC(=O)C1=CC(=O)NC2=C1C=C(C=C2)S(=O)(=O)N3CCCCCC3",
+    "iupacName": "6-(azepan-1-ylsulfonyl)-N-[3-(diethylamino)-2-methylpropyl]-2-oxo-1H-quinoline-4-carboxamide"
+  },
+  {
+    "smiles": "C[C@H](C(=O)NC1=CC(=C(C=C1)Cl)Cl)NC(=O)N",
+    "iupacName": "(2R)-2-(carbamoylamino)-N-(3,4-dichlorophenyl)propanamide"
+  },
+  {
+    "smiles": "CC1=C(SC=C1)C=NNC(=O)CC[C@H]2C(=C)NNC2=O",
+    "iupacName": "3-[(4S)-3-methylidene-5-oxopyrazolidin-4-yl]-N-[(3-methylthiophen-2-yl)methylideneamino]propanamide"
+  },
+  {
+    "smiles": "COC1=CC2=C(C=C1)NC=C2CCN=CC3=C(C(=C(C=C3)OC)OC)C(=O)O",
+    "iupacName": "2,3-dimethoxy-6-[2-(5-methoxy-1H-indol-3-yl)ethyliminomethyl]benzoic acid"
+  },
+  {
+    "smiles": "C1COCCN1CC2=C(C(=CC(=C2)OC3=CC(=C(C(=C3)Cl)O)CN4CCOCC4)Cl)O",
+    "iupacName": "2-chloro-4-[3-chloro-4-hydroxy-5-(morpholin-4-ylmethyl)phenoxy]-6-(morpholin-4-ylmethyl)phenol"
+  },
+  {
+    "smiles": "CC12CCP(=O)(C1C(=NO2)C3=CC=CC=C3)OC4=CC=CC=C4",
+    "iupacName": "6a-methyl-4-phenoxy-3-phenyl-5,6-dihydro-3aH-phospholo[2,3-d][1,2]oxazole 4-oxide"
+  },
+  {
+    "smiles": "C1=CC=C2C(=C1)C(=CN2)C=NC3=C(C=C(C=C3)Br)Br.C(=O)(C(Cl)(Cl)Cl)O",
+    "iupacName": "N-(2,4-dibromophenyl)-1-(1H-indol-3-yl)methanimine;2,2,2-trichloroacetic acid"
+  },
+  {
+    "smiles": "C1CCC(CC1)NC(=O)CCSC2=NC(=CC(=N2)C(F)(F)F)C3=CC4=C(C=C3)OCO4",
+    "iupacName": "3-[4-(1,3-benzodioxol-5-yl)-6-(trifluoromethyl)pyrimidin-2-yl]sulfanyl-N-cyclohexylpropanamide"
+  },
+  {
+    "smiles": "C[C@@H](C(=O)NC1=CC(=C(C=C1OC)NC(=O)[C@H](C)OC2=CC=CC=C2)OC)OC3=CC=CC=C3",
+    "iupacName": "(2S)-N-[2,5-dimethoxy-4-[[(2S)-2-phenoxypropanoyl]amino]phenyl]-2-phenoxypropanamide"
+  },
+  {
+    "smiles": "CCN1C(=NN=C1SCC(=O)NC2=CC=CC=C2C(C)(C)C)C3=CC=CC=C3OC",
+    "iupacName": "N-(2-tert-butylphenyl)-2-[[4-ethyl-5-(2-methoxyphenyl)-1,2,4-triazol-3-yl]sulfanyl]acetamide"
+  },
+  {
+    "smiles": "CC1=CN=C(C=N1)C(=O)N(CCCOC)CCC(=O)N2CCN(CC2)C3=CC=CC=C3OC",
+    "iupacName": "N-[3-[4-(2-methoxyphenyl)piperazin-1-yl]-3-oxopropyl]-N-(3-methoxypropyl)-5-methylpyrazine-2-carboxamide"
+  },
+  {
+    "smiles": "CC1=CC(=CC(=C1)N2C(=C(C(=CC3=CC=CO3)C2=O)C(=O)OC)C)C",
+    "iupacName": "methyl 1-(3,5-dimethylphenyl)-4-(furan-2-ylmethylidene)-2-methyl-5-oxopyrrole-3-carboxylate"
+  },
+  {
+    "smiles": "COC1=CC(=C(C=C1)OC)C2(CSC(=NC3=CN=CC=C3)N2C4CC4)O",
+    "iupacName": "3-cyclopropyl-4-(2,5-dimethoxyphenyl)-2-pyridin-3-ylimino-1,3-thiazolidin-4-ol"
+  },
+  {
+    "smiles": "CC1=C(C=C(C=C1)N2C(=O)[C@@H]3[C@H](C2=O)C4(C5=CC=CC=C5C3C6=CC=CC=C64)C)C",
+    "iupacName": "(15S,19S)-17-(3,4-dimethylphenyl)-1-methyl-17-azapentacyclo[6.6.5.02,7.09,14.015,19]nonadeca-2,4,6,9,11,13-hexaene-16,18-dione"
+  },
+  {
+    "smiles": "CC(C)N(CCSC1=NN=C(S1)SCCN(C(C)C)C(C)C)C(C)C",
+    "iupacName": "N-[2-[[5-[2-[di(propan-2-yl)amino]ethylsulfanyl]-1,3,4-thiadiazol-2-yl]sulfanyl]ethyl]-N-propan-2-ylpropan-2-amine"
+  },
+  {
+    "smiles": "CCCNCC1=CC(=C(C(=C1)I)OCC#N)OCC.Cl",
+    "iupacName": "2-[2-ethoxy-6-iodo-4-(propylaminomethyl)phenoxy]acetonitrile;hydrochloride"
+  },
+  {
+    "smiles": "CCC(=O)N1[C@@H](C2=C(CC(CC2=O)(C)C)NC3=CC=CC=C31)C4=CC(=C(C=C4)O)OCC",
+    "iupacName": "(6R)-6-(3-ethoxy-4-hydroxyphenyl)-9,9-dimethyl-5-propanoyl-6,8,10,11-tetrahydrobenzo[b][1,4]benzodiazepin-7-one"
+  },
+  {
+    "smiles": "CN(CC1=CC=C(C=C1)Cl)CC(=O)NC2=CC=CC=C2SC",
+    "iupacName": "2-[(4-chlorophenyl)methyl-methylamino]-N-(2-methylsulfanylphenyl)acetamide"
+  },
+  {
+    "smiles": "CC1=CC=C(C=C1)C=NNC(=O)C(=O)NC2=CC=CC=N2",
+    "iupacName": "N'-[(4-methylphenyl)methylideneamino]-N-pyridin-2-yloxamide"
+  },
+  {
+    "smiles": "CCC1=CC=C(C=C1)OCC(=O)NNC(=O)C2=CC=C(C=C2)OC(F)(F)F",
+    "iupacName": "N'-[2-(4-ethylphenoxy)acetyl]-4-(trifluoromethoxy)benzohydrazide"
+  },
+  {
+    "smiles": "COC1=C(C(=CC(=C1)/C=C\\2/C(=O)NN(C2=O)C3=CC=CC=C3)Br)OCC(=O)[O-]",
+    "iupacName": "2-[2-bromo-4-[(Z)-(3,5-dioxo-1-phenylpyrazolidin-4-ylidene)methyl]-6-methoxyphenoxy]acetate"
+  },
+  {
+    "smiles": "CCCCCCCCCCCCCCO.CCCCCCCCCCCCO.CC=CC=CCCCCCCCO",
+    "iupacName": "dodeca-8,10-dien-1-ol;dodecan-1-ol;tetradecan-1-ol"
+  },
+  {
+    "smiles": "CCOC(=O)C1=C(NC(=O)N[C@@H]1C2=C(C(=CC(=C2)Cl)Cl)O)C",
+    "iupacName": "ethyl (4R)-4-(3,5-dichloro-2-hydroxyphenyl)-6-methyl-2-oxo-3,4-dihydro-1H-pyrimidine-5-carboxylate"
+  },
+  {
+    "smiles": "CN(CCNC(=O)C1=CNC2=C1CC3=CC=CC=C32)CCNC(=O)C4=CNC5=C4CC6=CC=CC=C65",
+    "iupacName": "N-[2-[2-(1,4-dihydroindeno[1,2-b]pyrrole-3-carbonylamino)ethyl-methylamino]ethyl]-1,4-dihydroindeno[1,2-b]pyrrole-3-carboxamide"
+  },
+  {
+    "smiles": "COC1=CC2=C(C=C1)N=C(C=C2C(=O)NCCCN3CCOCC3)C4=CC5=C(C=C4)OCO5",
+    "iupacName": "2-(1,3-benzodioxol-5-yl)-6-methoxy-N-(3-morpholin-4-ylpropyl)quinoline-4-carboxamide"
+  },
+  {
+    "smiles": "COC1=CC=C(C=C1)NC(=O)C2=CC=C(O2)COC3=CC4=CC=CC=C4C=C3",
+    "iupacName": "N-(4-methoxyphenyl)-5-(naphthalen-2-yloxymethyl)furan-2-carboxamide"
+  },
+  {
+    "smiles": "COC1=CC=C(C=C1)C2=NC3=CC=CC=C3C(=C2)C(=O)NC4=C(C=CC(=C4)S(=O)(=O)NC5=CC=CC=C5OC)Cl",
+    "iupacName": "N-[2-chloro-5-[(2-methoxyphenyl)sulfamoyl]phenyl]-2-(4-methoxyphenyl)quinoline-4-carboxamide"
+  },
+  {
+    "smiles": "COC1=CC=C(C=C1)S(=O)(=O)NCC(=O)OCC(=O)NC2=CC3=CC=CC=C3C=C2",
+    "iupacName": "[2-(naphthalen-2-ylamino)-2-oxoethyl] 2-[(4-methoxyphenyl)sulfonylamino]acetate"
+  },
+  {
+    "smiles": "C[C@H](C1=CC=CC=C1)NS(=O)(=O)C2=CC(=CC=C2)Cl",
+    "iupacName": "3-chloro-N-[(1R)-1-phenylethyl]benzenesulfonamide"
+  },
+  {
+    "smiles": "C/C(=C/C(=O)O)/C=C/C1=CNC2=CC=CC=C21",
+    "iupacName": "(2Z,4E)-5-(1H-indol-3-yl)-3-methylpenta-2,4-dienoic acid"
+  },
+  {
+    "smiles": "CCCCCCCCP(CCCCCCCC)C1CCCCC1",
+    "iupacName": "cyclohexyl(dioctyl)phosphane"
+  },
+  {
+    "smiles": "C1COC2=C(C=C(C=C2)C3CC(=O)C4=C(O3)C=CC(=C4)F)OC1",
+    "iupacName": "2-(3,4-dihydro-2H-1,5-benzodioxepin-7-yl)-6-fluoro-2,3-dihydrochromen-4-one"
+  },
+  {
+    "smiles": "CCN1C(=NN=C1SCC2=NC3=C(C4=C(S3)CCCC4)C(=O)N2)C5=CC=CC=C5",
+    "iupacName": "2-[(4-ethyl-5-phenyl-1,2,4-triazol-3-yl)sulfanylmethyl]-5,6,7,8-tetrahydro-3H-[1]benzothiolo[2,3-d]pyrimidin-4-one"
+  },
+  {
+    "smiles": "CC(=O)C1=CC=C(C=C1)N2C(=O)CC(C2=O)N(C)CC3=CC=CC=C3",
+    "iupacName": "1-(4-acetylphenyl)-3-[benzyl(methyl)amino]pyrrolidine-2,5-dione"
+  },
+  {
+    "smiles": "COC1=CC=CC=C1CCNC(=O)C2=CC(=NC3=CC=CC=C32)C4=CC=CC=C4.Cl",
+    "iupacName": "N-[2-(2-methoxyphenyl)ethyl]-2-phenylquinoline-4-carboxamide;hydrochloride"
+  },
+  {
+    "smiles": "CCOC(=O)C1C(C(=C(NC1=O)SCC(=O)NC2=CC(=C(C=C2)Cl)Cl)C#N)C3=CC=CC=C3Cl",
+    "iupacName": "ethyl 4-(2-chlorophenyl)-5-cyano-6-[2-(3,4-dichloroanilino)-2-oxoethyl]sulfanyl-2-oxo-3,4-dihydro-1H-pyridine-3-carboxylate"
+  },
+  {
+    "smiles": "CC(C(=O)O)NC(=O)C1=CC=NC=C1",
+    "iupacName": "2-(pyridine-4-carbonylamino)propanoic acid"
+  },
+  {
+    "smiles": "C1=CC(=CC=C1NS(=O)(=O)C2=C(C=C(C=C2)F)F)OC3=NC=C(C=C3)C(F)(F)F",
+    "iupacName": "2,4-difluoro-N-[4-[[5-(trifluoromethyl)-2-pyridinyl]oxy]phenyl]benzenesulfonamide"
+  },
+  {
+    "smiles": "CC(=O)OC1=C[N+](=CC=C1)C(=CC2=CC(=CC=C2)[N+](=O)[O-])C3=CC=C(C=C3)[N+](=O)[O-]",
+    "iupacName": "[1-[2-(3-nitrophenyl)-1-(4-nitrophenyl)ethenyl]pyridin-1-ium-3-yl] acetate"
+  },
+  {
+    "smiles": "C1=CC=C(C=C1)CC(C(=O)[O-])NS(=O)(=O)C2=CC=CC=C2",
+    "iupacName": "2-(benzenesulfonamido)-3-phenylpropanoate"
+  },
+  {
+    "smiles": "CC1=CC=C(C=C1)OCCN2C(=O)C(=CC3=CC=CC=C3OCC(=O)O)SC2=O",
+    "iupacName": "2-[2-[[3-[2-(4-methylphenoxy)ethyl]-2,4-dioxo-1,3-thiazolidin-5-ylidene]methyl]phenoxy]acetic acid"
+  },
+  {
+    "smiles": "COC1=CC(=C(C=C1)C(=O)COC(=O)CN2C3=CC=CC=C3N=C2C(F)(F)F)OC",
+    "iupacName": "[2-(2,4-dimethoxyphenyl)-2-oxoethyl] 2-[2-(trifluoromethyl)benzimidazol-1-yl]acetate"
+  },
+  {
+    "smiles": "CCC1=CC=C(C=C1)NC(=O)[C@H]2CCCN2C(=O)NC3CCCCC3",
+    "iupacName": "(2R)-1-N-cyclohexyl-2-N-(4-ethylphenyl)pyrrolidine-1,2-dicarboxamide"
+  },
+  {
+    "smiles": "CC1=C(C=C(C=C1)C(=O)O)N=NN(C)C",
+    "iupacName": "3-(dimethylaminodiazenyl)-4-methylbenzoic acid"
+  },
+  {
+    "smiles": "CC(CC1=CC=CC=C1)NCCC(C2=CC=CC=C2)C3=CC=CC=N3",
+    "iupacName": "3-phenyl-N-(1-phenylpropan-2-yl)-3-pyridin-2-ylpropan-1-amine"
+  },
+  {
+    "smiles": "CC1=CC=C(C=C1)N([C@@H]2CS(=O)(=O)C=C2)C(=O)C3=CC(=C(C=C3)Cl)[N+](=O)[O-]",
+    "iupacName": "4-chloro-N-[(3S)-1,1-dioxo-2,3-dihydrothiophen-3-yl]-N-(4-methylphenyl)-3-nitrobenzamide"
+  },
+  {
+    "smiles": "C=C(C1=CC=C(C=C1)Cl)NNC(=O)C2=CC=NC=C2",
+    "iupacName": "N'-[1-(4-chlorophenyl)ethenyl]pyridine-4-carbohydrazide"
+  },
+  {
+    "smiles": "C[N+]1(C2CCCC1CN(C2)CCCCN3CC4CCCC(C3)[N+]4(C)C)C",
+    "iupacName": "3-[4-(9,9-dimethyl-3-aza-9-azoniabicyclo[3.3.1]nonan-3-yl)butyl]-9,9-dimethyl-3-aza-9-azoniabicyclo[3.3.1]nonane"
+  },
+  {
+    "smiles": "CCOCCCN(CC(=O)N(CCC1=CC(=C(C=C1)OC)OC)CC2=CC=C(O2)C)C(=O)C3CCC3",
+    "iupacName": "N-[2-[2-(3,4-dimethoxyphenyl)ethyl-[(5-methylfuran-2-yl)methyl]amino]-2-oxoethyl]-N-(3-ethoxypropyl)cyclobutanecarboxamide"
+  },
+  {
+    "smiles": "CCOC1=CC=C(C=C1)NC(=O)N(CCOC)CC2=NC(=CO2)C(=O)OC",
+    "iupacName": "methyl 2-[[(4-ethoxyphenyl)carbamoyl-(2-methoxyethyl)amino]methyl]-1,3-oxazole-4-carboxylate"
+  },
+  {
+    "smiles": "CC1=C(NC(=C1C(=O)C)C)C(=O)NCC2=CC=CC=C2F",
+    "iupacName": "4-acetyl-N-[(2-fluorophenyl)methyl]-3,5-dimethyl-1H-pyrrole-2-carboxamide"
+  }
+]

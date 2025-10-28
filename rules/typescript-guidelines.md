@@ -113,7 +113,7 @@ Basic Principles:
   - Store sensitive information in environment variables (like DB_URL).
 
 Testing:
-- Use the Jest framework for unit and integration tests.
+- Use the bun:test framework for unit and integration tests.
 - Write unit tests for every service and handler.
 - Use test doubles (mocks, stubs) to simulate dependencies.
 - Write end-to-end tests using Fastify's inject method for simulating requests.
