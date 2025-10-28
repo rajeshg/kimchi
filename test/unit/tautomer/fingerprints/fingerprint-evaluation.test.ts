@@ -36,9 +36,13 @@ describe('tautomer: fingerprint evaluation', () => {
       }
 
       const collisions = Array.from(fpMap.values()).filter(v => v.length > 1);
-      console.log(`Molecule: ${m.name} (${m.smiles}) -> tautomers=${tautomers.length} uniqueSmiles=${uniqueSmiles.length} fingerprintBuckets=${fpMap.size} collisions=${collisions.length}`);
+      if (process.env.VERBOSE) {
+  console.log(`Molecule: ${m.name} (${m.smiles}) -> tautomers=${tautomers.length} uniqueSmiles=${uniqueSmiles.length} fingerprintBuckets=${fpMap.size} collisions=${collisions.length}`);
+}
       if (collisions.length > 0) {
-        console.log('Collisions detail:', collisions);
+        if (process.env.VERBOSE) {
+  console.log('Collisions detail:', collisions);
+}
       }
 
       // Compute pairwise Tanimoto similarities for insights
@@ -53,7 +57,9 @@ describe('tautomer: fingerprint evaluation', () => {
       const minSim = sims.length ? Math.min(...sims) : 1.0;
       const maxSim = sims.length ? Math.max(...sims) : 1.0;
       const avgSim = sims.length ? sims.reduce((a,b)=>a+b,0)/sims.length : 1.0;
-      console.log(`  Tanimoto sims: count=${sims.length} min=${minSim.toFixed(3)} avg=${avgSim.toFixed(3)} max=${maxSim.toFixed(3)}`);
+      if (process.env.VERBOSE) {
+  console.log(`  Tanimoto sims: count=${sims.length} min=${minSim.toFixed(3)} avg=${avgSim.toFixed(3)} max=${maxSim.toFixed(3)}`);
+}
 
       // Assert: fingerprint bucket count should be equal to uniqueSmiles (no collisions)
       expect(fpMap.size).toBe(uniqueSmiles.length);

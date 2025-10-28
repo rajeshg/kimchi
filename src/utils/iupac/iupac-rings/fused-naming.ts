@@ -131,7 +131,17 @@ export function identifyPolycyclicPattern(rings: number[][], molecule: Molecule)
   // Only check aromatic polycyclic systems if not heterocyclic
   if (!allRingsAromatic) return null;
 
-  if (ringCount === 2 && ringSizes.every(s => s === 6) && heteroAtoms.length === 0) return 'naphthalene';
+  if (ringCount === 2 && ringSizes.every(s => s === 6) && heteroAtoms.length === 0) {
+    // Distinguish fused naphthalene (rings share atoms) from biphenyl
+    const r1 = rings[0]!;
+    const r2 = rings[1]!;
+    const shared = r1.filter(idx => r2.includes(idx));
+    if (shared.length === 0) {
+      // Disjoint aromatic rings connected by a single bond -> biphenyl
+      return 'biphenyl';
+    }
+    return 'naphthalene';
+  }
   if (ringCount === 3 && ringSizes.every(s => s === 6) && heteroAtoms.length === 0) {
     const sharedAtoms = rings.map((ring: number[], i: number) => {
       if (i === rings.length - 1) return [] as number[];

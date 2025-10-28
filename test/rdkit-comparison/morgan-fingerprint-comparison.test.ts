@@ -73,7 +73,9 @@ it('compares OpenChem and RDKit-JS Morgan fingerprints (radius=2, nBits=2048)', 
   for (let i = 0; i < bulkSmiles.length; i++) {
     const smi = bulkSmiles[i];
     if (typeof smi !== 'string') {
-      console.log(`# DEBUG: Non-string SMILES at index ${i}:`, smi, typeof smi);
+      if (process.env.VERBOSE) {
+  console.log(`# DEBUG: Non-string SMILES at index ${i}:`, smi, typeof smi);
+}
       errorCount++;
       continue;
     }

@@ -170,10 +170,16 @@ describe('Morgan Fingerprints - Diverse Chemical Structures', () => {
       }
     }
     
-    console.log('\n=== Morgan Fingerprint Validation ===');
-    console.log(`Successfully generated ${metrics.length} fingerprints`);
+    if (process.env.VERBOSE) {
+  console.log('\n=== Morgan Fingerprint Validation ===');
+}
+    if (process.env.VERBOSE) {
+  console.log(`Successfully generated ${metrics.length} fingerprints`);
+}
     if (errors.length > 0) {
-      console.log(`Errors: ${errors.length}`);
+      if (process.env.VERBOSE) {
+  console.log(`Errors: ${errors.length}`);
+}
     }
   });
   

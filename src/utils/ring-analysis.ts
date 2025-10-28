@@ -221,22 +221,36 @@ export function classifyRingSystems(atoms: readonly Atom[], bonds: readonly Bond
     if (!ring1) continue;
     let sharedCount = 0;
     let sharedAtoms: number[] = [];
+    let crossBondCount = 0;
     const ring1Set = new Set(ring1);
 
     for (let j = i + 1; j < rings.length; j++) {
       const ring2 = rings[j];
       if (!ring2) continue;
+      const ring2Set = new Set(ring2);
       const shared = ring2.filter(atom => ring1Set.has(atom));
 
       if (shared.length > 0) {
         sharedCount++;
         sharedAtoms.push(...shared);
       }
+
+      // Count bonds that directly connect an atom in ring1 to an atom in ring2
+      for (const b of bonds) {
+        const in1 = ring1Set.has(b.atom1) && ring2Set.has(b.atom2);
+        const in2 = ring1Set.has(b.atom2) && ring2Set.has(b.atom1);
+        if (in1 || in2) crossBondCount++;
+      }
     }
 
-    if (sharedCount === 0) {
+    // Classification rules:
+    // - isolated: no shared atoms and no inter-ring bonds
+    // - spiro: exactly one shared atom OR exactly one inter-ring bond (special handling)
+    // - fused: shares 2+ atoms with another ring
+    // - bridged: fallback for other complex cases
+    if (sharedCount === 0 && crossBondCount === 0) {
       isolated.push(ring1);
-    } else if (sharedCount === 1 && sharedAtoms.length === 1) {
+    } else if ((sharedCount === 1 && sharedAtoms.length === 1) || (sharedCount === 0 && crossBondCount === 1)) {
       spiro.push(ring1);
     } else if (sharedCount >= 1 && sharedAtoms.length >= 2) {
       fused.push(ring1);

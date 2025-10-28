@@ -108,13 +108,17 @@ describe('computeMorganFingerprint', () => {
     for (const smi of bulkSmiles) {
       const result = parseSMILES(smi);
       if (result.errors.length > 0) {
-        console.log(`# ERROR: ${smi} => ${result.errors.join('; ')}`);
+        if (process.env.VERBOSE) {
+  console.log(`# ERROR: ${smi} => ${result.errors.join('; ')}`);
+}
         continue;
       }
       const mol = result.molecules[0]!;
        const fp = computeMorganFingerprint(mol, 2, 2048);
        const hex = fpToHex(fp);
-      console.log(`${smi}\t${hex}`);
+      if (process.env.VERBOSE) {
+  console.log(`${smi}\t${hex}`);
+}
     }
   });
 

@@ -136,47 +136,55 @@ function generateNameForComponent(
    // Check if the molecule has major functional groups
    // (carboxylic acid, aldehyde, ketone, alcohol)
    // If it does AND the functional group is ON a chain (not on a ring), prioritize aliphatic chain selection
-   const ringInfo = analyzeRings(molecule);
-   
-   // Find functional group atoms
-   const functionalGroupAtoms = new Set<number>();
-   const hasCarboxyl = molecule.atoms.some((atom, idx) => {
-     if (atom.symbol !== 'C') return false;
-     const bonds = molecule.bonds.filter(b => b.atom1 === idx || b.atom2 === idx);
-     
-     // Check for C=O (carboxylic acid, aldehyde, ketone)
-     const hasDoubleO = bonds.some(b => {
-       const neighborIdx = b.atom1 === idx ? b.atom2 : b.atom1;
-       const neighbor = molecule.atoms[neighborIdx];
-       return neighbor?.symbol === 'O' && b.type === BondType.DOUBLE;
-     });
-     
-     if (hasDoubleO) {
-       functionalGroupAtoms.add(idx);
-       return true;
-     }
-     return false;
-   });
+    const ringInfo = analyzeRings(molecule);
+    
+    // Find functional group atoms
+    const functionalGroupAtoms = new Set<number>();
+    const hasCarboxyl = molecule.atoms.some((atom, idx) => {
+      if (atom.symbol !== 'C') return false;
+      const bonds = molecule.bonds.filter(b => b.atom1 === idx || b.atom2 === idx);
+      
+      // Check for C=O (carboxylic acid, aldehyde, ketone)
+      const hasDoubleO = bonds.some(b => {
+        const neighborIdx = b.atom1 === idx ? b.atom2 : b.atom1;
+        const neighbor = molecule.atoms[neighborIdx];
+        return neighbor?.symbol === 'O' && b.type === BondType.DOUBLE;
+      });
+      
+      if (hasDoubleO) {
+        functionalGroupAtoms.add(idx);
+        return true;
+      }
+      return false;
+    });
 
-   const hasAlcohol = molecule.atoms.some((atom, idx) => {
-     if (atom.symbol !== 'C') return false;
-     const bonds = molecule.bonds.filter(b => b.atom1 === idx || b.atom2 === idx);
-     
-     // Check for alcohol (C-OH)
-     const hasOH = bonds.some(b => {
-       const neighborIdx = b.atom1 === idx ? b.atom2 : b.atom1;
-       const neighbor = molecule.atoms[neighborIdx];
-       return neighbor?.symbol === 'O' && b.type === BondType.SINGLE && neighbor.hydrogens! > 0;
-     });
-     
-     if (hasOH) {
-       functionalGroupAtoms.add(idx);
-       return true;
-     }
-     return false;
-   });
+    const hasAlcohol = molecule.atoms.some((atom, idx) => {
+      if (atom.symbol !== 'C') return false;
+      const bonds = molecule.bonds.filter(b => b.atom1 === idx || b.atom2 === idx);
+      
+      // Check for alcohol (C-OH)
+      const hasOH = bonds.some(b => {
+        const neighborIdx = b.atom1 === idx ? b.atom2 : b.atom1;
+        const neighbor = molecule.atoms[neighborIdx];
+        return neighbor?.symbol === 'O' && b.type === BondType.SINGLE && neighbor.hydrogens! > 0;
+      });
+      
+      if (hasOH) {
+        functionalGroupAtoms.add(idx);
+        return true;
+      }
+      return false;
+    });
 
-   const hasMajorFunctionalGroup = hasCarboxyl || hasAlcohol;
+    const hasMajorFunctionalGroup = hasCarboxyl || hasAlcohol;
+
+    // Diagnostic logging (gate behind VERBOSE)
+    if (process.env.VERBOSE) {
+      try {
+        console.debug('[iupac-generator] ringInfo:', { ringCount: ringInfo.rings.length, rings: ringInfo.rings });
+        console.debug('[iupac-generator] functionalGroupAtoms:', Array.from(functionalGroupAtoms), 'hasCarboxyl', hasCarboxyl, 'hasAlcohol', hasAlcohol, 'hasMajorFunctionalGroup', hasMajorFunctionalGroup);
+      } catch (e) {}
+    }
 
    // Check if any functional group atoms are NOT on rings (i.e., on chains)
    let functionalGroupOnChain = false;

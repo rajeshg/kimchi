@@ -21,12 +21,14 @@ describe('SVG Basic Rendering', () => {
     const doubleBonds = kekulized.bonds.filter((b: Bond) => b.type === BondType.DOUBLE).length;
     const aromaticBondsAfter = kekulized.bonds.filter((b: Bond) => b.type === BondType.AROMATIC).length;
     
-    console.log('Benzene bonds after kekulization:', {
-      single: singleBonds,
-      double: doubleBonds,
-      aromatic: aromaticBondsAfter,
-      total: kekulized.bonds.length
-    });
+    if (process.env.VERBOSE) {
+  console.log('Benzene bonds after kekulization:', {
+    single: singleBonds,
+    double: doubleBonds,
+    aromatic: aromaticBondsAfter,
+    total: kekulized.bonds.length
+  });
+}
     
     expect(singleBonds).toBe(3);
     expect(doubleBonds).toBe(3);

@@ -148,25 +148,23 @@ export function selectPrincipalChain(molecule: Molecule): ChainSelectionResult {
    const principalAtoms = getPrincipalFunctionalGroupAtoms(molecule);
 
    if (principalAtoms.length === 0) {
-     // No principal functional group — fall back to existing selection pipeline
-     // Debug logging for small molecules (helpful during development)
-     try {
-       const ringInfo = analyzeRings(molecule);
-       if (molecule.atoms.length === 10 && ringInfo.rings.length === 2) {
-         // Log internal candidate counts for this special-case molecule
-         const fg = findChainsFromFunctionalGroups(molecule);
-         const ac = findAllAcyclicChains(molecule);
-         const rc = findRingBasedChains(molecule);
-         console.debug('[chain-selection] debug: no principal FG, candidates:', { fgCount: fg.length, acCount: ac.length, rcCount: rc.length });
-       }
-     } catch (e) {
-       // ignore debug errors
-     }
+      // No principal functional group — fall back to existing selection pipeline
+      // Diagnostic logging gated by VERBOSE
+      if (process.env.VERBOSE) {
+        try {
+          const fg = findChainsFromFunctionalGroups(molecule);
+          const ac = findAllAcyclicChains(molecule);
+          const rc = findRingBasedChains(molecule);
+          const ringInfo = analyzeRings(molecule);
+          console.debug('[chain-selection] VERBOSE: no principal FG, candidates counts:', { fgCount: fg.length, acCount: ac.length, rcCount: rc.length, ringCount: ringInfo.rings.length });
+          console.debug('[chain-selection] VERBOSE: sample candidates', { fgSample: fg.slice(0,3), acSample: ac.slice(0,3), rcSample: rc.slice(0,3) });
+        } catch (e) {}
+      }
 
-      // Always restrict to maxLenCandidates for highly branched alkanes (IUPAC compliance)
-      if (maxLenCandidates.length === 1) return { chain: maxLenCandidates[0]!, reason: 'Only one chain candidate' };
-      return selectBestChain(maxLenCandidates, molecule, 'No principal FG (max length only)');
-   }
+       // Always restrict to maxLenCandidates for highly branched alkanes (IUPAC compliance)
+       if (maxLenCandidates.length === 1) return { chain: maxLenCandidates[0]!, reason: 'Only one chain candidate' };
+       return selectBestChain(maxLenCandidates, molecule, 'No principal FG (max length only)');
+    }
 
   // Filter candidates to those that contain any principal atom
   const candidatesContainingPrincipal = allCandidates.filter(c => c.some(i => principalAtoms.includes(i)));

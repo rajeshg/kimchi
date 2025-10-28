@@ -53,7 +53,9 @@ describe('Kekulize RDKit Comparison', () => {
   it('should kekulize benzene consistently with RDKit', async () => {
     const RDKit = await getRDKitModule();
     if (!RDKit) {
-      console.log('RDKit not available, skipping');
+      if (process.env.VERBOSE) {
+        console.log('RDKit not available, skipping');
+      }
       return;
     }
 
@@ -70,9 +72,11 @@ describe('Kekulize RDKit Comparison', () => {
     const rdkitCounts = getBondCountsFromMolBlock(molblock);
     rdkitMol.delete();
     
+    if (process.env.VERBOSE) {
     console.log('Benzene kekulization:');
     console.log('  openchem:', openchemCounts);
     console.log('  RDKit:', rdkitCounts);
+  }
     
     expect(openchemCounts.single).toBe(3);
     expect(openchemCounts.double).toBe(3);
@@ -83,7 +87,9 @@ describe('Kekulize RDKit Comparison', () => {
   it('should kekulize pyridine consistently with RDKit', async () => {
     const RDKit = await getRDKitModule();
     if (!RDKit) {
-      console.log('RDKit not available, skipping');
+      if (process.env.VERBOSE) {
+        console.log('RDKit not available, skipping');
+      }
       return;
     }
 
@@ -100,9 +106,11 @@ describe('Kekulize RDKit Comparison', () => {
     const rdkitCounts = getBondCountsFromMolBlock(molblock);
     rdkitMol.delete();
     
-    console.log('Pyridine kekulization:');
-    console.log('  openchem:', openchemCounts);
-    console.log('  RDKit:', rdkitCounts);
+    if (process.env.VERBOSE) {
+      console.log('Pyridine kekulization:');
+      console.log('  openchem:', openchemCounts);
+      console.log('  RDKit:', rdkitCounts);
+    }
     
     expect(openchemCounts.single).toBe(3);
     expect(openchemCounts.double).toBe(3);
@@ -113,7 +121,9 @@ describe('Kekulize RDKit Comparison', () => {
   it('should kekulize naphthalene consistently with RDKit', async () => {
     const RDKit = await getRDKitModule();
     if (!RDKit) {
-      console.log('RDKit not available, skipping');
+      if (process.env.VERBOSE) {
+        console.log('RDKit not available, skipping');
+      }
       return;
     }
 
@@ -130,9 +140,11 @@ describe('Kekulize RDKit Comparison', () => {
     const rdkitCounts = getBondCountsFromMolBlock(molblock);
     rdkitMol.delete();
     
-    console.log('Naphthalene kekulization:');
-    console.log('  openchem:', openchemCounts);
-    console.log('  RDKit:', rdkitCounts);
+    if (process.env.VERBOSE) {
+      console.log('Naphthalene kekulization:');
+      console.log('  openchem:', openchemCounts);
+      console.log('  RDKit:', rdkitCounts);
+    }
     
     expect(openchemCounts.single).toBe(6);
     expect(openchemCounts.double).toBe(5);
@@ -143,7 +155,9 @@ describe('Kekulize RDKit Comparison', () => {
   it('should kekulize furan consistently with RDKit', async () => {
     const RDKit = await getRDKitModule();
     if (!RDKit) {
-      console.log('RDKit not available, skipping');
+      if (process.env.VERBOSE) {
+        console.log('RDKit not available, skipping');
+      }
       return;
     }
 
@@ -160,9 +174,11 @@ describe('Kekulize RDKit Comparison', () => {
     const rdkitCounts = getBondCountsFromMolBlock(molblock);
     rdkitMol.delete();
     
-    console.log('Furan kekulization:');
-    console.log('  openchem:', openchemCounts);
-    console.log('  RDKit:', rdkitCounts);
+    if (process.env.VERBOSE) {
+      console.log('Furan kekulization:');
+      console.log('  openchem:', openchemCounts);
+      console.log('  RDKit:', rdkitCounts);
+    }
     
     expect(openchemCounts.single).toBe(3);
     expect(openchemCounts.double).toBe(2);
@@ -173,7 +189,9 @@ describe('Kekulize RDKit Comparison', () => {
   it('should kekulize pyrrole consistently with RDKit', async () => {
     const RDKit = await getRDKitModule();
     if (!RDKit) {
-      console.log('RDKit not available, skipping');
+      if (process.env.VERBOSE) {
+        console.log('RDKit not available, skipping');
+      }
       return;
     }
 
@@ -190,9 +208,11 @@ describe('Kekulize RDKit Comparison', () => {
     const rdkitCounts = getBondCountsFromMolBlock(molblock);
     rdkitMol.delete();
     
-    console.log('Pyrrole kekulization:');
-    console.log('  openchem:', openchemCounts);
-    console.log('  RDKit:', rdkitCounts);
+    if (process.env.VERBOSE) {
+      console.log('Pyrrole kekulization:');
+      console.log('  openchem:', openchemCounts);
+      console.log('  RDKit:', rdkitCounts);
+    }
     
     expect(openchemCounts.single).toBe(3);
     expect(openchemCounts.double).toBe(2);
@@ -203,7 +223,9 @@ describe('Kekulize RDKit Comparison', () => {
   it('should kekulize indole consistently with RDKit', async () => {
     const RDKit = await getRDKitModule();
     if (!RDKit) {
-      console.log('RDKit not available, skipping');
+      if (process.env.VERBOSE) {
+        console.log('RDKit not available, skipping');
+      }
       return;
     }
 
@@ -220,9 +242,11 @@ describe('Kekulize RDKit Comparison', () => {
     const rdkitCounts = getBondCountsFromMolBlock(molblock);
     rdkitMol.delete();
     
-    console.log('Indole kekulization:');
-    console.log('  openchem:', openchemCounts);
-    console.log('  RDKit:', rdkitCounts);
+    if (process.env.VERBOSE) {
+      console.log('Indole kekulization:');
+      console.log('  openchem:', openchemCounts);
+      console.log('  RDKit:', rdkitCounts);
+    }
     
     expect(openchemCounts.single).toBe(rdkitCounts.single);
     expect(openchemCounts.double).toBe(rdkitCounts.double);
@@ -231,7 +255,9 @@ describe('Kekulize RDKit Comparison', () => {
   it('should kekulize anthracene consistently with RDKit', async () => {
     const RDKit = await getRDKitModule();
     if (!RDKit) {
-      console.log('RDKit not available, skipping');
+      if (process.env.VERBOSE) {
+        console.log('RDKit not available, skipping');
+      }
       return;
     }
 
@@ -248,9 +274,11 @@ describe('Kekulize RDKit Comparison', () => {
     const rdkitCounts = getBondCountsFromMolBlock(molblock);
     rdkitMol.delete();
     
-    console.log('Anthracene kekulization:');
-    console.log('  openchem:', openchemCounts);
-    console.log('  RDKit:', rdkitCounts);
+    if (process.env.VERBOSE) {
+      console.log('Anthracene kekulization:');
+      console.log('  openchem:', openchemCounts);
+      console.log('  RDKit:', rdkitCounts);
+    }
     
     expect(openchemCounts.single).toBe(9);
     expect(openchemCounts.double).toBe(7);
@@ -261,7 +289,9 @@ describe('Kekulize RDKit Comparison', () => {
   it('should kekulize phenol consistently with RDKit', async () => {
     const RDKit = await getRDKitModule();
     if (!RDKit) {
-      console.log('RDKit not available, skipping');
+      if (process.env.VERBOSE) {
+        console.log('RDKit not available, skipping');
+      }
       return;
     }
 
@@ -278,9 +308,11 @@ describe('Kekulize RDKit Comparison', () => {
     const rdkitCounts = getBondCountsFromMolBlock(molblock);
     rdkitMol.delete();
     
-    console.log('Phenol kekulization:');
-    console.log('  openchem:', openchemCounts);
-    console.log('  RDKit:', rdkitCounts);
+    if (process.env.VERBOSE) {
+      console.log('Phenol kekulization:');
+      console.log('  openchem:', openchemCounts);
+      console.log('  RDKit:', rdkitCounts);
+    }
     
     expect(openchemCounts.single).toBe(4);
     expect(openchemCounts.double).toBe(3);

@@ -1698,6 +1698,19 @@ This implementation achieves 100% agreement with RDKit's canonical output across
 
 ## Contributing
 
+### Debug Logging Convention
+
+All debug logging (e.g., console.log, console.warn, etc.) must be gated behind the VERBOSE environment variable. This ensures that test and production output remains clean unless explicitly requested. Use:
+
+```typescript
+if (process.env.VERBOSE) {
+  console.log('Debug info...');
+}
+```
+
+This applies to all source and test files. Never leave direct logging statements that print during normal runs.
+
+
 We welcome contributions! openchem maintains strict quality standards:
 
 1. **All tests must pass** — 610/610 required

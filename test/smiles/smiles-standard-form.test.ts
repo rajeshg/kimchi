@@ -150,7 +150,9 @@ describe('Standard Form Compliance (OpenSMILES 4.3)', () => {
       it(`matches RDKit for ${input}`, async () => {
         const rdkitModule = await import('@rdkit/rdkit').catch(() => null);
         if (!rdkitModule) {
-          console.warn(`RDKit not available for ${input}`);
+          if (process.env.VERBOSE) {
+  console.warn(`RDKit not available for ${input}`);
+}
           return;
         }
 

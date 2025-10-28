@@ -16,32 +16,45 @@ export function generateCyclicName(
   // Consider rings of size >= 3 as meaningful for IUPAC naming. Small rings (3- and 4-member)
   // should still be named as cycloalkanes (e.g., cyclopropane), so don't filter them out.
   const meaningfulRings = ringInfo.rings.filter(ring => ring.length >= 3);
+  if (process.env.VERBOSE) {
+    console.log('[VERBOSE] generateCyclicName: total rings=', ringInfo.rings.length, 'meaningfulRings=', meaningfulRings.length);
+  }
+
   if (meaningfulRings.length === 1) {
     const ring = meaningfulRings[0]!;
     const ringSize = ring.length;
     const isAromatic = isRingAromatic(ring, molecule);
-    
+    if (process.env.VERBOSE) console.log('[VERBOSE] monocyclic: ringSize=', ringSize, 'isAromatic=', isAromatic);
+
     if (isAromatic) {
       const aromaticBaseName = generateAromaticRingName(ring, molecule);
       // Check for substituents on aromatic rings as well
       const substituents = findSubstituentsOnMonocyclicRing(ring, molecule);
+      if (process.env.VERBOSE) console.log('[VERBOSE] monocyclic aromatic substituents count=', substituents.length, 'base=', aromaticBaseName);
       if (substituents.length > 0) {
-        return generateMonocyclicSubstitutedName(aromaticBaseName, substituents, ring, molecule);
+        const res = generateMonocyclicSubstitutedName(aromaticBaseName, substituents, ring, molecule);
+        if (process.env.VERBOSE) console.log('[VERBOSE] monocyclic aromatic substituted result=', res);
+        return res;
       }
       return aromaticBaseName;
     }
 
     // Check for heterocyclic rings first
     const heterocyclicName = getHeterocyclicName(ring, molecule);
+    if (process.env.VERBOSE) console.log('[VERBOSE] monocyclic heterocyclicName=', heterocyclicName);
     if (heterocyclicName) return heterocyclicName;
 
     // Get the base cycloalkane/cycloalkene/cycloalkyne name
     const cycloName = getMonocyclicBaseName(ring, molecule);
+    if (process.env.VERBOSE) console.log('[VERBOSE] monocyclic base name=', cycloName);
 
     // Find substituents on this monocyclic ring
     const substituents = findSubstituentsOnMonocyclicRing(ring, molecule);
+    if (process.env.VERBOSE) console.log('[VERBOSE] monocyclic substituents count=', substituents.length);
     if (substituents.length > 0) {
-      return generateMonocyclicSubstitutedName(cycloName, substituents, ring, molecule);
+      const res = generateMonocyclicSubstitutedName(cycloName, substituents, ring, molecule);
+      if (process.env.VERBOSE) console.log('[VERBOSE] monocyclic substituted result=', res);
+      return res;
     }
 
     return cycloName;
@@ -49,39 +62,59 @@ export function generateCyclicName(
 
   if (meaningfulRings.length > 1) {
     const ringClassification = classifyRingSystems(molecule.atoms, molecule.bonds);
+    if (process.env.VERBOSE) console.log('[VERBOSE] polycyclic: classification=', JSON.stringify(ringClassification));
 
     if (ringClassification.spiro.length > 0) {
+      if (process.env.VERBOSE) console.log('[VERBOSE] generating spiro name');
       return generateSpiroName(ringClassification.spiro, molecule, options);
     }
     if (ringClassification.bridged.length > 0) {
+      if (process.env.VERBOSE) console.log('[VERBOSE] generating bridged name');
       return generateBridgedName(ringClassification.bridged, molecule, options);
     }
     if (ringClassification.fused.length > 0) {
+      if (process.env.VERBOSE) console.log('[VERBOSE] fused systems detected count=', ringClassification.fused.length);
       const fusedSystems = identifyFusedRingSystems(meaningfulRings, molecule);
+      if (process.env.VERBOSE) console.log('[VERBOSE] identified fusedSystems=', fusedSystems.length);
       if (fusedSystems.length > 0) {
         const fusedSystem = fusedSystems[0]!;
+        if (process.env.VERBOSE) console.log('[VERBOSE] using fusedSystem with rings=', fusedSystem.rings.map((r:any)=>r.length));
         let fusedName = identifyAdvancedFusedPattern(fusedSystem.rings, molecule);
+        if (process.env.VERBOSE) console.log('[VERBOSE] advancedFusedPattern=', fusedName);
         if (!fusedName) fusedName = identifyFusedRingPattern(fusedSystem, molecule);
+        if (process.env.VERBOSE) console.log('[VERBOSE] basicFusedPattern=', fusedName);
         if (fusedName) {
           const substituents = findSubstituentsOnFusedSystem(fusedSystem, molecule);
+          if (process.env.VERBOSE) console.log('[VERBOSE] fused substituents count=', substituents.length);
           if (substituents.length > 0) {
-            return generateSubstitutedFusedNameWithIUPACNumbering(fusedName, substituents, fusedSystem, molecule);
+            const res = generateSubstitutedFusedNameWithIUPACNumbering(fusedName, substituents, fusedSystem, molecule);
+            if (process.env.VERBOSE) console.log('[VERBOSE] fused substituted result=', res);
+            return res;
           }
+          if (process.env.VERBOSE) console.log('[VERBOSE] fusedName result=', fusedName);
           return fusedName;
         }
       }
     }
 
     const polycyclicName = identifyPolycyclicPattern(meaningfulRings, molecule);
+    if (process.env.VERBOSE) console.log('[VERBOSE] polycyclicName=', polycyclicName);
     if (polycyclicName) {
       // Attempt to find substituents on this fused ring set and apply numbering
       const possibleFusedSystem = { rings: meaningfulRings };
       const subs = findSubstituentsOnFusedSystem(possibleFusedSystem, molecule);
-      if (subs.length > 0) return generateSubstitutedFusedNameWithIUPACNumbering(polycyclicName, subs, possibleFusedSystem, molecule);
+      if (process.env.VERBOSE) console.log('[VERBOSE] polycyclic substituents count=', subs.length);
+      if (subs.length > 0) {
+        const res = generateSubstitutedFusedNameWithIUPACNumbering(polycyclicName, subs, possibleFusedSystem, molecule);
+        if (process.env.VERBOSE) console.log('[VERBOSE] polycyclic substituted result=', res);
+        return res;
+      }
       return polycyclicName;
     }
     const advancedFusedName = identifyAdvancedFusedPattern(meaningfulRings, molecule);
+    if (process.env.VERBOSE) console.log('[VERBOSE] advancedFusedName=', advancedFusedName);
     if (advancedFusedName) return advancedFusedName;
+    if (process.env.VERBOSE) console.log('[VERBOSE] falling back to generic polycyclic name');
     return `polycyclic_C${molecule.atoms.length}`;
   }
 

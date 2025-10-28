@@ -41,6 +41,11 @@
 
 ## Code Style Guidelines
 
+### Debug Logging
+- All debug logging (console.log, console.warn, etc.) must be gated behind `if (process.env.VERBOSE) { ... }`.
+- This ensures clean output for normal runs and enables debug output only when VERBOSE is set.
+- Never leave direct logging statements that print during normal test or production runs.
+
 ### Imports
 - Separate type imports: `import type { Atom, Bond } from 'types';`
 - Group imports: types first, then external packages, then internal modules

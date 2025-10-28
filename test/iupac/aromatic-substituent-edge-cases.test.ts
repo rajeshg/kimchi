@@ -8,7 +8,9 @@ describe('IUPAC Aromatic Substituent Edge Cases', () => {
       expect(result.molecules).toHaveLength(1);
       const mol = result.molecules[0]!;
       const nameResult = generateIUPACName(mol);
-      console.log('ortho-xylene SMILES: c1ccc(C)c(C)c1 => IUPAC:', nameResult.name);
+      if (process.env.VERBOSE) {
+  console.log('ortho-xylene SMILES: c1ccc(C)c(C)c1 => IUPAC:', nameResult.name);
+}
       expect(nameResult.name).toContain('dimethylbenzene');
     });
 
@@ -17,7 +19,9 @@ describe('IUPAC Aromatic Substituent Edge Cases', () => {
       expect(result.molecules).toHaveLength(1);
       const mol = result.molecules[0]!;
       const nameResult = generateIUPACName(mol);
-      console.log('meta-xylene: c1cc(C)cc(C)c1 => IUPAC:', nameResult.name);
+      if (process.env.VERBOSE) {
+  console.log('meta-xylene: c1cc(C)cc(C)c1 => IUPAC:', nameResult.name);
+}
       expect(nameResult.name).toBe('1,3-dimethylbenzene');
     });
 
@@ -26,7 +30,9 @@ describe('IUPAC Aromatic Substituent Edge Cases', () => {
       expect(result.molecules).toHaveLength(1);
       const mol = result.molecules[0]!;
       const nameResult = generateIUPACName(mol);
-      console.log('para-xylene: c1cc(C)ccc1C => IUPAC:', nameResult.name);
+      if (process.env.VERBOSE) {
+  console.log('para-xylene: c1cc(C)ccc1C => IUPAC:', nameResult.name);
+}
       expect(nameResult.name).toBe('1,4-dimethylbenzene');
     });
   });
@@ -37,7 +43,9 @@ describe('IUPAC Aromatic Substituent Edge Cases', () => {
       expect(result.molecules).toHaveLength(1);
       const mol = result.molecules[0]!;
       const nameResult = generateIUPACName(mol);
-      console.log('1,2,3-trimethylbenzene => IUPAC:', nameResult.name);
+      if (process.env.VERBOSE) {
+  console.log('1,2,3-trimethylbenzene => IUPAC:', nameResult.name);
+}
       expect(nameResult.name).toBe('1,2,3-trimethylbenzene');
     });
 
@@ -46,7 +54,9 @@ describe('IUPAC Aromatic Substituent Edge Cases', () => {
       expect(result.molecules).toHaveLength(1);
       const mol = result.molecules[0]!;
       const nameResult = generateIUPACName(mol);
-      console.log('1,2,4-trimethylbenzene => IUPAC:', nameResult.name);
+      if (process.env.VERBOSE) {
+  console.log('1,2,4-trimethylbenzene => IUPAC:', nameResult.name);
+}
       // CURRENTLY FAILING: generates "1,2,5-trimethylbenzene" instead of "1,2,4-trimethylbenzene"
       expect(nameResult.name).toBe('1,2,4-trimethylbenzene');
     });
@@ -56,7 +66,9 @@ describe('IUPAC Aromatic Substituent Edge Cases', () => {
       expect(result.molecules).toHaveLength(1);
       const mol = result.molecules[0]!;
       const nameResult = generateIUPACName(mol);
-      console.log('1,3,5-trimethylbenzene (mesitylene) => IUPAC:', nameResult.name);
+      if (process.env.VERBOSE) {
+  console.log('1,3,5-trimethylbenzene (mesitylene) => IUPAC:', nameResult.name);
+}
       expect(nameResult.name).toBe('1,3,5-trimethylbenzene');
     });
   });
@@ -67,7 +79,9 @@ describe('IUPAC Aromatic Substituent Edge Cases', () => {
       expect(result.molecules).toHaveLength(1);
       const mol = result.molecules[0]!;
       const nameResult = generateIUPACName(mol);
-      console.log('ethylbenzene => IUPAC:', nameResult.name);
+      if (process.env.VERBOSE) {
+  console.log('ethylbenzene => IUPAC:', nameResult.name);
+}
       expect(nameResult.name).toContain('ethylbenzene');
     });
 
@@ -76,7 +90,9 @@ describe('IUPAC Aromatic Substituent Edge Cases', () => {
       expect(result.molecules).toHaveLength(1);
       const mol = result.molecules[0]!;
       const nameResult = generateIUPACName(mol);
-      console.log('1-ethyl-2-methylbenzene => IUPAC:', nameResult.name);
+      if (process.env.VERBOSE) {
+  console.log('1-ethyl-2-methylbenzene => IUPAC:', nameResult.name);
+}
       expect(nameResult.name).toBeDefined();
     });
 
@@ -85,7 +101,9 @@ describe('IUPAC Aromatic Substituent Edge Cases', () => {
       expect(result.molecules).toHaveLength(1);
       const mol = result.molecules[0]!;
       const nameResult = generateIUPACName(mol);
-      console.log('chlorobenzene => IUPAC:', nameResult.name);
+      if (process.env.VERBOSE) {
+  console.log('chlorobenzene => IUPAC:', nameResult.name);
+}
       expect(nameResult.name).toContain('chlorobenzene');
     });
 
@@ -94,7 +112,9 @@ describe('IUPAC Aromatic Substituent Edge Cases', () => {
       expect(result.molecules).toHaveLength(1);
       const mol = result.molecules[0]!;
       const nameResult = generateIUPACName(mol);
-      console.log('1-methyl-2-chlorobenzene => IUPAC:', nameResult.name);
+      if (process.env.VERBOSE) {
+  console.log('1-methyl-2-chlorobenzene => IUPAC:', nameResult.name);
+}
       expect(nameResult.name).toBeDefined();
     });
   });
@@ -105,7 +125,9 @@ describe('IUPAC Aromatic Substituent Edge Cases', () => {
       expect(result.molecules).toHaveLength(1);
       const mol = result.molecules[0]!;
       const nameResult = generateIUPACName(mol);
-      console.log('phenylpropane => IUPAC:', nameResult.name);
+      if (process.env.VERBOSE) {
+  console.log('phenylpropane => IUPAC:', nameResult.name);
+}
       expect(nameResult.name).toBeDefined();
     });
 
@@ -114,7 +136,9 @@ describe('IUPAC Aromatic Substituent Edge Cases', () => {
       expect(result.molecules).toHaveLength(1);
       const mol = result.molecules[0]!;
       const nameResult = generateIUPACName(mol);
-      console.log('2-phenylpropane (cumene) => IUPAC:', nameResult.name);
+      if (process.env.VERBOSE) {
+  console.log('2-phenylpropane (cumene) => IUPAC:', nameResult.name);
+}
       expect(nameResult.name).toBeDefined();
     });
 
@@ -123,7 +147,9 @@ describe('IUPAC Aromatic Substituent Edge Cases', () => {
       expect(result.molecules).toHaveLength(1);
       const mol = result.molecules[0]!;
       const nameResult = generateIUPACName(mol);
-      console.log('1-phenylethane => IUPAC:', nameResult.name);
+      if (process.env.VERBOSE) {
+  console.log('1-phenylethane => IUPAC:', nameResult.name);
+}
       expect(nameResult.name).toBeDefined();
     });
   });
@@ -134,7 +160,9 @@ describe('IUPAC Aromatic Substituent Edge Cases', () => {
       expect(result.molecules).toHaveLength(1);
       const mol = result.molecules[0]!;
       const nameResult = generateIUPACName(mol);
-      console.log('naphthalene => IUPAC:', nameResult.name);
+      if (process.env.VERBOSE) {
+  console.log('naphthalene => IUPAC:', nameResult.name);
+}
       expect(nameResult.name).toBe('naphthalene');
     });
 
@@ -143,7 +171,9 @@ describe('IUPAC Aromatic Substituent Edge Cases', () => {
       expect(result.molecules).toHaveLength(1);
       const mol = result.molecules[0]!;
       const nameResult = generateIUPACName(mol);
-      console.log('anthracene => IUPAC:', nameResult.name);
+      if (process.env.VERBOSE) {
+  console.log('anthracene => IUPAC:', nameResult.name);
+}
       expect(nameResult.name).toBe('anthracene');
     });
 
@@ -152,7 +182,9 @@ describe('IUPAC Aromatic Substituent Edge Cases', () => {
       expect(result.molecules).toHaveLength(1);
       const mol = result.molecules[0]!;
       const nameResult = generateIUPACName(mol);
-      console.log('1-methylnaphthalene => IUPAC:', nameResult.name);
+      if (process.env.VERBOSE) {
+  console.log('1-methylnaphthalene => IUPAC:', nameResult.name);
+}
       expect(nameResult.name).toBe('1-methylnaphthalene');
     });
   });
@@ -163,7 +195,9 @@ describe('IUPAC Aromatic Substituent Edge Cases', () => {
       expect(result.molecules).toHaveLength(1);
       const mol = result.molecules[0]!;
       const nameResult = generateIUPACName(mol);
-      console.log('Ibuprofen => IUPAC:', nameResult.name);
+      if (process.env.VERBOSE) {
+  console.log('Ibuprofen => IUPAC:', nameResult.name);
+}
       expect(nameResult.name).toBe('2-(4-isobutylphenyl)propanoic acid');
     });
 
@@ -172,7 +206,9 @@ describe('IUPAC Aromatic Substituent Edge Cases', () => {
       expect(result.molecules).toHaveLength(1);
       const mol = result.molecules[0]!;
       const nameResult = generateIUPACName(mol);
-      console.log('Phenylacetic acid => IUPAC:', nameResult.name);
+      if (process.env.VERBOSE) {
+  console.log('Phenylacetic acid => IUPAC:', nameResult.name);
+}
       expect(nameResult.name).toBe('2-phenylethanoic acid');
     });
 
@@ -181,7 +217,9 @@ describe('IUPAC Aromatic Substituent Edge Cases', () => {
       expect(result.molecules).toHaveLength(1);
       const mol = result.molecules[0]!;
       const nameResult = generateIUPACName(mol);
-      console.log('Toluene => IUPAC:', nameResult.name);
+      if (process.env.VERBOSE) {
+  console.log('Toluene => IUPAC:', nameResult.name);
+}
       expect(nameResult.name).toBe('methylbenzene');
     });
   });

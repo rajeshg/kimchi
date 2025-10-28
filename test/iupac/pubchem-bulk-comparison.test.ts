@@ -19,7 +19,9 @@ describe('PubChem IUPAC Name Bulk Comparison', () => {
       try {
         const parsed = parseSMILES(smiles);
         if (parsed.molecules.length === 0) {
-          console.log(`Failed to parse SMILES: ${smiles}`);
+          if (process.env.VERBOSE) {
+  console.log(`Failed to parse SMILES: ${smiles}`);
+}
           continue;
         }
         const mol = parsed.molecules[0]!;
@@ -32,18 +34,32 @@ describe('PubChem IUPAC Name Bulk Comparison', () => {
           mismatches.push({ smiles, expected, actual });
         }
       } catch (error) {
-        console.log(`Error processing SMILES: ${smiles}, error: ${error}`);
+        if (process.env.VERBOSE) {
+  console.log(`Error processing SMILES: ${smiles}, error: ${error}`);
+}
       }
     }
 
-    console.log(`Matches: ${matchCount}/${totalCount}`);
+    if (process.env.VERBOSE) {
+  console.log(`Matches: ${matchCount}/${totalCount}`);
+}
     if (mismatches.length > 0) {
-      console.log('First 10 mismatches:');
+      if (process.env.VERBOSE) {
+  console.log('First 10 mismatches:');
+}
       mismatches.slice(0, 10).forEach(m => {
-        console.log(`SMILES: ${m.smiles}`);
-        console.log(`Expected: ${m.expected}`);
-        console.log(`Actual: ${m.actual}`);
-        console.log('---');
+        if (process.env.VERBOSE) {
+  console.log(`SMILES: ${m.smiles}`);
+}
+        if (process.env.VERBOSE) {
+  console.log(`Expected: ${m.expected}`);
+}
+        if (process.env.VERBOSE) {
+  console.log(`Actual: ${m.actual}`);
+}
+        if (process.env.VERBOSE) {
+  console.log('---');
+}
       });
     }
 

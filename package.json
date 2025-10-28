@@ -45,6 +45,7 @@
   "scripts": {
     "test": "bun test",
     "test:full": "RUN_RDKIT_BULK=1 bun test",
+    "test:verbose": "VERBOSE=1 bun test",
     "typecheck": "bunx tsc --noEmit --skipLibCheck",
     "build": "node scripts/build.mjs",
     "serve": "bun run build && bunx serve . -p 3000",
