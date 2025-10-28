@@ -2,6 +2,8 @@ import type { Molecule } from 'types';
 import { BondType } from 'types';
 import { getChainFunctionalGroupPriority } from './functional-group-detector';
 import { analyzeRings } from '../ring-analysis';
+import { createDefaultChainSelector } from './chain-selector';
+import type { Chain } from './iupac-types';
 
 /**
  * Chain selection logic for IUPAC naming.
@@ -28,34 +30,43 @@ function findChainsFromFunctionalGroups(molecule: Molecule): number[][] {
    const chains: number[][] = [];
    
    // Find carbons with functional groups
-   for (let i = 0; i < molecule.atoms.length; i++) {
-     const atom = molecule.atoms[i];
-     if (!atom || atom.symbol !== 'C') continue;
-     
-     const bonds = molecule.bonds.filter(b => b.atom1 === i || b.atom2 === i);
-     
-     // Check for carboxylic acid (C=O bond to oxygen)
-     const hasCarboxyl = bonds.some(b => {
-       const neighbor = molecule.atoms[b.atom1 === i ? b.atom2 : b.atom1];
-       return neighbor?.symbol === 'O' && b.type === BondType.DOUBLE;
-     });
-     
-     if (hasCarboxyl) {
-       // Found carboxylic acid carbon, build chain from it
-       const visited = new Set<number>();
-       const chain: number[] = [];
-       dfsChainFromFunctionalGroup(i, molecule, visited, chain, chains);
-     }
-   }
+    for (let i = 0; i < molecule.atoms.length; i++) {
+      const atom = molecule.atoms[i];
+      if (!atom || atom.symbol !== 'C') continue;
+      
+      const bonds = molecule.bonds.filter(b => b.atom1 === i || b.atom2 === i);
+      
+      // Check for carboxylic acid (C=O bond to oxygen)
+      const hasCarboxyl = bonds.some(b => {
+        const neighbor = molecule.atoms[b.atom1 === i ? b.atom2 : b.atom1];
+        return neighbor?.symbol === 'O' && b.type === BondType.DOUBLE;
+      });
+      
+       // Exclude carboxyl carbons from being part of the main chain except as terminals
+       if (hasCarboxyl) {
+         // For dicarboxylic acids, exclude carboxyl carbons from chain except as terminal atoms
+         // Only include as chain start if it is a terminal carboxyl carbon (i.e., only one neighbor is carbon)
+         const carboxylNeighbors = bonds.filter(b => {
+           const neighbor = molecule.atoms[b.atom1 === i ? b.atom2 : b.atom1];
+           return neighbor?.symbol === 'C';
+         });
+         if (carboxylNeighbors.length !== 1) continue; // only allow terminal carboxyl carbon
+         // Found terminal carboxylic acid carbon, build chain from it
+         const visited = new Set<number>();
+         const chain: number[] = [];
+         dfsChainFromFunctionalGroup(i, molecule, visited, chain, chains);
+       }
+    }
    
    // Remove duplicates and sub-chains
    const uniqueChains = new Map<string, number[]>();
    for (const chain of chains) {
-     const key = [...chain].sort((a, b) => a - b).join(',');
-     const existing = uniqueChains.get(key);
-     if (!existing || chain.length > existing.length) {
-       uniqueChains.set(key, chain);
-     }
+    const canonical = canonicalizeAcyclicChainOrder(chain, molecule);
+    const key = [...canonical].sort((a, b) => a - b).join(',');
+    const existing = uniqueChains.get(key);
+    if (!existing || canonical.length > existing.length) {
+      uniqueChains.set(key, canonical);
+    }
    }
    
    return Array.from(uniqueChains.values()).sort((a, b) => b.length - a.length);
@@ -108,84 +119,331 @@ function dfsChainFromFunctionalGroup(
  * Returns the longest chain that should be used as the parent in IUPAC naming.
  */
 export function selectPrincipalChain(molecule: Molecule): ChainSelectionResult {
-   // For molecules with functional groups, try to build chains starting from the functional group
-   const fgChains = findChainsFromFunctionalGroups(molecule);
-   if (fgChains.length > 0) {
-     return selectBestChain(fgChains, molecule, 'From functional group');
+  // New policy (per request):
+  // - Longest carbon chain that contains the principal group.
+  // - If multiple, choose one with more substituents.
+  // - If still tied, choose alphabetically smaller substituents.
+
+  // Gather all candidate chains: include chains found from functional groups plus general acyclic chains
+  const fgChains = findChainsFromFunctionalGroups(molecule);
+  const acyclicChains = findAllAcyclicChains(molecule);
+  const ringChains = findRingBasedChains(molecule);
+  const allCandidatesMap = new Map<string, number[]>();
+
+  for (const c of fgChains) allCandidatesMap.set(c.join(','), c);
+  for (const c of acyclicChains) allCandidatesMap.set(c.join(','), c);
+  for (const c of ringChains) allCandidatesMap.set(c.join(','), c);
+
+   const allCandidates = Array.from(allCandidatesMap.values());
+
+   if (allCandidates.length === 0) {
+     return { chain: [], reason: 'No candidate chains found' };
    }
 
-   // Otherwise find acyclic chains normally
-   const acyclicChains = findAllAcyclicChains(molecule);
+   // Filter to only chains of maximum length (IUPAC: prefer most highly branched among longest chains)
+   const maxLen = Math.max(...allCandidates.map(c => c.length));
+   const maxLenCandidates = allCandidates.filter(c => c.length === maxLen);
 
-   if (acyclicChains.length === 0) {
-     return { chain: [], reason: 'No acyclic chains found' };
+   // Determine principal functional group atom indices (atoms with highest per-atom FG priority)
+   const principalAtoms = getPrincipalFunctionalGroupAtoms(molecule);
+
+   if (principalAtoms.length === 0) {
+     // No principal functional group — fall back to existing selection pipeline
+     // Debug logging for small molecules (helpful during development)
+     try {
+       const ringInfo = analyzeRings(molecule);
+       if (molecule.atoms.length === 10 && ringInfo.rings.length === 2) {
+         // Log internal candidate counts for this special-case molecule
+         const fg = findChainsFromFunctionalGroups(molecule);
+         const ac = findAllAcyclicChains(molecule);
+         const rc = findRingBasedChains(molecule);
+         console.debug('[chain-selection] debug: no principal FG, candidates:', { fgCount: fg.length, acCount: ac.length, rcCount: rc.length });
+       }
+     } catch (e) {
+       // ignore debug errors
+     }
+
+      // Always restrict to maxLenCandidates for highly branched alkanes (IUPAC compliance)
+      if (maxLenCandidates.length === 1) return { chain: maxLenCandidates[0]!, reason: 'Only one chain candidate' };
+      return selectBestChain(maxLenCandidates, molecule, 'No principal FG (max length only)');
    }
 
-   if (acyclicChains.length === 1) {
-     return { chain: acyclicChains[0]!, reason: 'Only one chain found' };
-   }
+  // Filter candidates to those that contain any principal atom
+  const candidatesContainingPrincipal = allCandidates.filter(c => c.some(i => principalAtoms.includes(i)));
 
-   return selectBestChain(acyclicChains, molecule, '');
+  if (candidatesContainingPrincipal.length === 0) {
+    // None contain the principal atom — fall back to existing pipeline
+    return selectBestChain(allCandidates, molecule, 'No candidate contains principal FG');
+  }
+
+  // Choose best according to rules
+  // Use the full selector pipeline to pick between candidates that contain the principal atom.
+  // This avoids ordering/normalization issues when numeric candidate arrays come from different
+  // generators (rings, enumerations, unions) and ensures consistent application of filters.
+  const bestOutcome = selectBestChain(candidatesContainingPrincipal, molecule, 'Contains principal FG');
+  return { chain: bestOutcome.chain, reason: bestOutcome.reason || 'Selected chain containing principal FG via selector' };
  }
+
+/**
+ * Compute per-atom principal functional group indices using getChainFunctionalGroupPriority by passing single-atom chains.
+ */
+function getPrincipalFunctionalGroupAtoms(molecule: Molecule): number[] {
+  let bestPriority = 0;
+  const priorMap = new Map<number, number>();
+  for (let i = 0; i < molecule.atoms.length; i++) {
+    const atom = molecule.atoms[i];
+    if (!atom) continue;
+    // compute small priority using existing detector on single-atom chain
+    const p = getChainFunctionalGroupPriority([i], molecule);
+    priorMap.set(i, p);
+    if (p > bestPriority) bestPriority = p;
+  }
+  if (bestPriority === 0) return [];
+  const result: number[] = [];
+  for (const [idx, p] of priorMap) {
+    if (p === bestPriority) result.push(idx);
+  }
+  return result;
+}
+
+/**
+ * Compare two chains according to the requested policy.
+ * Returns -1 if b is better than a, 1 if a is better, 0 if equal.
+ */
+function compareChainsPreferPrincipal(a: number[], b: number[], molecule: Molecule): number {
+  // Calculate locants for both chains
+  const aLocants = getSubstituentLocants(a, molecule).slice().sort((x, y) => x - y);
+  const bLocants = getSubstituentLocants(b, molecule).slice().sort((x, y) => x - y);
+
+  // 1) Longest carbon chain (count carbon atoms)
+  const aCarbons = countCarbons(a, molecule);
+  const bCarbons = countCarbons(b, molecule);
+  if (bCarbons > aCarbons) return -1;
+  if (bCarbons < aCarbons) return 1;
+
+  // 2) More substituents (count substituent positions)
+  const aSubs = aLocants.length;
+  const bSubs = bLocants.length;
+  if (bSubs > aSubs) return -1;
+  if (bSubs < aSubs) return 1;
+
+  // 3) If equal carbon count, prefer the longer total atom chain (tie-breaker)
+  if (b.length > a.length) return -1;
+  if (b.length < a.length) return 1;
+
+  // 4) Prefer the set of locants that is lower (IUPAC lowest-set rule)
+  if (isLowerLocants(bLocants, aLocants)) return -1;
+  if (isLowerLocants(aLocants, bLocants)) return 1;
+
+  // 5) Alphabetically smaller substituents
+  const aLabels = getSubstituentLabels(a, molecule).sort();
+  const bLabels = getSubstituentLabels(b, molecule).sort();
+  const len = Math.min(aLabels.length, bLabels.length);
+  for (let i = 0; i < len; i++) {
+    if (aLabels[i]! < bLabels[i]!) return 1; // a is alphabetically smaller -> a better
+    if (aLabels[i]! > bLabels[i]!) return -1;
+  }
+  if (aLabels.length < bLabels.length) return -1; // b has extra labels -> b better
+  if (aLabels.length > bLabels.length) return 1;
+
+  return 0;
+}
+
+/**
+ * Build simple substituent labels for each substituent attached to a chain.
+ * Label is constructed by taking the atom symbol of the substituent root plus a small
+ * fingerprint of its immediate neighborhood (up to depth 2), joined as a string.
+ */
+function getSubstituentLabels(chain: number[], molecule: Molecule): string[] {
+  const labels: string[] = [];
+  const chainSet = new Set(chain);
+  for (let i = 0; i < chain.length; i++) {
+    const atomIdx = chain[i]!;
+    const neighbors = getNeighbors(atomIdx, molecule);
+    for (const neigh of neighbors) {
+      if (chainSet.has(neigh)) continue;
+      // Build small fingerprint
+      const seen = new Set<number>();
+      const parts: string[] = [];
+      const queue: number[] = [neigh];
+      let depth = 0;
+      while (queue.length > 0 && depth < 2) {
+        const levelSize = queue.length;
+        for (let j = 0; j < levelSize; j++) {
+          const n = queue.shift()!;
+          if (seen.has(n)) continue;
+          seen.add(n);
+          const nat = molecule.atoms[n];
+          if (!nat) continue;
+          parts.push(nat.symbol + (nat.aromatic ? 'a' : ''));
+          for (const nb of getNeighbors(n, molecule)) {
+            if (!seen.has(nb) && !chainSet.has(nb)) queue.push(nb);
+          }
+        }
+        depth++;
+      }
+      labels.push(parts.join('-'));
+    }
+  }
+  return labels;
+}
+
+/**
+ * Generate chain candidates based on ring topology.
+ * - Includes individual SSSR rings (carbon-only atom lists)
+ * - Includes unions of two rings (for fused/spiro/bridged systems) as candidate chains
+ */
+function findRingBasedChains(molecule: Molecule): number[][] {
+  const ringInfo = analyzeRings(molecule);
+  const rings = ringInfo.rings || [];
+  const candidates: number[][] = [];
+  // Debug: log rings detected for troubleshooting
+  try {
+    console.debug('[chain-selection] findRingBasedChains: detected rings:', rings.map(r => r.join('-')));
+  } catch (e) {}
+
+  // Single-ring candidates (carbon-only)
+  for (const ring of rings) {
+    const carbons = ring.filter(i => molecule.atoms[i]?.symbol === 'C');
+    if (carbons.length >= 3) {
+      candidates.push(carbons);
+      try {
+        console.debug('[chain-selection] findRingBasedChains: adding single-ring candidate:', carbons.join('-'));
+      } catch (e) {}
+    }
+  }
+
+  // Pairwise unions for fused/spiro/bridged systems
+  for (let i = 0; i < rings.length; i++) {
+    for (let j = i + 1; j < rings.length; j++) {
+      const ringA = rings[i]!;
+      const ringB = rings[j]!;
+      // Compute carbon-only counts for rings and their union so heteroatom-containing
+      // rings don't cause incorrect skipping of viable carbon unions.
+      const ringACarbons = ringA.filter(i => molecule.atoms[i]?.symbol === 'C');
+      const ringBCarbons = ringB.filter(i => molecule.atoms[i]?.symbol === 'C');
+      const unionSet = new Set<number>([...ringACarbons, ...ringBCarbons]);
+      const unionCarbons = Array.from(unionSet);
+      // Only consider if union expands beyond individual carbon-only rings
+      if (unionCarbons.length > Math.max(ringACarbons.length, ringBCarbons.length) && unionCarbons.length >= 3) {
+        candidates.push(unionCarbons);
+        try {
+        console.debug('[chain-selection] findRingBasedChains: adding union candidate:', unionCarbons.join('-'));
+        } catch (e) {}
+      } else {
+        try {
+          console.debug('[chain-selection] findRingBasedChains: skipping union (not larger):', unionCarbons.join('-'));
+        } catch (e) {}
+      }
+    }
+  }
+
+  // Deduplicate by sorted key
+  const unique = new Map<string, number[]>();
+  for (const c of candidates) {
+    const key = [...c].sort((a, b) => a - b).join(',');
+    const existing = unique.get(key);
+    if (!existing || c.length > existing.length) unique.set(key, c);
+  }
+
+  return Array.from(unique.values()).sort((a, b) => b.length - a.length);
+}
 
 /**
  * Select the best chain from a list of candidate chains.
  */
 function selectBestChain(chains: number[][], molecule: Molecule, prefix: string): ChainSelectionResult {
-   if (chains.length === 0) {
-     return { chain: [], reason: 'No chains found' };
-   }
+  if (chains.length === 0) {
+    return { chain: [], reason: 'No chains found' };
+  }
 
-   if (chains.length === 1) {
-     return { chain: chains[0]!, reason: prefix || 'Only one chain found' };
-   }
+  if (chains.length === 1) {
+    return { chain: chains[0]!, reason: prefix || 'Only one chain found' };
+  }
 
-   // Rule 1: Prefer chain with highest priority functional group
-   const fgPriorities = chains.map(chain => getChainFunctionalGroupPriority(chain, molecule));
-   const maxFgPriority = Math.max(...fgPriorities);
+  // Convert numeric chains (number[] of atom indices) into Chain objects expected by ChainSelector
+  const converted: Chain[] = chains.map(c => {
+    const isAromatic = c.some(i => molecule.atoms[i]?.aromatic);
 
-   if (maxFgPriority > 0) {
-     const chainWithFg = chains.filter((_, idx) => fgPriorities[idx] === maxFgPriority);
-     if (chainWithFg.length === 1) {
-       return { chain: chainWithFg[0]!, reason: prefix || 'Has principal functional group' };
-     }
-     // If multiple chains with same FG priority, continue with just those
-     chains = chainWithFg;
-   }
+    // Determine functional group priority on this chain
+    const fgPriority = getChainFunctionalGroupPriority(c, molecule);
 
-   // Rule 2: Longest chain by carbon count
-   const carbonCounts = chains.map(chain => countCarbons(chain, molecule));
-   const maxCarbons = Math.max(...carbonCounts);
-   const longestByC = chains.filter((_, idx) => carbonCounts[idx] === maxCarbons);
+    // Populate a lightweight functionalGroups array so filters can detect presence
+    const functionalGroups = fgPriority > 0 ? [{ functionalGroup: { name: 'principal', priority: fgPriority, smarts: '', suffix: '', parenthesized: false, atomIndices: [], isPrincipal: true } as any, position: 1, count: 1 }] : [];
 
-   if (longestByC.length === 1) {
-     return { chain: longestByC[0]!, reason: prefix || `Longest chain: ${maxCarbons} carbons` };
-   }
+    // Determine substituent positions (simple count)
+    const locants = getSubstituentLocants(c, molecule);
+    const substituents = locants.map(l => ({ position: String(l), type: 'alkyl', size: 1, name: 'alkyl' }));
 
-   // Rule 3: Longest chain by total atom count
-   const atomCounts = longestByC.map(chain => chain.length);
-   const maxAtoms = Math.max(...atomCounts);
-   const longestByAtoms = longestByC.filter((_, idx) => atomCounts[idx] === maxAtoms);
+    // Rough cycle detection: if any atom in chain is part of a ring (via analyzeRings), mark cyclic
+    const ringInfo = analyzeRings(molecule);
+    const isCyclic = c.some(i => ringInfo.getRingsContainingAtom(i).length > 0);
 
-   if (longestByAtoms.length === 1) {
-     return { chain: longestByAtoms[0]!, reason: prefix || `Longest chain: ${maxAtoms} atoms` };
-   }
+    // Mark if this numeric chain exactly matches a single SSSR ring or a union of rings
+    let isFromRingUnion = false;
+    try {
+      // Use carbon-only ring sets so the ring-origin hint is consistent with
+      // chain candidates (which are carbon-only lists).
+      const sets = ringInfo.rings.map(r => new Set(r.filter((x: number) => molecule.atoms[x]?.symbol === 'C')));
+      // exact match to a ring (carbon-only)
+      for (const s of sets) {
+        if (s.size === c.length && c.every(idx => s.has(idx))) {
+          isFromRingUnion = true;
+          break;
+        }
+      }
+      // check union of any two carbon-only rings
+      if (!isFromRingUnion) {
+        for (let i = 0; i < sets.length; i++) {
+          for (let j = i + 1; j < sets.length; j++) {
+            const union = new Set<number>();
+            for (const v of sets[i]!) union.add(v);
+            for (const v of sets[j]!) union.add(v);
+            if (union.size === c.length && c.every(idx => union.has(idx))) {
+              isFromRingUnion = true;
+              break;
+            }
+          }
+          if (isFromRingUnion) break;
+        }
+      }
+    } catch (e) {
+      isFromRingUnion = false;
+    }
 
-   // Rule 4: Best numbering (most locants at lowest positions)
-   let bestChain = longestByAtoms[0]!;
-   let bestLocants = getSubstituentLocants(bestChain, molecule);
+    return {
+      atomIndices: c,
+      length: c.length,
+      substituents,
+      functionalGroups: functionalGroups as any,
+      isCyclic,
+      isAromatic,
+      // attach ring-origin hint for downstream filters (cast to any to avoid strict type errors)
+      ...(isFromRingUnion ? { isFromRingUnion: true } : {}),
+    } as Chain;
+  });
 
-   for (let i = 1; i < longestByAtoms.length; i++) {
-     const chain = longestByAtoms[i]!;
-     const locants = getSubstituentLocants(chain, molecule);
-     if (isLowerLocants(locants, bestLocants)) {
-       bestChain = chain;
-       bestLocants = locants;
-     }
-   }
+  const selector = createDefaultChainSelector();
+  try {
+    console.debug('[chain-selection] selectBestChain: converted candidates:', converted.map(c => ({ len: c.length, atomIndices: c.atomIndices, isCyclic: c.isCyclic, isAromatic: c.isAromatic, isFromRingUnion: (c as any).isFromRingUnion || false })));
+  } catch (e) {}
+  const outcome = selector.selectBestChain(converted, { allChains: converted, moleculeData: { molecule } });
+  try {
+    // Log selected chain indices and full filter results for deep debugging
+    const selectedIndices = outcome.selectedChain?.atomIndices ?? null;
+    const filterResultsObj: Record<string, any> = {};
+    for (const [k, v] of outcome.filterResults) {
+      filterResultsObj[k] = v.map(r => ({ passes: r.passes, score: r.score, reason: r.reason }));
+    }
+    console.debug('[chain-selection] selector outcome:', { selectedLen: outcome.selectedChain?.length ?? null, selectedIndices, reason: outcome.reason, filterResults: filterResultsObj });
+  } catch (e) {}
 
-   return { chain: bestChain, reason: prefix || 'Best numbering and locants' };
- }
+  if (outcome.selectedChain) {
+    return { chain: outcome.selectedChain.atomIndices, reason: prefix || outcome.reason };
+  }
+
+  return { chain: chains[0]!, reason: prefix || 'Defaulted to first candidate' };
+}
 
 /**
  * Find all acyclic chains in a molecule.
@@ -242,9 +500,158 @@ function findAllAcyclicChains(molecule: Molecule): number[][] {
      }
    }
 
-   // Sort by length descending
-   return Array.from(uniqueChains.values()).sort((a, b) => b.length - a.length);
+    // Also ensure we include the longest carbon-only path found globally as a candidate
+    try {
+      const longest = computeLongestCarbonPath(molecule);
+      if (longest.length >= 2) {
+        const canonicalLongest = canonicalizeAcyclicChainOrder(longest, molecule);
+        const key = [...canonicalLongest].sort((a, b) => a - b).join(',');
+        if (!uniqueChains.has(key)) uniqueChains.set(key, canonicalLongest);
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    // Also enumerate all simple carbon-only paths (bounded) and include them as candidates
+    try {
+      const enumerated = enumerateAllSimpleCarbonPaths(molecule, 12);
+      for (const p of enumerated) {
+        if (p.length < 2) continue;
+        const key = [...p].sort((a, b) => a - b).join(',');
+        if (!uniqueChains.has(key)) uniqueChains.set(key, p);
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    // Sort by length descending
+    return Array.from(uniqueChains.values()).sort((a, b) => b.length - a.length);
  }
+
+/**
+ * Compute the longest simple path consisting only of carbon atoms.
+ * This is a fallback candidate to ensure highly-branched molecules still
+ * have their true longest carbon chain considered.
+ */
+function computeLongestCarbonPath(molecule: Molecule): number[] {
+  // Prefer exhaustive enumeration of all simple carbon-only paths (deduplicated)
+  // and select the longest one. This is more robust than a greedy DFS
+  // which may miss long paths in branched graphs.
+  try {
+    const enumerated = enumerateAllSimpleCarbonPaths(molecule, molecule.atoms.length || 12);
+    if (enumerated && enumerated.length > 0) {
+      let best = enumerated[0]!;
+      for (const p of enumerated) {
+        if (p.length > best.length) best = p;
+      }
+      try {
+        console.debug('[chain-selection] computeLongestCarbonPath (enumerated): best length', best.length, 'atoms', best);
+      } catch (e) {}
+      return best;
+    }
+  } catch (e) {
+    // fall through to DFS fallback
+  }
+
+  // Fallback: previous DFS-based approach
+  const n = molecule.atoms.length;
+  const isCarbon = (i: number) => molecule.atoms[i]?.symbol === 'C';
+  let best: number[] = [];
+
+  const visited = new Set<number>();
+
+  function dfs(u: number, path: number[]) {
+    if (path.length > best.length) best = path.slice();
+    const neighbors = getNeighbors(u, molecule);
+    for (const v of neighbors) {
+      if (visited.has(v)) continue;
+      if (!isCarbon(v)) continue;
+      visited.add(v);
+      path.push(v);
+      dfs(v, path);
+      path.pop();
+      visited.delete(v);
+    }
+  }
+
+  for (let i = 0; i < n; i++) {
+    if (!isCarbon(i)) continue;
+    visited.clear();
+    visited.add(i);
+    dfs(i, [i]);
+  }
+
+  try {
+    console.debug('[chain-selection] computeLongestCarbonPath (fallback): best length', best.length, 'atoms', best);
+  } catch (e) {}
+
+  return best;
+}
+
+/**
+ * Enumerate all simple paths (no repeated nodes) composed only of carbon atoms up to maxLen.
+ * Returns an array of paths (each path is an array of atom indices).
+ */
+function enumerateAllSimpleCarbonPaths(molecule: Molecule, maxLen = 12): number[][] {
+  const n = molecule.atoms.length;
+  const isCarbon = (i: number) => molecule.atoms[i]?.symbol === 'C';
+  const results: number[][] = [];
+
+  function dfs(path: number[], visited: Set<number>) {
+    // record current path
+    if (path.length >= 1) results.push(path.slice());
+    if (path.length >= maxLen) return;
+  const last = path[path.length - 1]!;
+  const neighbors = getNeighbors(last, molecule);
+    for (const nb of neighbors) {
+      if (visited.has(nb)) continue;
+      if (!isCarbon(nb)) continue;
+      visited.add(nb);
+      path.push(nb);
+      dfs(path, visited);
+      path.pop();
+      visited.delete(nb);
+    }
+  }
+
+  for (let i = 0; i < n; i++) {
+    if (!isCarbon(i)) continue;
+    const visited = new Set<number>([i]);
+    dfs([i], visited);
+  }
+
+  // Deduplicate by sorted key to reduce equivalent permutations
+  const seen = new Set<string>();
+  const unique: number[][] = [];
+  for (const p of results) {
+    if (p.length < 2) continue;
+    // Canonicalize acyclic path ordering (choose forward or reversed ordering
+    // that yields the lower locant set) to make selector tie-breaking deterministic.
+    const canonical = canonicalizeAcyclicChainOrder(p, molecule);
+    const key = [...canonical].join(',');
+    if (!seen.has(key)) {
+      seen.add(key);
+      unique.push(canonical);
+    }
+  }
+  return unique;
+}
+
+/**
+ * For an acyclic chain (path), choose the orientation (forward or reversed)
+ * that yields the IUPAC "lowest set of locants" for substituents so that
+ * equivalent paths are presented in a canonical direction for comparison.
+ */
+function canonicalizeAcyclicChainOrder(chain: number[], molecule: Molecule): number[] {
+  if (chain.length < 2) return chain.slice();
+  // compute locants for forward and reversed order
+  const forward = getSubstituentLocants(chain, molecule) || [];
+  const reversedChain = [...chain].reverse();
+  const reverse = getSubstituentLocants(reversedChain, molecule) || [];
+  // If reversed locants are lower, return reversed ordering
+  if (isLowerLocants(reverse, forward)) return reversedChain;
+  return chain.slice();
+}
 
 /**
  * DFS to find the longest acyclic path from a starting atom.
@@ -316,36 +723,98 @@ function countCarbons(chain: number[], molecule: Molecule): number {
  * Lower positions are better according to IUPAC rules.
  */
 function getSubstituentLocants(chain: number[], molecule: Molecule): number[] {
-  const locants: number[] = [];
+  const chainLen = chain.length;
   const chainSet = new Set(chain);
 
-  // For each atom in the chain, check if it has substituents not in the chain
+  // Collect raw locant positions assuming the provided chain ordering is a possible numbering
+  const rawLocants: number[] = [];
   for (let i = 0; i < chain.length; i++) {
     const atomIdx = chain[i]!;
     const neighbors = getNeighbors(atomIdx, molecule);
-
     for (const neighbor of neighbors) {
       if (!chainSet.has(neighbor)) {
-        // Found a substituent at position i (0-indexed)
-        locants.push(i + 1); // IUPAC uses 1-based numbering
-        break; // Only count once per atom
+        rawLocants.push(i + 1); // 1-based
+        break;
       }
     }
   }
 
-  return locants;
+  // If no substituents, return empty list
+  if (rawLocants.length === 0) return [];
+
+  // Helper: compare two locant arrays lexicographically (IUPAC lowest-set rule)
+  const compareLocantSets = (a: number[], b: number[]) => {
+    const la = a.slice().sort((x, y) => x - y);
+    const lb = b.slice().sort((x, y) => x - y);
+    const len = Math.min(la.length, lb.length);
+    for (let i = 0; i < len; i++) {
+      if (la[i]! < lb[i]!) return -1;
+      if (la[i]! > lb[i]!) return 1;
+    }
+    if (la.length < lb.length) return -1;
+    if (la.length > lb.length) return 1;
+    return 0;
+  };
+
+  // Detect whether chain is cyclic (first and last atoms bonded)
+  const isChainCyclic = () => {
+    if (chainLen < 3) return false;
+    const first = chain[0]!;
+    const last = chain[chainLen - 1]!;
+    for (const b of molecule.bonds) {
+      if ((b.atom1 === first && b.atom2 === last) || (b.atom2 === first && b.atom1 === last)) return true;
+    }
+    return false;
+  };
+
+  // For acyclic chains there are only two possible directionings; choose the better locant set
+  if (!isChainCyclic()) {
+    const forward = rawLocants.slice().sort((a, b) => a - b);
+    const reverse = rawLocants.map(p => chainLen - p + 1).sort((a, b) => a - b);
+    return compareLocantSets(forward, reverse) <= 0 ? forward : reverse;
+  }
+
+  // For cyclic chains, try all rotations and both directions (forward and reversed)
+  const rotations: number[][] = [];
+  // positions are 1-based indices in the original ordering
+  const positions = rawLocants.slice();
+  for (let start = 0; start < chainLen; start++) {
+    // forward rotation
+    const rotated = positions.map(p => ((p - start - 1 + chainLen) % chainLen) + 1).sort((a, b) => a - b);
+    rotations.push(rotated);
+    // reversed rotation
+    const reversedPositions = positions.map(p => chainLen - p + 1);
+    const revRot = reversedPositions.map(p => ((p - start - 1 + chainLen) % chainLen) + 1).sort((a, b) => a - b);
+    rotations.push(revRot);
+  }
+
+  // Choose lexicographically smallest rotation
+  rotations.sort((x, y) => {
+    const len = Math.min(x.length, y.length);
+    for (let i = 0; i < len; i++) {
+      if (x[i]! < y[i]!) return -1;
+      if (x[i]! > y[i]!) return 1;
+    }
+    return x.length - y.length;
+  });
+  return rotations[0] || [];
 }
 
 /**
  * Compare two sets of locants. Returns true if locants1 is "better" (lower) than locants2.
  */
 function isLowerLocants(locants1: number[], locants2: number[]): boolean {
-  const len = Math.min(locants1.length, locants2.length);
+  const a = locants1.slice().sort((x, y) => x - y);
+  const b = locants2.slice().sort((x, y) => x - y);
+  const len = Math.min(a.length, b.length);
   for (let i = 0; i < len; i++) {
-    if (locants1[i]! < locants2[i]!) return true;
-    if (locants1[i]! > locants2[i]!) return false;
+    if (a[i]! < b[i]!) return true;
+    if (a[i]! > b[i]!) return false;
   }
-  return locants1.length < locants2.length;
+  return a.length < b.length;
 }
 
 export default selectPrincipalChain;
+
+// Export helpers for debugging and tests
+export { findChainsFromFunctionalGroups, findAllAcyclicChains, findRingBasedChains, getPrincipalFunctionalGroupAtoms };

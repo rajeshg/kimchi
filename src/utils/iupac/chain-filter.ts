@@ -70,6 +70,36 @@ export class LongestChainFilter extends ChainFilter {
 }
 
 /**
+ * Filter that prefers chains containing principal functional groups
+ * This approximates the IUPAC principal functional group rule by giving a
+ * large score boost to any chain that contains one or more functional groups
+ */
+export class PrincipalFunctionalGroupFilter extends ChainFilter {
+  constructor() {
+    super('principal-functional-group', 0);
+  }
+
+  apply(chain: Chain): FilterResult {
+    const fgCount = chain.functionalGroups.length;
+    // Large boost per functional group so FG-containing chains outrank
+    // purely hydrocarbon chains even if shorter (heuristic)
+    const score = fgCount > 0 ? 1000 + fgCount : 0;
+    return {
+      passes: true,
+      score,
+      reason: fgCount > 0 ? `Has ${fgCount} functional groups` : 'No functional groups',
+    };
+  }
+}
+
+/**
+ * Filter that prefers ring (bicyclic/spiro) chains when appropriate.
+ * Heuristic: prefer cyclic non-aromatic chains (bicyclo/spiro) over fused aromatic
+ * chains when both cyclic options exist among candidates.
+ */
+/* ring dominance filter moved below contextual filter declaration */
+
+/**
  * Filter that selects the chain with the most functional groups
  * IUPAC Rule: If multiple chains have same length, choose the one with most functional groups
  */
@@ -223,6 +253,44 @@ export interface ChainFilterContext {
 }
 
 /**
+ * Filter that prefers ring (bicyclic/spiro) chains when appropriate.
+ * Heuristic: prefer cyclic non-aromatic chains (bicyclo/spiro) over fused aromatic
+ * chains when both cyclic options exist among candidates.
+ */
+export class RingDominanceFilter extends ContextualChainFilter {
+  constructor() {
+    super('ring-dominance', 2);
+  }
+
+  applyWithContext(chain: Chain, context: ChainFilterContext): FilterResult {
+    const allChains = context?.allChains || [];
+    const cyclicCount = allChains.filter(c => c.isCyclic).length;
+
+    if (cyclicCount === 0) {
+      return { passes: true, score: 0, reason: 'No cyclic candidates' };
+    }
+
+    // Score preference:
+    // +20 if chain is cyclic, +10 additional if non-aromatic cyclic (bicyclo/spiro)
+    let score = 0;
+    if (chain.isCyclic) score += 20;
+    if (chain.isCyclic && !chain.isAromatic) score += 10;
+
+  // Strong preference if this chain was generated as a ring-origin candidate
+  // (i.e., exact SSSR ring or union of rings). This helps prefer true ring
+  // parents (bicyclo/spiro) over acyclic paths that merely pass through ring atoms.
+  const isFromRingOrigin = Boolean((chain as any).isFromRingUnion);
+  if (isFromRingOrigin) score += 100;
+
+    return {
+      passes: true,
+      score,
+      reason: chain.isCyclic ? (chain.isAromatic ? 'Aromatic ring chain' : 'Non-aromatic ring chain') : 'Acyclic chain',
+    };
+  }
+}
+
+/**
  * Filter that evaluates based on symmetry
  * Breaks ties by preferring less symmetric chains
  */
@@ -360,3 +428,4 @@ export function createCustomFilter(
     }
   })();
 }
+

@@ -8,6 +8,7 @@ import {
   AromaticPreferenceFilter,
   ContextualChainFilter,
 } from './chain-filter';
+import { PrincipalFunctionalGroupFilter, RingDominanceFilter } from './chain-filter';
 
 /**
  * Result of chain selection process
@@ -33,7 +34,9 @@ export class ChainSelector {
   constructor(filters?: ChainFilter[]) {
     // Default filters in IUPAC order
     this.filters = filters || [
+      new PrincipalFunctionalGroupFilter(),
       new LongestChainFilter(),
+      new RingDominanceFilter(),
       new MostFunctionalGroupsFilter(),
       new MostSubstituentsFilter(),
       new LowestLocantFilter(),
@@ -109,7 +112,8 @@ export class ChainSelector {
 
       // Find chains with the highest score for this filter
       if (remainingChains.length > 1 && results.length > 0) {
-        const scores = remainingChains.map((_, i) => results[i]?.score ?? 0);
+        const passingResults = results.filter(r => r.passes !== false);
+        const scores = remainingChains.map((_, i) => passingResults[i]?.score ?? 0);
         const maxScore = Math.max(...scores);
         remainingChains = remainingChains.filter((_, i) => scores[i] === maxScore);
       }
@@ -173,7 +177,9 @@ export class ChainSelector {
    */
   resetToDefaults(): void {
     this.filters = [
+      new PrincipalFunctionalGroupFilter(),
       new LongestChainFilter(),
+      new RingDominanceFilter(),
       new MostFunctionalGroupsFilter(),
       new MostSubstituentsFilter(),
       new LowestLocantFilter(),
