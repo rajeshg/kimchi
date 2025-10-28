@@ -1,3 +1,4 @@
+import { describe, it, expect } from 'bun:test';
 import { parseSMILES } from 'index';
 import { enumerateTautomers } from 'src/utils/tautomer/tautomer-enumerator';
 

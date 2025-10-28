@@ -1,6 +1,7 @@
 import { parseSMILES } from 'index';
 import { enumerateTautomers } from 'src/utils/tautomer/tautomer-enumerator';
 import { computeMorganFingerprint, tanimotoSimilarity } from 'src/utils/morgan-fingerprint';
+import { describe, it, expect } from 'bun:test';
 
 const molecules = [
   { name: 'pentane-2,4-dione', smiles: 'CC(=O)CH2C(=O)C' },
