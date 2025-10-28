@@ -125,63 +125,33 @@ function parseSingleSMILES(smiles: string, timings?: any): { molecule: Molecule;
     // Organic atoms (handle two-letter like Cl, Br)
     if (/[A-Za-z]/.test(ch)) {
       let symbol = ch;
-      // Only treat as two-letter element when the first character is uppercase
-      // and the next character is lowercase AND the combination is a valid element
       if (ch === ch.toUpperCase() && i + 1 < smiles.length && /[a-z]/.test(smiles[i + 1]!)) {
         const twoLetter = ch + smiles[i + 1]!;
         const nextChar = smiles[i + 1]!;
         const singleLetterUpper = ch.toUpperCase();
         const twoLetterIsValid = ATOMIC_NUMBERS[twoLetter] !== undefined;
-        
-        // Ambiguous case: "Xy" where both "Xy" and "X" + "y" could be valid
-        // Examples: Cn (Copernicium vs C+n), Sn (tin vs S+n), Cs (cesium vs C+s)
-        //
-        // Rule: Split into "X" + "y" if ALL of the following are true:
-        // 1. "y" is an aromatic organic atom (bcnosp)
-        // 2. "X" alone is a common organic element (C, N, O, S, P, B)
-        // 3. What follows "y" suggests it's a separate atom (ring digit, bond, branch, @, etc.)
-        //
-        // This allows "Cn1ccnc1" -> C + n + ... but "Cs" -> cesium
-        
-        const isNextCharAromaticOrganic = /^[bcnosp]$/.test(nextChar);
-        const isFirstCharCommonOrganic = /^[CNOSPB]$/.test(singleLetterUpper);
-        
         let shouldSplit = false;
-        if (twoLetterIsValid && isNextCharAromaticOrganic && isFirstCharCommonOrganic) {
-          // Check what follows the second character
+        if (twoLetterIsValid && /^[bcnosp]$/.test(nextChar) && /^[CNOSPB]$/.test(singleLetterUpper)) {
           const charAfterNext = i + 2 < smiles.length ? smiles[i + 2]! : '';
-          // Split if followed by: digit (ring), =/#/$ (bond), @ (chirality), ( (branch)
-          // Do NOT split if at end of string or followed by other characters
           const followedByAtomContext = charAfterNext !== '' && /^[0-9=\/#$@(]/.test(charAfterNext);
           shouldSplit = followedByAtomContext;
         }
-        
         if (twoLetterIsValid && !shouldSplit) {
           symbol = twoLetter;
-          i += 2;
-        } else {
           i++;
         }
-      } else {
-        i++;
       }
-      // Check if atom is aromatic (either from lowercase symbol or aromatic organic subset)
+      // Prevent creation of explicit hydrogen atoms when they are likely part
+      // of an aliphatic shorthand (e.g. the 'H' in 'CH2'). Allow explicit
+      // hydrogen atoms when they appear as standalone atoms (no previous atom).
+      if (symbol === 'H' && prevAtomId !== null) {
+        i++;
+        continue;
+      }
       const isAromaticOrganic = /^[bcnops]$/.test(symbol);
-      const aromatic = isAromaticOrganic; // Will be updated by bracket parser if needed
+      const aromatic = isAromaticOrganic;
       const atom = createAtom(symbol, atomId++, aromatic, false, 0) as MutableAtom;
       atoms.push(atom);
-
-      // chiral marker immediately after atom
-      if (i < smiles.length && smiles[i] === '@') {
-        i++;
-        if (i < smiles.length && smiles[i] === '@') {
-          atom.chiral = '@@';
-          i++;
-        } else {
-          atom.chiral = '@';
-        }
-      }
-
       if (prevAtomId !== null) {
         bonds.push({ atom1: prevAtomId, atom2: atom.id, type: pendingBondType, stereo: pendingBondStereo });
         if (pendingBondExplicit) explicitBonds.add(bondKey(prevAtomId, atom.id));
@@ -192,10 +162,10 @@ function parseSingleSMILES(smiles: string, timings?: any): { molecule: Molecule;
         if (pendingBondExplicit) explicitBonds.add(bondKey(bp, atom.id));
         pendingBondStereo = StereoType.NONE;
       }
-
       prevAtomId = atom.id;
       pendingBondType = BondType.SINGLE;
       pendingBondExplicit = false;
+      i++;
       continue;
     }
 

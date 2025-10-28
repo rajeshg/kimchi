@@ -15,6 +15,9 @@ import { enrichMolecule } from 'src/utils/molecule-enrichment';
 import { calculateValence } from 'src/utils/valence-calculator';
 import { parseSMARTS } from 'src/parsers/smarts-parser';
 
+const debugSmarts: boolean = !!process.env.OPENCHEM_DEBUG_SMARTS;
+const debug: boolean = debugSmarts;
+
 export function matchSMARTS(
   pattern: string | SMARTSPattern,
   molecule: Molecule,
@@ -86,16 +89,15 @@ function validateRingClosures(
   const matchedAtomIds = mappedIndicesArr.map(idx => molecule.atoms[idx]!.id);
   const matchedAtomIdSet = new Set(matchedAtomIds);
   
-  const debug = !!process.env.DEBUG_SMARTS;
-  if (debug) {
-    try {
-      console.debug('[SMARTS DEBUG] validateRingClosures mappingIndices=', mappedIndicesArr);
-      console.debug('[SMARTS DEBUG] validateRingClosures matchedAtomIds=', matchedAtomIds);
-      console.debug('[SMARTS DEBUG] validateRingClosures molecule.rings=', molecule.rings?.slice(0, 100));
-      console.debug('[SMARTS DEBUG] validateRingClosures matched atoms ringIds=', mappedIndicesArr.map(i => ({ idx: i, id: molecule.atoms[i]!.id, ringIds: molecule.atoms[i]!.ringIds })));
-    } catch (e) {
-      // swallow debug errors
-    }
+  if (debugSmarts) {
+    // eslint-disable-next-line no-console
+    console.debug('[SMARTS DEBUG] validateRingClosures mappingIndices=', mappedIndicesArr);
+    // eslint-disable-next-line no-console
+    console.debug('[SMARTS DEBUG] validateRingClosures matchedAtomIds=', matchedAtomIds);
+    // eslint-disable-next-line no-console
+    console.debug('[SMARTS DEBUG] validateRingClosures molecule.rings=', molecule.rings?.slice(0, 100));
+    // eslint-disable-next-line no-console
+    console.debug('[SMARTS DEBUG] validateRingClosures matched atoms ringIds=', mappedIndicesArr.map(i => ({ idx: i, id: molecule.atoms[i]!.id, ringIds: molecule.atoms[i]!.ringIds })));
   }
   
   if (!molecule.rings || molecule.rings.length === 0) {

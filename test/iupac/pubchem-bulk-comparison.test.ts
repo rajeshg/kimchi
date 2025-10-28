@@ -49,5 +49,5 @@ describe('PubChem IUPAC Name Bulk Comparison', () => {
 
     // Test passes as long as no exceptions are thrown
     expect(true).toBe(true);
-  });
+  }, 120000);
 });

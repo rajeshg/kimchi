@@ -1,0 +1,78 @@
+{
+  "meta": {
+    "source": "curated-RDKit-inspired",
+    "description": "Common SMARTS-based tautomer transforms (keto-enol, imine-enamine, amide-imidol, nitro-aci-nitro, etc.). Each rule has: id, name, smarts_match, smarts_replace, priority, notes.",
+    "version": "0.1.1"
+  },
+  "rules": [
+    {
+      "id": "keto-enol",
+      "name": "keto <-> enol",
+      "priority": 100,
+      "phase": 1,
+      "group": "conservative",
+      "smarts_match": "[CX3](=O)[#6]",
+      "smarts_replace": "[CX3]([#6])([H])=[OX1]",
+      "description": "Convert simple carbonyl (keto) to enol form. Matching is coarse; application must verify H availability on alpha carbon.",
+      "notes": "This rule requires additional code to identify alpha carbon and move H; SMARTS replace is illustrative and not a direct bake-in replacement string. Use matcher to find pattern and then programmatically move H from alpha carbon to oxygen."
+    },
+    {
+      "id": "imine-enamine",
+      "name": "imine <-> enamine",
+      "priority": 90,
+      "phase": 1,
+      "group": "conservative",
+      "smarts_match": "[NX3]=[CX3]-[#6]",
+      "smarts_replace": "[NX3]-[CX3]=[#6]",
+      "description": "Flip N=C to C=C-N (imine <-> enamine). Programmatic transform required to move H/adjust bond orders.",
+      "notes": "Handle stereochemistry and check atom valences.",
+      "examples": {
+        "imine": "C=NC",
+        "enamine": "C=C(N)C"
+      }
+    },
+    {
+      "id": "amide-imidol",
+      "name": "amide <-> imidol (amide tautomer)",
+      "priority": 80,
+      "phase": 1,
+      "group": "conservative",
+      "smarts_match": "[NX3][CX3](=O)[#6]",
+      "smarts_replace": "[N+H2]=[CX3]-O-",
+      "description": "Amide to imidol (rare). Requires proton transfer from N to O and bond order changes."
+    },
+    {
+      "id": "nitro-aci-nitro",
+      "name": "nitro <-> aci-nitro",
+      "priority": 85,
+      "phase": 1,
+      "group": "conservative",
+      "smarts_match": "[NX3](=O)=O",
+      "smarts_replace": "[NX3+](=O)[O-]",
+      "description": "Nitro to aci-nitro resonance/tautomeric form.",
+      "notes": "Requires charge handling."
+    },
+    {
+      "id": "enamine-imine-aromatic-adjust",
+      "name": "enamine/imine aromatic stabilization",
+      "priority": 70,
+      "phase": 3,
+      "group": "resonance",
+      "smarts_match": "[cH]1cc([NX3]=[CX3])ccc1",
+      "smarts_replace": "",
+      "description": "Placeholder for aromatic-specific tautomer adjustments; may be handled via scoring rather than explicit transform.",
+      "notes": "No direct SMARTS replacement; scoring step prefers aromaticity-preserving tautomers."
+    },
+    {
+      "id": "phenol-keto-resonance",
+      "name": "phenol <-> quinone-like",
+      "priority": 60,
+      "phase": 3,
+      "group": "resonance",
+      "smarts_match": "[cH]1cc(O)ccc1",
+      "smarts_replace": "",
+      "description": "Phenol/quinone resonance; handled conservatively via scoring.",
+      "notes": "Placeholder"
+    }
+  ]
+}
