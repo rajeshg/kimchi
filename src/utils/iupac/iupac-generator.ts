@@ -187,14 +187,36 @@ function generateNameForComponent(
     }
 
    // Check if any functional group atoms are NOT on rings (i.e., on chains)
-   let functionalGroupOnChain = false;
-   for (const atomIdx of functionalGroupAtoms) {
-     const ringsContainingAtom = ringInfo.getRingsContainingAtom(atomIdx);
-     if (ringsContainingAtom.length === 0) {
-       functionalGroupOnChain = true;
-       break;
-     }
-   }
+  // Determine whether the detected functional group atoms are genuinely on an
+  // aliphatic chain (i.e., not part of a ring and not merely a substituent
+  // attached to a ring). For example, in benzoic acid the carboxyl carbon is
+  // not part of the aromatic ring but is directly bonded to a ring carbon; in
+  // that case we want to treat the FG as a ring substituent (prefer cyclic
+  // naming) rather than as a chain-based FG.
+  let functionalGroupOnChain = false;
+  for (const atomIdx of functionalGroupAtoms) {
+    const ringsContainingAtom = ringInfo.getRingsContainingAtom(atomIdx);
+    if (ringsContainingAtom.length === 0) {
+      // Check if this FG atom is directly attached to any ring atom; if so,
+      // treat it as a ring substituent (not a chain FG).
+      const neighbors: number[] = [];
+      for (const b of molecule.bonds) {
+        if (b.atom1 === atomIdx) neighbors.push(b.atom2);
+        else if (b.atom2 === atomIdx) neighbors.push(b.atom1);
+      }
+      let attachedToRing = false;
+      for (const nb of neighbors) {
+        if (ringInfo.getRingsContainingAtom(nb).length > 0) {
+          attachedToRing = true;
+          break;
+        }
+      }
+      if (!attachedToRing) {
+        functionalGroupOnChain = true;
+        break;
+      }
+    }
+  }
 
      // If has major functional group on a chain (not on a ring), use aliphatic methods
      const hasAromaticAtoms = molecule.atoms.some(atom => atom.aromatic);
@@ -241,11 +263,27 @@ function generateNameForComponent(
     }
    if (ringInfo.rings.length > 0) {
      const cyclicName = generateCyclicName(molecule, ringInfo, options);
-     if (cyclicName) {
-       const functionalGroup = identifyPrincipalFunctionalGroup(molecule, options);
-       if (functionalGroup) return combineName(cyclicName, functionalGroup);
-       return cyclicName;
-     }
+    if (cyclicName) {
+      const functionalGroup = identifyPrincipalFunctionalGroup(molecule, options);
+      if (functionalGroup) {
+        // Special-case: combine benzene base with carboxyl-type suffixes to form 'benzoic' stems
+        // e.g., '1-hydroxy-2-methylbenzene' + 'oic acid' -> '1-hydroxy-2-methylbenzoic acid'
+        try {
+          if (/benzene/i.test(cyclicName) && /^o/i.test(functionalGroup)) {
+            const base = cyclicName.replace(/benzene/ig, 'benzo');
+            let tail = functionalGroup.trim();
+            // remove leading 'o' from 'oic', 'oate' etc.
+            tail = tail.replace(/^o/i, '');
+            if (!tail.startsWith(' ') && !tail.startsWith('-')) tail = ' ' + tail;
+            return `${base}${tail}`;
+          }
+        } catch (e) {
+          // fall back to normal combineName
+        }
+        return combineName(cyclicName, functionalGroup);
+      }
+      return cyclicName;
+    }
    }
 
   // Fallback for acyclic molecules without carboxyl group

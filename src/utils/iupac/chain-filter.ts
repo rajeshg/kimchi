@@ -1,4 +1,5 @@
 import type { Chain } from './iupac-types';
+import { getChainFunctionalGroupPriority } from './functional-group-detector';
 
 /**
  * Base interface for chain filtering and selection
@@ -276,11 +277,56 @@ export class RingDominanceFilter extends ContextualChainFilter {
     if (chain.isCyclic) score += 20;
     if (chain.isCyclic && !chain.isAromatic) score += 10;
 
-  // Strong preference if this chain was generated as a ring-origin candidate
-  // (i.e., exact SSSR ring or union of rings). This helps prefer true ring
-  // parents (bicyclo/spiro) over acyclic paths that merely pass through ring atoms.
-  const isFromRingOrigin = Boolean((chain as any).isFromRingUnion);
-  if (isFromRingOrigin) score += 100;
+    // Strong preference if this chain was generated as a ring-origin candidate
+    // (i.e., exact SSSR ring or union of rings). This helps prefer true ring
+    // parents (bicyclo/spiro) over acyclic paths that merely pass through ring atoms.
+    const isFromRingOrigin = Boolean((chain as any).isFromRingUnion);
+    if (isFromRingOrigin) score += 100;
+
+    // Conservative boost: if this chain is an aromatic cycle and is adjacent to
+    // a principal functional group (or contains the principal atom), give a
+    // modest boost so that ring parents near the FG can compete with long
+    // aliphatic chains. This uses the existing functional-group detector to
+    // compute per-atom priorities from the molecule context. The boost is kept
+    // moderate (smaller than ring-origin boost) to avoid wide regressions.
+    try {
+      const molecule = (context && (context as any).moleculeData && (context as any).moleculeData.molecule) as any;
+      if (molecule && chain.isCyclic && chain.isAromatic) {
+        // find best per-atom FG priority
+        let bestPriority = 0;
+        const perAtom: Map<number, number> = new Map();
+        for (let i = 0; i < (molecule.atoms || []).length; i++) {
+          const p = getChainFunctionalGroupPriority([i], molecule);
+          perAtom.set(i, p);
+          if (p > bestPriority) bestPriority = p;
+        }
+
+        if (bestPriority > 0) {
+          // principal atom indices
+          const principalAtoms = Array.from(perAtom.entries()).filter(([_, v]) => v === bestPriority).map(([k]) => k);
+
+          // check if chain contains a principal atom or a neighbor of one
+          const chainSet = new Set(chain.atomIndices || []);
+          let nearPrincipal = false;
+          for (const p of principalAtoms) {
+            if (chainSet.has(p)) { nearPrincipal = true; break; }
+            // neighbors of p
+            for (const b of molecule.bonds) {
+              const nb = b.atom1 === p ? b.atom2 : (b.atom2 === p ? b.atom1 : -1);
+              if (nb >= 0 && chainSet.has(nb)) { nearPrincipal = true; break; }
+            }
+            if (nearPrincipal) break;
+          }
+
+          if (nearPrincipal) {
+            // modest boost to help aromatic ring parents adjacent to FG
+            score += 40;
+          }
+        }
+      }
+    } catch (e) {
+      // avoid failing selection logic due to diagnostic computation
+    }
 
     return {
       passes: true,

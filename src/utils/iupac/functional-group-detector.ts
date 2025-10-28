@@ -26,31 +26,66 @@ export function getChainFunctionalGroupPriority(chain: number[], molecule: Molec
   for (const idx of chain) {
     const atom = molecule.atoms[idx];
     if (!atom) continue;
-
+    // Check the atom itself
     if (atom.symbol === 'C') {
       const fgPriority = getCarbonFunctionalGroupPriority(idx, molecule);
       best = Math.max(best, fgPriority);
     }
-
     if (atom.symbol === 'S') {
       const fgPriority = getSulfurFunctionalGroupPriority(idx, molecule);
       best = Math.max(best, fgPriority);
     }
-
     if (atom.symbol === 'P') {
       const fgPriority = getPhosphorusFunctionalGroupPriority(idx, molecule);
       best = Math.max(best, fgPriority);
     }
-
     if (atom.symbol === 'N') {
       const fgPriority = getNitrogenFunctionalGroupPriority(idx, molecule);
       best = Math.max(best, fgPriority);
     }
-
     if (atom.symbol === 'O') {
       if ((atom as any).hydrogens && (atom as any).hydrogens > 0) {
         best = Math.max(best, FG_PRIORITY.ALCOHOL);
       }
+    }
+
+    // Also inspect immediate neighbors (substituents) of the chain atom. This
+    // allows a ring-based chain to receive credit for a principal functional
+    // group that is attached as a substituent (e.g., benzoic acid: the carboxyl
+    // carbon is attached to a ring carbon). We only check one bond away to avoid
+    // giving credit for distant groups.
+    try {
+      const neighbors = molecule.bonds
+        .filter(b => b.atom1 === idx || b.atom2 === idx)
+        .map(b => (b.atom1 === idx ? b.atom2 : b.atom1));
+      for (const nb of neighbors) {
+        if (chainSet.has(nb)) continue; // skip atoms that are part of chain itself
+        const nat = molecule.atoms[nb];
+        if (!nat) continue;
+        if (nat.symbol === 'C') {
+          const p = getCarbonFunctionalGroupPriority(nb, molecule);
+          best = Math.max(best, p);
+        }
+        if (nat.symbol === 'S') {
+          const p = getSulfurFunctionalGroupPriority(nb, molecule);
+          best = Math.max(best, p);
+        }
+        if (nat.symbol === 'P') {
+          const p = getPhosphorusFunctionalGroupPriority(nb, molecule);
+          best = Math.max(best, p);
+        }
+        if (nat.symbol === 'N') {
+          const p = getNitrogenFunctionalGroupPriority(nb, molecule);
+          best = Math.max(best, p);
+        }
+        if (nat.symbol === 'O') {
+          if ((nat as any).hydrogens && (nat as any).hydrogens > 0) {
+            best = Math.max(best, FG_PRIORITY.ALCOHOL);
+          }
+        }
+      }
+    } catch (e) {
+      // ignore neighbor inspection failures
     }
   }
   return best;

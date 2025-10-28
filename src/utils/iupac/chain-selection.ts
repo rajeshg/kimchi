@@ -144,10 +144,10 @@ export function selectPrincipalChain(molecule: Molecule): ChainSelectionResult {
    const maxLen = Math.max(...allCandidates.map(c => c.length));
    const maxLenCandidates = allCandidates.filter(c => c.length === maxLen);
 
-   // Determine principal functional group atom indices (atoms with highest per-atom FG priority)
-   const principalAtoms = getPrincipalFunctionalGroupAtoms(molecule);
+  // Determine principal functional group atom indices (atoms with highest per-atom FG priority)
+  const principalAtoms = getPrincipalFunctionalGroupAtoms(molecule);
 
-   if (principalAtoms.length === 0) {
+  if (principalAtoms.length === 0) {
       // No principal functional group — fall back to existing selection pipeline
       // Diagnostic logging gated by VERBOSE
       if (process.env.VERBOSE) {
@@ -161,25 +161,160 @@ export function selectPrincipalChain(molecule: Molecule): ChainSelectionResult {
         } catch (e) {}
       }
 
+       // If there are ring-based candidates (fused/spiro/biphenyl unions), prefer
+       // them when they are nearly as long as the longest carbon path. This helps
+       // select aromatic/polycyclic parents (anthracene, biphenyl, benzoic parents)
+       // in structures with no principal FG. Keep the threshold conservative
+       // (allow ring candidate if length >= maxLen - 1) to avoid regressing long
+       // aliphatic chain selection.
+       try {
+         if (ringChains && ringChains.length > 0) {
+           const bestRingLen = Math.max(...ringChains.map(c => c.length));
+           if (bestRingLen >= Math.max(1, maxLen - 1)) {
+             // Prefer top ring candidates (those with bestRingLen)
+             const topRingCandidates = ringChains.filter(c => c.length === bestRingLen);
+             if (process.env.VERBOSE) console.debug('[chain-selection] VERBOSE: preferring ring-based candidates (no principal FG):', topRingCandidates.map(c => c.join('-')));
+             if (topRingCandidates.length === 1) return { chain: topRingCandidates[0]!, reason: 'Preferred ring-based candidate (no principal FG)' };
+             return selectBestChain(topRingCandidates, molecule, 'No principal FG (ring preference)');
+           }
+         }
+       } catch (e) {
+         // ignore ring preference errors and continue to length-based fallback
+       }
+
        // Always restrict to maxLenCandidates for highly branched alkanes (IUPAC compliance)
        if (maxLenCandidates.length === 1) return { chain: maxLenCandidates[0]!, reason: 'Only one chain candidate' };
        return selectBestChain(maxLenCandidates, molecule, 'No principal FG (max length only)');
     }
 
-  // Filter candidates to those that contain any principal atom
-  const candidatesContainingPrincipal = allCandidates.filter(c => c.some(i => principalAtoms.includes(i)));
+  // Instead of requiring the chain to literally contain the principal atom index (which
+  // excludes ring-only parents for substituent-based functional groups like benzoic acid),
+  // compute a per-chain functional group priority and prefer chains with the highest
+  // chain-level priority. This allows ring parents that carry the functional group as a
+  // substituent to be selected correctly.
+  const chainPriorities = allCandidates.map(c => ({ chain: c, priority: getChainFunctionalGroupPriority(c, molecule) }));
+  const maxChainPriority = Math.max(...chainPriorities.map(x => x.priority));
 
-  if (candidatesContainingPrincipal.length === 0) {
-    // None contain the principal atom — fall back to existing pipeline
-    return selectBestChain(allCandidates, molecule, 'No candidate contains principal FG');
+  if (maxChainPriority === 0) {
+    // No chain-level functional group detected — fall back to full pipeline
+    return selectBestChain(allCandidates, molecule, 'No principal FG at chain level');
   }
 
-  // Choose best according to rules
-  // Use the full selector pipeline to pick between candidates that contain the principal atom.
-  // This avoids ordering/normalization issues when numeric candidate arrays come from different
-  // generators (rings, enumerations, unions) and ensures consistent application of filters.
-  const bestOutcome = selectBestChain(candidatesContainingPrincipal, molecule, 'Contains principal FG');
-  return { chain: bestOutcome.chain, reason: bestOutcome.reason || 'Selected chain containing principal FG via selector' };
+  // Among chains with maximum FG priority, prefer those where the principal
+  // functional group atom(s) appear as terminal atoms (chain ends). This ensures
+  // that carboxylic acids and similar terminal functional groups produce short
+  // parent chains (e.g., propanoic/phenylacetic acid) instead of being subsumed by
+  // a longer carbon path that merely passes through the FG atom internally.
+  const principalAtomSet = new Set(principalAtoms);
+  // Also detect carboxyl-like carbons (C with =O and -O) as principal atoms
+  const carboxylAtomSet = new Set<number>();
+  for (let i = 0; i < molecule.atoms.length; i++) {
+    const atom = molecule.atoms[i];
+    if (!atom || atom.symbol !== 'C') continue;
+    const bonds = molecule.bonds.filter(b => b.atom1 === i || b.atom2 === i);
+    let hasDoubleO = false;
+    let hasSingleO = false;
+    for (const b of bonds) {
+      const neigh = b.atom1 === i ? b.atom2 : b.atom1;
+      const nat = molecule.atoms[neigh];
+      if (!nat) continue;
+      if (nat.symbol === 'O') {
+        if (b.type === BondType.DOUBLE) hasDoubleO = true;
+        if (b.type === BondType.SINGLE) hasSingleO = true;
+      }
+    }
+    if (hasDoubleO && hasSingleO) carboxylAtomSet.add(i);
+  }
+
+  if (process.env.VERBOSE) {
+    try {
+      console.debug('[chain-selection] principalAtoms:', principalAtoms);
+      console.debug('[chain-selection] carboxylAtoms:', Array.from(carboxylAtomSet.values()));
+    } catch (e) {}
+  }
+  const candidatesWithPriority = chainPriorities.filter(x => x.priority === maxChainPriority).map(x => x.chain);
+
+  // Detect terminal-FG candidates
+  const terminalCandidates = candidatesWithPriority.filter(c => {
+    if (c.length === 0) return false;
+    const first = c[0]!;
+    const last = c[c.length - 1]!;
+    return principalAtomSet.has(first) || principalAtomSet.has(last) || carboxylAtomSet.has(first) || carboxylAtomSet.has(last);
+  });
+
+  // Also detect candidates that contain a principal atom anywhere in the chain
+  // (useful for ring-based chains where the principal FG is attached to an internal
+  // ring atom rather than being a terminal atom).
+  const principalContainingCandidates = candidatesWithPriority.filter(c => c.some(idx => principalAtomSet.has(idx) || carboxylAtomSet.has(idx)));
+
+  if (process.env.VERBOSE) {
+    try {
+      console.debug('[chain-selection] candidatesWithPriority:', candidatesWithPriority.map(c => c.join('-')));
+      console.debug('[chain-selection] terminalCandidates:', terminalCandidates.map(c => c.join('-')));
+    } catch (e) {}
+  }
+
+  // If there are ring-origin candidates that are adjacent to the principal FG
+  // (e.g., benzoic acid where the carboxyl is attached to the ring), prefer
+  // those ring candidates before applying the terminal/aliphatic heuristics.
+  try {
+    const ringInfo = analyzeRings(molecule);
+    const ringCandidates = candidatesWithPriority.filter(c => c.every(i => ringInfo.getRingsContainingAtom(i).length > 0));
+    const ringCandidatesNearFG = ringCandidates.filter(c => {
+      for (const p of principalAtoms) {
+        // If principal atom itself is on the ring, prefer the ring candidate
+        if (c.includes(p)) return true;
+        // If any neighbor of principal atom is part of the ring candidate, prefer it
+        const neighs = getNeighbors(p, molecule);
+        if (neighs.some(n => c.includes(n))) return true;
+      }
+      return false;
+    });
+    if (ringCandidatesNearFG.length > 0) {
+      if (process.env.VERBOSE) console.debug('[chain-selection] preferring ring candidates near FG:', ringCandidatesNearFG.map(c => c.join('-')));
+      // prefer these ring candidates
+      const outcome = selectBestChain(ringCandidatesNearFG, molecule, 'Preferred ring-origin candidate adjacent to FG');
+      return { chain: outcome.chain, reason: outcome.reason || 'Preferred ring-origin candidate adjacent to FG' };
+    }
+  } catch (e) {
+    // ignore ring-based preference errors and continue
+  }
+
+  // Prefer terminal candidates first, then any candidate that contains the principal
+  // functional group anywhere (this lets ring parents win when they carry the FG as a
+  // substituent). Fall back to all candidates with the top priority.
+  const finalCandidates = terminalCandidates.length > 0 ? terminalCandidates : (principalContainingCandidates.length > 0 ? principalContainingCandidates : candidatesWithPriority);
+
+  // Special-case: if the principal functional group is a high-priority suffix (e.g., carboxylic acid)
+  // and we have terminal candidates, prefer the shortest terminal chain (fewest carbon atoms).
+  // This ensures short acid-terminated parents (phenylacetic acid, propanoic acid in ibuprofen)
+  // are chosen over much longer aromatic-inclusive chains.
+  const CARBOXYL_PRIORITY_THRESHOLD = 6;
+  if (terminalCandidates.length > 0 && maxChainPriority >= CARBOXYL_PRIORITY_THRESHOLD) {
+    // Prefer aliphatic terminal candidates (no aromatic/ring atoms) when available. This
+    // avoids selecting long aromatic-inclusive parents when an aliphatic parent chain
+    // containing the carboxyl as a terminal atom exists (e.g., propanoic acid in ibuprofen).
+    const ringInfo = analyzeRings(molecule);
+    const aliphaticTerminal = terminalCandidates.filter(c => c.every(i => !molecule.atoms[i]?.aromatic && ringInfo.getRingsContainingAtom(i).length === 0));
+
+    const pool = aliphaticTerminal.length > 0 ? aliphaticTerminal : terminalCandidates;
+
+    // pick candidate with most carbon atoms (then longest total atom count as tie-breaker)
+    let best = pool[0]!;
+    for (const c of pool) {
+      const bestCarbons = countCarbons(best, molecule);
+      const cCarbons = countCarbons(c, molecule);
+      if (cCarbons > bestCarbons) best = c;
+      else if (cCarbons === bestCarbons && c.length > best.length) best = c;
+    }
+    // Run a final fine-grained selection among ties (if any) using existing selector to build reason
+    const tied = pool.filter(c => countCarbons(c, molecule) === countCarbons(best, molecule) && c.length === best.length);
+    const outcome = selectBestChain(tied.length > 0 ? tied : [best], molecule, 'Preferred aliphatic terminal chain for high-priority FG');
+    return { chain: outcome.chain, reason: outcome.reason || 'Preferred aliphatic terminal chain for high-priority FG' };
+  }
+
+  const bestOutcome = selectBestChain(finalCandidates, molecule, terminalCandidates.length > 0 ? 'Contains principal FG at terminal' : 'Contains principal FG (chain-level)');
+  return { chain: bestOutcome.chain, reason: bestOutcome.reason || 'Selected chain by chain-level FG priority' };
  }
 
 /**
@@ -426,15 +561,21 @@ function selectBestChain(chains: number[][], molecule: Molecule, prefix: string)
     console.debug('[chain-selection] selectBestChain: converted candidates:', converted.map(c => ({ len: c.length, atomIndices: c.atomIndices, isCyclic: c.isCyclic, isAromatic: c.isAromatic, isFromRingUnion: (c as any).isFromRingUnion || false })));
   } catch (e) {}
   const outcome = selector.selectBestChain(converted, { allChains: converted, moleculeData: { molecule } });
-  try {
-    // Log selected chain indices and full filter results for deep debugging
-    const selectedIndices = outcome.selectedChain?.atomIndices ?? null;
-    const filterResultsObj: Record<string, any> = {};
-    for (const [k, v] of outcome.filterResults) {
-      filterResultsObj[k] = v.map(r => ({ passes: r.passes, score: r.score, reason: r.reason }));
-    }
-    console.debug('[chain-selection] selector outcome:', { selectedLen: outcome.selectedChain?.length ?? null, selectedIndices, reason: outcome.reason, filterResults: filterResultsObj });
-  } catch (e) {}
+    try {
+      // Log selected chain indices and full filter results for deep debugging
+      const selectedIndices = outcome.selectedChain?.atomIndices ?? null;
+      const filterResultsObj: Record<string, any> = {};
+      for (const [k, v] of outcome.filterResults) {
+        filterResultsObj[k] = v.map(t => ({ passes: t.result.passes, score: t.result.score, reason: t.result.reason }));
+      }
+      // Use JSON.stringify to ensure nested objects are fully printed in VERBOSE runs
+      try {
+        console.debug('[chain-selection] selector outcome:', JSON.parse(JSON.stringify({ selectedLen: outcome.selectedChain?.length ?? null, selectedIndices, reason: outcome.reason, filterResults: filterResultsObj })));
+      } catch (e) {
+        // Fallback to plain debug if stringify fails
+        console.debug('[chain-selection] selector outcome:', { selectedLen: outcome.selectedChain?.length ?? null, selectedIndices, reason: outcome.reason, filterResults: filterResultsObj });
+      }
+    } catch (e) {}
 
   if (outcome.selectedChain) {
     return { chain: outcome.selectedChain.atomIndices, reason: prefix || outcome.reason };

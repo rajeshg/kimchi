@@ -20,8 +20,8 @@ export interface ChainSelectionOutcome {
   reason: string;
   /** All candidate chains that were evaluated */
   candidates: Chain[];
-  /** Filter results for debugging */
-  filterResults: Map<string, FilterResult[]>;
+  /** Filter results for debugging — stored as tuples so we can map results to chains */
+  filterResults: Map<string, { chain: Chain; result: FilterResult }[]>;
 }
 
 /**
@@ -74,15 +74,15 @@ export class ChainSelector {
     }
 
     let remainingChains = [...chains];
-    const filterResults = new Map<string, FilterResult[]>();
+  const filterResults = new Map<string, { chain: Chain; result: FilterResult }[]>();
 
     // Apply each filter
     for (const filter of this.filters) {
-      if (remainingChains.length === 1) {
-        break; // Already narrowed down to one chain
-      }
 
       const results: FilterResult[] = [];
+
+      // Build tuples so we keep results aligned with specific chains
+      const tuples: { chain: Chain; result: FilterResult }[] = [];
 
       if (filter instanceof ContextualChainFilter) {
         // Contextual filters need additional context
@@ -92,35 +92,53 @@ export class ChainSelector {
         for (const chain of remainingChains) {
           const result = (filter as any).applyWithContext(chain, context);
           results.push(result);
+          tuples.push({ chain, result });
         }
       } else {
         // Regular filters apply directly
         for (const chain of remainingChains) {
           const result = filter.apply(chain);
           results.push(result);
+          tuples.push({ chain, result });
         }
       }
 
-      filterResults.set(filter.getName(), results);
+      // store tuples so that later we can find the result for the selected chain
+      filterResults.set(
+        filter.getName(),
+        tuples.map(t => ({ chain: t.chain, result: t.result }))
+      );
 
-      // Filter out chains that don't pass
-      const passingChains = remainingChains.filter((_, i) => results[i]?.passes !== false);
+      // Keep only chains that pass this filter
+      const passingTuples = tuples.filter(t => t.result.passes !== false);
 
-      if (passingChains.length > 0) {
-        remainingChains = passingChains;
+      // If no chains pass this filter, selection fails — clear remainingChains
+      if (passingTuples.length === 0) {
+        remainingChains = [];
+        break;
       }
 
-      // Find chains with the highest score for this filter
-      if (remainingChains.length > 1 && results.length > 0) {
-        const passingResults = results.filter(r => r.passes !== false);
-        const scores = remainingChains.map((_, i) => passingResults[i]?.score ?? 0);
+      // Narrow to only passing chains first
+      remainingChains = passingTuples.map(t => t.chain);
+
+      // If multiple chains remain, pick those with the max score for this filter
+      // NOTE: some filters are pure constraints (e.g., min-length/max-length) and
+      // shouldn't perform score-based tie-breaking at this stage — allow later
+      // filters to further narrow the set. Detect those by name prefix.
+      const name = filter.getName();
+      const isConstraintFilter = name.startsWith('min-length') || name.startsWith('max-length');
+
+      if (remainingChains.length > 1 && !isConstraintFilter) {
+        const scores = passingTuples.map(t => t.result.score ?? 0);
         const maxScore = Math.max(...scores);
-        remainingChains = remainingChains.filter((_, i) => scores[i] === maxScore);
+        // Keep tuples that match max score and update remainingChains accordingly
+        const topTuples = passingTuples.filter(t => (t.result.score ?? 0) === maxScore);
+        remainingChains = topTuples.map(t => t.chain);
       }
     }
 
     const selectedChain = remainingChains[0] || null;
-    const reason = this.buildSelectionReason(filterResults, selectedChain, chains.length);
+  const reason = this.buildSelectionReason(filterResults, selectedChain, chains.length);
 
     return {
       selectedChain,
@@ -134,7 +152,7 @@ export class ChainSelector {
    * Build a human-readable reason for the chain selection
    */
   private buildSelectionReason(
-    filterResults: Map<string, FilterResult[]>,
+    filterResults: Map<string, { chain: Chain; result: FilterResult }[]>,
     selectedChain: Chain | null,
     totalChains: number
   ): string {
@@ -144,13 +162,12 @@ export class ChainSelector {
 
     const reasons: string[] = [];
 
-    for (const [filterName, results] of filterResults) {
-      if (results.length === 0) continue;
+    for (const [filterName, tuples] of filterResults) {
+      if (tuples.length === 0) continue;
 
-      // Find the result for the selected chain
-      const selectedIndex = results.findIndex(r => r.passes);
-      if (selectedIndex >= 0) {
-        reasons.push(`${filterName}: ${results[selectedIndex]?.reason || 'pass'}`);
+      const match = tuples.find(t => t.chain === selectedChain);
+      if (match) {
+        reasons.push(`${filterName}: ${match.result.reason || 'pass'}`);
       }
     }
 
