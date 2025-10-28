@@ -25,7 +25,7 @@ execSync('bunx tsc -p tsconfig.decl.json --declaration --emitDeclarationOnly --o
 
 // Build bundle
 console.log('Building JavaScript bundle...');
-execSync('bun build index.ts --outdir ./dist --format esm', {
+execSync('bun build index.ts --outdir ./dist --format esm --minify', {
   cwd,
   stdio: 'inherit',
 });
