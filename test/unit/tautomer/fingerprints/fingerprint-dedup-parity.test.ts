@@ -1,5 +1,6 @@
 import { parseSMILES } from 'index';
 import { enumerateTautomers } from 'src/utils/tautomer/tautomer-enumerator';
+import { describe, it, expect } from 'bun:test';
 
 describe('tautomer: fingerprint dedup parity', () => {
   it('produces identical unique SMILES sets when dedup enabled vs disabled', () => {

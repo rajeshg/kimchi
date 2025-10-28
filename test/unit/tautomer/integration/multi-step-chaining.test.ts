@@ -1,6 +1,6 @@
 import { parseSMILES } from 'index';
 import { enumerateTautomers } from 'src/utils/tautomer/tautomer-enumerator';
-import tautomerRules from 'src/utils/tautomer/tautomer-rules';
+import { describe, it } from 'bun:test';
 
 describe('tautomer: multi-step chaining', () => {
   it('should produce chained tautomers for pentane-2,4-dione', () => {
