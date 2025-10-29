@@ -1,9 +1,67 @@
 import type { Molecule } from 'types';
+import { BondType } from 'types';
 import { findHeteroatomsInRing } from './utils';
 
 export function isRingAromatic(ring: number[], molecule: Molecule): boolean {
   const ringAtoms = ring.map(idx => molecule.atoms[idx]).filter((a): a is typeof molecule.atoms[0] => a !== undefined);
-  return ringAtoms.every(atom => atom.aromatic);
+  if (ringAtoms.length === 0) return false;
+
+  // Robust aromaticity predicate:
+  // - count aromatic-like bonds (BondType.AROMATIC or BondType.DOUBLE)
+  // - count aromatic-marked atoms
+  // - use a conservative threshold: require a majority of aromatic-like bonds
+  //   AND a high fraction of atoms flagged aromatic OR a strong double-bond signal
+  let aromaticLikeBondCount = 0;
+  let aromaticBondCount = 0;
+  let doubleBondCount = 0;
+  let singleBondCount = 0;
+
+  for (let i = 0; i < ring.length; i++) {
+    const a = ring[i]!;
+    const b = ring[(i + 1) % ring.length]!;
+    const bond = molecule.bonds.find(bb => (bb.atom1 === a && bb.atom2 === b) || (bb.atom1 === b && bb.atom2 === a));
+    if (!bond) continue;
+    if (bond.type === BondType.AROMATIC) {
+      aromaticBondCount++;
+      aromaticLikeBondCount++;
+    } else if (bond.type === BondType.DOUBLE) {
+      doubleBondCount++;
+      aromaticLikeBondCount++;
+    } else if (bond.type === BondType.SINGLE) {
+      singleBondCount++;
+    } else {
+      // other bond types treated as non-aromatic-like
+      singleBondCount++;
+    }
+  }
+
+  const aromaticAtomCount = ringAtoms.filter(atom => atom.aromatic === true).length;
+  const atomAromaticFraction = aromaticAtomCount / ring.length;
+
+  if (process.env.VERBOSE) {
+    try {
+      console.log('[VERBOSE] isRingAromatic:', {
+        ringLength: ring.length,
+        aromaticBondCount,
+        doubleBondCount,
+        aromaticLikeBondCount,
+        singleBondCount,
+        aromaticAtomCount,
+        atomAromaticFraction
+      });
+    } catch (e) {}
+  }
+
+  // Conservative rules:
+  // - Require at least ceil(n/2) aromatic-like bonds (double or aromatic) AND
+  //   atom aromatic fraction >= 0.6
+  // - OR if many bonds are explicitly aromatic (BondType.AROMATIC) require atom fraction >= 0.5
+  // - Otherwise mark non-aromatic.
+  const minAromaticLike = Math.ceil(ring.length / 2);
+  if (aromaticLikeBondCount >= minAromaticLike && atomAromaticFraction >= 0.6) return true;
+  if (aromaticBondCount >= minAromaticLike && atomAromaticFraction >= 0.5) return true;
+
+  return false;
 }
 
 export function generateAromaticRingName(ring: number[], molecule: Molecule): string {

@@ -57,6 +57,42 @@ describe('functional group detector', () => {
     const bond = mol.bonds.find(b => b.atom1 === oIdx || b.atom2 === oIdx);
     const cIdx = bond ? (bond.atom1 === oIdx ? bond.atom2 : bond.atom1) : -1;
     const chain = cIdx >= 0 ? [cIdx, oIdx] : findLongestCarbonChain(mol);
-    expect(getChainFunctionalGroupPriority(chain, mol)).toBeGreaterThanOrEqual(3);
+expect(getChainFunctionalGroupPriority(chain, mol)).toBeGreaterThanOrEqual(3);
   });
+
+  it('detects carboxylic acid priority (6) for benzoic acid (c1ccccc1C(=O)O)', () => {
+    const res = parseSMILES('c1ccccc1C(=O)O');
+    const mol = res.molecules[0]!;
+    const chain = findLongestCarbonChain(mol);
+    expect(getChainFunctionalGroupPriority(chain, mol)).toBeGreaterThanOrEqual(6);
+  });
+
+  it('detects amide priority (5) for benzamide (c1ccccc1C(=O)N)', () => {
+    const res = parseSMILES('c1ccccc1C(=O)N');
+    const mol = res.molecules[0]!;
+    const chain = findLongestCarbonChain(mol);
+    expect(getChainFunctionalGroupPriority(chain, mol)).toBeGreaterThanOrEqual(5);
+  });
+
+  it('detects carboxylic acid priority (6) for phenylacetic acid (c1ccccc1CC(=O)O)', () => {
+    const res = parseSMILES('c1ccccc1CC(=O)O');
+    const mol = res.molecules[0]!;
+    const chain = findLongestCarbonChain(mol);
+    expect(getChainFunctionalGroupPriority(chain, mol)).toBeGreaterThanOrEqual(6);
+  });
+
+  it('detects amide priority (5) for N-phenylbenzamide (c1ccc(C(=O)Nc2ccccc2)cc1)', () => {
+    const res = parseSMILES('c1ccc(C(=O)Nc2ccccc2)cc1');
+    const mol = res.molecules[0]!;
+    const chain = findLongestCarbonChain(mol);
+    expect(getChainFunctionalGroupPriority(chain, mol)).toBeGreaterThanOrEqual(5);
+  });
+
+  it('detects acid chloride priority (5) for aromatic acid chloride (c1ccccc1C(=O)Cl)', () => {
+    const res = parseSMILES('c1ccccc1C(=O)Cl');
+    const mol = res.molecules[0]!;
+    const chain = findLongestCarbonChain(mol);
+    expect(getChainFunctionalGroupPriority(chain, mol)).toBeGreaterThanOrEqual(5);
+  });
+
 });

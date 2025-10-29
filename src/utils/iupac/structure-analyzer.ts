@@ -85,7 +85,68 @@ export class StructureAnalyzer {
       }
     }
 
+    // For linear molecules, try to connect all carbons
+    if (longestChain.length < carbonIndices.length) {
+      const linearChain = this.findLinearChain(molecule, carbonIndices);
+      if (linearChain.length > longestChain.length) {
+        longestChain = linearChain;
+      }
+    }
+
     return longestChain;
+  }
+
+  /**
+   * Find linear chain by connecting carbons in order
+   */
+  private findLinearChain(molecule: Molecule, carbonIndices: number[]): number[] {
+    if (carbonIndices.length <= 2) return carbonIndices;
+
+    // Build adjacency map for carbons
+    const adjacency = new Map<number, number[]>();
+    for (const idx of carbonIndices) {
+      adjacency.set(idx, []);
+    }
+
+    for (const bond of molecule.bonds) {
+      const { atom1, atom2 } = bond;
+      if (carbonIndices.includes(atom1) && carbonIndices.includes(atom2)) {
+        adjacency.get(atom1)!.push(atom2);
+        adjacency.get(atom2)!.push(atom1);
+      }
+    }
+
+    // Find endpoints (carbons with only 1 neighbor)
+    const endpoints: number[] = [];
+    for (const [idx, neighbors] of adjacency) {
+      if (neighbors.length === 1) {
+        endpoints.push(idx);
+      }
+    }
+
+    // If no endpoints (cycle), return any carbon as start
+    if (endpoints.length === 0) {
+      return carbonIndices;
+    }
+
+    // Start from an endpoint and traverse
+    const start = endpoints[0]!;
+    const chain: number[] = [];
+    const visited = new Set<number>();
+    let current = start;
+
+    while (true) {
+      chain.push(current);
+      visited.add(current);
+
+      const neighbors = adjacency.get(current) || [];
+      const next = neighbors.find(n => !visited.has(n));
+
+      if (!next) break;
+      current = next;
+    }
+
+    return chain.length === carbonIndices.length ? chain : carbonIndices;
   }
 
   /**
@@ -209,10 +270,11 @@ export class StructureAnalyzer {
       { smarts: '[CX3](=O)[#1]', name: 'aldehyde', priority: 4, suffix: '-al' },
       { smarts: '[#6][CX3](=O)[#6]', name: 'ketone', priority: 5, suffix: '-one' },
       { smarts: '[OX2H]', name: 'hydroxyl', priority: 6, suffix: '-ol' },
-      { smarts: '[NX3;H2,H1;!$(NC=O)]', name: 'amine', priority: 7, suffix: '-amine' },
+      { smarts: '[NX3;H2,H1]', name: 'amine', priority: 7, suffix: '-amine' },
       { smarts: '[SX2H]', name: 'thiol', priority: 8, suffix: '-thiol' },
       { smarts: '[#6]=[#6]', name: 'alkene', priority: 9, suffix: '-ene' },
       { smarts: '[#6]#[#6]', name: 'alkyne', priority: 10, suffix: '-yne' },
+      
     ];
 
     for (const pattern of commonPatterns) {

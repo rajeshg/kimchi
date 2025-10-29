@@ -50,6 +50,13 @@ export function numberChain(chain: number[], molecule: Molecule): ChainNumbering
 
   // Compare using IUPAC rules
   const better = isBetterNumbering(forward, backward, molecule);
+  
+  if (process.env.VERBOSE) {
+    console.log(`[chain-numbering] Forward FG position: ${getHighestPriorityFGPosition(forward.orderedChain, molecule)}`);
+    console.log(`[chain-numbering] Backward FG position: ${getHighestPriorityFGPosition(backward.orderedChain, molecule)}`);
+    console.log(`[chain-numbering] Choosing: ${better} direction`);
+  }
+  
   return better === 'forward' ? forward : backward;
 }
 
@@ -76,8 +83,16 @@ function isBetterNumbering(
   const fgPosF = getHighestPriorityFGPosition(forward.orderedChain, molecule);
   const fgPosB = getHighestPriorityFGPosition(backward.orderedChain, molecule);
 
+  if (process.env.VERBOSE) {
+    console.log(`[isBetterNumbering] Rule 1 - Forward FG pos: ${fgPosF}, Backward FG pos: ${fgPosB}`);
+  }
+
   if (fgPosF !== fgPosB) {
-    return fgPosF < fgPosB ? 'forward' : 'backward';
+    const result = fgPosF < fgPosB ? 'forward' : 'backward';
+    if (process.env.VERBOSE) {
+      console.log(`[isBetterNumbering] Rule 1 decision: ${result}`);
+    }
+    return result;
   }
 
   // Rule 2: Lowest set of locants for all substituents
@@ -123,18 +138,36 @@ function getHighestPriorityFGPosition(chain: number[], molecule: Molecule): numb
       // Check for aldehyde/ketone
       else if (hasDoubleO) priority = 5;
 
-      // Check for alcohol
+      // Check for alcohol - more robust detection
       const hasOH = bonds.some(b => {
         const neigh = molecule.atoms[b.atom1 === atomIdx ? b.atom2 : b.atom1];
-        return neigh?.symbol === 'O' && neigh.hydrogens! > 0;
+        if (!neigh) return false;
+        // Check for OH group: O atom with hydrogens bonded via single bond
+        const isAlcohol = neigh.symbol === 'O' && b.type === 'single' && neigh.hydrogens > 0;
+        if (process.env.VERBOSE && isAlcohol) {
+          console.log(`[getHighestPriorityFGPosition] Found OH bond at carbon ${atomIdx}, bond type: ${b.type}`);
+        }
+        return isAlcohol;
       });
-      if (hasOH && priority === 0) priority = 3;
+      if (hasOH && priority === 0) {
+        priority = 3;
+        if (process.env.VERBOSE) {
+          console.log(`[getHighestPriorityFGPosition] Found alcohol at chain position ${i + 1}, atom ${atomIdx}`);
+        }
+      }
 
       if (priority > bestPriority) {
         bestPriority = priority;
         bestPos = i + 1;
+        if (process.env.VERBOSE) {
+          console.log(`[getHighestPriorityFGPosition] Updated best: priority ${priority}, position ${bestPos} (carbon ${atomIdx})`);
+        }
       }
     }
+  }
+  
+  if (process.env.VERBOSE) {
+    console.log(`[getHighestPriorityFGPosition] Final result: position ${bestPos} (priority ${bestPriority})`);
   }
 
   return bestPos;

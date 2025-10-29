@@ -14,7 +14,13 @@ const FG_PRIORITY = {
   KETONE: 4,
   NITRILE: 4,
   ALCOHOL: 3,
+  PHENOL: 3,
+  THIOL: 3,
+  ETHER: 2,
+  HALIDE: 2,
   AMINE: 2,
+  IMINE: 2,
+  NITRO: 2,
   NONE: 0,
 };
 
@@ -52,8 +58,8 @@ export function getChainFunctionalGroupPriority(chain: number[], molecule: Molec
     // Also inspect immediate neighbors (substituents) of the chain atom. This
     // allows a ring-based chain to receive credit for a principal functional
     // group that is attached as a substituent (e.g., benzoic acid: the carboxyl
-    // carbon is attached to a ring carbon). We only check one bond away to avoid
-    // giving credit for distant groups.
+    // carbon is attached to a ring carbon). We now check up to two bonds away for
+    // esters, amides, acid chlorides, and similar groups to catch edge cases.
     try {
       const neighbors = molecule.bonds
         .filter(b => b.atom1 === idx || b.atom2 === idx)
@@ -62,6 +68,7 @@ export function getChainFunctionalGroupPriority(chain: number[], molecule: Molec
         if (chainSet.has(nb)) continue; // skip atoms that are part of chain itself
         const nat = molecule.atoms[nb];
         if (!nat) continue;
+        // Immediate neighbor checks (one bond away)
         if (nat.symbol === 'C') {
           const p = getCarbonFunctionalGroupPriority(nb, molecule);
           best = Math.max(best, p);
@@ -83,9 +90,32 @@ export function getChainFunctionalGroupPriority(chain: number[], molecule: Molec
             best = Math.max(best, FG_PRIORITY.ALCOHOL);
           }
         }
+        // Two-bond-away checks for esters, amides, acid chlorides, etc.
+        // Only do this for C neighbors (carbonyl carbons attached to chain atom)
+        if (nat.symbol === 'C') {
+          const secondNeighbors = molecule.bonds
+            .filter(b => b.atom1 === nb || b.atom2 === nb)
+            .map(b => (b.atom1 === nb ? b.atom2 : b.atom1));
+          for (const nb2 of secondNeighbors) {
+            if (chainSet.has(nb2) || nb2 === idx) continue;
+            const nat2 = molecule.atoms[nb2];
+            if (!nat2) continue;
+            // Only check for O, N, Cl as second neighbor (carbonyl derivatives)
+            if (nat2.symbol === 'O' || nat2.symbol === 'N' || nat2.symbol === 'Cl') {
+              // Use carbonyl priority logic
+              const p2 = getCarbonFunctionalGroupPriority(nb, molecule);
+              best = Math.max(best, p2);
+              if (process.env.VERBOSE) {
+                console.debug(`[FG DETECTOR] Two-bond-away check: chain atom ${idx} -> C ${nb} -> ${nat2.symbol} ${nb2}, priority=${p2}`);
+              }
+            }
+          }
+        }
       }
     } catch (e) {
-      // ignore neighbor inspection failures
+      if (process.env.VERBOSE) {
+        console.warn('[FG DETECTOR] Neighbor inspection failed:', e);
+      }
     }
   }
   return best;

@@ -371,6 +371,20 @@ export function getChainFunctionalGroupPriority(chain: number[], molecule: Molec
         best = Math.max(best, 3);
       }
     }
+
+    // Check for alcohol groups attached to chain carbons (this handles OH on chain atoms)
+    if (atom.symbol === 'C') {
+      for (const b of molecule.bonds) {
+        if (b.atom1 !== idx && b.atom2 !== idx) continue;
+        const neigh = b.atom1 === idx ? b.atom2 : b.atom1;
+        const nat = molecule.atoms[neigh];
+        if (!nat) continue;
+        // Check for alcohol: C-OH (carbon bonded to oxygen with hydrogen)
+        if (nat.symbol === 'O' && b.type === BondType.SINGLE && (nat as any).hydrogens && (nat as any).hydrogens > 0) {
+          best = Math.max(best, 3);
+        }
+      }
+    }
   }
   return best;
 }

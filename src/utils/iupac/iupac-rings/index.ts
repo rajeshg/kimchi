@@ -6,7 +6,7 @@ import { identifyFusedRingSystems, identifyFusedRingPattern } from '../../ring-f
 import { generateAromaticRingName, isRingAromatic } from './aromatic-naming';
 import { identifyPolycyclicPattern, identifyAdvancedFusedPattern } from './fused-naming';
 import { generateSubstitutedFusedNameWithIUPACNumbering, findSubstituentsOnFusedSystem } from './substituents';
-import { getAlkaneBySize, combineCycloWithSuffix } from './utils';
+import { getAlkaneBySize, combineCycloWithSuffix, generateClassicPolycyclicName } from './utils';
 
 export function generateCyclicName(
   molecule: Molecule,
@@ -102,50 +102,58 @@ export function generateCyclicName(
       if (process.env.VERBOSE) console.log('[VERBOSE] generating bridged name');
       return generateBridgedName(ringClassification.bridged, molecule, options);
     }
-    if (ringClassification.fused.length > 0) {
-      if (process.env.VERBOSE) console.log('[VERBOSE] fused systems detected count=', ringClassification.fused.length);
-      const fusedSystems = identifyFusedRingSystems(meaningfulRings, molecule);
-      if (process.env.VERBOSE) console.log('[VERBOSE] identified fusedSystems=', fusedSystems.length);
-      if (fusedSystems.length > 0) {
-        const fusedSystem = fusedSystems[0]!;
-        if (process.env.VERBOSE) console.log('[VERBOSE] using fusedSystem with rings=', fusedSystem.rings.map((r:any)=>r.length));
-        let fusedName = identifyAdvancedFusedPattern(fusedSystem.rings, molecule);
-        if (process.env.VERBOSE) console.log('[VERBOSE] advancedFusedPattern=', fusedName);
-        if (!fusedName) fusedName = identifyFusedRingPattern(fusedSystem, molecule);
-        if (process.env.VERBOSE) console.log('[VERBOSE] basicFusedPattern=', fusedName);
-        if (fusedName) {
-          const substituents = findSubstituentsOnFusedSystem(fusedSystem, molecule);
-          if (process.env.VERBOSE) console.log('[VERBOSE] fused substituents count=', substituents.length);
-          if (substituents.length > 0) {
-            const res = generateSubstitutedFusedNameWithIUPACNumbering(fusedName, substituents, fusedSystem, molecule);
-            if (process.env.VERBOSE) console.log('[VERBOSE] fused substituted result=', res);
-            return normalizeCyclicName(res, meaningfulRings, molecule);
-          }
-          if (process.env.VERBOSE) console.log('[VERBOSE] fusedName result=', fusedName);
-          return normalizeCyclicName(fusedName, meaningfulRings, molecule);
-        }
-      }
-    }
+     // Try classic polycyclic naming (bicyclo, tricyclo) FIRST
+     const classicPolycyclicName = generateClassicPolycyclicName(molecule, meaningfulRings);
+     if (process.env.VERBOSE) console.log('[VERBOSE] classic polycyclic name attempt:', classicPolycyclicName);
+     if (classicPolycyclicName) {
+       if (process.env.VERBOSE) console.log('[VERBOSE] classic polycyclic name=', classicPolycyclicName);
+       return normalizeCyclicName(classicPolycyclicName, meaningfulRings, molecule);
+     }
 
-    const polycyclicName = identifyPolycyclicPattern(meaningfulRings, molecule);
-    if (process.env.VERBOSE) console.log('[VERBOSE] polycyclicName=', polycyclicName);
-    if (polycyclicName) {
-      // Attempt to find substituents on this fused ring set and apply numbering
-      const possibleFusedSystem = { rings: meaningfulRings };
-      const subs = findSubstituentsOnFusedSystem(possibleFusedSystem, molecule);
-      if (process.env.VERBOSE) console.log('[VERBOSE] polycyclic substituents count=', subs.length);
-      if (subs.length > 0) {
-        const res = generateSubstitutedFusedNameWithIUPACNumbering(polycyclicName, subs, possibleFusedSystem, molecule);
-        if (process.env.VERBOSE) console.log('[VERBOSE] polycyclic substituted result=', res);
-        return normalizeCyclicName(res, meaningfulRings, molecule);
-      }
-      return normalizeCyclicName(polycyclicName, meaningfulRings, molecule);
-    }
-    const advancedFusedName = identifyAdvancedFusedPattern(meaningfulRings, molecule);
-    if (process.env.VERBOSE) console.log('[VERBOSE] advancedFusedName=', advancedFusedName);
-    if (advancedFusedName) return normalizeCyclicName(advancedFusedName, meaningfulRings, molecule);
-    if (process.env.VERBOSE) console.log('[VERBOSE] falling back to generic polycyclic name');
-    return normalizeCyclicName(`polycyclic_C${molecule.atoms.length}`, meaningfulRings, molecule);
+     if (ringClassification.fused.length > 0) {
+       if (process.env.VERBOSE) console.log('[VERBOSE] fused systems detected count=', ringClassification.fused.length);
+       const fusedSystems = identifyFusedRingSystems(meaningfulRings, molecule);
+       if (process.env.VERBOSE) console.log('[VERBOSE] identified fusedSystems=', fusedSystems.length);
+       if (fusedSystems.length > 0) {
+         const fusedSystem = fusedSystems[0]!;
+         if (process.env.VERBOSE) console.log('[VERBOSE] using fusedSystem with rings=', fusedSystem.rings.map((r:any)=>r.length));
+         let fusedName = identifyAdvancedFusedPattern(fusedSystem.rings, molecule);
+         if (process.env.VERBOSE) console.log('[VERBOSE] advancedFusedPattern=', fusedName);
+         if (!fusedName) fusedName = identifyFusedRingPattern(fusedSystem, molecule);
+         if (process.env.VERBOSE) console.log('[VERBOSE] basicFusedPattern=', fusedName);
+         if (fusedName) {
+           const substituents = findSubstituentsOnFusedSystem(fusedSystem, molecule);
+           if (process.env.VERBOSE) console.log('[VERBOSE] fused substituents count=', substituents.length);
+           if (substituents.length > 0) {
+             const res = generateSubstitutedFusedNameWithIUPACNumbering(fusedName, substituents, fusedSystem, molecule);
+             if (process.env.VERBOSE) console.log('[VERBOSE] fused substituted result=', res);
+             return normalizeCyclicName(res, meaningfulRings, molecule);
+           }
+           if (process.env.VERBOSE) console.log('[VERBOSE] fusedName result=', fusedName);
+           return normalizeCyclicName(fusedName, meaningfulRings, molecule);
+         }
+       }
+     }
+
+     const polycyclicName = identifyPolycyclicPattern(meaningfulRings, molecule);
+     if (process.env.VERBOSE) console.log('[VERBOSE] polycyclicName=', polycyclicName);
+     if (polycyclicName) {
+       // Attempt to find substituents on this fused ring set and apply numbering
+       const possibleFusedSystem = { rings: meaningfulRings };
+       const subs = findSubstituentsOnFusedSystem(possibleFusedSystem, molecule);
+       if (process.env.VERBOSE) console.log('[VERBOSE] polycyclic substituents count=', subs.length);
+       if (subs.length > 0) {
+         const res = generateSubstitutedFusedNameWithIUPACNumbering(polycyclicName, subs, possibleFusedSystem, molecule);
+         if (process.env.VERBOSE) console.log('[VERBOSE] polycyclic substituted result=', res);
+         return normalizeCyclicName(res, meaningfulRings, molecule);
+       }
+       return normalizeCyclicName(polycyclicName, meaningfulRings, molecule);
+     }
+     const advancedFusedName = identifyAdvancedFusedPattern(meaningfulRings, molecule);
+     if (process.env.VERBOSE) console.log('[VERBOSE] advancedFusedName=', advancedFusedName);
+     if (advancedFusedName) return normalizeCyclicName(advancedFusedName, meaningfulRings, molecule);
+     if (process.env.VERBOSE) console.log('[VERBOSE] falling back to generic polycyclic name');
+     return normalizeCyclicName(`polycyclic_C${molecule.atoms.length}`, meaningfulRings, molecule);
   }
 
   return '';
@@ -528,7 +536,17 @@ function normalizeCyclicName(name: string, meaningfulRings: number[][], molecule
           // Linear anthracene: edges are [(0,1),(1,2)] -> degrees [1,2,1]
           if (edges.length === 2) {
             const deg = [0, 0, 0];
-            edges.forEach(e => { deg[e[0]]++; deg[e[1]]++; });
+            for (const e of edges) {
+              const a = e[0];
+              const b = e[1];
+              if (
+                typeof a === 'number' && typeof b === 'number' &&
+                a >= 0 && a < deg.length && b >= 0 && b < deg.length
+              ) {
+                deg[a] = (deg[a] ?? 0) + 1;
+                deg[b] = (deg[b] ?? 0) + 1;
+              }
+            }
             if (deg[0] === 1 && deg[1] === 2 && deg[2] === 1) return 'anthracene';
             // Otherwise assume phenanthrene (angular)
             return 'phenanthrene';

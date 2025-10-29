@@ -167,27 +167,28 @@ export class NameConstructor {
     _chain: Chain,
     numbering: NumberingResult
   ): string {
-    const locants: string[] = [];
+    const locants: Set<number> = new Set();
 
-    // Add functional group locants
+    // Add locants for all atoms in each functional group
     for (const fg of functionalGroups) {
-      if (fg.atomIndices.length > 0) {
-        const atomIdx = fg.atomIndices[0];
+      for (const atomIdx of fg.atomIndices) {
         if (atomIdx !== undefined) {
           const locant = numbering.numbering.get(atomIdx);
           if (locant) {
-            locants.push(locant.toString());
+            locants.add(locant);
           }
         }
       }
     }
 
-    if (locants.length === 0) {
+    const locantArr = Array.from(locants);
+    if (locantArr.length === 0) {
       return '';
     }
 
-    // Format: "1,2-" or "2-"
-    return locants.join(',') + '-';
+    // Sort locants numerically and format: "1,2-" or "2-"
+    locantArr.sort((a, b) => a - b);
+    return locantArr.join(',') + '-';
   }
 
   /**
@@ -199,7 +200,7 @@ export class NameConstructor {
     numbering: NumberingResult | null
   ): string {
     const chainSet = new Set(chain.atomIndices);
-    const substituents: Map<string, number[]> = new Map();
+    const substituents: Map<string, Set<number>> = new Map();
 
     // Find all substituents
     for (const atomIdx of chain.atomIndices) {
@@ -217,16 +218,14 @@ export class NameConstructor {
 
         if (substituent !== null) {
           const substituentName = this.getSubstituentName(substituent, molecule);
-          const locant = numbering?.numbering.get(atomIdx)?.toString() || '?';
+          const locant = numbering?.numbering.get(atomIdx);
+          if (locant === undefined) continue;
 
           if (!substituents.has(substituentName)) {
-            substituents.set(substituentName, []);
+            substituents.set(substituentName, new Set());
           }
 
-          const locants = substituents.get(substituentName);
-          if (locants && !locants.includes(parseInt(locant))) {
-            locants.push(parseInt(locant));
-          }
+          substituents.get(substituentName)!.add(locant);
         }
       }
     }
@@ -236,8 +235,8 @@ export class NameConstructor {
     const sortedSubstituents = Array.from(substituents.keys()).sort();
 
     for (const name of sortedSubstituents) {
-      const locants = substituents.get(name) || [];
-      locants.sort((a, b) => a - b);
+      const locantSet = substituents.get(name)!;
+      const locants = Array.from(locantSet).sort((a, b) => a - b);
 
       const locantStr = locants.join(',');
       const multiplicity = locants.length > 1 ? this.getMultiplicityPrefix(locants.length) : '';
@@ -248,30 +247,94 @@ export class NameConstructor {
   }
 
   /**
+   * Generate a fragment string (SMILES/SMARTS) for a substituent atom.
+   * For now, just returns the atom symbol. In production, generate canonical fragment.
+   */
+  private generateSubstituentFragment(atomIdx: number, molecule: Molecule): string {
+    const atom = molecule.atoms[atomIdx];
+    if (!atom) return '';
+    return atom.symbol;
+  }
+
+  /**
    * Get IUPAC name for a substituent
    */
   private getSubstituentName(atomIdx: number, molecule: Molecule): string {
+    // Try to match using substituent rules (only once)
+    const fragment = this.generateSubstituentFragment(atomIdx, molecule);
+    if (fragment) {
+      // Import the rule matcher
+      // @ts-ignore
+      const { findSubstituentAliases } = require('./substituents');
+      const aliases = findSubstituentAliases(fragment);
+      if (aliases && aliases.length > 0) {
+        return aliases[0]; // Use the first alias for now
+      }
+    }
+    // Fallback logic below...
     const atom = molecule.atoms[atomIdx];
     if (!atom) {
       return 'unknown';
     }
-
-    // Simple mapping for common substituents
-    if (atom.symbol === 'O') return 'hydroxy'; // -OH when on main chain
+    // Expanded mapping for common and complex substituents
+    if (atom.symbol === 'O') {
+      // Check for silyl ethers (Si-O)
+      const silylBond = molecule.bonds.find(b => (b.atom1 === atomIdx || b.atom2 === atomIdx) &&
+        (molecule.atoms[b.atom1 === atomIdx ? b.atom2 : b.atom1]?.symbol === 'Si'));
+      if (silylBond) return 'silyloxy';
+      return 'hydroxy'; // -OH when on main chain
+    }
     if (atom.symbol === 'N') return 'amino'; // -NH2 when on main chain
     if (atom.symbol === 'F') return 'fluoro'; // -F
     if (atom.symbol === 'Cl') return 'chloro'; // -Cl
     if (atom.symbol === 'Br') return 'bromo'; // -Br
     if (atom.symbol === 'I') return 'iodo'; // -I
-
-    // For carbon-based substituents, count chain length
+    if (atom.symbol === 'Si') return 'silyl'; // -SiR3
+    if (atom.symbol === 'S') {
+      // Check for thiol (-SH)
+      const hBond = molecule.bonds.find(b => (b.atom1 === atomIdx || b.atom2 === atomIdx) &&
+        (molecule.atoms[b.atom1 === atomIdx ? b.atom2 : b.atom1]?.symbol === 'H'));
+      if (hBond) return 'sulfanyl';
+      // Check for thioether (-SR)
+      return 'thio';
+    }
+    if (atom.symbol === 'B') return 'borono'; // -B(OH)2
+    if (atom.symbol === 'P') return 'phosphino'; // -PR2
+    if (atom.symbol === 'Ar') return 'aryl'; // generic aromatic
+    // For carbon-based substituents, count chain length and check for aromatic/acyclic
     if (atom.symbol === 'C') {
+      // Check for phenyl/benzyl/aromatic
+      const aromatic = atom.aromatic || false;
+      if (aromatic) {
+        // Check for benzyl (aromatic + CH2)
+        const ch2Bond = molecule.bonds.find(b => (b.atom1 === atomIdx || b.atom2 === atomIdx) &&
+          (molecule.atoms[b.atom1 === atomIdx ? b.atom2 : b.atom1]?.symbol === 'C' &&
+           !molecule.atoms[b.atom1 === atomIdx ? b.atom2 : b.atom1]?.aromatic));
+        if (ch2Bond) return 'benzyl';
+        return 'phenyl';
+      }
+      // Check for acyl (C=O)
+      const doubleOBond = molecule.bonds.find(b => (b.atom1 === atomIdx || b.atom2 === atomIdx) &&
+        b.type === 'double' && molecule.atoms[b.atom1 === atomIdx ? b.atom2 : b.atom1]?.symbol === 'O');
+      if (doubleOBond) {
+        // Acetyl, benzoyl, etc. by chain length
+        const chainLength = this.countCarbonChain(atomIdx, molecule);
+        if (chainLength === 1) return 'acetyl';
+        if (chainLength === 7) return 'benzoyl';
+        return this.getAlkylGroupName(chainLength) + 'oyl';
+      }
       // Simple case: methyl, ethyl, etc.
       const chainLength = this.countCarbonChain(atomIdx, molecule);
       return this.getAlkylGroupName(chainLength);
     }
-
-    return 'unknown';
+    // Check for nitro group (-NO2)
+    if (atom.symbol === 'N') {
+      const oBonds = molecule.bonds.filter(b => (b.atom1 === atomIdx || b.atom2 === atomIdx) &&
+        molecule.atoms[b.atom1 === atomIdx ? b.atom2 : b.atom1]?.symbol === 'O');
+      if (oBonds.length === 2) return 'nitro';
+    }
+    // Fallback: output atom symbol
+    return atom.symbol ? atom.symbol.toLowerCase() : 'unknown';
   }
 
   /**
@@ -279,35 +342,28 @@ export class NameConstructor {
    */
   private countCarbonChain(startAtomIdx: number, molecule: Molecule): number {
     let maxLength = 0;
-
     const dfs = (atomIdx: number, visited: Set<number>): number => {
       const atom = molecule.atoms[atomIdx];
       if (!atom || atom.symbol !== 'C') {
         return 0;
       }
-
       visited.add(atomIdx);
       let length = 1;
       let maxBranch = 0;
-
       for (const bond of molecule.bonds) {
         let nextAtom: number | null = null;
-
         if (bond.atom1 === atomIdx && !visited.has(bond.atom2)) {
           nextAtom = bond.atom2;
         } else if (bond.atom2 === atomIdx && !visited.has(bond.atom1)) {
           nextAtom = bond.atom1;
         }
-
         if (nextAtom !== null) {
           const branchLength = dfs(nextAtom, new Set(visited));
           maxBranch = Math.max(maxBranch, branchLength);
         }
       }
-
       return length + maxBranch;
     };
-
     return dfs(startAtomIdx, new Set([startAtomIdx]));
   }
 
@@ -327,7 +383,6 @@ export class NameConstructor {
       9: 'nonyl',
       10: 'decyl',
     };
-
     return names[carbonCount] || `alkyl(${carbonCount})`;
   }
 
@@ -346,7 +401,6 @@ export class NameConstructor {
       9: 'nona',
       10: 'deca',
     };
-
     return prefixes[count] || '';
   }
 }

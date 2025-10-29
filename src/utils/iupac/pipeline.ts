@@ -5,6 +5,7 @@ import type {
   NumberingResult,
 } from './iupac-types';
 import { ruleEngine } from './iupac-rule-engine';
+import { createNameConstructor } from './name-constructor';
 import { ChainSelector, createDefaultChainSelector } from './chain-selector';
 import type { ChainFilter } from './chain-filter';
 import { StructureAnalyzer, createStructureAnalyzer } from './structure-analyzer';
@@ -120,6 +121,9 @@ export class NomenclaturePipeline {
 
       if (this.verbose) {
         messages.push(`Analyzed structure: ${structure.chains.length} chains identified`);
+        structure.chains.forEach((chain, i) => {
+          messages.push(`Chain ${i}: ${chain.length} atoms, indices: [${chain.atomIndices.join(',')}]`);
+        });
       }
 
       // Step 3: Select principal chain
@@ -154,7 +158,7 @@ export class NomenclaturePipeline {
       }
 
       // Step 5: Construct name
-      const name = this.constructName(principalChain, structure);
+      const name = this.constructName(principalChain, structure, numbering, molecule);
 
       if (this.verbose) {
         messages.push(`Generated IUPAC name: ${name}`);
@@ -212,35 +216,18 @@ export class NomenclaturePipeline {
       }
     }
 
-   /**
-    * Construct IUPAC name from chain and structure
-    */
-   private constructName(chain: Chain, structure: MolecularStructure): string {
-     try {
-       // Get chain length in carbons
-       const carbonCount = chain.atomIndices.length; // Simplified - should filter for carbons only
-       const alkanePrefix = ruleEngine.getAlkaneName(carbonCount);
+    /**
+     * Construct IUPAC name from chain and structure
+     */
+    private constructName(chain: Chain, structure: MolecularStructure, numbering: NumberingResult | null, molecule: Molecule): string {
+      try {
+        const ctor = createNameConstructor();
+        return ctor.constructName(chain, structure, numbering, molecule);
+      } catch {
+        return 'unknown';
+      }
+    }
 
-       // Build functional group suffixes
-       const suffixes: string[] = [];
-       if (structure.functionalGroups.length > 0) {
-         // Get suffix from highest priority functional group
-         const mainFG = structure.functionalGroups[0];
-         if (mainFG) {
-           suffixes.push(mainFG.suffix);
-         }
-       }
-
-       // Build the name
-       const baseName = alkanePrefix ?? 'unknown';
-       const suffix = suffixes.length > 0 ? suffixes[0] ?? '' : '';
-       const name = baseName + suffix;
-
-       return name;
-     } catch {
-       return 'unknown';
-     }
-   }
 
   /**
    * Set verbose mode

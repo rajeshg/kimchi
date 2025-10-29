@@ -4,7 +4,17 @@ import { isRingAromatic } from './aromatic-naming';
 import { findHeteroatomsInRing, buildPerimeterFromRings } from './utils';
 
 export function identifyPolycyclicPattern(rings: number[][], molecule: Molecule): string | null {
-  const allRingsAromatic = rings.every(r => isRingAromatic(r, molecule));
+  // Be tolerant to imperfect aromatic flags from ring perception:
+  // consider a ring aromatic if our strict isRingAromatic says so, or if
+  // a large fraction of atoms in the ring have atom.aromatic === true.
+  const perRingAromatic = rings.map(r => {
+    const strict = isRingAromatic(r, molecule);
+    if (strict) return true;
+    // fall back: count aromatic atoms
+    const aroCount = r.filter(idx => molecule.atoms[idx]?.aromatic === true).length;
+    return aroCount >= Math.floor(r.length / 2);
+  });
+  const allRingsAromatic = perRingAromatic.every(Boolean);
   const ringCount = rings.length;
   const ringSizes = rings.map(r => r.length).sort((a, b) => a - b);
   const allRingAtoms = new Set<number>();
@@ -129,7 +139,9 @@ export function identifyPolycyclicPattern(rings: number[][], molecule: Molecule)
   }
 
   // Only check aromatic polycyclic systems if not heterocyclic
-  if (!allRingsAromatic) return null;
+  // but allow a tolerant match when most rings look aromatic
+  const aromaticRingCount = perRingAromatic.filter(Boolean).length;
+  if (aromaticRingCount === 0) return null;
 
   if (ringCount === 2 && ringSizes.every(s => s === 6) && heteroAtoms.length === 0) {
     // Distinguish fused naphthalene (rings share atoms) from biphenyl
@@ -138,26 +150,62 @@ export function identifyPolycyclicPattern(rings: number[][], molecule: Molecule)
     const shared = r1.filter(idx => r2.includes(idx));
     if (shared.length === 0) {
       // Disjoint aromatic rings connected by a single bond -> biphenyl
-      return 'biphenyl';
+      // require both rings to be clearly aromatic for biphenyl label
+      if (perRingAromatic[0] && perRingAromatic[1]) return 'biphenyl';
+      return null;
     }
-    return 'naphthalene';
+    // If at least one ring is aromatic (tolerant), declare naphthalene
+    if (perRingAromatic[0] || perRingAromatic[1]) return 'naphthalene';
+    return null;
   }
   if (ringCount === 3 && ringSizes.every(s => s === 6) && heteroAtoms.length === 0) {
     const sharedAtoms = rings.map((ring: number[], i: number) => {
       if (i === rings.length - 1) return [] as number[];
       return ring.filter((idx: number) => (rings[i + 1] ?? []).includes(idx));
     });
-    if (sharedAtoms.every(arr => arr.length === 2)) return 'anthracene';
-    else return 'phenanthrene';
+    // If at least two rings are aromatic (tolerant) and adjacency matches linear pattern
+    if (aromaticRingCount >= 2 && sharedAtoms.every(arr => arr.length === 2)) return 'anthracene';
+    // If most ring atoms are aromatic and counts match phenanthrene-like topology
+    if (aromaticRingCount >= 2) return 'phenanthrene';
+    return null;
   }
   // Fallback: some decompositions produce non-6 rings for phenanthrene-like structures.
   if (ringCount === 3 && heteroAtoms.length === 0) {
     const totalRingAtomCount = Array.from(new Set(rings.flat())).length;
-    // Phenanthrene has 14 carbons in the fused ring system
-    if (totalRingAtomCount === 14 && ringAtoms.every(a => a.symbol === 'C' && a.aromatic === true)) return 'phenanthrene';
+    // Phenanthrene has 14 carbons in the fused ring system; allow tolerant aromatic check
+    const aromaticAtomCount = ringAtoms.filter(a => a.aromatic === true).length;
+    if (totalRingAtomCount === 14 && aromaticAtomCount >= Math.floor(ringAtoms.length * 0.7)) return 'phenanthrene';
   }
   if (ringCount === 2 && ringSizes.includes(5) && ringSizes.includes(7) && heteroAtoms.length === 0) return 'azulene';
   if (ringCount === 4 && ringSizes.every(size => size === 6) && heteroAtoms.length === 0) return 'pyrene';
+
+  // Conservative fallback: sometimes SSSR returns non-6 ring sizes for linear/angled
+  // three-ring systems (anthracene/phenanthrene). If the fused region contains
+  // ~14 distinct carbon atoms and the majority are aromatic, try to map to
+  // anthracene/phenanthrene by adjacency topology.
+  if (ringCount === 3 && heteroAtoms.length === 0) {
+    const distinctAtomCount = Array.from(new Set(rings.flat())).length;
+    const aromaticAtomCount = ringAtoms.filter(a => a.aromatic === true).length;
+    if (distinctAtomCount >= 12 && distinctAtomCount <= 16 && aromaticAtomCount >= Math.floor(ringAtoms.length * 0.6)) {
+      // Build adjacency: rings adjacent if they share >=2 atoms
+      const edges: [number, number][] = [];
+      for (let i = 0; i < rings.length; i++) {
+        for (let j = i + 1; j < rings.length; j++) {
+          const shared = rings[i]!.filter(x => rings[j]!.includes(x)).length;
+          if (shared >= 2) edges.push([i, j]);
+        }
+      }
+      if (edges.length === 2) {
+        const deg = [0, 0, 0];
+        edges.forEach(([a, b]) => {
+          deg[a] = (deg[a] ?? 0) + 1;
+          deg[b] = (deg[b] ?? 0) + 1;
+        });
+        if (deg[0] === 1 && deg[1] === 2 && deg[2] === 1) return 'anthracene';
+        return 'phenanthrene';
+      }
+    }
+  }
 
   return null;
 }

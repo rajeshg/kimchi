@@ -4,12 +4,12 @@ import selectPrincipalChain from 'src/utils/iupac/chain-selection';
 import { generateIUPACName } from 'src/utils/iupac/iupac-generator';
 
 describe('IUPAC parent selection (representative difficult cases)', () => {
-  const cases: Array<{smiles: string; expectChainLength?: number; expectNameContains?: string}> = [
-    { smiles: 'CC(C)(C(C)(C)C)C(C)(C)C', expectChainLength: 5 },
-    { smiles: 'CCC(C)(CCC(C)C)CC', expectChainLength: 7 },
-    { smiles: 'CC(C)(C(C)(C(C)(C)C)C)C', expectChainLength: 5 },
-    { smiles: 'CC(C)C(C(C(C)C)C)C', expectChainLength: 5 },
-    { smiles: 'CCC(C(C)C)(C(C)C)C', expectChainLength: 5 },
+  const cases: Array<{smiles: string; expectChainLength?: number; expectNameContains?: string; expectFullName?: string}> = [
+    { smiles: 'CC(C)(C(C)(C)C)C(C)(C)C', expectChainLength: 5, expectFullName: '2,2,3,3,4,4-hexamethylpentane' },
+    { smiles: 'CCC(C)(CCC(C)C)CC', expectChainLength: 7, expectFullName: '2,2,4,4,6,6-hexamethylheptane' },
+    { smiles: 'CC(C)(C(C)(C(C)(C)C)C)C', expectChainLength: 5, expectFullName: '2,2,3,3,4,4-hexamethylpentane' },
+    { smiles: 'CC(C)C(C(C(C)C)C)C', expectChainLength: 5, expectFullName: '2,2,3,3,4,4-hexamethylpentane' },
+    { smiles: 'CCC(C(C)C)(C(C)C)C', expectChainLength: 5, expectFullName: '2,2,3,3,4,4-hexamethylpentane' },
 
     { smiles: 'C1CCC2CCCCC2C1', expectNameContains: 'bicyclo' },
     { smiles: 'C1CCC2C(C1)CCCC2', expectNameContains: 'bicyclo' },
@@ -66,6 +66,13 @@ describe('IUPAC parent selection (representative difficult cases)', () => {
         const sel = selectPrincipalChain(mol);
         expect(sel.chain).toBeDefined();
         expect(sel.chain.length).toBe(c.expectChainLength);
+      }
+
+      if (c.expectFullName) {
+        const gen = generateIUPACName(mol);
+        expect(gen.errors).toEqual([]);
+        const name = gen.name.toLowerCase();
+        expect(name).toBe(c.expectFullName.toLowerCase());
       }
 
       if (c.expectNameContains) {

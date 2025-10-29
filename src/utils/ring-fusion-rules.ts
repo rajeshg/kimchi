@@ -1,4 +1,5 @@
 import type { Molecule } from 'types';
+import { isRingAromatic } from './iupac/iupac-rings/aromatic-naming';
 
 /**
  * Represents a fused ring system
@@ -259,19 +260,21 @@ export function identifyFusedRingPattern(
   // Sort ring sizes for pattern matching
   const sortedSizes = [...ringSizes].sort((a, b) => a - b);
 
-  // Two fused 6-membered rings -> naphthalene
+  // Two fused 6-membered rings -> naphthalene (only when aromatic)
   if (ringCount === 2 && sortedSizes[0] === 6 && sortedSizes[1] === 6) {
-    // Check if all atoms are carbon (naphthalene)
+    // Check if all atoms are carbon and rings are aromatic (naphthalene)
     const allCarbon = checkAllCarbonInRings(fusedSystem.rings, molecule);
-    if (allCarbon) {
+    const aromatic = fusedSystem.rings.every(r => isRingAromatic(r, molecule));
+    if (allCarbon && aromatic) {
       return 'naphthalene';
     }
   }
 
-  // Three 6-membered rings -> distinguish anthracene vs phenanthrene
+  // Three 6-membered rings -> distinguish anthracene vs phenanthrene (only when aromatic)
   if (ringCount === 3 && sortedSizes.every(size => size === 6)) {
     const allCarbon = checkAllCarbonInRings(fusedSystem.rings, molecule);
-    if (allCarbon) {
+    const aromatic = fusedSystem.rings.every(r => isRingAromatic(r, molecule));
+    if (allCarbon && aromatic) {
       // Check fusion pattern to distinguish linear (anthracene) vs angular (phenanthrene)
       const fusionPattern = analyzeFusionPattern(fusedSystem, molecule);
       if (fusionPattern === 'linear') {

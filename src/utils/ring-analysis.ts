@@ -215,44 +215,28 @@ export function classifyRingSystems(atoms: readonly Atom[], bonds: readonly Bond
   const fused: number[][] = [];
   const spiro: number[][] = [];
   const bridged: number[][] = [];
-
+  // Reworked classification: examine pairwise shared atom counts to determine
+  // whether a ring is isolated, spiro (shares exactly one atom with another ring),
+  // fused (shares 2+ atoms with another ring), or bridged (complex cases).
   for (let i = 0; i < rings.length; i++) {
     const ring1 = rings[i];
     if (!ring1) continue;
-    let sharedCount = 0;
-    let sharedAtoms: number[] = [];
-    let crossBondCount = 0;
     const ring1Set = new Set(ring1);
+    let maxShared = 0;
 
-    for (let j = i + 1; j < rings.length; j++) {
-      const ring2 = rings[j];
-      if (!ring2) continue;
-      const ring2Set = new Set(ring2);
-      const shared = ring2.filter(atom => ring1Set.has(atom));
-
-      if (shared.length > 0) {
-        sharedCount++;
-        sharedAtoms.push(...shared);
-      }
-
-      // Count bonds that directly connect an atom in ring1 to an atom in ring2
-      for (const b of bonds) {
-        const in1 = ring1Set.has(b.atom1) && ring2Set.has(b.atom2);
-        const in2 = ring1Set.has(b.atom2) && ring2Set.has(b.atom1);
-        if (in1 || in2) crossBondCount++;
-      }
+    for (let j = 0; j < rings.length; j++) {
+      if (i === j) continue;
+      const ring2 = rings[j]!;
+      const shared = ring2.filter(atom => ring1Set.has(atom)).length;
+      if (shared > maxShared) maxShared = shared;
     }
 
-    // Classification rules:
-    // - isolated: no shared atoms and no inter-ring bonds
-    // - spiro: exactly one shared atom OR exactly one inter-ring bond (special handling)
-    // - fused: shares 2+ atoms with another ring
-    // - bridged: fallback for other complex cases
-    if (sharedCount === 0 && crossBondCount === 0) {
+    // Classification based solely on the number of shared atoms
+    if (maxShared === 0) {
       isolated.push(ring1);
-    } else if ((sharedCount === 1 && sharedAtoms.length === 1) || (sharedCount === 0 && crossBondCount === 1)) {
+    } else if (maxShared === 1) {
       spiro.push(ring1);
-    } else if (sharedCount >= 1 && sharedAtoms.length >= 2) {
+    } else if (maxShared >= 2) {
       fused.push(ring1);
     } else {
       bridged.push(ring1);

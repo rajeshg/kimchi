@@ -35,30 +35,34 @@ export function buildPerimeterFromRings(fusedSystem: any): number[] {
       const sa = Number(parts[0]);
       const sb = Number(parts[1]);
       const ksa = String(sa), ksb = String(sb);
-      if (!perimeterAdj[ksa]) perimeterAdj[ksa] = [];
-      if (!perimeterAdj[ksb]) perimeterAdj[ksb] = [];
-      if (!perimeterAdj[ksa]!.includes(sb)) perimeterAdj[ksa]!.push(sb);
-      if (!perimeterAdj[ksb]!.includes(sa)) perimeterAdj[ksb]!.push(sa);
+      if (!Array.isArray(perimeterAdj[ksa])) perimeterAdj[ksa] = [];
+      if (!Array.isArray(perimeterAdj[ksb])) perimeterAdj[ksb] = [];
+      if (Array.isArray(perimeterAdj[ksa]) && !perimeterAdj[ksa].includes(sb)) perimeterAdj[ksa].push(sb);
+      if (Array.isArray(perimeterAdj[ksb]) && !perimeterAdj[ksb].includes(sa)) perimeterAdj[ksb].push(sa);
     }
   }
   const perimeterAtoms = Object.keys(perimeterAdj).map(k => Number(k));
   if (perimeterAtoms.length === 0) return Array.from(new Set(rings.flat()));
   // Find a start (degree 2 nodes expected on a closed perimeter)
-  const start = perimeterAtoms.find(a => (perimeterAdj[String(a)] ?? []).length === 2) ?? perimeterAtoms[0];
-  const ordered: number[] = [];
-  const visited = new Set<number>();
-  let current = start;
-  let prev: number | null = null;
-  while (current !== undefined && !visited.has(current)) {
-    ordered.push(current);
-    visited.add(current);
-    const neighbors = (perimeterAdj[String(current)] ?? []).filter((n: number) => n !== prev);
-    prev = current;
-    current = neighbors.length ? neighbors[0] : undefined;
-    if (ordered.length > 1000) break; // safety
-  }
+   const start = perimeterAtoms.find(a => {
+     const adj = perimeterAdj[String(a)];
+     return Array.isArray(adj) && adj.length === 2;
+   }) ?? perimeterAtoms[0];
+   const ordered: number[] = [];
+   const visited = new Set<number>();
+   let current = start;
+   let prev: number | null = null;
+   while (typeof current === 'number' && !visited.has(current)) {
+     ordered.push(current);
+     visited.add(current);
+     const adj = perimeterAdj[String(current)];
+     const neighbors = Array.isArray(adj) ? adj.filter((n: number) => n !== prev) : [];
+     prev = current;
+     current = neighbors.length ? neighbors[0] : undefined;
+     if (ordered.length > 1000) break; // safety
+   }
   // ensure we have all perimeter atoms; otherwise, fallback
-  if (ordered.length !== perimeterAtoms.length) return Array.from(new Set(rings.flat()));
+  if (!Array.isArray(ordered) || ordered.length !== perimeterAtoms.length) return Array.from(new Set(rings.flat()));
   return ordered;
 }
 
@@ -69,14 +73,18 @@ export function getMultiplicityPrefix(n: number): string {
 
 export function compareNumericArrays(a: number[], b: number[]): number {
   const n = Math.min(a.length, b.length);
-  for (let i = 0; i < n; i++) {
-    if (a[i]! < b[i]!) return -1;
-    if (a[i]! > b[i]!) return 1;
-  }
+   for (let i = 0; i < n; i++) {
+     const ai = a[i];
+     const bi = b[i];
+     if (typeof ai !== 'number' || typeof bi !== 'number') continue;
+     if (ai < bi) return -1;
+     if (ai > bi) return 1;
+   }
   if (a.length < b.length) return -1;
   if (a.length > b.length) return 1;
   return 0;
 }
+
 
 export function classifyFusedSubstituent(molecule: Molecule, startAtomIdx: number, fusedAtoms: Set<number>): { type: string; size: number; name: string } | null {
   const visited = new Set<number>(fusedAtoms);
@@ -134,6 +142,148 @@ export function classifyFusedSubstituent(molecule: Molecule, startAtomIdx: numbe
 
   return null;
 }
+
+/**
+ * Generates classic IUPAC polycyclic names (bicyclo, tricyclo) for non-aromatic systems.
+ * Returns null if not a classic polycyclic system.
+ */
+export function generateClassicPolycyclicName(molecule: Molecule, rings: number[][]): string | null {
+  // Only consider 2 or 3 rings, all atoms carbon, all non-aromatic
+  if (rings.length !== 2 && rings.length !== 3) {
+    if (process.env.VERBOSE) console.log('[VERBOSE] classic polycyclic: not 2 or 3 rings');
+    return null;
+  }
+  const atomIds = Array.isArray(rings) ? Array.from(new Set(rings.flat().filter((idx): idx is number => typeof idx === 'number'))) : [];
+  const atoms = atomIds.map(idx => molecule.atoms[idx]).filter((a): a is typeof molecule.atoms[0] => a !== undefined);
+  if (!atoms.every(a => a.symbol === 'C' && !a.aromatic)) {
+    if (process.env.VERBOSE) console.log('[VERBOSE] classic polycyclic: not all non-aromatic carbons');
+    return null;
+  }
+
+  // Find bridgehead atoms: atoms shared by more than one ring
+  const ringMembership: Record<number, number> = {};
+    for (const ring of rings) {
+      if (!Array.isArray(ring)) continue;
+      for (const idx of ring) {
+        if (typeof idx !== 'number') continue;
+        ringMembership[idx] = (ringMembership[idx] || 0) + 1;
+      }
+    }
+  const bridgeheads = Object.entries(ringMembership).filter(([_, count]) => typeof count === 'number' && count > 1).map(([idx]) => Number(idx));
+  if (bridgeheads.length < 2) {
+    if (process.env.VERBOSE) console.log('[VERBOSE] classic polycyclic: not enough bridgeheads');
+    return null;
+  }
+
+  // For bicyclo: two bridgeheads, three bridges
+  if (rings.length === 2 && bridgeheads.length === 2) {
+    // Find the three paths between bridgeheads that do not pass through the other bridgehead
+    const paths: number[][] = [];
+    const visited = new Set<number>();
+    function dfs(current: number, target: number, path: number[], avoid: number): void {
+      if (current === target) {
+        paths.push([...path]);
+        return;
+      }
+      visited.add(current);
+      for (const bond of molecule.bonds) {
+        let next: number | undefined = undefined;
+       if (typeof bond.atom1 === 'number' && bond.atom1 === current && typeof bond.atom2 === 'number') next = bond.atom2;
+       else if (typeof bond.atom2 === 'number' && bond.atom2 === current && typeof bond.atom1 === 'number') next = bond.atom1;
+       if (typeof next === 'number' && next >= 0 && !visited.has(next) && next !== avoid) {
+         path.push(next);
+         dfs(next, target, path, avoid);
+         path.pop();
+       }
+      }
+      visited.delete(current);
+    }
+    // Try all three bridges
+    for (const avoid of bridgeheads) {
+      const candidates = bridgeheads.filter(b => b !== avoid);
+      if (candidates.length < 2) continue;
+      const [start, end] = candidates;
+      if (typeof start !== 'number' || typeof end !== 'number' || typeof avoid !== 'number') continue;
+      visited.clear();
+      dfs(start, end, [start], avoid);
+    }
+    // Filter unique paths
+    const uniquePaths = paths.filter((p, i, arr) => Array.isArray(p) && arr.findIndex(q => Array.isArray(q) && q.join(',') === p.join(',')) === i);
+    // Only keep paths that start and end at bridgeheads and do not pass through the other bridgehead
+    const bridgeLengths = uniquePaths.map(p => (Array.isArray(p) && p.length >= 2 ? p.length - 2 : 0)).filter(n => n >= 0);
+    if (bridgeLengths.length !== 3) {
+      if (process.env.VERBOSE) console.log('[VERBOSE] classic polycyclic: did not find 3 bridges', bridgeLengths);
+      return null;
+    }
+    bridgeLengths.sort((a, b) => b - a); // IUPAC: descending order
+    const alkaneName = getAlkaneBySize(atomIds.length);
+    if (process.env.VERBOSE) console.log('[VERBOSE] classic polycyclic: bicyclo', bridgeLengths, alkaneName);
+    return `bicyclo[${bridgeLengths.join('.')}]${alkaneName}`;
+  }
+
+  // For tricyclo: three bridgeheads, four bridges
+  if (rings.length === 3 && bridgeheads.length === 3) {
+    // Find all paths between each pair of bridgeheads avoiding the third
+    const bridgePairs: [number, number, number][] = [];
+    if (bridgeheads.length === 3) {
+      const bh0 = bridgeheads[0];
+      const bh1 = bridgeheads[1];
+      const bh2 = bridgeheads[2];
+      if (typeof bh0 === 'number' && typeof bh1 === 'number' && typeof bh2 === 'number') {
+        bridgePairs.push([bh0, bh1, bh2]);
+        bridgePairs.push([bh0, bh2, bh1]);
+        bridgePairs.push([bh1, bh2, bh0]);
+      }
+    }
+    const bridgeLengths: number[] = [];
+    for (const triplet of bridgePairs) {
+      const [start, end, avoid] = triplet;
+      if (typeof start !== 'number' || typeof end !== 'number' || typeof avoid !== 'number') continue;
+      const visited = new Set<number>();
+      let found = false;
+      let minLen = Infinity;
+      function dfs(current: number, path: number[]): void {
+        if (current === end) {
+          if (path.length < minLen) {
+            minLen = path.length;
+            found = true;
+          }
+          return;
+        }
+        visited.add(current);
+        for (const bond of molecule.bonds) {
+          let next: number | undefined = undefined;
+          if (bond.atom1 === current) next = bond.atom2;
+          else if (bond.atom2 === current) next = bond.atom1;
+          if (typeof next === 'number' && next >= 0 && !visited.has(next) && next !== avoid) {
+            dfs(next, [...path, next]);
+          }
+        }
+        visited.delete(current);
+      }
+      dfs(start, [start]);
+      if (!found || minLen < 2) {
+        if (process.env.VERBOSE) console.log('[VERBOSE] classic polycyclic: tricyclo bridge not found', start, end, avoid);
+        return null;
+      }
+      bridgeLengths.push(minLen - 2);
+    }
+    // The fourth bridge is the path that connects all three bridgeheads (the perimeter)
+    // Estimate as the remaining atoms not in the three bridges or bridgeheads
+    const usedAtoms = new Set<number>(bridgeheads);
+    // This is a simplification; for full IUPAC, perimeter calculation is more complex
+    const perimeterLen = atomIds.length - bridgeheads.length - bridgeLengths.reduce((a, b) => a + b, 0);
+    bridgeLengths.push(perimeterLen);
+    bridgeLengths.sort((a, b) => b - a);
+    const alkaneName = getAlkaneBySize(atomIds.length);
+    if (process.env.VERBOSE) console.log('[VERBOSE] classic polycyclic: tricyclo', bridgeLengths, alkaneName);
+    return `tricyclo[${bridgeLengths.join('.')}]${alkaneName}`;
+  }
+
+  if (process.env.VERBOSE) console.log('[VERBOSE] classic polycyclic: no valid system');
+  return null;
+}
+
 
 export function findHeteroatomsInRing(ring: number[], molecule: Molecule): { symbol: string; count: number }[] {
   const atoms = ring.map(idx => molecule.atoms[idx]).filter(a => a);

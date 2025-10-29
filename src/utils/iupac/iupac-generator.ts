@@ -176,15 +176,36 @@ function generateNameForComponent(
       return false;
     });
 
-    const hasMajorFunctionalGroup = hasCarboxyl || hasAlcohol;
+// Check for amines and halogens as well
+     const hasAmine = molecule.atoms.some((atom, idx) => {
+       if (atom.symbol !== 'N') return false;
+       const bonds = molecule.bonds.filter(b => b.atom1 === idx || b.atom2 === idx);
+       return bonds.some(b => {
+         const neighborIdx = b.atom1 === idx ? b.atom2 : b.atom1;
+         const neighbor = molecule.atoms[neighborIdx];
+         return neighbor?.symbol === 'C';
+       });
+     });
 
-    // Diagnostic logging (gate behind VERBOSE)
-    if (process.env.VERBOSE) {
-      try {
-        console.debug('[iupac-generator] ringInfo:', { ringCount: ringInfo.rings.length, rings: ringInfo.rings });
-        console.debug('[iupac-generator] functionalGroupAtoms:', Array.from(functionalGroupAtoms), 'hasCarboxyl', hasCarboxyl, 'hasAlcohol', hasAlcohol, 'hasMajorFunctionalGroup', hasMajorFunctionalGroup);
-      } catch (e) {}
-    }
+     const hasHalogen = molecule.atoms.some((atom, idx) => {
+       if (!['F', 'Cl', 'Br', 'I'].includes(atom.symbol)) return false;
+       const bonds = molecule.bonds.filter(b => b.atom1 === idx || b.atom2 === idx);
+       return bonds.some(b => {
+         const neighborIdx = b.atom1 === idx ? b.atom2 : b.atom1;
+         const neighbor = molecule.atoms[neighborIdx];
+         return neighbor?.symbol === 'C';
+       });
+     });
+
+     const hasMajorFunctionalGroup = hasCarboxyl || hasAlcohol || hasAmine || hasHalogen;
+
+     // Diagnostic logging (gate behind VERBOSE)
+     if (process.env.VERBOSE) {
+       try {
+         console.debug('[iupac-generator] ringInfo:', { ringCount: ringInfo.rings.length, rings: ringInfo.rings });
+         console.debug('[iupac-generator] functionalGroupAtoms:', Array.from(functionalGroupAtoms), 'hasCarboxyl', hasCarboxyl, 'hasAlcohol', hasAlcohol, 'hasAmine', hasAmine, 'hasHalogen', hasHalogen, 'hasMajorFunctionalGroup', hasMajorFunctionalGroup);
+       } catch (e) {}
+     }
 
    // Check if any functional group atoms are NOT on rings (i.e., on chains)
   // Determine whether the detected functional group atoms are genuinely on an
@@ -220,34 +241,63 @@ function generateNameForComponent(
 
      // If has major functional group on a chain (not on a ring), use aliphatic methods
      const hasAromaticAtoms = molecule.atoms.some(atom => atom.aromatic);
+     if (process.env.VERBOSE) {
+       console.log(`[iupac-generator] hasMajorFunctionalGroup: ${hasMajorFunctionalGroup}, hasAromaticAtoms: ${hasAromaticAtoms}, ringInfo.rings.length: ${ringInfo.rings.length}, functionalGroupOnChain: ${functionalGroupOnChain}`);
+     }
+     
      if (hasMajorFunctionalGroup && (ringInfo.rings.length === 0 || functionalGroupOnChain)) {
+       if (process.env.VERBOSE) {
+         console.log('[iupac-generator] Entering aliphatic naming path');
+       }
        // For molecules with aromatic atoms and functional group on chain,
        // use aliphatic naming (the aromatic ring becomes a substituent)
        // For purely aliphatic molecules, use the new pipeline
        if (!hasAromaticAtoms) {
+         if (process.env.VERBOSE) {
+           console.log('[iupac-generator] Trying new pipeline');
+         }
          try {
            const pipeline = createDefaultPipeline({ verbose: false });
            const result = pipeline.process(molecule);
+           if (process.env.VERBOSE) {
+             console.log(`[iupac-generator] Pipeline result: ${result.name}, hasErrors: ${result.hasErrors}`);
+           }
            if (!result.hasErrors && result.name) {
              return result.name;
            }
          } catch {
            // Fall back to old aliphatic method if pipeline fails
+           if (process.env.VERBOSE) {
+             console.log('[iupac-generator] Pipeline failed, falling back to old method');
+           }
          }
        }
 
-       // Use aliphatic naming for molecules with aliphatic main chains
-       const chainSelectionResult = selectPrincipalChain(molecule);
-       if (chainSelectionResult.chain.length > 0) {
-         const numberingResult = numberChain(chainSelectionResult.chain, molecule);
-         const aliphaticName = generateAliphaticName(
-           numberingResult.orderedChain,
-           numberingResult.numbering,
-           molecule
-         );
-         if (aliphaticName.fullName) {
-           return aliphaticName.fullName;
-         }
+      // Use aliphatic naming for molecules with aliphatic main chains
+        const chainSelectionResult = selectPrincipalChain(molecule);
+        if (process.env.VERBOSE) {
+          console.log(`[iupac-generator] Chain selection: ${chainSelectionResult.chain.length} atoms selected`);
+        }
+        if (chainSelectionResult.chain.length > 0) {
+          const numberingResult = numberChain(chainSelectionResult.chain, molecule);
+          if (process.env.VERBOSE) {
+            console.log(`[iupac-generator] Numbering result: ${numberingResult.reason}, orderedChain: [${numberingResult.orderedChain.join(',')}]`);
+          }
+          const aliphaticName = generateAliphaticName(
+            numberingResult.orderedChain,
+            numberingResult.numbering,
+            molecule
+          );
+          if (process.env.VERBOSE) {
+            console.log(`[iupac-generator] Aliphatic name: ${aliphaticName.fullName}`);
+          }
+          if (aliphaticName.fullName) {
+            return aliphaticName.fullName;
+          }
+        }
+     } else {
+       if (process.env.VERBOSE) {
+         console.log('[iupac-generator] Skipping aliphatic naming - conditions not met');
        }
      }
 

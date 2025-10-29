@@ -32,7 +32,7 @@ export class NumberingAnalyzer {
     }
 
     // Get functional group positions in chain
-    const fgPositions = this.getFunctionalGroupPositions(chain, molecule);
+    const fgPositions = this.getFunctionalGroupPositions(chain, molecule, []); // Will be updated below
 
     // Get multiple bond positions in chain
     const multiplePositions = this.getMultipleBondPositions(chain, molecule);
@@ -41,22 +41,35 @@ export class NumberingAnalyzer {
     const substituentPositions = this.getSubstituentPositions(chain, molecule);
 
     // Calculate scores for both directions
+    if (process.env.VERBOSE) {
+      console.log(`[determineNumbering] FG positions: [${fgPositions.join(',')}]`);
+      console.log(`[determineNumbering] Multiple bond positions: [${multiplePositions.join(',')}]`);
+      console.log(`[determineNumbering] Substituent positions: [${substituentPositions.join(',')}]`);
+    }
+
     const forwardScore = this.calculateNumberingScore(
       fgPositions,
       multiplePositions,
       substituentPositions,
-      1
+      1,
+      chain.atomIndices.length
     );
 
     const backwardScore = this.calculateNumberingScore(
       fgPositions,
       multiplePositions,
       substituentPositions,
-      -1
+      -1,
+      chain.atomIndices.length
     );
 
     // Choose direction with lower (better) score
     const direction = forwardScore <= backwardScore ? (1 as NumberingDirection) : (-1 as NumberingDirection);
+    
+    if (process.env.VERBOSE) {
+      console.log(`[determineNumbering] Forward score: ${forwardScore}, Backward score: ${backwardScore}`);
+      console.log(`[determineNumbering] Choosing direction: ${direction === 1 ? 'forward' : 'backward'}`);
+    }
 
     // Create numbering map
     const numbering = this.createNumberingMap(chain, direction);
@@ -73,10 +86,27 @@ export class NumberingAnalyzer {
 
   /**
    * Get positions of functional groups within chain atoms
+   * This method should be called with functional group information from structure analysis
    */
-  private getFunctionalGroupPositions(chain: Chain, molecule: Molecule): number[] {
+  getFunctionalGroupPositions(chain: Chain, molecule: Molecule, functionalGroups: any[] = []): number[] {
     const positions: number[] = [];
 
+    // If functional groups are provided, use them directly
+    if (functionalGroups.length > 0) {
+      for (const fg of functionalGroups) {
+        // Find the position of the functional group's key atom in the chain
+        for (const atomIdx of fg.atomIndices) {
+          const chainPosition = chain.atomIndices.indexOf(atomIdx);
+          if (chainPosition >= 0) {
+            positions.push(chainPosition);
+            break; // Only add one position per functional group
+          }
+        }
+      }
+      return positions;
+    }
+
+    // Fallback: Use heuristic detection (for backward compatibility)
     for (let i = 0; i < chain.atomIndices.length; i++) {
       const atomIdx = chain.atomIndices[i];
       if (atomIdx === undefined) continue;
@@ -84,7 +114,7 @@ export class NumberingAnalyzer {
       const atom = molecule.atoms[atomIdx];
       if (!atom) continue;
 
-      // Detect functional groups: O, N, S, halogens
+      // Check if this atom itself is a functional group atom (for most cases)
       if (
         atom.symbol === 'O' ||
         atom.symbol === 'N' ||
@@ -94,7 +124,39 @@ export class NumberingAnalyzer {
         atom.symbol === 'Br' ||
         atom.symbol === 'I'
       ) {
-        positions.push(i);
+        // Special case: for alcohol, check if this O has hydrogens (is OH group)
+        if (atom.symbol === 'O' && atom.hydrogens > 0) {
+          // This is an OH group - check if it's attached to a carbon (alcohol)
+          const bonds = molecule.bonds.filter(b => b.atom1 === atomIdx || b.atom2 === atomIdx);
+          const carbonNeighbor = bonds.find(b => {
+            const neighbor = b.atom1 === atomIdx ? b.atom2 : b.atom1;
+            return molecule.atoms[neighbor]?.symbol === 'C';
+          });
+          if (carbonNeighbor) {
+            positions.push(i);
+          }
+        } else if (atom.symbol !== 'O') {
+          // For non-oxygen atoms, include them directly
+          positions.push(i);
+        }
+      }
+      
+      // Also check for carbon atoms with attached functional groups
+      if (atom.symbol === 'C') {
+        const bonds = molecule.bonds.filter(b => b.atom1 === atomIdx || b.atom2 === atomIdx);
+        
+        // Check for alcohol: C-OH
+        const hasOH = bonds.some(b => {
+          const neighbor = molecule.atoms[b.atom1 === atomIdx ? b.atom2 : b.atom1];
+          return neighbor?.symbol === 'O' && b.type === 'single' && neighbor.hydrogens > 0;
+        });
+        
+        if (hasOH) {
+          if (process.env.VERBOSE) {
+            console.log(`[getFunctionalGroupPositions] Found alcohol-bearing carbon at chain position ${i + 1}, atom ${atomIdx}`);
+          }
+          positions.push(i);
+        }
       }
     }
 
@@ -174,26 +236,40 @@ export class NumberingAnalyzer {
     fgPositions: number[],
     multiplePositions: number[],
     substituentPositions: number[],
-    direction: NumberingDirection
+    direction: NumberingDirection,
+    chainLength: number
   ): number {
     let score = 0;
 
     // Score functional groups (highest priority)
     for (const pos of fgPositions) {
-      const locant = direction === 1 ? pos + 1 : (fgPositions.length - pos);
+      const locant = direction === 1 ? pos + 1 : (chainLength - pos);
       score += locant * 1000;
+      if (process.env.VERBOSE) {
+        console.log(`[calculateNumberingScore] FG at pos ${pos}, locant ${locant}, contribution ${locant * 1000}`);
+      }
     }
 
     // Score multiple bonds
     for (const pos of multiplePositions) {
-      const locant = direction === 1 ? pos + 1 : (multiplePositions.length - pos);
+      const locant = direction === 1 ? pos + 1 : (chainLength - pos);
       score += locant * 100;
+      if (process.env.VERBOSE) {
+        console.log(`[calculateNumberingScore] Bond at pos ${pos}, locant ${locant}, contribution ${locant * 100}`);
+      }
     }
 
     // Score substituents
     for (const pos of substituentPositions) {
-      const locant = direction === 1 ? pos + 1 : (substituentPositions.length - pos);
+      const locant = direction === 1 ? pos + 1 : (chainLength - pos);
       score += locant * 10;
+      if (process.env.VERBOSE) {
+        console.log(`[calculateNumberingScore] Substituent at pos ${pos}, locant ${locant}, contribution ${locant * 10}`);
+      }
+    }
+
+    if (process.env.VERBOSE) {
+      console.log(`[calculateNumberingScore] Direction ${direction === 1 ? 'forward' : 'backward'} score: ${score}`);
     }
 
     return score;

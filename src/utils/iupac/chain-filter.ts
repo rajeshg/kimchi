@@ -129,12 +129,27 @@ export class MostSubstituentsFilter extends ChainFilter {
   }
 
   apply(chain: Chain): FilterResult {
+    // Count total substituents
     const subCount = chain.substituents.length;
+    // Count methyl groups
+    const methylCount = chain.substituents.filter(s => s.type === 'alkyl' && s.size === 1).length;
+    // Find lowest locant
+    const locants = chain.substituents.map(s => parseInt(s.position, 10)).filter(n => !isNaN(n));
+    const minLocant = locants.length > 0 ? Math.min(...locants) : 0;
+    // Alphabetical order of substituent names (full string for robust tie-breaking)
+    const alphaNames = chain.substituents.map(s => s.name).sort().join(',');
+    // Convert the full string to a numeric value for tie-breaking
+    // Use a simple hash: sum of char codes
+    const alphaHash = alphaNames.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+    // Composite score: prioritize subCount, then methylCount, then lowest locant, then alphabetical
+    // Use a weighted score for tie-breaking
+    const score = subCount * 1000000 + methylCount * 10000 + (1000 - minLocant * 10) + (10000 - alphaHash);
     return {
       passes: true,
-      score: subCount,
-      reason: `Substituents: ${subCount}`,
+      score,
+      reason: `Substituents: ${subCount}, methyls: ${methylCount}, minLocant: ${minLocant}, alpha: ${alphaNames}`,
     };
+
   }
 }
 
