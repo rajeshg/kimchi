@@ -410,18 +410,39 @@ export function selectPrincipalChain(molecule: Molecule): ChainSelectionResult {
         let best: number[] | undefined;
         
         // Comprehensive dicarboxylic acid logic:
-        // 1. For malonic acid (minDistance = 2, simple structure): prefer 2-carbon chains
-        // 2. For extended dicarboxylic acids (minDistance > 2): prefer longer chains
-        // 3. For branched dicarboxylic acids: prefer chains that include branches
+        // 1. For simple malonic acid (OC(=O)CC(=O)O): prefer 2-carbon chains
+        // 2. For substituted malonic acid (CC(C(=O)O)C(=O)O): prefer 3-carbon chains
+        // 3. For extended dicarboxylic acids (minDistance > 2): prefer longer chains
+        // 4. For branched dicarboxylic acids: prefer chains that include branches
         
-        if (minDistance === 2 && singleCarboxylChains.length >= 2) {
-          // Malonic acid case: prefer 2-carbon chains with single carboxyls
+        // Detect simple malonic acid vs substituted variants
+        const isSimpleMalonic = isSimpleMalonicAcid(molecule, allCarboxylCarbons, minDistance);
+        
+        if (minDistance === 2 && isSimpleMalonic) {
+          // Simple malonic acid case: prefer 2-carbon chains with single carboxyls
           const twoCarbonChains = singleCarboxylChains.filter(chain => chain.length === 2);
           if (twoCarbonChains.length > 0) {
             best = twoCarbonChains[0]!;
             // Choose lexicographically smallest
             for (const c of twoCarbonChains) {
               if (c.join(',') < best!.join(',')) best = c;
+            }
+          }
+        } else if (minDistance === 2 && !isSimpleMalonic) {
+          // Substituted malonic acid: prefer 3-carbon chains that include the central carbon
+          if (multiCarboxylChains.length > 0) {
+            // Use the multi-carboxyl chain which includes the central carbon and both carboxyls
+            best = multiCarboxylChains[0]!;
+          } else {
+            // Find 3-carbon chains that connect both carboxyl regions
+            const threeCarbonChains = allCandidates.filter(chain => 
+              chain.length === 3 && 
+              chain.some(atom => getNeighbors(atom, molecule).some(neighbor => 
+                allCarboxylCarbons.includes(neighbor)
+              ))
+            );
+            if (threeCarbonChains.length > 0) {
+              best = threeCarbonChains[0]!;
             }
           }
         } else if (minDistance > 2) {
@@ -1266,6 +1287,32 @@ function getAllCarboxylCarbons(molecule: Molecule): number[] {
   }
   
   return carboxylCarbons;
+}
+
+/**
+ * Detect if this is a simple malonic acid (OC(=O)CC(=O)O) vs a substituted variant.
+ * Simple malonic acid has:
+ * - Exactly 2 carboxyl carbons at distance 2
+ * - Central carbon has no additional substituents except the two carboxyls
+ * - No additional carbon branches
+ */
+function isSimpleMalonicAcid(molecule: Molecule, carboxylCarbons: number[], minDistance: number): boolean {
+  if (minDistance !== 2 || carboxylCarbons.length !== 2) return false;
+  
+  // Find the central carbon (one that connects to both carboxyls)
+  const path = findShortestPath(carboxylCarbons[0]!, carboxylCarbons[1]!, molecule);
+  if (path.length !== 3) return false; // Should be [carboxyl1, central, carboxyl2]
+  
+  const centralCarbon = path[1]!;
+  const centralNeighbors = getNeighbors(centralCarbon, molecule);
+  
+  // Count non-carboxyl carbon neighbors
+  const nonCarboxylCarbons = centralNeighbors.filter(neighbor => 
+    molecule.atoms[neighbor]?.symbol === 'C' && !carboxylCarbons.includes(neighbor)
+  );
+  
+  // Simple malonic acid should have no additional carbon substituents
+  return nonCarboxylCarbons.length === 0;
 }
 
 /**
