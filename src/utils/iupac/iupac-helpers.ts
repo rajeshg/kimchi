@@ -10,6 +10,28 @@ export function getAlkaneName(carbonCount: number): string {
   return `alkane_C${carbonCount}ane`;
 }
 
+export function getAlkaneBaseName(carbonCount: number): string {
+  // Use rule engine for complete alkane name, then remove 'e' suffix for base name
+  const fullName = ruleEngine.getAlkaneName(carbonCount);
+  if (fullName) {
+    return fullName.replace(/e$/, '');
+  }
+
+  // Fallback for unmapped carbon counts - consistent with getAlkaneName fallback
+  return `alkane_C${carbonCount}an`;
+}
+
+export function getAlkylName(carbonCount: number): string {
+  // Use rule engine for alkane name, then convert 'ane' to 'yl'
+  const alkaneName = ruleEngine.getAlkaneName(carbonCount);
+  if (alkaneName) {
+    return alkaneName.replace(/ane$/, 'yl');
+  }
+
+  // Fallback for unmapped carbon counts
+  return `C${carbonCount}alkyl`;
+}
+
 export function combineName(baseName: string, functionalGroup: string): string {
   // Use rule engine for vowel elision
   return ruleEngine.applyVowelElision(baseName, functionalGroup);

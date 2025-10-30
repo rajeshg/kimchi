@@ -1,8 +1,9 @@
 import type { Molecule } from 'types';
 import { BondType } from 'types';
 import { findAromaticSubstituents, formatAromaticSubstituentName } from './aromatic-substituent-detector';
-import { getGreekNumeral } from './iupac-helpers';
+import { getGreekNumeral, getAlkaneBaseName, getAlkylName } from './iupac-helpers';
 import { analyzeRings } from '../ring-analysis';
+import { getNeighbors, countBranchLength } from '../chain-utils';
 
 /**
  * Aliphatic chain naming module.
@@ -159,32 +160,7 @@ function identifyFunctionalGroup(
 /**
  * Get the base name for an alkane (without functional group suffix).
  */
-function getAlkaneBaseName(carbonCount: number): string {
-  const names: Record<number, string> = {
-    1: 'methan',
-    2: 'ethan',
-    3: 'propan',
-    4: 'butan',
-    5: 'pentan',
-    6: 'hexan',
-    7: 'heptan',
-    8: 'octan',
-    9: 'nonan',
-    10: 'decan',
-    11: 'undecan',
-    12: 'dodecan',
-    13: 'tridecan',
-    14: 'tetradecan',
-    15: 'pentadecan',
-    16: 'hexadecan',
-    17: 'heptadecan',
-    18: 'octadecan',
-    19: 'nonadecan',
-    20: 'eicosan',
-  };
 
-  return names[carbonCount] ?? `C${carbonCount}an`;
-}
 
 /**
  * Get the suffix for a functional group.
@@ -348,66 +324,8 @@ function getSubstituentName(atomIdx: number, molecule: Molecule, chainSet: Set<n
 }
 
 /**
- * Count the length of a carbon branch for naming (e.g., methyl = 1, ethyl = 2).
- */
-function countBranchLength(atomIdx: number, molecule: Molecule, chainSet: Set<number>): number {
-  const visited = new Set<number>();
-  return dfsCountBranch(atomIdx, molecule, chainSet, visited);
-}
-
-function dfsCountBranch(
-  atomIdx: number,
-  molecule: Molecule,
-  chainSet: Set<number>,
-  visited: Set<number>
-): number {
-  if (visited.has(atomIdx) || chainSet.has(atomIdx)) return 0;
-  if (molecule.atoms[atomIdx]?.symbol !== 'C') return 0;
-
-  visited.add(atomIdx);
-  let maxLength = 1;
-
-  const neighbors = getNeighbors(atomIdx, molecule);
-  for (const neighbor of neighbors) {
-    if (!visited.has(neighbor) && !chainSet.has(neighbor)) {
-      maxLength = Math.max(maxLength, 1 + dfsCountBranch(neighbor, molecule, chainSet, visited));
-    }
-  }
-
-  return maxLength;
-}
-
-/**
  * Get the alkyl group name (methyl, ethyl, propyl, etc.).
  */
-function getAlkylName(carbonCount: number): string {
-  const names: Record<number, string> = {
-    1: 'methyl',
-    2: 'ethyl',
-    3: 'propyl',
-    4: 'butyl',
-    5: 'pentyl',
-    6: 'hexyl',
-    7: 'heptyl',
-    8: 'octyl',
-    9: 'nonyl',
-    10: 'decyl',
-  };
 
-   return names[carbonCount] ?? `C${carbonCount}alkyl`;
- }
-
-/**
- * Get neighboring atoms.
- */
-function getNeighbors(atomIdx: number, molecule: Molecule): number[] {
-   const neighbors: number[] = [];
-
-  for (const bond of molecule.bonds) {
-    if (bond.atom1 === atomIdx) neighbors.push(bond.atom2);
-    else if (bond.atom2 === atomIdx) neighbors.push(bond.atom1);
-  }
-  return neighbors;
-}
 
 export default generateAliphaticName;

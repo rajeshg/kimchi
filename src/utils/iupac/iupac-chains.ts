@@ -1,6 +1,6 @@
 import type { Molecule } from 'types';
 import { BondType } from 'types';
-import { getAlkaneName, getGreekNumeral } from './iupac-helpers';
+import { getAlkaneName, getGreekNumeral, getAlkaneBaseName, getAlkylName } from './iupac-helpers';
 import type { Substituent, SubstituentInfo } from './iupac-types';
 
 export function findMainChain(molecule: Molecule): number[] {
@@ -758,7 +758,7 @@ export function generateChainBaseName(mainChain: number[], molecule: Molecule): 
    }
 
    const carbonCount = mainChain.length;
-   const hydrocarbonBase = getAlkaneName(carbonCount).replace(/ane$/, '');
+   const hydrocarbonBase = getAlkaneBaseName(carbonCount);
 
    let unsaturation: { type: 'ene' | 'yne', positions: number[] } | null = null;
    if (tripleBonds.length > 0) {
@@ -871,7 +871,7 @@ export function classifySubstituent(molecule: Molecule, startAtomIdx: number, ch
       // isobutyl: contains a branch but not quaternary center
       if (maxCNeigh === 2) return { type: 'alkyl', size: 4, name: 'isobutyl' };
     }
-    return { type: 'alkyl', size: carbonCount, name: `${getAlkaneName(carbonCount)}yl` };
+    return { type: 'alkyl', size: carbonCount, name: getAlkylName(carbonCount) };
   }
   return null;
 }

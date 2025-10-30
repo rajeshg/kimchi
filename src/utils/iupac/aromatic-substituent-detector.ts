@@ -394,25 +394,7 @@ function dfsCountTotalCarbons(
   return totalCarbons;
 }
 
-/**
- * Get the alkyl group name (methyl, ethyl, propyl, etc.).
- */
-function getAlkylName(carbonCount: number): string {
-  const names: Record<number, string> = {
-    1: 'methyl',
-    2: 'ethyl',
-    3: 'propyl',
-    4: 'butyl',
-    5: 'pentyl',
-    6: 'hexyl',
-    7: 'heptyl',
-    8: 'octyl',
-    9: 'nonyl',
-    10: 'decyl',
-  };
-  
-  return names[carbonCount] ?? `C${carbonCount}alkyl`;
-}
+import { getAlkaneName, getAlkylName } from './iupac-helpers';
 
 /**
  * Get neighboring atoms (connected by bonds).
