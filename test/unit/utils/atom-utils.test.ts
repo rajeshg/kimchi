@@ -18,21 +18,21 @@ describe('Atom utils', () => {
 
   it('createAtom normalizes symbol and assigns atomicNumber', () => {
     const a = createAtom('cl', 1);
-    expect(a.symbol).toBe('Cl');
-    expect(typeof a.atomicNumber).toBe('number');
-    expect(a.id).toBe(1);
-    expect(a.aromatic).toBe(false);
+    expect(a!.symbol).toBe('Cl');
+    expect(typeof a!.atomicNumber).toBe('number');
+    expect(a!.id).toBe(1);
+    expect(a!.aromatic).toBe(false);
   });
 
   it('createAtom respects aromatic and bracket flags', () => {
     const a = createAtom('c', 2, true, true, 7);
-    expect(a.symbol).toBe('C');
-    expect(a.aromatic).toBe(true);
-    expect(a.isBracket).toBe(true);
-    expect(a.atomClass).toBe(7);
+    expect(a!.symbol).toBe('C');
+    expect(a!.aromatic).toBe(true);
+    expect(a!.isBracket).toBe(true);
+    expect(a!.atomClass).toBe(7);
   });
 
-  it('createAtom throws on unknown symbol', () => {
-    expect(() => createAtom('Xx', 5)).toThrow();
+  it('createAtom returns null on unknown symbol', () => {
+    expect(createAtom('Xx', 5)).toBeNull();
   });
 });

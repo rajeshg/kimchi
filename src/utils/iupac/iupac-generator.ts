@@ -1,4 +1,55 @@
 import type { Molecule } from 'types';
+import { parseSMILES } from 'src/parsers/smiles-parser';
+import { parseMolfile } from 'src/parsers/molfile-parser';
+/**
+ * Generate IUPAC name from a SMILES string.
+ * Aggregates errors from parsing and naming.
+ */
+export function generateIUPACNameFromSMILES(
+  smiles: string,
+  options?: IUPACGeneratorOptions
+): IUPACGenerationResult {
+  const parseResult = parseSMILES(smiles);
+  // Convert ParseError objects to strings
+  const errors: string[] = (parseResult.errors ?? []).map(e => typeof e === 'string' ? e : (e?.message ?? String(e)));
+  if (errors.length > 0 || !parseResult.molecules?.length || !parseResult.molecules[0]) {
+    if (!parseResult.molecules?.length || !parseResult.molecules[0]) {
+      errors.push('SMILES parsing failed: no molecules found');
+    }
+    return { name: '', errors, warnings: [] };
+  }
+  const result = generateIUPACName(parseResult.molecules[0], options);
+  return {
+    name: result.name,
+    errors: [...errors, ...(result.errors ?? [])],
+    warnings: result.warnings ?? [],
+  };
+}
+
+/**
+ * Generate IUPAC name from a MOL file string.
+ * Aggregates errors from parsing and naming.
+ */
+export function generateIUPACNameFromMolfile(
+  molfile: string,
+  options?: IUPACGeneratorOptions
+): IUPACGenerationResult {
+  const parseResult = parseMolfile(molfile);
+  // Convert ParseError objects to strings
+  const errors: string[] = (parseResult.errors ?? []).map(e => typeof e === 'string' ? e : (e?.message ?? String(e)));
+  if (errors.length > 0 || !parseResult.molecule) {
+    if (!parseResult.molecule) {
+      errors.push('Molfile parsing failed: no molecule found');
+    }
+    return { name: '', errors, warnings: [] };
+  }
+  const result = generateIUPACName(parseResult.molecule, options);
+  return {
+    name: result.name,
+    errors: [...errors, ...(result.errors ?? [])],
+    warnings: result.warnings ?? [],
+  };
+}
 import { BondType } from 'types';
 import { getElementCounts } from '../molecular-descriptors';
 import { analyzeRings } from '../ring-analysis';
@@ -245,33 +296,41 @@ function generateNameForComponent(
        console.log(`[iupac-generator] hasMajorFunctionalGroup: ${hasMajorFunctionalGroup}, hasAromaticAtoms: ${hasAromaticAtoms}, ringInfo.rings.length: ${ringInfo.rings.length}, functionalGroupOnChain: ${functionalGroupOnChain}`);
      }
      
-     if (hasMajorFunctionalGroup && (ringInfo.rings.length === 0 || functionalGroupOnChain)) {
-       if (process.env.VERBOSE) {
-         console.log('[iupac-generator] Entering aliphatic naming path');
-       }
-       // For molecules with aromatic atoms and functional group on chain,
-       // use aliphatic naming (the aromatic ring becomes a substituent)
-       // For purely aliphatic molecules, use the new pipeline
-       if (!hasAromaticAtoms) {
-         if (process.env.VERBOSE) {
-           console.log('[iupac-generator] Trying new pipeline');
-         }
-         try {
-           const pipeline = createDefaultPipeline({ verbose: false });
-           const result = pipeline.process(molecule);
-           if (process.env.VERBOSE) {
-             console.log(`[iupac-generator] Pipeline result: ${result.name}, hasErrors: ${result.hasErrors}`);
-           }
-           if (!result.hasErrors && result.name) {
-             return result.name;
-           }
-         } catch {
-           // Fall back to old aliphatic method if pipeline fails
-           if (process.env.VERBOSE) {
-             console.log('[iupac-generator] Pipeline failed, falling back to old method');
-           }
-         }
-       }
+      // Use aliphatic naming if:
+      // 1. No rings present, OR
+      // 2. Has a major functional group on an aliphatic chain (not directly attached to ring)
+      //    This handles cases like phenylacetic acid where the carboxyl is on a chain
+      if (ringInfo.rings.length === 0 || (hasMajorFunctionalGroup && functionalGroupOnChain)) {
+        if (process.env.VERBOSE) {
+          console.log('[iupac-generator] Entering aliphatic naming path');
+        }
+         // For molecules with aromatic atoms and functional group on chain,
+         // use aliphatic naming (the aromatic ring becomes a substituent)
+         // For purely aliphatic molecules, use the new pipeline
+        if (!hasAromaticAtoms) {
+          if (process.env.VERBOSE) {
+            console.log('[iupac-generator] Trying new pipeline');
+          }
+          try {
+            const pipeline = createDefaultPipeline({ verbose: false });
+            const result = pipeline.process(molecule);
+            if (process.env.VERBOSE) {
+              console.log(`[iupac-generator] Pipeline result: ${result.name}, hasErrors: ${result.hasErrors}`);
+            }
+            // Only use pipeline result if it's valid (not a simple alkane and not malformed)
+            // Reject malformed names with duplicate locants, missing hyphens, or suspicious patterns
+            const isMalformed = /(\d-\d-|\w+\d+-)/.test(result.name) || /[A-Z]/.test(result.name.slice(1));
+            const isSimpleAlkane = /^(methane|ethane|propane|butane|pentane|hexane|heptane|octane|nonane|decane|undecane|dodecane)$/.test(result.name);
+            if (!result.hasErrors && result.name && !isSimpleAlkane && !isMalformed) {
+              return result.name;
+            }
+          } catch {
+            // Fall back to old aliphatic method if pipeline fails
+            if (process.env.VERBOSE) {
+              console.log('[iupac-generator] Pipeline failed, falling back to old method');
+            }
+          }
+        }
 
       // Use aliphatic naming for molecules with aliphatic main chains
         const chainSelectionResult = selectPrincipalChain(molecule);
@@ -324,7 +383,6 @@ function generateNameForComponent(
             let tail = functionalGroup.trim();
             // remove leading 'o' from 'oic', 'oate' etc.
             tail = tail.replace(/^o/i, '');
-            if (!tail.startsWith(' ') && !tail.startsWith('-')) tail = ' ' + tail;
             return `${base}${tail}`;
           }
         } catch (e) {

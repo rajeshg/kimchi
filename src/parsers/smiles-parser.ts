@@ -150,7 +150,12 @@ function parseSingleSMILES(smiles: string, timings?: any): { molecule: Molecule;
       }
       const isAromaticOrganic = /^[bcnops]$/.test(symbol);
       const aromatic = isAromaticOrganic;
-      const atom = createAtom(symbol, atomId++, aromatic, false, 0) as MutableAtom;
+      const atom = createAtom(symbol, atomId++, aromatic, false, 0) as MutableAtom | null;
+      if (!atom) {
+        errors.push({ message: `Unknown atom symbol: ${symbol}`, position: i });
+        i++;
+        continue;
+      }
       atoms.push(atom);
       if (prevAtomId !== null) {
         bonds.push({ atom1: prevAtomId, atom2: atom.id, type: pendingBondType, stereo: pendingBondStereo });

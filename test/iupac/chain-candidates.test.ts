@@ -23,7 +23,7 @@ describe('IUPAC chain candidate builders (internal helpers)', () => {
   });
 
   it('spiro system should expose a spiro relation', () => {
-    const res = parseSMILES('C1C(C2CCCCC2)CCCC1');
+    const res = parseSMILES('C1CCCC2(C1)CCCCC2');
     expect(res.errors).toEqual([]);
     const mol = res.molecules[0]!;
     const ra = require('src/utils/ring-analysis');

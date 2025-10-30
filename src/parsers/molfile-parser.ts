@@ -126,21 +126,35 @@ function parseV2000Header(lines: string[]): { title: string; program: string; co
 }
 
 function parseV2000CountsLine(line: string, errors: ParseError[]): { numAtoms: number; numBonds: number; chiral: boolean } {
-  const atomsStr = line.substring(0, 3).trim();
-  const bondsStr = line.substring(3, 6).trim();
-  const atoms = parseInt(atomsStr, 10);
-  const bonds = parseInt(bondsStr, 10);
-  const chiralFlag = parseInt(line.substring(12, 15).trim(), 10) || 0;
-  
+  // Robustly extract atom/bond counts using regex (handles spaces, single/multi-digit, negative numbers)
+  // Example: '  1  0  0  0  0  0            999 V2000' or ' -1  0  0  0  0  0            999 V2000'
+  let atoms = NaN, bonds = NaN, chiralFlag = 0;
+  const match = line.match(/\s*(-?\d+)\s+(-?\d+)/);
+  const parts = line.trim().split(/\s+/);
+  if (match && match[1] && match[2]) {
+    atoms = parseInt(match[1] || '', 10);
+    bonds = parseInt(match[2] || '', 10);
+  } else if (parts.length >= 2) {
+    atoms = parseInt(parts[0] || '', 10);
+    bonds = parseInt(parts[1] || '', 10);
+  }
+  // Chiral flag: try regex, fallback to part[3] if available
+  const chiralFlagMatch = line.match(/\s(\d+)\s*V2000/);
+  if (chiralFlagMatch && chiralFlagMatch[1]) {
+    chiralFlag = parseInt(chiralFlagMatch[1] || '', 10) || 0;
+  } else if (parts.length >= 4) {
+    chiralFlag = parseInt(parts[3] || '', 10) || 0;
+  }
+
   if (isNaN(atoms) || atoms < 0) {
-    errors.push({ message: `Invalid atom count: ${atomsStr}`, position: 0 });
+    errors.push({ message: `Invalid atom count: ${match ? match[1] : ''}`, position: 0 });
     return { numAtoms: 0, numBonds: 0, chiral: false };
   }
-  if ((bondsStr && isNaN(bonds)) || bonds < 0) {
-    errors.push({ message: `Invalid bond count: ${bondsStr}`, position: 0 });
+  if (isNaN(bonds) || bonds < 0) {
+    errors.push({ message: `Invalid bond count: ${match ? match[2] : ''}`, position: 0 });
     return { numAtoms: 0, numBonds: 0, chiral: false };
   }
-  
+
   return { numAtoms: atoms, numBonds: bonds || 0, chiral: chiralFlag === 1 };
 }
 
@@ -282,16 +296,22 @@ function parseV2000(lines: string[]): { molfile: MolfileData; errors: ParseError
   }
 
   const header = parseV2000Header(lines.slice(0, 3));
-  const countsLine = lines[3] || '';
+  
+  // Find the counts line, skipping empty lines
+  let countsLineIndex = 3;
+  while (countsLineIndex < lines.length && (!lines[countsLineIndex] || lines[countsLineIndex]!.trim() === '')) {
+    countsLineIndex++;
+  }
+  const countsLine = lines[countsLineIndex] || '';
   const counts = parseV2000CountsLine(countsLine, errors);
 
-  const atomLines = lines.slice(4, 4 + counts.numAtoms);
+  const atomLines = lines.slice(countsLineIndex + 1, countsLineIndex + 1 + counts.numAtoms);
   const atoms = parseV2000AtomBlock(atomLines, counts.numAtoms, errors);
 
-  const bondLines = lines.slice(4 + counts.numAtoms, 4 + counts.numAtoms + counts.numBonds);
+  const bondLines = lines.slice(countsLineIndex + 1 + counts.numAtoms, countsLineIndex + 1 + counts.numAtoms + counts.numBonds);
   const bonds = parseV2000BondBlock(bondLines, counts.numBonds, atoms.length, errors);
 
-  const propLines = lines.slice(4 + counts.numAtoms + counts.numBonds);
+  const propLines = lines.slice(countsLineIndex + 1 + counts.numAtoms + counts.numBonds);
   const properties = parseV2000PropertyBlock(propLines);
 
   return {

@@ -2,6 +2,7 @@ import type { Molecule } from 'types';
 import { BondType } from 'types';
 import { findAromaticSubstituents, formatAromaticSubstituentName } from './aromatic-substituent-detector';
 import { getGreekNumeral } from './iupac-helpers';
+import { analyzeRings } from '../ring-analysis';
 
 /**
  * Aliphatic chain naming module.
@@ -316,6 +317,23 @@ function getSubstituentName(atomIdx: number, molecule: Molecule, chainSet: Set<n
     if (atom.aromatic) {
       return 'aromatic'; // Will be handled separately by aromatic substituent detector
     }
+    
+    // Check if this carbon is part of a cyclic substituent
+    const ringInfo = analyzeRings(molecule);
+    const ringsContaining = ringInfo.getRingsContainingAtom(atomIdx);
+    
+    if (ringsContaining.length > 0) {
+      // This is a cyclic substituent - determine if entire ring is substituent
+      const ring = ringsContaining[0]!; // Get the first ring containing this atom
+      // Check if all ring atoms are outside the main chain
+      const allRingAtomsAreSubstituents = ring.every((ringAtom: number) => !chainSet.has(ringAtom));
+      if (allRingAtomsAreSubstituents) {
+        // Name as cycloalkyl (e.g., cyclohexyl, cyclopentyl)
+        const ringSize = ring.length;
+        return 'cyclo' + getAlkylName(ringSize);
+      }
+    }
+    
     // Count carbons in the branch for aliphatic groups
     const branchLength = countBranchLength(atomIdx, molecule, chainSet);
     return getAlkylName(branchLength);

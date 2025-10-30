@@ -170,6 +170,10 @@ export function generateClassicPolycyclicName(molecule: Molecule, rings: number[
       }
     }
   const bridgeheads = Object.entries(ringMembership).filter(([_, count]) => typeof count === 'number' && count > 1).map(([idx]) => Number(idx));
+  if (process.env.VERBOSE) {
+    console.log('[VERBOSE] classic polycyclic: ringMembership=', ringMembership);
+    console.log('[VERBOSE] classic polycyclic: bridgeheads=', bridgeheads);
+  }
   if (bridgeheads.length < 2) {
     if (process.env.VERBOSE) console.log('[VERBOSE] classic polycyclic: not enough bridgeheads');
     return null;
@@ -177,10 +181,12 @@ export function generateClassicPolycyclicName(molecule: Molecule, rings: number[
 
   // For bicyclo: two bridgeheads, three bridges
   if (rings.length === 2 && bridgeheads.length === 2) {
-    // Find the three paths between bridgeheads that do not pass through the other bridgehead
+    const bh1 = bridgeheads[0]!;
+    const bh2 = bridgeheads[1]!;
     const paths: number[][] = [];
     const visited = new Set<number>();
-    function dfs(current: number, target: number, path: number[], avoid: number): void {
+    
+    function dfs(current: number, target: number, path: number[]): void {
       if (current === target) {
         paths.push([...path]);
         return;
@@ -188,96 +194,85 @@ export function generateClassicPolycyclicName(molecule: Molecule, rings: number[
       visited.add(current);
       for (const bond of molecule.bonds) {
         let next: number | undefined = undefined;
-       if (typeof bond.atom1 === 'number' && bond.atom1 === current && typeof bond.atom2 === 'number') next = bond.atom2;
-       else if (typeof bond.atom2 === 'number' && bond.atom2 === current && typeof bond.atom1 === 'number') next = bond.atom1;
-       if (typeof next === 'number' && next >= 0 && !visited.has(next) && next !== avoid) {
-         path.push(next);
-         dfs(next, target, path, avoid);
-         path.pop();
-       }
+        if (bond.atom1 === current) next = bond.atom2;
+        else if (bond.atom2 === current) next = bond.atom1;
+        if (typeof next === 'number' && next >= 0 && !visited.has(next)) {
+          dfs(next, target, [...path, next]);
+        }
       }
       visited.delete(current);
     }
-    // Try all three bridges
-    for (const avoid of bridgeheads) {
-      const candidates = bridgeheads.filter(b => b !== avoid);
-      if (candidates.length < 2) continue;
-      const [start, end] = candidates;
-      if (typeof start !== 'number' || typeof end !== 'number' || typeof avoid !== 'number') continue;
-      visited.clear();
-      dfs(start, end, [start], avoid);
-    }
+    
+    dfs(bh1, bh2, [bh1]);
+    
     // Filter unique paths
-    const uniquePaths = paths.filter((p, i, arr) => Array.isArray(p) && arr.findIndex(q => Array.isArray(q) && q.join(',') === p.join(',')) === i);
-    // Only keep paths that start and end at bridgeheads and do not pass through the other bridgehead
-    const bridgeLengths = uniquePaths.map(p => (Array.isArray(p) && p.length >= 2 ? p.length - 2 : 0)).filter(n => n >= 0);
-    if (bridgeLengths.length !== 3) {
-      if (process.env.VERBOSE) console.log('[VERBOSE] classic polycyclic: did not find 3 bridges', bridgeLengths);
-      return null;
+    const uniquePaths = paths.filter((p, i, arr) => arr.findIndex(q => q.join(',') === p.join(',')) === i);
+    
+    const bridgeLengths = uniquePaths.map(p => p.length - 2).filter(n => n >= 0);
+    if (bridgeLengths.length >= 3) {
+      bridgeLengths.sort((a, b) => b - a); // IUPAC: descending order
+      const alkaneName = getAlkaneBySize(atomIds.length);
+      if (process.env.VERBOSE) console.log('[VERBOSE] classic polycyclic: bicyclo', bridgeLengths, alkaneName);
+      return `bicyclo[${bridgeLengths.slice(0, 3).join('.').replace(/0/g, '')}]${alkaneName}`;
     }
-    bridgeLengths.sort((a, b) => b - a); // IUPAC: descending order
-    const alkaneName = getAlkaneBySize(atomIds.length);
-    if (process.env.VERBOSE) console.log('[VERBOSE] classic polycyclic: bicyclo', bridgeLengths, alkaneName);
-    return `bicyclo[${bridgeLengths.join('.')}]${alkaneName}`;
+    if (process.env.VERBOSE) console.log('[VERBOSE] classic polycyclic: did not find 3 bridges', bridgeLengths);
+    return null;
   }
 
-  // For tricyclo: three bridgeheads, four bridges
-  if (rings.length === 3 && bridgeheads.length === 3) {
-    // Find all paths between each pair of bridgeheads avoiding the third
-    const bridgePairs: [number, number, number][] = [];
-    if (bridgeheads.length === 3) {
-      const bh0 = bridgeheads[0];
-      const bh1 = bridgeheads[1];
-      const bh2 = bridgeheads[2];
-      if (typeof bh0 === 'number' && typeof bh1 === 'number' && typeof bh2 === 'number') {
-        bridgePairs.push([bh0, bh1, bh2]);
-        bridgePairs.push([bh0, bh2, bh1]);
-        bridgePairs.push([bh1, bh2, bh0]);
-      }
-    }
+  // For tricyclo: three or more rings, three or more bridgeheads
+  if (rings.length >= 3 && bridgeheads.length >= 3) {
+    // Find all bridge lengths between all pairs of bridgeheads
     const bridgeLengths: number[] = [];
-    for (const triplet of bridgePairs) {
-      const [start, end, avoid] = triplet;
-      if (typeof start !== 'number' || typeof end !== 'number' || typeof avoid !== 'number') continue;
-      const visited = new Set<number>();
-      let found = false;
-      let minLen = Infinity;
-      function dfs(current: number, path: number[]): void {
-        if (current === end) {
-          if (path.length < minLen) {
-            minLen = path.length;
-            found = true;
+    for (let i = 0; i < bridgeheads.length; i++) {
+      for (let j = i + 1; j < bridgeheads.length; j++) {
+        const start = bridgeheads[i]!;
+        const end = bridgeheads[j]!;
+        const paths: number[][] = [];
+        const visited = new Set<number>();
+        
+        function dfs(current: number, path: number[]): void {
+          if (current === end) {
+            paths.push([...path]);
+            return;
           }
-          return;
+          visited.add(current);
+          for (const bond of molecule.bonds) {
+            let next: number | undefined = undefined;
+            if (bond.atom1 === current) next = bond.atom2;
+            else if (bond.atom2 === current) next = bond.atom1;
+            if (typeof next === 'number' && next >= 0 && !visited.has(next)) {
+              dfs(next, [...path, next]);
+            }
+          }
+          visited.delete(current);
         }
-        visited.add(current);
-        for (const bond of molecule.bonds) {
-          let next: number | undefined = undefined;
-          if (bond.atom1 === current) next = bond.atom2;
-          else if (bond.atom2 === current) next = bond.atom1;
-          if (typeof next === 'number' && next >= 0 && !visited.has(next) && next !== avoid) {
-            dfs(next, [...path, next]);
+        
+        dfs(start, [start]);
+        
+        // Find all shortest paths between bridgeheads
+        const validPaths = paths.filter(path => path.length >= 2); // At least start and end
+        
+        if (validPaths.length > 0) {
+          const minLength = Math.min(...validPaths.map(p => p.length - 2));
+          if (process.env.VERBOSE) console.log(`[VERBOSE] bridge between ${start}-${end}: paths=${validPaths.length}, minLength=${minLength}`);
+          if (minLength >= 0) {
+            bridgeLengths.push(minLength);
           }
         }
-        visited.delete(current);
       }
-      dfs(start, [start]);
-      if (!found || minLen < 2) {
-        if (process.env.VERBOSE) console.log('[VERBOSE] classic polycyclic: tricyclo bridge not found', start, end, avoid);
-        return null;
-      }
-      bridgeLengths.push(minLen - 2);
     }
-    // The fourth bridge is the path that connects all three bridgeheads (the perimeter)
-    // Estimate as the remaining atoms not in the three bridges or bridgeheads
-    const usedAtoms = new Set<number>(bridgeheads);
-    // This is a simplification; for full IUPAC, perimeter calculation is more complex
-    const perimeterLen = atomIds.length - bridgeheads.length - bridgeLengths.reduce((a, b) => a + b, 0);
-    bridgeLengths.push(perimeterLen);
-    bridgeLengths.sort((a, b) => b - a);
-    const alkaneName = getAlkaneBySize(atomIds.length);
-    if (process.env.VERBOSE) console.log('[VERBOSE] classic polycyclic: tricyclo', bridgeLengths, alkaneName);
-    return `tricyclo[${bridgeLengths.join('.')}]${alkaneName}`;
+    
+    // Remove duplicates and sort
+    const uniqueLengths = Array.from(new Set(bridgeLengths)).sort((a, b) => b - a);
+    
+    if (uniqueLengths.length >= 3) {
+      const alkaneName = getAlkaneBySize(atomIds.length);
+      const prefix = rings.length === 3 ? 'tricyclo' : 'polycyclo';
+      if (process.env.VERBOSE) console.log('[VERBOSE] classic polycyclic: tricyclo+', uniqueLengths, alkaneName);
+      return `${prefix}[${uniqueLengths.slice(0, Math.min(uniqueLengths.length, 4)).join('.').replace(/0/g, '')}]${alkaneName}`;
+    }
+    if (process.env.VERBOSE) console.log('[VERBOSE] classic polycyclic: did not find enough bridges', uniqueLengths);
+    return null;
   }
 
   if (process.env.VERBOSE) console.log('[VERBOSE] classic polycyclic: no valid system');

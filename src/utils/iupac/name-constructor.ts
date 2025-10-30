@@ -34,9 +34,17 @@ export class NameConstructor {
         return 'unknown';
       }
 
-      // Build functional group suffixes and prefixes
-      const { suffix, prefix, numberingRequired } = this.buildFunctionalGroupParts(
-        structure.functionalGroups,
+      // Separate unsaturation (alkene/alkyne) from other functional groups
+      const unsaturationGroups = structure.functionalGroups.filter(
+        fg => fg.name === 'alkene' || fg.name === 'alkyne'
+      );
+      const otherFGs = structure.functionalGroups.filter(
+        fg => fg.name !== 'alkene' && fg.name !== 'alkyne'
+      );
+
+      // Build functional group suffixes and prefixes (for non-unsaturation FGs)
+      const { suffix: fgSuffix, prefix, numberingRequired } = this.buildFunctionalGroupParts(
+        otherFGs,
         chain,
         molecule,
         numbering
@@ -49,30 +57,97 @@ export class NameConstructor {
         numbering
       );
 
-      // Combine parts: prefix + substituents + parent + suffix
+      // Build parent name with unsaturation
+      let parentName = alkanePrefix;
+      let unsaturationSuffix = '';
+      
+      if (unsaturationGroups.length > 0 && numbering) {
+        // Handle alkene/alkyne: replace "ane" with "ene"/"yne" and add locant(s)
+        // Group by type (alkene vs alkyne)
+        const alkenes = unsaturationGroups.filter(fg => fg.name === 'alkene');
+        const alkynes = unsaturationGroups.filter(fg => fg.name === 'alkyne');
+        
+        // Remove 'ane' suffix from parent name
+        if (parentName.endsWith('ane')) {
+          parentName = parentName.slice(0, -3);
+        }
+        
+        // Handle alkenes (use highest priority if multiple types)
+        if (alkenes.length > 0) {
+          const locants = alkenes.map(fg => this.getUnsaturationLocant(fg, numbering, molecule)).sort((a, b) => a - b);
+          const multiplicity = alkenes.length;
+          
+          // Generate suffix based on multiplicity: ene, diene, triene, tetraene, etc.
+          const multiplicityPrefix = multiplicity === 1 ? '' : 
+                                     multiplicity === 2 ? 'di' :
+                                     multiplicity === 3 ? 'tri' :
+                                     multiplicity === 4 ? 'tetra' :
+                                     multiplicity === 5 ? 'penta' :
+                                     multiplicity === 6 ? 'hexa' : `${multiplicity}`;
+          
+          // Add locants if needed
+          if (multiplicity === 1 && locants[0]! <= 1) {
+            // ethene, propene - no locant needed
+            unsaturationSuffix = `${multiplicityPrefix}ene`;
+          } else {
+            // but-2-ene, buta-1,3-diene, etc.
+            // For multiple double bonds (diene, triene), keep the 'a' vowel
+            const locantStr = locants.join(',');
+            const needsVowel = multiplicity > 1;
+            unsaturationSuffix = `-${locantStr}-${multiplicityPrefix}ene`;
+            if (needsVowel) {
+              // Add 'a' back to parent name for dienes, trienes, etc.
+              parentName += 'a';
+            }
+          }
+        } else if (alkynes.length > 0) {
+          // Handle alkynes similarly
+          const locants = alkynes.map(fg => this.getUnsaturationLocant(fg, numbering, molecule)).sort((a, b) => a - b);
+          const multiplicity = alkynes.length;
+          
+          const multiplicityPrefix = multiplicity === 1 ? '' :
+                                     multiplicity === 2 ? 'di' :
+                                     multiplicity === 3 ? 'tri' :
+                                     multiplicity === 4 ? 'tetra' : `${multiplicity}`;
+          
+          if (multiplicity === 1 && locants[0]! <= 1) {
+            unsaturationSuffix = `${multiplicityPrefix}yne`;
+          } else {
+            const locantStr = locants.join(',');
+            const needsVowel = multiplicity > 1;
+            unsaturationSuffix = `-${locantStr}-${multiplicityPrefix}yne`;
+            if (needsVowel) {
+              // Add 'a' back for diynes, triynes, etc.
+              parentName += 'a';
+            }
+          }
+        }
+      }
+
+      // Combine parts: substituents + parent + unsaturation + functional group suffix
       let name = '';
-
-      // Add any locants needed
-      if (numberingRequired && numbering) {
-        name += this.buildLocants(structure.functionalGroups, chain, numbering);
-      }
-
-      // Add functional group prefix if present
-      if (prefix) {
-        name += prefix;
-      }
 
       // Add substituent prefixes
       if (substituentPrefix) {
         name += substituentPrefix;
       }
 
-      // Add parent name (alkane root)
-      name += alkanePrefix;
+      // Add prefix from functional groups if present
+      if (prefix) {
+        name += prefix;
+      }
+
+      // Add parent name
+      name += parentName;
+
+      // Add unsaturation suffix
+      if (unsaturationSuffix) {
+        name += unsaturationSuffix;
+      }
 
       // Add functional group suffix
-      if (suffix) {
-        name += suffix;
+      if (fgSuffix) {
+        name += fgSuffix;
       }
 
       return name || 'unknown';
@@ -139,6 +214,38 @@ export class NameConstructor {
     }
 
     return { suffix, prefix: '', numberingRequired };
+  }
+
+  /**
+   * Get the locant for unsaturation (double or triple bond)
+   * Returns the lower-numbered carbon of the bond
+   */
+  private getUnsaturationLocant(
+    unsatFG: FunctionalGroup,
+    numbering: NumberingResult,
+    molecule: Molecule
+  ): number {
+    // The unsaturation functional group contains two atom indices (the two carbons in the double/triple bond)
+    const atomIndices = unsatFG.atomIndices;
+    if (atomIndices.length < 2) {
+      // Fallback: use first atom
+      const idx = atomIndices[0];
+      if (idx !== undefined) {
+        return numbering.numbering.get(idx) ?? 1;
+      }
+      return 1;
+    }
+
+    // Get locants for both atoms
+    const locant1 = numbering.numbering.get(atomIndices[0]!);
+    const locant2 = numbering.numbering.get(atomIndices[1]!);
+    
+    if (locant1 !== undefined && locant2 !== undefined) {
+      // Return the lower locant
+      return Math.min(locant1, locant2);
+    }
+    
+    return locant1 ?? locant2 ?? 1;
   }
 
   /**
