@@ -80,6 +80,23 @@ export interface ParseResult {
   errors: ParseError[]; // any parsing errors with position info
 }
 
+// IUPAC engine types
+export interface Chain {
+  atoms: Atom[];
+  bonds: Bond[];
+  length: number;
+  multipleBonds: MultipleBond[];
+  substituents: any[];
+  locants: number[];
+}
+
+export interface MultipleBond {
+  atoms: Atom[];
+  bond: Bond;
+  type: 'double' | 'triple';
+  locant: number;
+}
+
 // Molecular descriptors
 export interface DescriptorOptions {
   includeImplicitH?: boolean;

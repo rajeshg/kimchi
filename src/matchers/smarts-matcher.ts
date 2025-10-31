@@ -18,20 +18,38 @@ import { parseSMARTS } from 'src/parsers/smarts-parser';
 const debugSmarts: boolean = !!process.env.OPENCHEM_DEBUG_SMARTS;
 const debug: boolean = debugSmarts;
 
+const matchSMARTSCache: WeakMap<Molecule, Map<string, MatchResult>> = new WeakMap();
+
 export function matchSMARTS(
   pattern: string | SMARTSPattern,
   molecule: Molecule,
   options?: SMARTSMatchOptions
 ): MatchResult {
+  let patternKey: string | undefined;
   let parsedPattern: SMARTSPattern;
   if (typeof pattern === 'string') {
+    patternKey = pattern;
     const parseResult = parseSMARTS(pattern);
     if (!parseResult.pattern || parseResult.errors.length > 0) {
       throw new Error(`Invalid SMARTS pattern: ${parseResult.errors.join(', ')}`);
     }
     parsedPattern = parseResult.pattern;
   } else {
+    // For parsed patterns, skip caching (no stable key)
+    patternKey = undefined;
     parsedPattern = pattern;
+  }
+
+  // Caching layer (only for string patterns)
+  if (patternKey !== undefined) {
+    let patternMap = matchSMARTSCache.get(molecule);
+    if (!patternMap) {
+      patternMap = new Map();
+      matchSMARTSCache.set(molecule, patternMap);
+    }
+    if (patternMap.has(patternKey)) {
+      return patternMap.get(patternKey)!;
+    }
   }
 
   const enriched = enrichMolecule(molecule);
@@ -50,10 +68,20 @@ export function matchSMARTS(
     }
   }
   
-  return {
+  const result: MatchResult = {
     success: matches.length > 0,
     matches
   };
+  // Store in cache only for string patterns
+  if (patternKey !== undefined) {
+    let patternMap = matchSMARTSCache.get(molecule);
+    if (!patternMap) {
+      patternMap = new Map();
+      matchSMARTSCache.set(molecule, patternMap);
+    }
+    patternMap.set(patternKey, result);
+  }
+  return result;
 }
 
 function tryMatchFromAtom(

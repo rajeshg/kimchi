@@ -1,0 +1,14 @@
+I am unable to browse the nested links within each chapter page to automatically extract the sub-sections. The tool can only access the main index page you provided.
+
+However, based on the structure of the IUPAC Blue Book and your specific keywords, I can provide a more targeted table. This table points to the exact chapters where the rules for your engine are located. The "Link" column provides the direct URL to the relevant chapter, which you can then explore for the specific sub-sections.
+
+### Rule-Engine Section Guide
+
+| Topic / Rule | Relevant Chapter | Link | What You Can Expect to Find |
+| :--- | :--- | :--- | :--- |
+| **Parent Chain Selection** | P-4: Rules for Name Construction | [P-4](https://www.google.com/search?q=https://iupac.qmul.ac.uk/BlueBook/P-4.html) | The core rules for identifying the principal chain in acyclic and cyclic compounds (e.g., longest chain, most multiple bonds). |
+| **Rule Tie-Breaking** | P-1: General Principles<br>P-4: Rules for Name Construction | [P-1](https://www.google.com/search?q=https://iupac.qmul.ac.uk/BlueBook/P-1.html)<br>[P-4](https://www.google.com/search?q=https://iupac.qmul.ac.uk/BlueBook/P-4.html) | Foundational rules like "lowest locants" (P-1.4.1), "alphabetical order" (P-1.4.4), and the hierarchy of criteria for choosing a parent chain (P-4.4). |
+| **Substituent Wording** | P-3: Characteristic & Substituent Groups<br>P-2: Parent Hydrides | [P-3](https://www.google.com/search?q=https://iupac.qmul.ac.uk/BlueBook/P-3.html)<br>[P-2](https://www.google.com/search?q=https://iupac.qmul.ac.uk/BlueBook/P-2.html) | Definitions of substituent prefixes (P-3.1), how to name complex substituents (e.g., '(1-methylethyl)'), and the naming of parent hydrides used as substituent groups (P-2.9). |
+| **Rings** | P-2: Parent Hydrides | [P-2](https://www.google.com/search?q=https://iupac.qmul.ac.uk/BlueBook/P-2.html) | Comprehensive rules for monocyclic hydrides (P-2.2), fused ring systems (P-2.5), spiro compounds (P-2.4), and ring assemblies (P-2.3). |
+| **Complex Compound Handling** | P-5: Selecting Preferred Names<br>P-6: Specific Classes | [P-5](https://www.google.com/search?q=https://iupac.qmul.ac.uk/BlueBook/P-5.html)<br>[P-6](https://www.google.com/search?q=https://iupac.qmul.ac.uk/BlueBook/P-6.html) | P-5 contains the master algorithm for selecting a Preferred IUPAC Name (PIN), which is the ultimate **tie-breaking** and **complex handling** procedure. P-6 applies these to specific, complex classes (acids, esters, etc.). |
+| **Ambiguity (Stereochem)** | P-9: Specification of Configuration | [P-9](https://www.google.com/search?q=https://iupac.qmul.ac.uk/BlueBook/P-9.html) | All rules for resolving stereochemical **ambiguity**, including $R/S$ (P-9.2), $E/Z$ (P-9.3.1), and stereochemistry in fused rings (P-9.4). |

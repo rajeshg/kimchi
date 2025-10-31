@@ -83,4 +83,33 @@ describe('IUPAC parent selection (representative difficult cases)', () => {
       }
     });
   }
+
+  it('selects the largest ring system as parent over long chain', () => {
+    // Naphthalene with a long chain attached
+    const smiles = 'CCCC1=CC2=CC=CC=C2C=C1'; // naphthalene with butyl chain
+    const res = parseSMILES(smiles);
+    expect(res.errors).toEqual([]);
+    const mol = res.molecules[0]!;
+    const nameResult = generateIUPACName(mol);
+    expect(nameResult.errors).toEqual([]);
+    const name = nameResult.name.toLowerCase();
+    // Should contain 'naphthalene' (ring system parent)
+    expect(name).toContain('naphthalene');
+    // Should not be named as a long chain parent
+    expect(name).not.toContain('butane');
+  });
+
+  it('selects biphenyl as parent over chain', () => {
+    // Biphenyl with a chain attached
+    const smiles = 'CC1=CC=CC=C1C2=CC=CC=C2'; // biphenyl with methyl
+    const res = parseSMILES(smiles);
+    expect(res.errors).toEqual([]);
+    const mol = res.molecules[0]!;
+    const nameResult = generateIUPACName(mol);
+    expect(nameResult.errors).toEqual([]);
+    const name = nameResult.name.toLowerCase();
+    expect(name).toContain('biphenyl');
+    expect(name).not.toContain('hexane');
+  });
 });
+
