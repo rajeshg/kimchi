@@ -191,15 +191,29 @@ export const P14_4_MULTIPLE_BONDS_SUBSTITUENTS_RULE: IUPACRule = {
     }
     
     // Number multiple bonds
-    const numberedBonds = chain.multipleBonds.map((bond: MultipleBond, index: number) => ({
-      ...bond,
-      locant: assignLowestAvailableLocant(chain.locants, bond.locant, index)
-    }));
+    const numberedBonds = chain.multipleBonds.map((bond: MultipleBond) => {
+      // Find locants of the two atoms in the bond
+      const atomLocants: number[] = [];
+      for (const atom of bond.atoms) {
+        const atomIndex = chain.atoms.findIndex((a: any) => a.id === atom.id);
+        if (atomIndex >= 0 && chain.locants[atomIndex]) {
+          atomLocants.push(chain.locants[atomIndex]);
+        }
+      }
+      const minLocant = atomLocants.length > 0 ? Math.min(...atomLocants) : (bond.locant || 1);
+      return {
+        ...bond,
+        locant: minLocant
+      };
+    });
     
     // Number substituents
-    const numberedSubstituents = chain.substituents.map((substituent: Substituent, index: number) => ({
+    // Substituents already have correct locants from initial structure analysis
+    // based on their attachment point in the chain. We just need to ensure they
+    // have the locant field set.
+    const numberedSubstituents = chain.substituents.map((substituent: Substituent) => ({
       ...substituent,
-      locant: assignLowestAvailableLocant(chain.locants, substituent.locant, index)
+      locant: typeof substituent.locant === 'number' ? substituent.locant : 1
     }));
     
     return context.withStateUpdate(
@@ -277,7 +291,7 @@ export const RING_NUMBERING_RULE: IUPACRule = {
   name: 'Ring System Numbering',
   description: 'Number ring systems starting from heteroatom or unsaturation',
   blueBookReference: 'Ring numbering conventions',
-  priority: 85,
+  priority: 160, // Must run before P-3.2 (priority 155) - higher priority executes first
   conditions: (context: ImmutableNamingContext) => {
     const state = context.getState();
     const parentStructure = state.parentStructure;
@@ -299,16 +313,27 @@ export const RING_NUMBERING_RULE: IUPACRule = {
     // Number ring starting from heteroatom or unsaturation
     const ringLocants = generateRingLocants(ring);
     
-    // Apply numbering starting from preferred position
-    const startingPosition = findRingStartingPosition(ring);
+    // Apply numbering starting from preferred position (considering substituents for lowest locants)
+    const molecule = state.molecule;
+    const startingPosition = findRingStartingPosition(ring, molecule);
     const adjustedLocants = adjustRingLocants(ringLocants, startingPosition);
+    
+    // Reorder ring.atoms array to match the optimized numbering
+    // This ensures that ring.atoms[0] corresponds to locant 1, ring.atoms[1] to locant 2, etc.
+    const reorderedAtoms = reorderRingAtoms(ring.atoms, startingPosition);
+    const reorderedBonds = ring.bonds; // Bonds don't need reordering as they reference atom IDs
     
     return context.withStateUpdate(
       (state: any) => ({
         ...state,
         parentStructure: {
           ...parentStructure,
-          locants: adjustedLocants
+          locants: adjustedLocants,
+          ring: {
+            ...ring,
+            atoms: reorderedAtoms,
+            bonds: reorderedBonds
+          }
         }
       }),
       'ring-numbering',
@@ -319,10 +344,9 @@ export const RING_NUMBERING_RULE: IUPACRule = {
     );
   }
 };
-
 /**
  * Rule: Substituent Numbering
- * 
+ *
  * Assign locants to substituent groups on the parent structure.
  */
 export const SUBSTITUENT_NUMBERING_RULE: IUPACRule = {
@@ -545,13 +569,243 @@ function generateRingLocants(ring: any): number[] {
   return locants;
 }
 
-function findRingStartingPosition(ring: any): number {
-  // Start at heteroatom if present
+/**
+ * Find optimal ring numbering to minimize substituent locants
+ * Similar to chain direction optimization
+ */
+function findOptimalRingNumbering(ring: any, molecule: any): number {
+  if (!ring || !ring.atoms || ring.atoms.length === 0) {
+    return 1;
+  }
+
+  if (!molecule || !molecule.bonds || !molecule.atoms) {
+    return 1;
+  }
+
+  // Build set of ring atom IDs
+  const ringAtomIds = new Set<number>(ring.atoms.map((a: any) => a.id));
+
+  // Find which ring atoms have substituents
+  const substituentPositions: number[] = [];
+  
+  for (let i = 0; i < ring.atoms.length; i++) {
+    const ringAtom = ring.atoms[i];
+    if (!ringAtom) continue;
+    
+    // Find bonds from this ring atom to non-ring atoms
+    const bonds = molecule.bonds.filter((bond: any) =>
+      (bond.atom1 === ringAtom.id || bond.atom2 === ringAtom.id)
+    );
+
+    for (const bond of bonds) {
+      const otherAtomId = bond.atom1 === ringAtom.id ? bond.atom2 : bond.atom1;
+      if (!ringAtomIds.has(otherAtomId)) {
+        const substituentAtom = molecule.atoms[otherAtomId];
+        if (substituentAtom && substituentAtom.symbol !== 'H') {
+          // This ring atom has a substituent
+          substituentPositions.push(i);
+          console.log(`[Ring Numbering] Found substituent at ring position ${i} (atom ${ringAtom.id})`);
+          break;
+        }
+      }
+    }
+  }
+
+  console.log(`[Ring Numbering] Total substituents found: ${substituentPositions.length}, positions: [${substituentPositions.join(', ')}]`);
+
+  // If no substituents, default numbering is fine
+  if (substituentPositions.length === 0) {
+    return 1;
+  }
+
+  // Try all possible starting positions and find the one with lowest locant set
+  let bestStart = 1;
+  let bestLocants: number[] = [];
+
+  for (let start = 0; start < ring.atoms.length; start++) {
+    // Calculate locants for substituents with this starting position
+    const locants: number[] = [];
+    
+    for (const subPos of substituentPositions) {
+      // Calculate the locant for this substituent position
+      // Ring numbering goes: start -> start+1 -> ... -> start+n-1 (wrapping around)
+      let locant = ((subPos - start + ring.atoms.length) % ring.atoms.length) + 1;
+      locants.push(locant);
+    }
+    
+    // Sort locants for comparison
+    locants.sort((a, b) => a - b);
+    
+    console.log(`[Ring Numbering] Starting at position ${start}: locants = [${locants.join(', ')}]`);
+    
+    // Compare with best so far
+    if (bestLocants.length === 0 || compareLocantSets(locants, bestLocants) < 0) {
+      bestLocants = locants;
+      bestStart = start + 1; // 1-based
+      console.log(`[Ring Numbering] New best! Start at ${bestStart}`);
+    }
+  }
+
+  console.log(`[Ring Numbering] Final decision: start at position ${bestStart}, locants = [${bestLocants.join(', ')}]`);
+
+  return bestStart;
+}
+
+/**
+ * Find optimal ring numbering when a heteroatom must be at position 1
+ * @param ring - The ring structure
+ * @param molecule - The molecule structure
+ * @param heteroatomIndex - Index of the heteroatom in ring.atoms (0-based)
+ * @returns Positive value for clockwise (starting position 1-based), negative for counterclockwise, 0 for no preference
+ */
+function findOptimalRingNumberingFromHeteroatom(ring: any, molecule: any, heteroatomIndex: number): number {
+  if (!ring || !ring.atoms || ring.atoms.length === 0) {
+    return -1;
+  }
+
+  if (!molecule || !molecule.bonds || !molecule.atoms) {
+    return -1;
+  }
+
+  // Build set of ring atom IDs
+  const ringAtomIds = new Set<number>(ring.atoms.map((a: any) => a.id));
+
+  // Count substituents at each ring position (not just which atoms have substituents)
+  const substituentCounts: number[] = new Array(ring.atoms.length).fill(0);
+  
+  for (let i = 0; i < ring.atoms.length; i++) {
+    const ringAtom = ring.atoms[i];
+    if (!ringAtom) continue;
+    
+    // Find bonds from this ring atom to non-ring atoms
+    const bonds = molecule.bonds.filter((bond: any) =>
+      (bond.atom1 === ringAtom.id || bond.atom2 === ringAtom.id)
+    );
+
+    for (const bond of bonds) {
+      const otherAtomId = bond.atom1 === ringAtom.id ? bond.atom2 : bond.atom1;
+      if (!ringAtomIds.has(otherAtomId)) {
+        const substituentAtom = molecule.atoms[otherAtomId];
+        if (substituentAtom && substituentAtom.symbol !== 'H') {
+          // Count this substituent
+          const currentCount = substituentCounts[i];
+          if (currentCount !== undefined) {
+            substituentCounts[i] = currentCount + 1;
+          }
+        }
+      }
+    }
+  }
+
+  console.log(`[Heteroatom Ring Numbering] Substituent counts at each position: [${substituentCounts.join(', ')}]`);
+  const heteroAtom = ring.atoms[heteroatomIndex];
+  if (!heteroAtom) {
+    return -1;
+  }
+  console.log(`[Heteroatom Ring Numbering] Heteroatom at index ${heteroatomIndex} (atom ${heteroAtom.id})`);
+
+  // If no substituents, default numbering is fine
+  const totalSubstituents = substituentCounts.reduce((sum, count) => sum + count, 0);
+  if (totalSubstituents === 0) {
+    console.log(`[Heteroatom Ring Numbering] No substituents found, using default`);
+    return heteroatomIndex + 1; // 1-based
+  }
+
+  // For 3-membered rings with heteroatom at index heteroatomIndex:
+  // Direction 1: [heteroatom, next, prev] = [heteroatomIndex, heteroatomIndex+1, heteroatomIndex+2] mod ring.atoms.length
+  // Direction 2: [heteroatom, prev, next] = [heteroatomIndex, heteroatomIndex-1, heteroatomIndex-2] mod ring.atoms.length
+  
+  const ringSize = ring.atoms.length;
+  
+  // Try direction 1: heteroatom → next atom (clockwise)
+  const locants1: number[] = [];
+  for (let i = 0; i < ringSize; i++) {
+    const ringPos = (heteroatomIndex + i) % ringSize;
+    const count = substituentCounts[ringPos] ?? 0;
+    // Add 'count' copies of locant (i+1) to the list
+    for (let j = 0; j < count; j++) {
+      locants1.push(i + 1); // i+1 is the locant at this position
+    }
+  }
+  locants1.sort((a, b) => a - b);
+  
+  // Try direction 2: heteroatom → previous atom (counterclockwise)
+  const locants2: number[] = [];
+  for (let i = 0; i < ringSize; i++) {
+    const ringPos = (heteroatomIndex - i + ringSize) % ringSize;
+    const count = substituentCounts[ringPos] ?? 0;
+    // Add 'count' copies of locant (i+1) to the list
+    for (let j = 0; j < count; j++) {
+      locants2.push(i + 1);
+    }
+  }
+  locants2.sort((a, b) => a - b);
+
+  console.log(`[Heteroatom Ring Numbering] Direction 1 (clockwise): locants = [${locants1.join(', ')}]`);
+  console.log(`[Heteroatom Ring Numbering] Direction 2 (counterclockwise): locants = [${locants2.join(', ')}]`);
+
+  // Compare the two locant sets
+  const comparison = compareLocantSets(locants1, locants2);
+  
+  if (comparison <= 0) {
+    // Direction 1 is better or equal (clockwise)
+    console.log(`[Heteroatom Ring Numbering] Choosing direction 1 (clockwise)`);
+    return heteroatomIndex + 1; // 1-based, positive means use as-is
+  } else {
+    // Direction 2 is better (counterclockwise)
+    console.log(`[Heteroatom Ring Numbering] Choosing direction 2 (counterclockwise)`);
+    return -1; // Negative signals to caller to reverse the ring
+  }
+}
+
+/**
+ * Compare two locant sets
+ * Returns: < 0 if a is better (lower), > 0 if b is better, 0 if equal
+ */
+function compareLocantSets(a: number[], b: number[]): number {
+  const minLen = Math.min(a.length, b.length);
+  for (let i = 0; i < minLen; i++) {
+    const aVal = a[i];
+    const bVal = b[i];
+    if (aVal !== undefined && bVal !== undefined && aVal !== bVal) {
+      return aVal - bVal;
+    }
+  }
+  return a.length - b.length;
+}
+
+function findRingStartingPosition(ring: any, molecule?: any): number {
+  // Start at heteroatom if present, but consider numbering direction
+  let heteroatomIndex = -1;
   for (let i = 0; i < ring.atoms.length; i++) {
     const atom = ring.atoms[i];
     if (atom.symbol !== 'C') {
-      return i + 1; // 1-based indexing
+      heteroatomIndex = i;
+      break;
     }
+  }
+  
+  if (heteroatomIndex >= 0 && molecule) {
+    // Found heteroatom - now determine best numbering direction
+    const result = findOptimalRingNumberingFromHeteroatom(ring, molecule, heteroatomIndex);
+    
+    // If result is negative, it means we need to reverse the ring (counterclockwise)
+    if (result < 0) {
+      // Reverse the ring atoms (keeping heteroatom at the start)
+      const heteroAtom = ring.atoms[heteroatomIndex];
+      const remaining = ring.atoms.filter((_: any, idx: number) => idx !== heteroatomIndex);
+      remaining.reverse();
+      ring.atoms = [heteroAtom, ...remaining];
+      console.log(`[Ring Numbering] Reversed ring for counterclockwise numbering: [${ring.atoms.map((a: any) => a.id).join(', ')}]`);
+      return 1; // Heteroatom is now at position 1
+    }
+    
+    if (result > 0) {
+      return result;
+    }
+    return heteroatomIndex + 1; // 1-based indexing
+  } else if (heteroatomIndex >= 0) {
+    return heteroatomIndex + 1; // 1-based indexing
   }
   
   // Start at unsaturation if present
@@ -561,6 +815,14 @@ function findRingStartingPosition(ring: any): number {
       const atom1 = ring.atoms[bond.atom1];
       const atom2 = ring.atoms[bond.atom2];
       return Math.min(atom1.id, atom2.id) + 1;
+    }
+  }
+  
+  // If molecule is provided, find the numbering that gives lowest locant set for substituents
+  if (molecule) {
+    const optimalStart = findOptimalRingNumbering(ring, molecule);
+    if (optimalStart > 0) {
+      return optimalStart;
     }
   }
   
@@ -582,6 +844,32 @@ function adjustRingLocants(locants: number[], startingPosition: number): number[
   }
   
   return rotated;
+}
+
+/**
+ * Reorder ring atoms array to match the optimized numbering
+ * @param atoms - Original ring atoms array
+ * @param startingPosition - The position (1-based) that should become position 1
+ * @returns Reordered atoms array where atoms[0] is the new starting position
+ */
+function reorderRingAtoms(atoms: any[], startingPosition: number): any[] {
+  if (startingPosition === 1 || atoms.length === 0) {
+    return atoms;
+  }
+  
+  // Convert to 0-based index
+  const startIndex = startingPosition - 1;
+  
+  // Rotate the array so that startIndex becomes index 0
+  const reordered = [
+    ...atoms.slice(startIndex),
+    ...atoms.slice(0, startIndex)
+  ];
+  
+  console.log(`[Ring Reordering] Original atom IDs: [${atoms.map((a: any) => a.id).join(', ')}]`);
+  console.log(`[Ring Reordering] Reordered atom IDs: [${reordered.map((a: any) => a.id).join(', ')}] (starting from position ${startingPosition})`);
+  
+  return reordered;
 }
 
 function assignLowestAvailableLocant(usedLocants: number[], preferredLocant: number, index: number): number {
@@ -666,13 +954,13 @@ function findDuplicates(arr: number[]): number[] {
 
 /**
  * Export all numbering layer rules
+ * Note: RING_NUMBERING_RULE moved to initial-structure-layer to run before P-3.2
  */
 export const NUMBERING_LAYER_RULES: IUPACRule[] = [
   P14_2_LOWEST_LOCANT_SET_RULE,
   P14_3_PRINCIPAL_GROUP_NUMBERING_RULE,
   P14_4_MULTIPLE_BONDS_SUBSTITUENTS_RULE,
   P14_1_FIXED_LOCANTS_RULE,
-  RING_NUMBERING_RULE,
   SUBSTITUENT_NUMBERING_RULE,
   NUMBERING_COMPLETE_RULE
 ];

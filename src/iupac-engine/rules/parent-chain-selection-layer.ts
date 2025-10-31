@@ -8,7 +8,7 @@ import { ExecutionPhase } from '../immutable-context';
 import type { Chain, MultipleBond, Substituent } from '../types';
 // import utility to find substituents on a ring
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const { findSubstituents: _findSubstituents } = require('../../utils/iupac/iupac-chains');
+const { findSubstituents: _findSubstituents } = require('../naming/iupac-chains');
 
 /**
  * Find lexicographically smallest array among a list of number arrays.
@@ -55,54 +55,55 @@ function lexicographicallySmallest(sets: (number | undefined)[][]): number[] | n
 export const P44_3_1_MAX_LENGTH_RULE: IUPACRule = {
   id: 'P-44.3.1',
   name: 'Maximum Length of Continuous Chain',
-  description: 'Select the longest continuous chain of skeletal atoms',
+  description: 'Select the chain with highest score (length + substituents)',
   blueBookReference: BLUE_BOOK_RULES.P44_3_1,
   priority: 100,
-  conditions: (context: ImmutableNamingContext) => {
-    const chains = context.getState().candidateChains as Chain[];
-    return chains.length > 1;
-  },
-  action: (context: ImmutableNamingContext) => {
-    const chains = context.getState().candidateChains as Chain[];
-    let updatedContext = context;
-    if (chains.length === 0) {
-      updatedContext = updatedContext.withConflict({
-        ruleId: 'P-44.3.1',
-        conflictType: 'state_inconsistency',
-        description: 'No candidate chains found for length selection',
-        context: { chains }
-      },
-      'P-44.3.1',
-      'Maximum Length of Continuous Chain',
-      BLUE_BOOK_RULES.P44_3_1,
-      ExecutionPhase.PARENT_STRUCTURE,
-      'No candidate chains found for length selection');
-      return updatedContext;
-    }
-    const maxLength = Math.max(...chains.map(chain => chain.length));
-    const longestChains = chains.filter(chain => chain.length === maxLength);
-    updatedContext = updatedContext.withUpdatedCandidates(
-      longestChains,
-      'P-44.3.1',
-      'Maximum Length of Continuous Chain',
-      BLUE_BOOK_RULES.P44_3_1,
-      ExecutionPhase.PARENT_STRUCTURE,
-      'Filtered to longest chains'
-    );
-    updatedContext = updatedContext.withStateUpdate(
-      (state) => ({
-        ...state,
-        p44_3_1_applied: true,
-        longest_chain_length: maxLength
-      }),
-      'P-44.3.1',
-      'Maximum Length of Continuous Chain',
-      BLUE_BOOK_RULES.P44_3_1,
-      ExecutionPhase.PARENT_STRUCTURE,
-      'Set p44_3_1_applied and longest_chain_length'
-    );
-    return updatedContext;
-  }
+   conditions: (context: ImmutableNamingContext) => {
+     const chains = context.getState().candidateChains as Chain[];
+     return chains.length > 1 && !context.getState().p44_3_8_applied && !context.getState().parentStructure;
+   },
+   action: (context: ImmutableNamingContext) => {
+     const chains = context.getState().candidateChains as Chain[];
+     let updatedContext = context;
+     if (chains.length === 0) {
+       updatedContext = updatedContext.withConflict({
+         ruleId: 'P-44.3.1',
+         conflictType: 'state_inconsistency',
+         description: 'No candidate chains found for selection',
+         context: { chains }
+       },
+       'P-44.3.1',
+       'Maximum Length of Continuous Chain',
+       BLUE_BOOK_RULES.P44_3_1,
+       ExecutionPhase.PARENT_STRUCTURE,
+       'No candidate chains found for selection');
+       return updatedContext;
+     }
+     const lengths = chains.map(chain => chain.length);
+     const maxLength = Math.max(...lengths);
+     const selectedChains = chains.filter((chain, index) => lengths[index] === maxLength);
+     updatedContext = updatedContext.withUpdatedCandidates(
+       selectedChains,
+       'P-44.3.1',
+       'Maximum Length of Continuous Chain',
+       BLUE_BOOK_RULES.P44_3_1,
+       ExecutionPhase.PARENT_STRUCTURE,
+       'Filtered to chains with maximum length'
+     );
+     updatedContext = updatedContext.withStateUpdate(
+       (state) => ({
+         ...state,
+         p44_3_1_applied: true,
+         max_length: maxLength
+       }),
+       'P-44.3.1',
+       'Maximum Length of Continuous Chain',
+       BLUE_BOOK_RULES.P44_3_1,
+       ExecutionPhase.PARENT_STRUCTURE,
+       'Set p44_3_1_applied and max_length'
+     );
+     return updatedContext;
+   }
 };
 
 /**
@@ -120,8 +121,12 @@ export const P44_4_RING_VS_CHAIN_IN_CHAIN_ANALYSIS_RULE: IUPACRule = {
   description: 'Prefer ring system as parent when both ring and chain candidates exist (P-44.4)',
   blueBookReference: BLUE_BOOK_RULES.P44_4,
   priority: 110,
-  conditions: (context: ImmutableNamingContext) => {
+   conditions: (context: ImmutableNamingContext) => {
     const state = context.getState();
+    // Skip if parent structure already selected
+    if (state.parentStructure) {
+      return false;
+    }
     const candidateRings = state.candidateRings;
     const candidateChains = state.candidateChains;
     return (Array.isArray(candidateRings) && candidateRings.length > 0) && (Array.isArray(candidateChains) && candidateChains.length > 0);
@@ -185,14 +190,13 @@ export const P44_3_2_MULTIPLE_BONDS_RULE: IUPACRule = {
   description: 'Select chain with most multiple bonds (P-44.3.2)',
   blueBookReference: BLUE_BOOK_RULES.P44_3_2,
   priority: 90,
-  conditions: (context: ImmutableNamingContext) => {
-    const chains = context.getState().candidateChains as Chain[];
-    const longestLength = context.getState().longest_chain_length;
-    return chains.length > 1 &&
-           longestLength !== undefined &&
-           chains.every(chain => chain.length === longestLength) &&
-           !context.getState().p44_3_1_applied;
-  },
+   conditions: (context: ImmutableNamingContext) => {
+      const chains = context.getState().candidateChains as Chain[];
+      return chains.length > 1 &&
+             !!context.getState().p44_3_1_applied &&
+             !context.getState().p44_3_2_applied &&
+             !context.getState().parentStructure;
+    },
   action: (context: ImmutableNamingContext) => {
     const chains = context.getState().candidateChains as Chain[];
     let updatedContext = context;
@@ -253,15 +257,17 @@ export const P44_3_3_DOUBLE_BONDS_RULE: IUPACRule = {
   description: 'Select chain with most double bonds (P-44.3.3)',
   blueBookReference: BLUE_BOOK_RULES.P44_3_3,
   priority: 85,
-  conditions: (context: ImmutableNamingContext) => {
-    const chains = context.getState().candidateChains as Chain[];
-    const maxMultipleBonds = context.getState().max_multiple_bonds;
-    return chains.length > 1 &&
-           chains.every(chain =>
-             chain.multipleBonds.filter(bond => bond.type === 'double' || bond.type === 'triple').length === maxMultipleBonds
-           ) &&
-           !context.getState().p44_3_2_applied;
-  },
+   conditions: (context: ImmutableNamingContext) => {
+      const chains = context.getState().candidateChains as Chain[];
+      const maxMultipleBonds = context.getState().max_multiple_bonds;
+      return chains.length > 1 &&
+             !!context.getState().p44_3_2_applied &&
+             chains.every(chain =>
+               chain.multipleBonds.filter(bond => bond.type === 'double' || bond.type === 'triple').length === maxMultipleBonds
+             ) &&
+             !context.getState().p44_3_3_applied &&
+             !context.getState().parentStructure;
+    },
   action: (context: ImmutableNamingContext) => {
     const chains = context.getState().candidateChains as Chain[];
     let updatedContext = context;
@@ -322,15 +328,17 @@ export const P44_3_4_MULTIPLE_BOND_LOCANTS_RULE: IUPACRule = {
   description: 'Select chain with lowest locants for multiple bonds (P-44.3.4)',
   blueBookReference: BLUE_BOOK_RULES.P44_3_4,
   priority: 80,
-  conditions: (context: ImmutableNamingContext) => {
-    const chains = context.getState().candidateChains as Chain[];
-    const maxDoubleBonds = context.getState().max_double_bonds;
-    return chains.length > 1 &&
-           chains.every(chain =>
-             chain.multipleBonds.filter(bond => bond.type === 'double').length === maxDoubleBonds
-           ) &&
-           !context.getState().p44_3_3_applied;
-  },
+   conditions: (context: ImmutableNamingContext) => {
+      const chains = context.getState().candidateChains as Chain[];
+      const maxDoubleBonds = context.getState().max_double_bonds;
+      return chains.length > 1 &&
+             !!context.getState().p44_3_3_applied &&
+             chains.every(chain =>
+               chain.multipleBonds.filter(bond => bond.type === 'double').length === maxDoubleBonds
+             ) &&
+             !context.getState().p44_3_4_applied &&
+             !context.getState().parentStructure;
+    },
   action: (context: ImmutableNamingContext) => {
     const chains = context.getState().candidateChains as Chain[];
     let updatedContext = context;
@@ -401,13 +409,15 @@ export const P44_3_5_DOUBLE_BOND_LOCANTS_RULE: IUPACRule = {
   description: 'Select chain with lowest locants for double bonds (P-44.3.5)',
   blueBookReference: BLUE_BOOK_RULES.P44_3_5,
   priority: 75,
-  conditions: (context: ImmutableNamingContext) => {
-    const chains = context.getState().candidateChains as Chain[];
-    const lowestMultipleBondLocants = context.getState().lowest_multiple_bond_locants;
-    return chains.length > 1 &&
-           !!lowestMultipleBondLocants &&
-           !context.getState().p44_3_4_applied;
-  },
+   conditions: (context: ImmutableNamingContext) => {
+      const chains = context.getState().candidateChains as Chain[];
+      const lowestMultipleBondLocants = context.getState().lowest_multiple_bond_locants;
+      return chains.length > 1 &&
+             !!context.getState().p44_3_4_applied &&
+             !!lowestMultipleBondLocants &&
+             !context.getState().p44_3_5_applied &&
+             !context.getState().parentStructure;
+    },
   action: (context: ImmutableNamingContext) => {
     const chains = context.getState().candidateChains as Chain[];
     let updatedContext = context;
@@ -471,15 +481,15 @@ export const P44_3_5_DOUBLE_BOND_LOCANTS_RULE: IUPACRule = {
  * If still tied, choose the chain with the greatest number of substituents.
  */
 export const P44_3_6_SUBSTITUENTS_RULE: IUPACRule = {
-  id: 'P-44.3.6',
-  name: 'Greatest Number of Substituents',
-  description: 'Select chain with most substituents (P-44.3.6)',
-  blueBookReference: BLUE_BOOK_RULES.P44_3_6,
-  priority: 70,
-  conditions: (context: ImmutableNamingContext) => {
-    const chains = context.getState().candidateChains as Chain[];
-    return chains.length > 1;
-  },
+   id: 'P-44.3.6',
+   name: 'Greatest Number of Substituents',
+   description: 'Select chain with most substituents (P-44.3.6)',
+   blueBookReference: BLUE_BOOK_RULES.P44_3_6,
+   priority: 70,
+    conditions: (context: ImmutableNamingContext) => {
+      const chains = context.getState().candidateChains as Chain[];
+      return chains.length > 1 && !!context.getState().p44_3_5_applied && !context.getState().p44_3_6_applied && !context.getState().parentStructure;
+    },
   action: (context: ImmutableNamingContext) => {
     const chains = context.getState().candidateChains as Chain[];
     let updatedContext = context;
@@ -538,13 +548,15 @@ export const P44_3_7_SUBSTITUENT_LOCANTS_RULE: IUPACRule = {
   description: 'Select chain with lowest locants for substituents (P-44.3.7)',
   blueBookReference: BLUE_BOOK_RULES.P44_3_7,
   priority: 65,
-  conditions: (context: ImmutableNamingContext) => {
-    const chains = context.getState().candidateChains as Chain[];
-    const maxSubstituents = context.getState().max_substituents;
-    return chains.length > 1 &&
-           chains.every(chain => chain.substituents.length === maxSubstituents) &&
-           !context.getState().p44_3_6_applied;
-  },
+   conditions: (context: ImmutableNamingContext) => {
+      const chains = context.getState().candidateChains as Chain[];
+      const maxSubstituents = context.getState().max_substituents;
+      return chains.length > 1 &&
+             !!context.getState().p44_3_6_applied &&
+             chains.every(chain => chain.substituents.length === maxSubstituents) &&
+             !context.getState().p44_3_7_applied &&
+             !context.getState().parentStructure;
+    },
   action: (context: ImmutableNamingContext) => {
     const chains = context.getState().candidateChains as Chain[];
     let updatedContext = context;
@@ -562,21 +574,21 @@ export const P44_3_7_SUBSTITUENT_LOCANTS_RULE: IUPACRule = {
       'No candidate chains found for substituent locant selection');
       return updatedContext;
     }
-    // Get locant sets for substituents for each chain
-    const substituentLocantSets: number[][] = chains.map((chain: Chain) => {
-      return chain.substituents
-        .map(substituent => substituent.locant ?? 0)
-        .sort((a, b) => a - b);
-    });
-    // Find the lexicographically smallest substituent locant set
-    const lowestSubstituentLocantSet = lexicographicallySmallest(substituentLocantSets);
-    // Find chains with this locant set
-    const chainsWithLowestSubstituentLocants = chains.filter((chain: Chain, index: number) => {
-      const chainLocants = substituentLocantSets[index] || [];
-      return lowestSubstituentLocantSet !== null &&
-             chainLocants.length === lowestSubstituentLocantSet.length &&
-             chainLocants.every((locant, i) => locant === lowestSubstituentLocantSet[i]);
-    });
+      // Get locant sets for substituents for each chain
+      const substituentLocantSets: number[][] = chains.map((chain: Chain) => {
+        return chain.substituents
+          .map(substituent => substituent.locant ?? 0)
+          .sort((a, b) => a - b);
+      });
+      // Find the lexicographically smallest substituent locant set
+      const lowestSubstituentLocantSet = lexicographicallySmallest(substituentLocantSets);
+      // Find chains with this locant set
+      const chainsWithLowestSubstituentLocants = chains.filter((chain: Chain, index: number) => {
+        const chainLocants = substituentLocantSets[index] || [];
+        return lowestSubstituentLocantSet !== null &&
+               chainLocants.length === lowestSubstituentLocantSet.length &&
+               chainLocants.every((locant, i) => locant === lowestSubstituentLocantSet[i]);
+      });
     updatedContext = updatedContext.withUpdatedCandidates(
       chainsWithLowestSubstituentLocants,
       'P-44.3.7',
@@ -723,20 +735,22 @@ export const PARENT_CHAIN_SELECTION_COMPLETE_RULE: IUPACRule = {
     }
     // Select the final parent chain
     const parentChain = chains[0] as Chain;
+    console.log(`Final selected parentChain atoms: ${parentChain.atoms.map(a => a.id)}, substituents: ${JSON.stringify(parentChain.substituents)}`);
     // Create parent structure
     const parentStructure = {
       type: 'chain' as const,
       chain: parentChain,
       name: generateChainName(parentChain),
-      locants: parentChain.locants
+      locants: parentChain.locants,
+      substituents: parentChain.substituents || []
     };
     updatedContext = updatedContext.withParentStructure(
       parentStructure,
-      'parent-chain-selection-complete',
-      'Parent Chain Selection Complete',
-      'P-44.3 - Chain seniority hierarchy',
+      'P-44.3.8',
+      'Lowest Alphabetical Locant',
+      BLUE_BOOK_RULES.P44_3_8,
       ExecutionPhase.PARENT_STRUCTURE,
-      'Set parent structure to selected chain'
+      'Selected chain with lowest alphabetical locant'
     );
     return updatedContext;
   }
@@ -746,6 +760,7 @@ export const PARENT_CHAIN_SELECTION_COMPLETE_RULE: IUPACRule = {
  * Helper function to generate chain name from chain object
  */
 export function generateChainName(chain: Chain): string {
+  if (process.env.VERBOSE) console.log(`[generateChainName] called with chain.length=${chain.length}, chain.substituents=${JSON.stringify(chain.substituents)}`);
   const length = chain.length;
   // Base chain names
   const chainNames = [
@@ -811,11 +826,16 @@ export function generateChainName(chain: Chain): string {
       else if (tripleCount > 0 && doubleCount === 0) baseName = `${root}-yne`;
       else baseName = `${root}-en-yne`;
     } else {
+      // IUPAC rule: Add "a" to root when multiple unsaturations (diene, triene, diyne, etc.)
+      // Examples: buta-1,3-diene, hexa-1,3,5-triene
+      const hasMultipleUnsaturations = doubleCount > 1 || tripleCount > 1 || (doubleCount > 0 && tripleCount > 0);
+      const rootWithA = hasMultipleUnsaturations ? `${root}a` : root;
+      
       // If unsaturation suffix begins with a digit (locant), insert hyphen
       if (unsatSuffix.match(/^\d/)) {
-        baseName = `${root}-${unsatSuffix}`;
+        baseName = `${rootWithA}-${unsatSuffix}`;
       } else {
-        baseName = `${root}${unsatSuffix}`;
+        baseName = `${rootWithA}${unsatSuffix}`;
       }
     }
   }
@@ -826,6 +846,7 @@ export function generateChainName(chain: Chain): string {
     const substituentMap: Record<string, number[]> = {};
     chain.substituents.forEach(sub => {
       if (sub && sub.type && typeof sub.locant === 'number') {
+  if (process.env.VERBOSE) console.log(`[generateChainName] substituent: ${sub.type}, locant: ${sub.locant}`);
   if (!substituentMap[sub.type]) substituentMap[sub.type] = [];
   substituentMap[sub.type]!.push(sub.locant);
       }
@@ -879,8 +900,13 @@ export const P44_2_RING_SENIORITY_RULE: IUPACRule = {
   description: 'Prefer ring systems over chains when applicable',
   blueBookReference: BLUE_BOOK_RULES.P44_2,
   priority: 110, // Higher than chain rules
-  conditions: (context) => {
-    const rings = context.getState().candidateRings;
+   conditions: (context) => {
+    const state = context.getState();
+    // Skip if parent structure already selected
+    if (state.parentStructure) {
+      return false;
+    }
+    const rings = state.candidateRings;
     return rings && rings.length > 0;
   },
   action: (context) => {

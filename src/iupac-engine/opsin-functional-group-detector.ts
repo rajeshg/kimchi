@@ -41,6 +41,13 @@ export class OPSINFunctionalGroupDetector {
 
         for (const [pattern, data] of Object.entries(this.rules.functionalGroups)) {
           const entry: any = data || {};
+          
+          // Skip halogens - they are substituents, not functional groups
+          // Halogens are: F, Cl, Br, I
+          if (pattern === 'F' || pattern === 'Cl' || pattern === 'Br' || pattern === 'I') {
+            continue;
+          }
+          
           const name = Array.isArray(entry.aliases) && entry.aliases.length > 0 ? entry.aliases[0] : (entry.name || pattern);
           const priority = priorityMap[name.toLowerCase()] || (entry.priority as number) || 999;
           const suffix = entry.suffix || '';
@@ -132,6 +139,7 @@ export class OPSINFunctionalGroupDetector {
     
     const atoms = molecule.atoms;
     const bonds = molecule.bonds;
+    const checkedPatterns = new Set<string>();
     
     // First, run a set of built-in high-priority detectors to ensure common groups
     // (carboxylic acid, aldehyde, ketone, alcohol, amine, ester, amide, nitrile)
@@ -151,6 +159,8 @@ export class OPSINFunctionalGroupDetector {
       try {
         const atomsMatched = check.finder(atoms, bonds);
         if (atomsMatched && atomsMatched.length > 0) {
+          checkedPatterns.add(check.pattern);
+          
           // Ensure the functionalGroups map contains this pattern so downstream
           // name generation can look up suffix/priority by type.
           if (!this.functionalGroups.has(check.pattern)) {
@@ -174,22 +184,41 @@ export class OPSINFunctionalGroupDetector {
 
           const fgEntry = this.functionalGroups.get(check.pattern) as any;
 
-          detectedGroups.push({
-            type: check.pattern,
-            name: fgEntry?.name || check.name,
-            suffix: fgEntry?.suffix || '',
-            priority: fgEntry?.priority || check.priority,
-            atoms: atomsMatched,
-            pattern: check.pattern
-          });
+          // Special case: For ethers, create one functional group per oxygen atom
+          // since each ether oxygen should be independently convertible to alkoxy
+          if (check.pattern === 'ROR' && atomsMatched.length > 1) {
+            for (const oxygenId of atomsMatched) {
+              detectedGroups.push({
+                type: check.pattern,
+                name: fgEntry?.name || check.name,
+                suffix: fgEntry?.suffix || '',
+                priority: fgEntry?.priority || check.priority,
+                atoms: [oxygenId],
+                pattern: check.pattern
+              });
+            }
+          } else {
+            detectedGroups.push({
+              type: check.pattern,
+              name: fgEntry?.name || check.name,
+              suffix: fgEntry?.suffix || '',
+              priority: fgEntry?.priority || check.priority,
+              atoms: atomsMatched,
+              pattern: check.pattern
+            });
+          }
         }
       } catch (e) {
         // ignore finder errors for robustness
       }
     }
 
-    // Check each functional group pattern from OPSIN rules
+    // Check each functional group pattern from OPSIN rules (skip already checked patterns)
     for (const [pattern, groupData] of this.functionalGroups.entries()) {
+      if (checkedPatterns.has(pattern)) {
+        continue;
+      }
+      
       const matches = this.matchPattern(molecule, pattern);
       if (matches.length > 0) {
         detectedGroups.push({
@@ -203,7 +232,28 @@ export class OPSINFunctionalGroupDetector {
       }
     }
     
-    // Sort by priority (lower number = higher priority)
+    // Deduplicate functional groups by removing lower-priority groups that match the same atoms
+    const deduplicated: typeof detectedGroups = [];
+    const atomsUsed = new Set<number>();
+    
+    // Sort by priority first (lower number = higher priority)
+    detectedGroups.sort((a, b) => a.priority - b.priority);
+    
+    for (const group of detectedGroups) {
+      const groupAtomSet = new Set(group.atoms);
+      const hasOverlap = group.atoms.some(atomId => atomsUsed.has(atomId));
+      
+      if (!hasOverlap) {
+        // No overlap with higher-priority groups, keep this one
+        deduplicated.push(group);
+        group.atoms.forEach(atomId => atomsUsed.add(atomId));
+      }
+    }
+    
+    // Replace detectedGroups with deduplicated list
+    detectedGroups.length = 0;
+    detectedGroups.push(...deduplicated);
+    
     // Post-process adjustments: handle ambiguous C=O matches where OPSIN may
     // classify as ketone but the local molecule is terminal (aldehyde).
     for (const g of detectedGroups) {
@@ -235,14 +285,12 @@ export class OPSINFunctionalGroupDetector {
       }
     }
 
-    // Debug: print detected groups and priorities for troubleshooting
-    try {
+    // Debug output only when VERBOSE is set
+    if (process.env.VERBOSE) {
       console.log('Detected functional groups:');
       for (const g of detectedGroups) {
         console.log(`  Pattern: ${g.pattern}, Name: ${g.name}, Priority: ${g.priority}, Atoms: ${g.atoms.join(',')}`);
       }
-    } catch (e) {
-      // ignore logging failures
     }
 
     detectedGroups.sort((a, b) => a.priority - b.priority);
@@ -457,7 +505,9 @@ export class OPSINFunctionalGroupDetector {
   }
 
   private findEtherPattern(atoms: readonly any[], bonds: readonly any[]): number[] {
-    // Look for oxygen bonded to two carbons (ROR)
+    // Look for ALL oxygens bonded to two carbons (ROR)
+    const etherOxygens: number[] = [];
+    
     for (let i = 0; i < atoms.length; i++) {
       const atom = atoms[i];
       if (atom.symbol !== 'O') continue;
@@ -480,11 +530,11 @@ export class OPSINFunctionalGroupDetector {
         });
 
         if (!isPartOfCarbonyl) {
-          return [atom.id];
+          etherOxygens.push(atom.id);
         }
       }
     }
-    return [];
+    return etherOxygens;
   }
   
   private findNitrilePattern(atoms: readonly any[], bonds: readonly any[]): number[] {

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'bun:test';
 import { parseSMILES } from 'index';
-import { findMainChain, generateChainBaseName, findLongestCarbonChain } from 'src/utils/iupac/iupac-chains';
+import { findMainChain, generateChainBaseName, findLongestCarbonChain } from 'src/iupac-engine/naming/iupac-chains';
 
 describe('IUPAC strict extended tests', () => {
   it('handles conjugated dienes and picks lowest locants (C=CC=CC)', () => {

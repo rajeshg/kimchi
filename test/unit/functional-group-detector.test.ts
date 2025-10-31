@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'bun:test';
 import { parseSMILES } from 'index';
-import { findLongestCarbonChain } from 'src/utils/iupac/iupac-chains';
-import { getChainFunctionalGroupPriority } from 'src/utils/iupac/functional-group-detector';
+import { findLongestCarbonChain, getChainFunctionalGroupPriority } from 'src/iupac-engine/naming/iupac-chains';
 
 describe('functional group detector', () => {
   it('detects carboxylic acid priority (6) for CC(=O)O', () => {

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'bun:test';
 import { parseSMILES } from 'index';
-import { findMainChain, getChainFunctionalGroupPriority } from 'src/utils/iupac/iupac-chains';
+import { findMainChain, getChainFunctionalGroupPriority } from 'src/iupac-engine/naming/iupac-chains';
 
 describe('IUPAC functional-group priority (extended)', () => {
   const cases: { smiles: string; name: string; minPriority: number }[] = [

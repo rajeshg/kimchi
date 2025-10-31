@@ -1,6 +1,9 @@
 import type { IUPACRule } from '../types';
 import { BLUE_BOOK_RULES } from '../types';
 import { ExecutionPhase } from '../immutable-context';
+import { classifyRingSystems, analyzeRings } from '../../utils/ring-analysis';
+import type { Molecule } from '../../../types';
+import { BondType } from '../../../types';
 
 /**
  * Ring Analysis Layer Rules (P-44.2, P-44.4)
@@ -25,11 +28,8 @@ export const P44_2_1_RING_SYSTEM_DETECTION_RULE: IUPACRule = {
   blueBookReference: BLUE_BOOK_RULES.P44_2,
   priority: 100,
   conditions: (context) => {
-    // Check if molecule has rings (prefer parser-provided ring arrays when available)
-    const molecule = context.getState().molecule;
-    return (!!molecule.rings && molecule.rings.length > 0) ||
-      molecule.atoms.some((atom: any) => atom.isInRing) ||
-      molecule.bonds.some((bond: any) => (bond as any).ring !== undefined);
+    // Always run ring detection to ensure rings are found
+    return true;
   },
   action: (context) => {
     const molecule = context.getState().molecule;
@@ -200,55 +200,13 @@ export const P44_2_4_MAXIMUM_RINGS_RULE: IUPACRule = {
   }
 };
 
-/**
- * Rule: P-44.4 - Ring vs Chain Selection
- * 
- * Determine whether to use ring system or chain as parent structure.
- * Ring systems generally have seniority over chains.
- */
-export const P44_4_RING_CHAIN_SELECTION_RULE: IUPACRule = {
-  id: 'P-44.4',
-  name: 'Ring vs Chain Selection',
-  description: 'Select ring system over chain when both are present (P-44.4)',
-  blueBookReference: BLUE_BOOK_RULES.P44_4,
-  priority: 60,
-  conditions: (context) => {
-    const candidateRings = context.getState().candidateRings;
-    const candidateChains = context.getState().candidateChains;
-    return (candidateRings && candidateRings.length > 0) &&
-           (candidateChains && candidateChains.length > 0);
-  },
-  action: (context) => {
-    const candidateRings = context.getState().candidateRings;
-    const candidateChains = context.getState().candidateChains;
-    
-    if (!candidateRings || !candidateChains) {
-      return context;
-    }
-    
-    // According to P-44.4, ring systems generally take precedence over chains
-    const parentStructure = {
-      type: 'ring' as const,
-      ring: candidateRings[0],
-      name: generateRingName(candidateRings[0]),
-      locants: generateRingLocants(candidateRings[0])
-    };
-    
-    return context.withParentStructure(
-      parentStructure,
-      'P-44.4',
-      'Ring vs Chain Selection',
-      'P-44.4',
-      ExecutionPhase.PARENT_STRUCTURE,
-      'Selected ring system as parent structure over chain'
-    );
-  }
-};
+
 
 /**
  * Rule: Parent Ring Selection Complete
  * 
  * Finalizes ring system selection and sets the parent structure.
+ * This rule should NOT run if there's a heteroatom parent candidate (P-2.1 takes priority).
  */
 export const RING_SELECTION_COMPLETE_RULE: IUPACRule = {
   id: 'ring-selection-complete',
@@ -258,7 +216,45 @@ export const RING_SELECTION_COMPLETE_RULE: IUPACRule = {
   priority: 50,
   conditions: (context) => {
     const candidateRings = context.getState().candidateRings;
-    return candidateRings && candidateRings.length > 0 && !context.getState().parentStructure;
+    if (!candidateRings || candidateRings.length === 0 || context.getState().parentStructure) {
+      return false;
+    }
+
+    // P-2.1 has priority: check if there's a heteroatom parent candidate
+    // Heteroatom parents: Si, Ge, Sn, Pb (valence 4), P, As, Sb, Bi (valence 3)
+    const molecule = context.getState().molecule;
+    const HETEROATOM_HYDRIDES = ['Si', 'Ge', 'Sn', 'Pb', 'P', 'As', 'Sb', 'Bi'];
+    const EXPECTED_VALENCE: Record<string, number> = {
+      'Si': 4, 'Ge': 4, 'Sn': 4, 'Pb': 4,
+      'P': 3, 'As': 3, 'Sb': 3, 'Bi': 3
+    };
+
+    const heteroatoms = molecule.atoms.filter(atom =>
+      HETEROATOM_HYDRIDES.includes(atom.symbol)
+    );
+
+    // If exactly one heteroatom with correct valence exists, P-2.1 should handle it
+    if (heteroatoms.length === 1) {
+      const heteroatom = heteroatoms[0]!;
+      const implicitHydrogens = heteroatom.hydrogens || 0;
+      const heteroatomIndex = molecule.atoms.indexOf(heteroatom);
+      const bondOrders = molecule.bonds
+        .filter(bond => bond.atom1 === heteroatomIndex || bond.atom2 === heteroatomIndex)
+        .reduce((sum, bond) => {
+          const order = bond.type === 'single' ? 1 : bond.type === 'double' ? 2 : bond.type === 'triple' ? 3 : 1;
+          return sum + order;
+        }, 0);
+      const totalValence = bondOrders + implicitHydrogens;
+      const expectedValence = EXPECTED_VALENCE[heteroatom.symbol];
+
+      if (totalValence === expectedValence) {
+        // Heteroatom parent is present - let P-2.1 handle it
+        if (process.env.VERBOSE) console.log('Ring selection: deferring to P-2.1 heteroatom parent');
+        return false;
+      }
+    }
+
+    return true;
   },
   action: (context) => {
     const candidateRings = context.getState().candidateRings;
@@ -328,26 +324,48 @@ function detectRingSystems(molecule: any): any[] {
     return ringSystems;
   }
 
-  // Fallback: group by atoms marked as in-ring
-  const ringAtoms = molecule.atoms.filter((atom: any) => atom.isInRing);
-  if (ringAtoms.length === 0) return ringSystems;
+  // Fallback: use ring analysis to detect rings
+  const ringInfo = analyzeRings(molecule);
+  if (ringInfo.rings.length === 0) return ringSystems;
 
-  const visited = new Set<number>();
-  for (const atom of ringAtoms) {
-    if (visited.has(atom.id)) continue;
-    const ringSystem = exploreRingSystem(atom, molecule, visited);
-    if (ringSystem.atoms.length >= 3) {
-      ringSystems.push({
-        atoms: ringSystem.atoms,
-        bonds: ringSystem.bonds,
-        rings: [ringSystem],
-        size: ringSystem.atoms.length,
-        heteroatoms: ringSystem.atoms.filter((a: any) => a.symbol !== 'C'),
-        type: determineRingType(ringSystem),
+  for (const ring of ringInfo.rings) {
+    const atoms = ring.map((i: number) => molecule.atoms[i]).filter(Boolean);
+    if (atoms.length < 3) continue;
+    const bonds = molecule.bonds.filter((b: any) => ring.includes(b.atom1) && ring.includes(b.atom2));
+    const ringObj = { atoms, bonds, rings: [ring], size: atoms.length };
+    ringSystems.push({
+      atoms: ringObj.atoms,
+      bonds: ringObj.bonds,
+      rings: [ringObj.atoms],
+      size: ringObj.size,
+      heteroatoms: ringObj.atoms.filter((a: any) => a.symbol !== 'C'),
+      type: determineRingType(ringObj),
+      fused: false,
+      bridged: false,
+      spiro: false
+    });
+  }
+
+  // Fallback heuristic for simple rings: if single bonds == carbon count, assume single ring
+  if (ringSystems.length === 0) {
+    const carbonCount = molecule.atoms.filter((a: any) => a.symbol === 'C').length;
+    const singleBonds = molecule.bonds.filter((b: any) => b.type === 'single');
+    if (singleBonds.length === carbonCount) {
+      const carbonAtoms = molecule.atoms.filter((a: any) => a.symbol === 'C');
+      const carbonBonds = molecule.bonds.filter((b: any) => b.type === 'single' && molecule.atoms[b.atom1].symbol === 'C' && molecule.atoms[b.atom2].symbol === 'C');
+      const hasAromatic = carbonAtoms.some((a: any) => a.aromatic);
+      const ringSystem = {
+        atoms: carbonAtoms,
+        bonds: carbonBonds,
+        rings: [carbonAtoms.map((a: any) => a.id)],
+        size: carbonCount,
+        heteroatoms: [],
+        type: hasAromatic ? 'aromatic' : 'aliphatic',
         fused: false,
         bridged: false,
         spiro: false
-      });
+      };
+      ringSystems.push(ringSystem);
     }
   }
 
@@ -413,6 +431,57 @@ function determineRingType(ringSystem: any): string {
 function generateRingName(ringSystem: any): string {
   const size = ringSystem.size;
   const type = ringSystem.type;
+  const atoms = ringSystem.atoms || [];
+  
+  // Check for heterocycles first (3-6 membered rings with one heteroatom)
+  if (atoms.length >= 3 && atoms.length <= 6) {
+    const heteroCount: Record<string, number> = {};
+    for (const atom of atoms) {
+      if (atom && atom.symbol && atom.symbol !== 'C') {
+        heteroCount[atom.symbol] = (heteroCount[atom.symbol] || 0) + 1;
+      }
+    }
+    
+    const hasOxygen = heteroCount['O'] || 0;
+    const hasNitrogen = heteroCount['N'] || 0;
+    const hasSulfur = heteroCount['S'] || 0;
+    const totalHetero = hasOxygen + hasNitrogen + hasSulfur;
+    
+    // Only name simple heterocycles (one heteroatom)
+    if (totalHetero === 1) {
+      // Check if saturated (no double bonds in ring)
+      const molecule = { atoms, bonds: ringSystem.bonds || [] };
+      const ringIndices = atoms.map((atom: any) => atom.id);
+      const isSaturated = !ringIndices.some((atomIdx: number) => {
+        return (ringSystem.bonds || []).some((bond: any) => {
+          const isInRing = (ringIndices.includes(bond.atom1) && ringIndices.includes(bond.atom2));
+          return isInRing && bond.type === BondType.DOUBLE;
+        });
+      });
+      
+      if (isSaturated) {
+        // 3-membered rings
+        if (size === 3 && hasOxygen === 1) return 'oxirane';
+        if (size === 3 && hasNitrogen === 1) return 'azirane';
+        if (size === 3 && hasSulfur === 1) return 'thiirane';
+        
+        // 4-membered rings
+        if (size === 4 && hasOxygen === 1) return 'oxetane';
+        if (size === 4 && hasNitrogen === 1) return 'azetidine';
+        if (size === 4 && hasSulfur === 1) return 'thietane';
+        
+        // 5-membered rings
+        if (size === 5 && hasOxygen === 1) return 'oxolane';
+        if (size === 5 && hasNitrogen === 1) return 'pyrrolidine';
+        if (size === 5 && hasSulfur === 1) return 'thiolane';
+        
+        // 6-membered rings
+        if (size === 6 && hasOxygen === 1) return 'oxane';
+        if (size === 6 && hasNitrogen === 1) return 'piperidine';
+        if (size === 6 && hasSulfur === 1) return 'thiane';
+      }
+    }
+  }
   
   if (type === 'aromatic') {
     const aromaticNames: { [key: number]: string } = {
@@ -438,6 +507,187 @@ function generateRingLocants(ringSystem: any): number[] {
 }
 
 /**
+ * Rule: P-2.3 - Ring Assemblies (von Baeyer System)
+ *
+ * For bridged polycyclic compounds, use the von Baeyer system with bicyclo[x.y.z]alkane notation.
+ * This applies to compounds that are not fused or spiro.
+ */
+export const P2_3_RING_ASSEMBLIES_RULE: IUPACRule = {
+  id: 'P-2.3',
+  name: 'Ring Assemblies (von Baeyer System)',
+  description: 'Apply von Baeyer bicyclo/tricyclo nomenclature for bridged systems (P-2.3)',
+  blueBookReference: BLUE_BOOK_RULES.P2_3,
+  priority: 75,
+  conditions: (context) => {
+    const candidateRings = context.getState().candidateRings;
+    return candidateRings && candidateRings.length > 1 && !context.getState().parentStructure;
+  },
+  action: (context) => {
+    const candidateRings = context.getState().candidateRings;
+    if (!candidateRings || candidateRings.length <= 1) {
+      return context;
+    }
+
+    // Check if this is a bridged system (not fused, not spiro)
+    const ringClassification = classifyRingSystems(context.getState().molecule.atoms, context.getState().molecule.bonds);
+    if (ringClassification.bridged.length > 0) {
+      // Generate bicyclo/tricyclo name
+      const bridgedName = generateBridgedPolycyclicName(ringClassification.bridged, context.getState().molecule);
+
+      if (bridgedName) {
+        const parentStructure = {
+          type: 'ring' as const,
+          ring: candidateRings[0], // Use first ring as representative
+          name: bridgedName,
+          locants: generateRingLocants(candidateRings[0])
+        };
+
+        return context.withParentStructure(
+          parentStructure,
+          'P-2.3',
+          'Ring Assemblies',
+          'P-2.3',
+          ExecutionPhase.PARENT_STRUCTURE,
+          `Applied von Baeyer system: ${bridgedName}`
+        );
+      }
+    }
+
+    return context;
+  }
+};
+
+/**
+ * Rule: P-2.4 - Spiro Compounds
+ *
+ * For spiro compounds, use spiro[x.y]alkane notation where x and y are ring sizes
+ * excluding the spiro atom, in ascending order.
+ */
+export const P2_4_SPIRO_COMPOUNDS_RULE: IUPACRule = {
+  id: 'P-2.4',
+  name: 'Spiro Compounds',
+  description: 'Apply spiro[x.y]alkane nomenclature for spiro systems (P-2.4)',
+  blueBookReference: BLUE_BOOK_RULES.P2_4,
+  priority: 74,
+  conditions: (context) => {
+    const candidateRings = context.getState().candidateRings;
+    return candidateRings && candidateRings.length > 1 && !context.getState().parentStructure;
+  },
+  action: (context) => {
+    const candidateRings = context.getState().candidateRings;
+    if (!candidateRings || candidateRings.length <= 1) {
+      return context;
+    }
+
+    // Check if this is a spiro system
+    const ringClassification = classifyRingSystems(context.getState().molecule.atoms, context.getState().molecule.bonds);
+    if (ringClassification.spiro.length > 0) {
+      // Generate spiro name
+      const spiroName = generateSpiroPolycyclicName(ringClassification.spiro, context.getState().molecule);
+
+      if (spiroName) {
+        const parentStructure = {
+          type: 'ring' as const,
+          ring: candidateRings[0], // Use first ring as representative
+          name: spiroName,
+          locants: generateRingLocants(candidateRings[0])
+        };
+
+        return context.withParentStructure(
+          parentStructure,
+          'P-2.4',
+          'Spiro Compounds',
+          'P-2.4',
+          ExecutionPhase.PARENT_STRUCTURE,
+          `Applied spiro nomenclature: ${spiroName}`
+        );
+      }
+    }
+
+    return context;
+  }
+};
+
+/**
+ * Rule: P-2.5 - Fused Ring Systems
+ *
+ * For fused polycyclic aromatic and aliphatic systems, use fusion nomenclature
+ * with appropriate parent ring selection.
+ */
+export const P2_5_FUSED_RING_SYSTEMS_RULE: IUPACRule = {
+  id: 'P-2.5',
+  name: 'Fused Ring Systems',
+  description: 'Apply fusion nomenclature for fused polycyclic systems (P-2.5)',
+  blueBookReference: BLUE_BOOK_RULES.P2_5,
+  priority: 73,
+  conditions: (context) => {
+    const candidateRings = context.getState().candidateRings;
+    return candidateRings && candidateRings.length > 1 && !context.getState().parentStructure;
+  },
+  action: (context) => {
+    const candidateRings = context.getState().candidateRings;
+    if (!candidateRings || candidateRings.length <= 1) {
+      return context;
+    }
+
+    // Check if this is a fused system
+    const ringClassification = classifyRingSystems(context.getState().molecule.atoms, context.getState().molecule.bonds);
+    if (ringClassification.fused.length > 0) {
+      // Generate fused system name
+      const fusedName = generateFusedPolycyclicName(ringClassification.fused, context.getState().molecule);
+
+      if (fusedName) {
+        const parentStructure = {
+          type: 'ring' as const,
+          ring: candidateRings[0], // Use first ring as representative
+          name: fusedName,
+          locants: generateRingLocants(candidateRings[0])
+        };
+
+        return context.withParentStructure(
+          parentStructure,
+          'P-2.5',
+          'Fused Ring Systems',
+          'P-2.5',
+          ExecutionPhase.PARENT_STRUCTURE,
+          `Applied fusion nomenclature: ${fusedName}`
+        );
+      }
+    }
+
+    return context;
+  }
+};
+
+/**
+ * Helper function to generate von Baeyer bicyclo/tricyclo names
+ */
+function generateBridgedPolycyclicName(bridgedRings: number[][], molecule: any): string | null {
+  // Use the engine's own naming function
+  const { generateClassicPolycyclicName } = require('../naming/iupac-rings/utils');
+  return generateClassicPolycyclicName(molecule, bridgedRings);
+}
+
+/**
+ * Helper function to generate spiro names
+ */
+function generateSpiroPolycyclicName(spiroRings: number[][], molecule: any): string | null {
+  // Use the engine's own naming function
+  const { generateSpiroName } = require('../naming/iupac-rings/index');
+  return generateSpiroName(spiroRings, molecule);
+}
+
+/**
+ * Helper function to generate fused system names
+ */
+function generateFusedPolycyclicName(fusedRings: number[][], molecule: any): string | null {
+  // For now, delegate to existing fused naming logic
+  // This could be enhanced with specific P-2.5 rules
+  const { identifyPolycyclicPattern } = require('../naming/iupac-rings/index');
+  return identifyPolycyclicPattern(fusedRings, molecule);
+}
+
+/**
  * Export all ring analysis layer rules
  */
 export const RING_ANALYSIS_LAYER_RULES: IUPACRule[] = [
@@ -445,6 +695,8 @@ export const RING_ANALYSIS_LAYER_RULES: IUPACRule[] = [
   P44_2_2_HETEROATOM_SENIORITY_RULE,
   P44_2_3_RING_SIZE_SENIORITY_RULE,
   P44_2_4_MAXIMUM_RINGS_RULE,
-  P44_4_RING_CHAIN_SELECTION_RULE,
+  P2_3_RING_ASSEMBLIES_RULE,
+  P2_4_SPIRO_COMPOUNDS_RULE,
+  P2_5_FUSED_RING_SYSTEMS_RULE,
   RING_SELECTION_COMPLETE_RULE
 ];

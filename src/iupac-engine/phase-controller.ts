@@ -15,6 +15,7 @@ export class PhaseController {
     contract: LayerContract
   ) {
     this.rules = rules.sort((a, b) => a.priority - b.priority);
+    console.log('Sorted rules:', this.rules.map(r => ({id: r.id, priority: r.priority})));
     this.contract = contract;
   }
   

@@ -115,9 +115,10 @@ export interface Ring {
 }
 
 export interface ParentStructure {
-  type: 'chain' | 'ring';
+  type: 'chain' | 'ring' | 'heteroatom';
   chain?: Chain;
   ring?: RingSystem;
+  heteroatom?: Atom;
   name: string;
   locants: number[];
 }
@@ -197,9 +198,13 @@ export const BLUE_BOOK_RULES = {
   P51_3: 'P-51.3', // Skeletal replacement nomenclature
   P51_4: 'P-51.4', // Multiplicative nomenclature
   
-  P44_1: 'P-44.1', // Principal characteristic group
-  P44_2: 'P-44.2', // Ring system seniority
-  P44_4: 'P-44.4', // Ring vs chain criteria
-  
-  P14_4: 'P-14.4' // Numbering for substituents
+   P44_1: 'P-44.1', // Principal characteristic group
+   P44_2: 'P-44.2', // Ring system seniority
+   P44_4: 'P-44.4', // Ring vs chain criteria
+
+   P2_3: 'P-2.3', // Ring assemblies (von Baeyer system)
+   P2_4: 'P-2.4', // Spiro compounds
+   P2_5: 'P-2.5', // Fused ring systems
+
+   P14_4: 'P-14.4' // Numbering for substituents
 } as const;

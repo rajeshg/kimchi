@@ -8,6 +8,7 @@ import type {
 import { ImmutableNamingContext, ExecutionPhase } from './immutable-context';
 import { LAYER_ORDER, LAYER_DEFINITIONS } from './layer-config';
 import { OPSINNameGenerator } from './opsin-name-generator';
+import { analyzeRings } from 'src/utils/ring-analysis';
 
 /**
  * Core rule engine for IUPAC name generation
@@ -174,8 +175,8 @@ if (hasConflicts) {
    * Execute all rules in a layer
    */
 private executeLayer(layer: Layer, context: ImmutableNamingContext): ImmutableNamingContext {
-  // Sort rules by priority within the layer
-  const sortedRules = [...layer.rules].sort((a, b) => a.priority - b.priority);
+  // Sort rules by priority within the layer (higher priority = execute first) (higher priority = execute first)
+  const sortedRules = [...layer.rules].sort((a, b) => b.priority - a.priority);
   let updatedContext = context;
   for (const rule of sortedRules) {
     // Check if rule can be executed
@@ -263,15 +264,41 @@ private handleConflicts(context: ImmutableNamingContext): void {
   /**
    * Build the name from the context
    */
-    private buildName(context: ImmutableNamingContext): string {
-      // Prefer parent structure name if available
-      const parent = context.getState().parentStructure;
-      if (parent && typeof parent.name === 'string' && parent.name.length > 0) {
-        return parent.name;
-      }
-      // Fallback to OPSIN name generator
-      return this.nameGenerator.generateName(context.getState().molecule);
+  private buildName(context: ImmutableNamingContext): string {
+    // Prefer final assembled name if available
+    const finalName = context.getState().finalName;
+    if (finalName && typeof finalName === 'string' && finalName.length > 0) {
+      return finalName;
     }
+
+    // Prefer parent structure assembled name if available
+    const parent = context.getState().parentStructure;
+    if (parent && typeof (parent as any).assembledName === 'string' && (parent as any).assembledName.length > 0) {
+      return (parent as any).assembledName;
+    }
+
+    // Prefer parent structure name if available
+    if (parent && typeof parent.name === 'string' && parent.name.length > 0) {
+      return parent.name;
+    }
+
+    // Check for rings as fallback
+    const ringInfo: any = analyzeRings(context.getState().molecule);
+    if (ringInfo.rings.length > 0) {
+      const ringSize = ringInfo.rings[0]!.length;
+      if (ringInfo.isAromatic[0]) {
+        const aromaticNames: { [key: number]: string } = {
+          5: 'cyclopentadiene', 6: 'benzene', 7: 'cycloheptatriene'
+        };
+        return aromaticNames[ringSize] || `aromatic-${ringSize}-membered`;
+      } else {
+        return this.getRingBaseName(ringSize);
+      }
+    }
+
+    // Fallback to OPSIN name generator
+    return this.nameGenerator.generateName(context.getState().molecule);
+  }
   
   /**
    * Build chain name

@@ -94,10 +94,16 @@ export const LOCANT_ASSIGNMENT_ASSEMBLY_RULE: IUPACRule = {
       const type = group.type;
       
       let name = '';
-      if (locants) {
-        name = `${locants}-${prefix}${type}${suffix}`;
+      // For alkoxy groups, the prefix IS the full substituent name (e.g., 'methoxy')
+      // So we don't append the type 'alkoxy'
+      if (type === 'alkoxy' && prefix) {
+        name = locants ? `${locants}-${prefix}` : prefix;
       } else {
-        name = `${prefix}${type}${suffix}`;
+        if (locants) {
+          name = `${locants}-${prefix}${type}${suffix}`;
+        } else {
+          name = `${prefix}${type}${suffix}`;
+        }
       }
       
       return {
@@ -210,7 +216,7 @@ export const PARENT_NAME_ASSEMBLY_RULE: IUPACRule = {
   name: 'Parent Structure Name Assembly',
   description: 'Build complete parent structure name',
   blueBookReference: 'P-2 - Parent structure names',
-  priority: 85,
+  priority: 50,
   conditions: (context) => {
     const parentStructure = context.getState().parentStructure;
     return parentStructure !== undefined;
@@ -225,10 +231,15 @@ export const PARENT_NAME_ASSEMBLY_RULE: IUPACRule = {
     
     let parentName = '';
     
+
     if (parentStructure.type === 'chain') {
       parentName = buildChainName(parentStructure, functionalGroups);
-    } else {
+    } else if (parentStructure.type === 'ring') {
       parentName = buildRingName(parentStructure, functionalGroups);
+    } else if (parentStructure.type === 'heteroatom') {
+      parentName = buildHeteroatomName(parentStructure, functionalGroups);
+    } else {
+      parentName = parentStructure.name || 'unknown';
     }
     
     return context.withStateUpdate(
@@ -422,10 +433,10 @@ function buildChainName(parentStructure: any, functionalGroups: any[]): string {
   if (!chain) {
     return parentStructure.name || 'unknown-chain';
   }
-  
-  const length = chain.length;
-  
-  // Base chain name
+
+   const length = chain.length;
+
+   // Base chain name
   const chainNames = [
     '', 'meth', 'eth', 'prop', 'but', 'pent', 'hex', 'hept', 'oct', 'non', 'dec',
     'undec', 'dodec', 'tridec', 'tetradec', 'pentadec', 'hexadec', 'heptadec', 'octadec', 'nonadec'
@@ -439,21 +450,31 @@ function buildChainName(parentStructure: any, functionalGroups: any[]): string {
   }
   
   // Add unsaturation suffixes based on multiple bonds
-  const doubleBonds = chain.multipleBonds?.filter((bond: any) => bond.type === 'double').length || 0;
-  const tripleBonds = chain.multipleBonds?.filter((bond: any) => bond.type === 'triple').length || 0;
-  
-  if (tripleBonds > 0 && doubleBonds === 0) {
-    baseName = baseName.replace(/[aeiou]+$/, ''); // Remove trailing vowels
-    baseName += 'yne';
-  } else if (doubleBonds > 0 && tripleBonds === 0) {
-    baseName = baseName.replace(/[aeiou]+$/, ''); // Remove trailing vowels
-    baseName += 'ene';
-  } else if (doubleBonds > 0 && tripleBonds > 0) {
-    baseName = baseName.replace(/[aeiou]+$/, ''); // Remove trailing vowels
-    baseName += 'en-yne';
-  } else {
-    baseName += 'ane'; // Saturated
-  }
+   const doubleBonds = chain.multipleBonds?.filter((bond: any) => bond.type === 'double') || [];
+   const tripleBonds = chain.multipleBonds?.filter((bond: any) => bond.type === 'triple') || [];
+
+   if (tripleBonds.length > 0 && doubleBonds.length === 0) {
+     baseName = baseName.replace(/[aeiou]+$/, ''); // Remove trailing vowels
+     const locants = tripleBonds.map((bond: any) => bond.locant).filter(Boolean).sort((a: number, b: number) => a - b);
+     const needsLocant = tripleBonds.length > 1 || (locants.length === 1 && locants[0] !== 1);
+     const locantStr = needsLocant ? `-${locants.join(',')}-` : '';
+     baseName = `${baseName}${locantStr}yne`;
+   } else if (doubleBonds.length > 0 && tripleBonds.length === 0) {
+     baseName = baseName.replace(/[aeiou]+$/, ''); // Remove trailing vowels
+     const locants = doubleBonds.map((bond: any) => bond.locant).filter(Boolean).sort((a: number, b: number) => a - b);
+     const needsLocant = doubleBonds.length > 1 || (locants.length === 1 && locants[0] !== 1);
+     const locantStr = needsLocant ? `-${locants.join(',')}-` : '';
+     baseName = `${baseName}${locantStr}ene`;
+   } else if (doubleBonds.length > 0 && tripleBonds.length > 0) {
+     baseName = baseName.replace(/[aeiou]+$/, ''); // Remove trailing vowels
+     const doubleLocants = doubleBonds.map((bond: any) => bond.locant).filter(Boolean).sort((a: number, b: number) => a - b);
+     const tripleLocants = tripleBonds.map((bond: any) => bond.locant).filter(Boolean).sort((a: number, b: number) => a - b);
+     const allLocants = [...doubleLocants, ...tripleLocants].sort((a: number, b: number) => a - b);
+     const locantStr = allLocants.length > 0 ? `-${allLocants.join(',')}-` : '';
+     baseName = `${baseName}${locantStr}en-yne`;
+   } else {
+     baseName += 'ane'; // Saturated
+   }
   
   return baseName;
 }
@@ -463,53 +484,61 @@ function buildRingName(parentStructure: any, functionalGroups: any[]): string {
   if (!ring) {
     return parentStructure.name || 'unknown-ring';
   }
-  
+
   // This is simplified - real implementation would use comprehensive ring naming
   const ringNames: { [key: number]: string } = {
-    3: 'cyclopropane', 4: 'cyclobutane', 5: 'cyclopentane', 
+    3: 'cyclopropane', 4: 'cyclobutane', 5: 'cyclopentane',
     6: 'cyclohexane', 7: 'cycloheptane', 8: 'cyclooctane'
   };
-  
-  const size = ring.size;
+
+  const size = ring.size || (ring.atoms ? ring.atoms.length : 0);
   const baseName = ringNames[size] || `cyclo${size - 1}ane`;
   
   // If substituents are present on the ring, build a substituted ring name
   const subs = parentStructure.substituents || ring.substituents || [];
   if (subs && subs.length > 0) {
-    // Group substituents by root name and build position lists
-    const grouped = new Map<string, { positions: string[]; count: number }>();
-    for (const s of subs) {
-      const root = s.name || s.type || 'sub';
-      const pos = s.position ? s.position.toString() : '';
-      const prev = grouped.get(root);
-      if (prev) {
-        prev.positions.push(pos);
-        prev.count += 1;
-      } else {
-        grouped.set(root, { positions: pos ? [pos] : [], count: pos ? 1 : 0 });
+    // Group substituents by name and collect their locants
+    const substituentGroups = new Map<string, number[]>();
+    for (const sub of subs) {
+      const subName = sub.name || sub.type;
+      if (subName) {
+        if (!substituentGroups.has(subName)) {
+          substituentGroups.set(subName, []);
+        }
+        // Get locant from substituent
+        const locant = sub.locant || sub.position;
+        if (locant) {
+          substituentGroups.get(subName)!.push(locant);
+        }
       }
     }
 
-    const prefixParts: string[] = [];
-    for (const [root, data] of grouped.entries()) {
-      const positions = data.positions.sort((a, b) => parseInt(a) - parseInt(b));
-      const count = data.count;
-      const multiplier = count === 1 ? '' : getMultiplicativePrefix(count);
-      const text = count === 1 ? `${positions.join(',')}-${root}` : `${positions.join(',')}-${multiplier}${root}`;
-      prefixParts.push(text);
-    }
-    prefixParts.sort((a, b) => {
-      // alphabetical by root ignoring multiplicative prefixes
-      const ar = a.replace(/^[0-9,\-]+-/, '').replace(/^(di|tri|tetra|bis|tris|tetr)/i, '');
-      const br = b.replace(/^[0-9,\-]+-/, '').replace(/^(di|tri|tetra|bis|tris|tetr)/i, '');
-      return ar.localeCompare(br);
+    // Build substituent names with locants and multiplicative prefixes
+    const substituentParts: string[] = [];
+      for (const [subName, locants] of substituentGroups.entries()) {
+        locants.sort((a, b) => a - b);
+        // For single substituent at position 1, omit locant for cyclohexane
+        const needsLocant = !(locants.length === 1 && locants[0] === 1 && size === 6 && subName === 'methyl');
+        const locantStr = needsLocant ? locants.join(',') + '-' : '';
+        
+        // Add multiplicative prefix if there are multiple identical substituents
+        const multiplicativePrefix = locants.length > 1 ? getMultiplicativePrefix(locants.length) : '';
+        const fullSubName = `${locantStr}${multiplicativePrefix}${subName}`;
+        substituentParts.push(fullSubName);
+      }
+
+    // Sort alphabetically by substituent name
+    substituentParts.sort((a, b) => {
+      const aName = a.split('-').slice(1).join('-');
+      const bName = b.split('-').slice(1).join('-');
+      return aName.localeCompare(bName);
     });
 
-    const prefix = prefixParts.join('-');
+    const substituentPrefix = substituentParts.join('');
     if (ring.type === 'aromatic' && size === 6) {
-      return `${prefix}-benzene`;
+      return substituentPrefix ? `${substituentPrefix}-benzene` : 'benzene';
     }
-    return `${prefix}-${baseName}`;
+    return substituentPrefix ? `${substituentPrefix}${baseName}` : baseName;
   }
 
   // Check for aromatic naming
@@ -518,6 +547,17 @@ function buildRingName(parentStructure: any, functionalGroups: any[]): string {
   }
 
   return baseName;
+}
+
+function buildHeteroatomName(parentStructure: any, functionalGroups: any[]): string {
+  const heteroatom = parentStructure.heteroatom;
+  if (!heteroatom) {
+    return parentStructure.name || 'unknown-heteroatom';
+  }
+
+  // For simple heteroatom hydrides, just return the parent hydride name
+  // Substituents would be handled by prefix addition in substitutive nomenclature
+  return parentStructure.name || 'unknown-heteroatom';
 }
 
 function buildFunctionalClassName(parentStructure: any, functionalGroups: any[]): string {
@@ -541,27 +581,152 @@ function buildFunctionalClassName(parentStructure: any, functionalGroups: any[])
 
 function buildSubstitutiveName(parentStructure: any, functionalGroups: any[]): string {
   let name = '';
+
+  // Add substituents from functional groups (excluding principal group)
+  const fgSubstituents = functionalGroups.filter(group => !group.isPrincipal);
   
-  // Add substituents (excluding principal group)
-  const substituents = functionalGroups.filter(group => !group.isPrincipal);
-  if (substituents.length > 0) {
-    const substituentNames = substituents
-      .map(group => group.assembledName)
-      .filter(Boolean)
-      .join('-');
-    name += substituentNames + '-';
+  // Find principal functional group atoms to exclude from substituents
+  const principalFG = functionalGroups.find(group => group.isPrincipal);
+  const principalGroupAtomIds = principalFG ? new Set(principalFG.atoms || []) : new Set();
+  
+  // For chain parent structures, substituents come only from functional groups
+  // For ring/heteroatom parents, also include substituents from parent structure
+  // BUT exclude substituents that are part of the principal functional group
+  const parentSubstituents = parentStructure.type === 'chain' 
+    ? [] 
+    : (parentStructure.substituents || []).filter((sub: any) => {
+        // Exclude if this substituent's atom is part of the principal functional group
+        const subAtoms = sub.atoms || [];
+        return !subAtoms.some((atom: any) => principalGroupAtomIds.has(atom.id));
+      });
+
+  const allSubstituents = [...fgSubstituents, ...parentSubstituents];
+
+  if (allSubstituents.length > 0) {
+    // Build substituent names with locants and multiplicative prefixes
+    const substituentParts: string[] = [];
+    const size = parentStructure.type === 'ring' ? (parentStructure.size || 0) : 0;
+    const isHeteroatomParent = parentStructure.type === 'heteroatom';
+
+    if (isHeteroatomParent) {
+      // For heteroatom parents, group identical substituents and add multiplicative prefixes
+      const groupedSubs = new Map<string, number>();
+      for (const sub of allSubstituents) {
+        // Skip functional groups that have suffix property - they will be handled as suffixes
+        if (sub.suffix) continue;
+        
+        const subName = sub.assembledName || sub.name || sub.type;
+        if (subName) {
+          groupedSubs.set(subName, (groupedSubs.get(subName) || 0) + 1);
+        }
+      }
+      for (const [subName, count] of groupedSubs.entries()) {
+        const prefix = count > 1 ? getMultiplicativePrefix(count) : '';
+        substituentParts.push(`${prefix}${subName}`);
+      }
+      // Sort alphabetically
+      substituentParts.sort();
+    } else {
+      // For chain/ring parents, group by name and add locants
+      const substituentGroups = new Map<string, number[]>();
+      for (const sub of allSubstituents) {
+        // Skip functional groups that have suffix property - they will be handled as suffixes
+        if (sub.suffix) continue;
+        
+        // For alkoxy groups, use the prefix (e.g., 'methoxy') instead of type ('alkoxy')
+        const subName = sub.assembledName || sub.name || (sub.type === 'alkoxy' ? sub.prefix : sub.type);
+        if (subName) {
+          // Check if assembledName already includes locants (e.g., "4-methoxy")
+          const alreadyHasLocants = sub.assembledName && /^\d+-/.test(sub.assembledName);
+          
+          if (alreadyHasLocants) {
+            // If assembledName already has locants, use it as-is without grouping
+            substituentParts.push(subName);
+          } else {
+            // Otherwise, collect locants and group by name
+            if (!substituentGroups.has(subName)) {
+              substituentGroups.set(subName, []);
+            }
+            // Get locant from substituent
+            const locant = sub.locant || sub.locants?.[0];
+            if (locant) {
+              substituentGroups.get(subName)!.push(locant);
+            }
+          }
+        }
+      }
+      for (const [subName, locants] of substituentGroups.entries()) {
+        locants.sort((a, b) => a - b);
+        // For single substituent at position 1 on symmetric rings, omit locant
+        // This applies to benzene, cyclohexane, cyclopentane, and other symmetric rings
+        const parentName = parentStructure.assembledName || parentStructure.name || '';
+        const isSymmetricRing = parentName.includes('benzene') || parentName.includes('cyclo');
+        const needsLocant = !(locants.length === 1 && locants[0] === 1 && isSymmetricRing);
+        const locantStr = needsLocant ? locants.join(',') + '-' : '';
+        
+        // Add multiplicative prefix if there are multiple identical substituents
+        const multiplicativePrefix = locants.length > 1 ? getMultiplicativePrefix(locants.length) : '';
+        const fullSubName = `${locantStr}${multiplicativePrefix}${subName}`;
+        substituentParts.push(fullSubName);
+      }
+    }
+
+    // Sort alphabetically by substituent name
+    substituentParts.sort((a, b) => {
+      const aName = a.split('-').slice(1).join('-');
+      const bName = b.split('-').slice(1).join('-');
+      return aName.localeCompare(bName);
+    });
+    
+    // IUPAC hyphenation rules:
+    // 1. If single substituent with no locant (e.g., "methyl"): join directly to parent → "methylcyclohexane"
+    // 2. If single substituent with locant (e.g., "2-methyl"): already has hyphen, join directly → "2-methylcyclohexane"
+    // 3. If multiple substituents: join with hyphens between them and before parent → "1,1-dichloro-2-methyl-cyclohexane"
+    
+    if (substituentParts.length === 1) {
+      // Single substituent - join directly (it may already have a locant with hyphen)
+      name += substituentParts[0];
+    } else if (substituentParts.length > 1) {
+      // Multiple substituents - join with hyphens and add hyphen before parent
+      name += substituentParts.join('-') + '-';
+    }
   }
-  
+
   // Add parent structure
   name += parentStructure.assembledName || parentStructure.name || 'unknown';
-  
+
   // Add principal functional group suffix
   const principalGroup = functionalGroups.find(group => group.isPrincipal);
   if (principalGroup && principalGroup.suffix) {
-    name = name.replace(/ane$|ene$|yne$/, ''); // Remove hydrocarbon suffix
-    name += principalGroup.suffix;
+    // Get locant for the principal functional group
+    const fgLocant = principalGroup.locant || principalGroup.locants?.[0];
+    
+    // For cyclic and chain systems, we need to add the suffix with proper formatting
+    // Example: cyclohexane + alcohol at C1 → cyclohexan-1-ol
+    // Example: propane + alcohol at C2 → propan-2-ol
+    
+    // Replace ending with "an" for saturated systems, "en" for unsaturated
+    if (/ane$/.test(name)) {
+      name = name.replace(/ane$/, 'an');
+    } else if (/ene$/.test(name)) {
+      name = name.replace(/ene$/, 'en');
+    } else if (/yne$/.test(name)) {
+      name = name.replace(/yne$/, 'yn');
+    }
+    
+    // Add locant if present and not position 1 on a chain/ring
+    // For alcohols and other functional groups, we typically need the locant
+    // unless it's unambiguous (like methanol)
+    const parentName = parentStructure.assembledName || parentStructure.name || '';
+    const needsLocant = fgLocant && (fgLocant !== 1 || parentStructure.type === 'ring' || parentStructure.size > 2);
+    
+    if (needsLocant && fgLocant) {
+      name += `-${fgLocant}-${principalGroup.suffix}`;
+    } else {
+      name += principalGroup.suffix;
+    }
   }
-  
+
   return name;
 }
 
@@ -607,8 +772,10 @@ function applyFinalFormatting(name: string): string {
   // Ensure proper spacing around locants
   formatted = formatted.replace(/(\d)-([a-zA-Z])/g, '$1-$2');
   
-  // Capitalize appropriately (IUPAC names typically don't use capitals except at start)
-  formatted = formatted.charAt(0).toUpperCase() + formatted.slice(1);
+  // IUPAC names should be lowercase unless they start with a locant
+  // Don't capitalize the first letter - IUPAC names are lowercase
+  // Exception: If the name starts with a capital letter already (e.g., from a proper name), keep it
+  formatted = formatted.charAt(0).toLowerCase() + formatted.slice(1);
   
   return formatted;
 }

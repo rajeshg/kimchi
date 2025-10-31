@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'bun:test';
 import { parseSMILES } from 'index';
-import { findMainChain, findLongestCarbonChain, findSubstituents } from 'src/utils/iupac/iupac-chains';
+import { findMainChain, findLongestCarbonChain, findSubstituents } from 'src/iupac-engine/naming/iupac-chains';
 
 describe('IUPAC chain selection', () => {
   it('selects propane as main chain for isobutane (CC(C)C)', () => {

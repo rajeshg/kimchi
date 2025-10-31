@@ -50,22 +50,24 @@ export interface ContextState {
   // Functional group trace metadata captured from OPSIN detector (pattern, atom ids)
   functionalGroupTrace?: Array<{ pattern?: string; type?: string; atomIds: number[] }>;
 
-  // Parent chain selection rule state
-  longest_chain_length?: number;
-  p44_3_1_applied?: boolean;
-  max_multiple_bonds?: number;
-  p44_3_2_applied?: boolean;
-  max_double_bonds?: number;
-  p44_3_3_applied?: boolean;
-  lowest_multiple_bond_locants?: number[];
-  p44_3_4_applied?: boolean;
-  lowest_double_bond_locants?: number[];
-  p44_3_5_applied?: boolean;
-  max_substituents?: number;
-  p44_3_6_applied?: boolean;
-  lowest_substituent_locants?: number[];
-  p44_3_7_applied?: boolean;
-  selected_chain_final?: Chain;
+   // Parent chain selection rule state
+   longest_chain_length?: number;
+   p44_3_1_applied?: boolean;
+   max_score?: number;
+   max_multiple_bonds?: number;
+   p44_3_2_applied?: boolean;
+   max_double_bonds?: number;
+   p44_3_3_applied?: boolean;
+   lowest_multiple_bond_locants?: number[];
+   p44_3_4_applied?: boolean;
+   lowest_double_bond_locants?: number[];
+   p44_3_5_applied?: boolean;
+   max_substituents?: number;
+   p44_3_6_applied?: boolean;
+   lowest_substituent_locants?: number[];
+   p44_3_7_applied?: boolean;
+   p44_3_8_applied?: boolean;
+   selected_chain_final?: Chain;
 }
 
 
@@ -163,7 +165,7 @@ export class ImmutableNamingContext {
     try {
       // Local require to avoid circular import issues
       // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const { findMainChain, findSubstituents } = require('../utils/iupac/iupac-chains');
+      const { findMainChain, findSubstituents } = require('./naming/iupac-chains');
       const main = findMainChain(molecule as any) as number[];
       const candidates: Chain[] = [];
       if (main && main.length >= 2) {
