@@ -1,5 +1,5 @@
 import type { Molecule } from 'types';
-import { isRingAromatic } from './iupac/iupac-rings/aromatic-naming';
+import { isRingAromatic } from '../iupac-engine/naming/iupac-rings/aromatic-naming';
 
 /**
  * Represents a fused ring system

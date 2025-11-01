@@ -67,6 +67,12 @@ export const P51_2_FUNCTIONAL_CLASS_RULE: IUPACRule = {
       console.log('[P-51.2] functionalGroups:', functionalGroups.map(g => ({ type: g.type, priority: g.priority })));
     }
     
+    // Don't override if a method has already been selected (e.g., by ESTER_DETECTION_RULE)
+    if (state.nomenclatureMethod) {
+      if (process.env.VERBOSE) console.log('[P-51.2] Nomenclature method already set, skipping');
+      return false;
+    }
+    
     // Check if we have functional groups that prefer functional class
     if (!functionalGroups || functionalGroups.length === 0) {
       if (process.env.VERBOSE) console.log('[P-51.2] No functional groups found');
@@ -76,7 +82,7 @@ export const P51_2_FUNCTIONAL_CLASS_RULE: IUPACRule = {
     // Functional groups that prefer functional class nomenclature
     // NOTE: esters are NOT included here because:
     // - Cyclic esters (lactones) MUST use heterocycle nomenclature (Class 16)
-    // - Noncyclic esters can use functional class, but this is handled separately
+    // - Noncyclic esters can use functional class, but this is handled separately in ESTER_DETECTION_RULE
     // Reference: Blue Book P-66.1.1.4 - Lactones are named as heterocycles
     const functionalClassPreferred = [
       'anhydride',

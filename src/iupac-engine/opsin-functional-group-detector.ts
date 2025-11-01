@@ -236,23 +236,24 @@ export class OPSINFunctionalGroupDetector {
               claimedAtoms.add(atomsMatched[i]!);
               claimedAtoms.add(atomsMatched[i + 1]!);
             }
-          } else if (check.pattern === 'C(=O)O' && atomsMatched.length > 2) {
-            // Special case: For esters, create one functional group per C-O pair
+          } else if (check.pattern === 'C(=O)O' && atomsMatched.length > 3) {
+            // Special case: For esters, create one functional group per C=O-O triple
             // since each ester should be counted separately for diesters, etc.
-            // atomsMatched contains pairs: [C1, O1, C2, O2, ...]
-            for (let i = 0; i < atomsMatched.length; i += 2) {
+            // atomsMatched contains triples: [C1, O_carbonyl1, O_ester1, C2, O_carbonyl2, O_ester2, ...]
+            for (let i = 0; i < atomsMatched.length; i += 3) {
               detectedGroups.push({
                 type: check.pattern,
                 name: fgEntry?.name || check.name,
                 suffix: fgEntry?.suffix || '',
                 prefix: fgEntry?.prefix || undefined,
                 priority: fgEntry?.priority || check.priority,
-                atoms: [atomsMatched[i]!, atomsMatched[i + 1]!],
+                atoms: [atomsMatched[i]!, atomsMatched[i + 1]!, atomsMatched[i + 2]!],
                 pattern: check.pattern
               });
               // Claim these atoms
               claimedAtoms.add(atomsMatched[i]!);
               claimedAtoms.add(atomsMatched[i + 1]!);
+              claimedAtoms.add(atomsMatched[i + 2]!);
             }
           } else if (check.pattern === 'ROR' && atomsMatched.length > 1) {
             // Special case: For ethers, create one functional group per oxygen atom
@@ -881,7 +882,8 @@ export class OPSINFunctionalGroupDetector {
           this.getBondedAtom(b, oxygen.id, atoms)?.id !== atom.id
         );
         if (oxCarbonNeighbor) {
-          esters.push(atom.id, oxygen.id);
+          const carbonylOxygen = this.getBondedAtom(doubleBondOxygen, atom.id, atoms)!;
+          esters.push(atom.id, carbonylOxygen.id, oxygen.id);
         }
       }
     }

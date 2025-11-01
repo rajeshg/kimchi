@@ -242,8 +242,12 @@ export const P3_2_RING_SUBSTITUENT_RULE: IUPACRule = {
 
     const ring = parentStructure.ring;
     const ringAtomIds = new Set(ring.atoms.map((atom: any) => atom.id));
+    const vonBaeyerNumbering = parentStructure.vonBaeyerNumbering;
 
     console.log(`[P-3.2] Ring atom IDs in order: [${ring.atoms.map((a: any) => a.id).join(', ')}]`);
+    if (vonBaeyerNumbering) {
+      console.log(`[P-3.2] Using von Baeyer numbering:`, Array.from(vonBaeyerNumbering.entries()));
+    }
 
     const substituents: any[] = [];
 
@@ -264,8 +268,15 @@ export const P3_2_RING_SUBSTITUENT_RULE: IUPACRule = {
             // Determine substituent type
             const substituentName = getRingSubstituentName(substituentAtom, molecule, ringAtom.id);
 
-            const position = ring.atoms.indexOf(ringAtom) + 1; // 1-based position
-            console.log(`[P-3.2] Detected substituent: ${substituentName} at ringAtom.id=${ringAtom.id}, indexOf=${ring.atoms.indexOf(ringAtom)}, position=${position}`);
+            // Use von Baeyer numbering if available, otherwise use ring position
+            let position: number;
+            if (vonBaeyerNumbering && vonBaeyerNumbering.has(ringAtom.id)) {
+              position = vonBaeyerNumbering.get(ringAtom.id)!;
+              console.log(`[P-3.2] Detected substituent: ${substituentName} at ringAtom.id=${ringAtom.id}, von Baeyer position=${position}`);
+            } else {
+              position = ring.atoms.indexOf(ringAtom) + 1; // 1-based position
+              console.log(`[P-3.2] Detected substituent: ${substituentName} at ringAtom.id=${ringAtom.id}, indexOf=${ring.atoms.indexOf(ringAtom)}, position=${position}`);
+            }
 
             if (substituentName) {
               substituents.push({

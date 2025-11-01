@@ -121,6 +121,7 @@ export interface ParentStructure {
   heteroatom?: Atom;
   name: string;
   locants: number[];
+  vonBaeyerNumbering?: Map<number, number>; // For bicyclo/tricyclo systems
 }
 
 export interface Substituent {

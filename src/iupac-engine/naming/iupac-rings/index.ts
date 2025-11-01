@@ -95,11 +95,11 @@ export function generateCyclicName(
     if (process.env.VERBOSE) console.log('[VERBOSE] polycyclic: classification=', JSON.stringify(ringClassification));
 
      // Try classic polycyclic naming (bicyclo, tricyclo) FIRST
-     const classicPolycyclicName = generateClassicPolycyclicName(molecule, meaningfulRings);
-     if (process.env.VERBOSE) console.log('[VERBOSE] classic polycyclic name attempt:', classicPolycyclicName);
-     if (classicPolycyclicName) {
-       if (process.env.VERBOSE) console.log('[VERBOSE] classic polycyclic name=', classicPolycyclicName);
-       return normalizeCyclicName(classicPolycyclicName, meaningfulRings, molecule);
+     const classicPolycyclicResult = generateClassicPolycyclicName(molecule, meaningfulRings);
+     if (process.env.VERBOSE) console.log('[VERBOSE] classic polycyclic name attempt:', classicPolycyclicResult);
+     if (classicPolycyclicResult) {
+       if (process.env.VERBOSE) console.log('[VERBOSE] classic polycyclic name=', classicPolycyclicResult.name);
+       return normalizeCyclicName(classicPolycyclicResult.name, meaningfulRings, molecule);
      }
 
     if (ringClassification.spiro.length > 0) {

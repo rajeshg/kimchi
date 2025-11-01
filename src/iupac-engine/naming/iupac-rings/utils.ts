@@ -144,10 +144,18 @@ export function classifyFusedSubstituent(molecule: Molecule, startAtomIdx: numbe
 }
 
 /**
+ * Result from generating a classic polycyclic name
+ */
+export interface ClassicPolycyclicNameResult {
+  name: string;
+  vonBaeyerNumbering?: Map<number, number>; // Map from atom index to von Baeyer position
+}
+
+/**
  * Generates classic IUPAC polycyclic names (bicyclo, tricyclo) for non-aromatic systems.
  * Returns null if not a classic polycyclic system.
  */
-export function generateClassicPolycyclicName(molecule: Molecule, rings: number[][]): string | null {
+export function generateClassicPolycyclicName(molecule: Molecule, rings: number[][]): ClassicPolycyclicNameResult | null {
   // Special case: adamantane (C10H16, 3 rings, diamondoid structure)
   if (molecule.atoms.length === 10 && rings.length === 3) {
     const allAtomsCarbon = molecule.atoms.every(a => a.symbol === 'C');
@@ -155,7 +163,7 @@ export function generateClassicPolycyclicName(molecule: Molecule, rings: number[
       // Check for adamantane pattern: 4 bridgeheads, specific connectivity
       const atomIds = Array.from(new Set(rings.flat()));
       if (atomIds.length === 10) {
-        return 'adamantane'; // Retained name per IUPAC
+        return { name: 'adamantane' }; // Retained name per IUPAC
       }
     }
   }
@@ -167,12 +175,20 @@ export function generateClassicPolycyclicName(molecule: Molecule, rings: number[
   }
   const atomIds = Array.isArray(rings) ? Array.from(new Set(rings.flat().filter((idx): idx is number => typeof idx === 'number'))) : [];
   const atoms = atomIds.map(idx => molecule.atoms[idx]).filter((a): a is typeof molecule.atoms[0] => a !== undefined);
-  if (!atoms.every(a => a.symbol === 'C' && !a.aromatic)) {
-    if (process.env.VERBOSE) console.log('[VERBOSE] classic polycyclic: not all non-aromatic carbons');
+  
+  // Allow heteroatoms but reject aromatic systems
+  if (!atoms.every(a => !a.aromatic)) {
+    if (process.env.VERBOSE) console.log('[VERBOSE] classic polycyclic: contains aromatic atoms');
     return null;
   }
 
-  // Find bridgehead atoms: atoms shared by more than one ring
+  // Collect heteroatoms for naming
+  const heteroatoms = atoms.filter(a => a.symbol !== 'C');
+  if (process.env.VERBOSE) {
+    console.log('[VERBOSE] classic polycyclic: heteroatoms=', heteroatoms.map(a => a.symbol));
+  }
+
+  // Find bridgehead atoms: atoms shared by more than one ring AND with degree >= 3
   const ringMembership: Record<number, number> = {};
     for (const ring of rings) {
       if (!Array.isArray(ring)) continue;
@@ -181,9 +197,26 @@ export function generateClassicPolycyclicName(molecule: Molecule, rings: number[
         ringMembership[idx] = (ringMembership[idx] || 0) + 1;
       }
     }
-  const bridgeheads = Object.entries(ringMembership).filter(([_, count]) => typeof count === 'number' && count > 1).map(([idx]) => Number(idx));
+  
+  // Calculate degree for each atom in the ring system
+  const degree: Record<number, number> = {};
+  for (const bond of molecule.bonds) {
+    if (atomIds.includes(bond.atom1) && atomIds.includes(bond.atom2)) {
+      degree[bond.atom1] = (degree[bond.atom1] || 0) + 1;
+      degree[bond.atom2] = (degree[bond.atom2] || 0) + 1;
+    }
+  }
+  
+  const bridgeheads = Object.entries(ringMembership)
+    .filter(([idx, count]) => {
+      const atomIdx = Number(idx);
+      return typeof count === 'number' && count > 1 && (degree[atomIdx] || 0) >= 3;
+    })
+    .map(([idx]) => Number(idx));
+    
   if (process.env.VERBOSE) {
     console.log('[VERBOSE] classic polycyclic: ringMembership=', ringMembership);
+    console.log('[VERBOSE] classic polycyclic: degree=', degree);
     console.log('[VERBOSE] classic polycyclic: bridgeheads=', bridgeheads);
   }
   if (bridgeheads.length < 2) {
@@ -222,10 +255,84 @@ export function generateClassicPolycyclicName(molecule: Molecule, rings: number[
     
     const bridgeLengths = uniquePaths.map(p => p.length - 2).filter(n => n >= 0);
     if (bridgeLengths.length >= 3) {
+      // Sort paths by length (descending) for von Baeyer numbering
+      const pathsWithLengths = uniquePaths.map(p => ({ path: p, length: p.length - 2 }));
+      pathsWithLengths.sort((a, b) => b.length - a.length);
+      
       bridgeLengths.sort((a, b) => b - a); // IUPAC: descending order
       const alkaneName = getAlkaneBySize(atomIds.length);
-      if (process.env.VERBOSE) console.log('[VERBOSE] classic polycyclic: bicyclo', bridgeLengths, alkaneName);
-      return `bicyclo[${bridgeLengths.slice(0, 3).join('.').replace(/0/g, '')}]${alkaneName}`;
+      
+      // Build von Baeyer numbering: start at bh1, traverse bridges in descending order
+      const vonBaeyerNumbering: Map<number, number> = new Map();
+      let currentPosition = 1;
+      
+      // Number first bridgehead
+      vonBaeyerNumbering.set(bh1, currentPosition++);
+      
+      // Number atoms along the longest bridge (excluding bridgeheads)
+      const longestPath = pathsWithLengths[0]!.path;
+      for (let i = 1; i < longestPath.length - 1; i++) {
+        vonBaeyerNumbering.set(longestPath[i]!, currentPosition++);
+      }
+      
+      // Number second bridgehead
+      vonBaeyerNumbering.set(bh2, currentPosition++);
+      
+      // Number atoms along the second bridge (excluding bridgeheads)
+      const secondPath = pathsWithLengths[1]!.path;
+      for (let i = secondPath.length - 2; i > 0; i--) {
+        const atomIdx = secondPath[i]!;
+        if (!vonBaeyerNumbering.has(atomIdx)) {
+          vonBaeyerNumbering.set(atomIdx, currentPosition++);
+        }
+      }
+      
+      // Number atoms along the shortest bridge (excluding bridgeheads)
+      const shortestPath = pathsWithLengths[2]!.path;
+      for (let i = 1; i < shortestPath.length - 1; i++) {
+        const atomIdx = shortestPath[i]!;
+        if (!vonBaeyerNumbering.has(atomIdx)) {
+          vonBaeyerNumbering.set(atomIdx, currentPosition++);
+        }
+      }
+      
+      if (process.env.VERBOSE) {
+        console.log('[VERBOSE] von Baeyer numbering:', Array.from(vonBaeyerNumbering.entries()));
+      }
+      
+      // Build heteroatom prefix if present
+      let heteroPrefix = '';
+      if (heteroatoms.length > 0) {
+        const heteroNames: string[] = [];
+        const heteroMap: Record<string, string> = {
+          'O': 'oxa',
+          'N': 'aza',
+          'S': 'thia',
+          'P': 'phospha',
+          'Si': 'sila'
+        };
+        
+        for (const atom of heteroatoms) {
+          const prefix = heteroMap[atom.symbol];
+          if (prefix) {
+            const heteroIdx = molecule.atoms.indexOf(atom);
+            const position = vonBaeyerNumbering.get(heteroIdx);
+            if (position !== undefined) {
+              heteroNames.push(`${position}-${prefix}`);
+            }
+          }
+        }
+        
+        if (heteroNames.length > 0) {
+          heteroPrefix = heteroNames.join('-');
+        }
+      }
+      
+      if (process.env.VERBOSE) console.log('[VERBOSE] classic polycyclic: bicyclo', bridgeLengths, alkaneName, 'heteroPrefix:', heteroPrefix);
+      return {
+        name: `${heteroPrefix}bicyclo[${bridgeLengths.slice(0, 3).join('.')}]${alkaneName}`,
+        vonBaeyerNumbering
+      };
     }
     if (process.env.VERBOSE) console.log('[VERBOSE] classic polycyclic: did not find 3 bridges', bridgeLengths);
     return null;
@@ -281,7 +388,9 @@ export function generateClassicPolycyclicName(molecule: Molecule, rings: number[
       const alkaneName = getAlkaneBySize(atomIds.length);
       const prefix = rings.length === 3 ? 'tricyclo' : 'polycyclo';
       if (process.env.VERBOSE) console.log('[VERBOSE] classic polycyclic: tricyclo+', uniqueLengths, alkaneName);
-      return `${prefix}[${uniqueLengths.slice(0, Math.min(uniqueLengths.length, 4)).join('.').replace(/0/g, '')}]${alkaneName}`;
+      return {
+        name: `${prefix}[${uniqueLengths.slice(0, Math.min(uniqueLengths.length, 4)).join('.').replace(/0/g, '')}]${alkaneName}`
+      };
     }
     if (process.env.VERBOSE) console.log('[VERBOSE] classic polycyclic: did not find enough bridges', uniqueLengths);
     return null;

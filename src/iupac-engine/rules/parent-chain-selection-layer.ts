@@ -871,7 +871,6 @@ export const PARENT_CHAIN_SELECTION_COMPLETE_RULE: IUPACRule = {
     }
     // Select the final parent chain
     const parentChain = chains[0] as Chain;
-    console.log(`Final selected parentChain atoms: ${parentChain.atoms.map(a => a.id)}, substituents: ${JSON.stringify(parentChain.substituents)}`);
     // Create parent structure
     const parentStructure = {
       type: 'chain' as const,
@@ -938,21 +937,24 @@ export function generateChainName(chain: Chain, includeSubstituents: boolean = t
     const locStr = doubleBondLocants.join(',');
     const mult = doubleCount > 1 ? (multiplicativePrefixes[doubleCount - 2] || `${doubleCount}-`) : '';
     const suf = `${mult}ene`;
-    // Omit the locant '1' for monosubstituted short chains (ethene written as 'ethene')
-    if (locStr === '1') {
-      parts.push(suf);
+    // IUPAC rule: Omit locant when unambiguous (chains ≤3 carbons have only one possible position)
+    // Include locant for chains ≥4 carbons where position matters (but-1-ene vs but-2-ene)
+    if (locStr && length >= 4) {
+      parts.push(`${locStr}-${suf}`);
     } else {
-      parts.push(locStr ? `${locStr}-${suf}` : suf);
+      parts.push(suf);
     }
   }
   if (tripleCount > 0) {
     const locStr = tripleBondLocants.join(',');
     const mult = tripleCount > 1 ? (multiplicativePrefixes[tripleCount - 2] || `${tripleCount}-`) : '';
     const suf = `${mult}yne`;
-    if (locStr === '1') {
-      parts.push(suf);
+    // IUPAC rule: Omit locant when unambiguous (chains ≤3 carbons have only one possible position)
+    // Include locant for chains ≥4 carbons where position matters (but-1-yne vs but-2-yne)
+    if (locStr && length >= 4) {
+      parts.push(`${locStr}-${suf}`);
     } else {
-      parts.push(locStr ? `${locStr}-${suf}` : suf);
+      parts.push(suf);
     }
   }
 

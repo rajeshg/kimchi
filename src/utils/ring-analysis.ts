@@ -217,29 +217,51 @@ export function classifyRingSystems(atoms: readonly Atom[], bonds: readonly Bond
   const bridged: number[][] = [];
   // Reworked classification: examine pairwise shared atom counts to determine
   // whether a ring is isolated, spiro (shares exactly one atom with another ring),
-  // fused (shares 2+ atoms with another ring), or bridged (complex cases).
+  // fused (shares 2 adjacent atoms with another ring), or bridged (shares 3+ atoms or 2+ non-adjacent).
   for (let i = 0; i < rings.length; i++) {
     const ring1 = rings[i];
     if (!ring1) continue;
     const ring1Set = new Set(ring1);
     let maxShared = 0;
+    let isBridged = false;
+    let isFused = false;
 
     for (let j = 0; j < rings.length; j++) {
       if (i === j) continue;
       const ring2 = rings[j]!;
-      const shared = ring2.filter(atom => ring1Set.has(atom)).length;
+      const sharedAtoms = ring2.filter(atom => ring1Set.has(atom));
+      const shared = sharedAtoms.length;
       if (shared > maxShared) maxShared = shared;
+
+      if (shared === 2) {
+        // Check if the 2 shared atoms are adjacent (connected by a bond)
+        const [atom1, atom2] = sharedAtoms;
+        const areAdjacent = bonds.some(
+          b => (b.atom1 === atom1 && b.atom2 === atom2) || (b.atom1 === atom2 && b.atom2 === atom1)
+        );
+        if (areAdjacent) {
+          isFused = true;
+        } else {
+          isBridged = true;
+        }
+      } else if (shared >= 3) {
+        // 3+ shared atoms → bridged
+        isBridged = true;
+      }
     }
 
-    // Classification based solely on the number of shared atoms
+    // Classification based on analysis
     if (maxShared === 0) {
       isolated.push(ring1);
     } else if (maxShared === 1) {
       spiro.push(ring1);
-    } else if (maxShared >= 2) {
+    } else if (isBridged) {
+      bridged.push(ring1);
+    } else if (isFused) {
       fused.push(ring1);
     } else {
-      bridged.push(ring1);
+      // Fallback: should not happen
+      isolated.push(ring1);
     }
   }
 

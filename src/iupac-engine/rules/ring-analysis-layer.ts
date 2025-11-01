@@ -422,78 +422,151 @@ export const RING_SELECTION_COMPLETE_RULE: IUPACRule = {
 
 /**
  * Helper function to detect ring systems in a molecule
+ * Groups connected rings (fused/bridged/spiro) into single ring systems
  */
-function detectRingSystems(molecule: any): any[] {
+export function detectRingSystems(molecule: any): any[] {
   const ringSystems: any[] = [];
-
-  // Prefer parser-provided ring membership arrays when present
+  
+  // Get rings - prefer parser-provided rings, fallback to ring analysis
+  let rings: number[][] = [];
   if (molecule.rings && Array.isArray(molecule.rings) && molecule.rings.length > 0) {
-    for (const ringIdxs of molecule.rings) {
-      const atoms = ringIdxs.map((i: number) => molecule.atoms[i]).filter(Boolean);
-      if (atoms.length < 3) continue;
-      const bonds = molecule.bonds.filter((b: any) => ringIdxs.includes(b.atom1) && ringIdxs.includes(b.atom2));
-      const ringObj = { atoms, bonds, rings: [ringIdxs], size: atoms.length };
-      ringSystems.push({
-        atoms: ringObj.atoms,
-        bonds: ringObj.bonds,
-        rings: [ringObj.atoms],
-        size: ringObj.size,
-        heteroatoms: ringObj.atoms.filter((a: any) => a.symbol !== 'C'),
-        type: determineRingType(ringObj),
-        fused: false,
-        bridged: false,
-        spiro: false
-      });
-    }
-    return ringSystems;
+    rings = molecule.rings;
+  } else {
+    const ringInfo = analyzeRings(molecule);
+    rings = ringInfo.rings;
   }
-
-  // Fallback: use ring analysis to detect rings
-  const ringInfo = analyzeRings(molecule);
-  if (ringInfo.rings.length === 0) return ringSystems;
-
-  for (const ring of ringInfo.rings) {
-    const atoms = ring.map((i: number) => molecule.atoms[i]).filter(Boolean);
-    if (atoms.length < 3) continue;
-    const bonds = molecule.bonds.filter((b: any) => ring.includes(b.atom1) && ring.includes(b.atom2));
-    const ringObj = { atoms, bonds, rings: [ring], size: atoms.length };
+  
+  if (rings.length === 0) {
+    return ringSystems; // No rings detected
+  }
+  
+  // Use classifyRingSystems to properly detect fused/bridged/spiro rings
+  const classification = classifyRingSystems(molecule.atoms, molecule.bonds);
+  
+  // Build lookup for ring classification
+  const ringClassification = new Map<number, 'isolated' | 'fused' | 'spiro' | 'bridged'>();
+  for (let i = 0; i < rings.length; i++) {
+    const ring = rings[i];
+    if (!ring) continue;
+    
+    if (classification.isolated.some(r => arraysEqual(r, ring))) {
+      ringClassification.set(i, 'isolated');
+    } else if (classification.fused.some(r => arraysEqual(r, ring))) {
+      ringClassification.set(i, 'fused');
+    } else if (classification.spiro.some(r => arraysEqual(r, ring))) {
+      ringClassification.set(i, 'spiro');
+    } else if (classification.bridged.some(r => arraysEqual(r, ring))) {
+      ringClassification.set(i, 'bridged');
+    } else {
+      ringClassification.set(i, 'isolated');
+    }
+  }
+  
+  // Group connected rings into ring systems using union-find
+  const parent: number[] = rings.map((_, i) => i);
+  
+  const find = (x: number): number => {
+    if (parent[x] !== x) {
+      parent[x] = find(parent[x]!);
+    }
+    return parent[x]!;
+  };
+  
+  const union = (x: number, y: number): void => {
+    const rootX = find(x);
+    const rootY = find(y);
+    if (rootX !== rootY) {
+      parent[rootX] = rootY;
+    }
+  };
+  
+  // Union rings that share atoms
+  for (let i = 0; i < rings.length; i++) {
+    for (let j = i + 1; j < rings.length; j++) {
+      const ring1 = rings[i]!;
+      const ring2 = rings[j]!;
+      // Check if rings share any atoms
+      const sharedAtoms = ring1.filter(atom => ring2.includes(atom));
+      if (sharedAtoms.length > 0) {
+        union(i, j);
+      }
+    }
+  }
+  
+  // Group rings by their root parent
+  const groups = new Map<number, number[]>();
+  for (let i = 0; i < rings.length; i++) {
+    const root = find(i);
+    if (!groups.has(root)) {
+      groups.set(root, []);
+    }
+    groups.get(root)!.push(i);
+  }
+  
+  // Build ring systems from groups
+  for (const [_root, ringIndices] of groups) {
+    // Collect all unique atoms and bonds from all rings in this system
+    const atomSet = new Set<number>();
+    const bondSet = new Set<string>();
+    
+    for (const ringIdx of ringIndices) {
+      const ring = rings[ringIdx]!;
+      for (const atomIdx of ring) {
+        atomSet.add(atomIdx);
+      }
+      // Add bonds within this ring
+      for (let i = 0; i < ring.length; i++) {
+        const atom1 = ring[i]!;
+        const atom2 = ring[(i + 1) % ring.length]!;
+        const bondKey = atom1 < atom2 ? `${atom1}-${atom2}` : `${atom2}-${atom1}`;
+        bondSet.add(bondKey);
+      }
+    }
+    
+    // Also add bridging bonds between rings
+    for (const bond of molecule.bonds) {
+      if (atomSet.has(bond.atom1) && atomSet.has(bond.atom2)) {
+        const bondKey = bond.atom1 < bond.atom2 ? `${bond.atom1}-${bond.atom2}` : `${bond.atom2}-${bond.atom1}`;
+        bondSet.add(bondKey);
+      }
+    }
+    
+    const atomIndices = Array.from(atomSet);
+    const atoms = atomIndices.map((idx: number) => molecule.atoms[idx]).filter(Boolean);
+    const bonds = molecule.bonds.filter((b: any) => {
+      const bondKey = b.atom1 < b.atom2 ? `${b.atom1}-${b.atom2}` : `${b.atom2}-${b.atom1}`;
+      return bondSet.has(bondKey);
+    });
+    
+    // Determine if this ring system is fused/bridged/spiro
+    const isFused = ringIndices.some(i => ringClassification.get(i) === 'fused');
+    const isBridged = ringIndices.some(i => ringClassification.get(i) === 'bridged');
+    const isSpiro = ringIndices.some(i => ringClassification.get(i) === 'spiro');
+    
+    // Determine ring type
+    const ringObj = { atoms, bonds, rings: ringIndices.map(i => rings[i]!), size: atoms.length };
+    
     ringSystems.push({
-      atoms: ringObj.atoms,
-      bonds: ringObj.bonds,
-      rings: [ringObj.atoms],
-      size: ringObj.size,
-      heteroatoms: ringObj.atoms.filter((a: any) => a.symbol !== 'C'),
+      atoms: atoms,
+      bonds: bonds,
+      rings: ringIndices.map(i => rings[i]!), // Store all rings in this system
+      size: atoms.length,
+      heteroatoms: atoms.filter((a: any) => a.symbol !== 'C'),
       type: determineRingType(ringObj),
-      fused: false,
-      bridged: false,
-      spiro: false
+      fused: isFused,
+      bridged: isBridged,
+      spiro: isSpiro
     });
   }
 
-  // Fallback heuristic for simple rings: if single bonds == carbon count, assume single ring
-  if (ringSystems.length === 0) {
-    const carbonCount = molecule.atoms.filter((a: any) => a.symbol === 'C').length;
-    const singleBonds = molecule.bonds.filter((b: any) => b.type === 'single');
-    if (singleBonds.length === carbonCount) {
-      const carbonAtoms = molecule.atoms.filter((a: any) => a.symbol === 'C');
-      const carbonBonds = molecule.bonds.filter((b: any) => b.type === 'single' && molecule.atoms[b.atom1].symbol === 'C' && molecule.atoms[b.atom2].symbol === 'C');
-      const hasAromatic = carbonAtoms.some((a: any) => a.aromatic);
-      const ringSystem = {
-        atoms: carbonAtoms,
-        bonds: carbonBonds,
-        rings: [carbonAtoms.map((a: any) => a.id)],
-        size: carbonCount,
-        heteroatoms: [],
-        type: hasAromatic ? 'aromatic' : 'aliphatic',
-        fused: false,
-        bridged: false,
-        spiro: false
-      };
-      ringSystems.push(ringSystem);
-    }
-  }
-
   return ringSystems;
+}
+
+// Helper function to compare arrays
+function arraysEqual(a: number[], b: number[]): boolean {
+  if (a.length !== b.length) return false;
+  const setA = new Set(a);
+  return b.every(x => setA.has(x));
 }
 
 /**
@@ -693,26 +766,58 @@ export const P2_3_RING_ASSEMBLIES_RULE: IUPACRule = {
   priority: 75,
   conditions: (context) => {
     const candidateRings = context.getState().candidateRings;
-    return candidateRings && candidateRings.length > 1 && !context.getState().parentStructure;
+    if (process.env.VERBOSE) {
+      console.log('[P-2.3 CONDITION] candidateRings count:', candidateRings?.length);
+      console.log('[P-2.3 CONDITION] candidateRings:', JSON.stringify(candidateRings?.map((rs: any) => ({
+        rings: rs.rings?.length,
+        atoms: rs.atoms?.length
+      })), null, 2));
+      console.log('[P-2.3 CONDITION] parentStructure:', context.getState().parentStructure);
+    }
+    if (!candidateRings || candidateRings.length === 0 || context.getState().parentStructure) {
+      if (process.env.VERBOSE) {
+        console.log('[P-2.3 CONDITION] Returning false - no rings or parent already selected');
+      }
+      return false;
+    }
+    // Check if any ring system contains multiple rings (bridged/fused)
+    const hasMultipleRings = candidateRings.some((rs: any) => rs.rings && rs.rings.length > 1);
+    if (process.env.VERBOSE) {
+      console.log('[P-2.3 CONDITION] hasMultipleRings:', hasMultipleRings);
+    }
+    return hasMultipleRings;
   },
   action: (context) => {
     const candidateRings = context.getState().candidateRings;
-    if (!candidateRings || candidateRings.length <= 1) {
+    if (process.env.VERBOSE) {
+      console.log('[P-2.3 ACTION] candidateRings:', candidateRings?.length);
+    }
+    if (!candidateRings || candidateRings.length === 0) {
+      if (process.env.VERBOSE) {
+        console.log('[P-2.3 ACTION] No candidateRings, returning early');
+      }
       return context;
     }
 
     // Check if this is a bridged system (not fused, not spiro)
     const ringClassification = classifyRingSystems(context.getState().molecule.atoms, context.getState().molecule.bonds);
+    if (process.env.VERBOSE) {
+      console.log('[P-2.3 ACTION] ringClassification.bridged:', ringClassification.bridged.length);
+    }
     if (ringClassification.bridged.length > 0) {
       // Generate bicyclo/tricyclo name
-      const bridgedName = generateBridgedPolycyclicName(ringClassification.bridged, context.getState().molecule);
+      const bridgedNameResult = generateBridgedPolycyclicName(ringClassification.bridged, context.getState().molecule);
+      if (process.env.VERBOSE) {
+        console.log('[P-2.3 ACTION] bridgedNameResult:', bridgedNameResult);
+      }
 
-      if (bridgedName) {
+      if (bridgedNameResult) {
         const parentStructure = {
           type: 'ring' as const,
           ring: candidateRings[0], // Use first ring as representative
-          name: bridgedName,
-          locants: generateRingLocants(candidateRings[0])
+          name: bridgedNameResult.name,
+          locants: generateRingLocants(candidateRings[0]),
+          vonBaeyerNumbering: bridgedNameResult.vonBaeyerNumbering
         };
 
         return context.withParentStructure(
@@ -721,7 +826,7 @@ export const P2_3_RING_ASSEMBLIES_RULE: IUPACRule = {
           'Ring Assemblies',
           'P-2.3',
           ExecutionPhase.PARENT_STRUCTURE,
-          `Applied von Baeyer system: ${bridgedName}`
+          `Applied von Baeyer system: ${bridgedNameResult.name}`
         );
       }
     }
@@ -744,11 +849,15 @@ export const P2_4_SPIRO_COMPOUNDS_RULE: IUPACRule = {
   priority: 74,
   conditions: (context) => {
     const candidateRings = context.getState().candidateRings;
-    return candidateRings && candidateRings.length > 1 && !context.getState().parentStructure;
+    if (!candidateRings || candidateRings.length === 0 || context.getState().parentStructure) {
+      return false;
+    }
+    // Check if any ring system contains multiple rings (spiro)
+    return candidateRings.some((rs: any) => rs.rings && rs.rings.length > 1);
   },
   action: (context) => {
     const candidateRings = context.getState().candidateRings;
-    if (!candidateRings || candidateRings.length <= 1) {
+    if (!candidateRings || candidateRings.length === 0) {
       return context;
     }
 
@@ -835,7 +944,7 @@ export const P2_5_FUSED_RING_SYSTEMS_RULE: IUPACRule = {
 /**
  * Helper function to generate von Baeyer bicyclo/tricyclo names
  */
-function generateBridgedPolycyclicName(bridgedRings: number[][], molecule: any): string | null {
+function generateBridgedPolycyclicName(bridgedRings: number[][], molecule: any): { name: string; vonBaeyerNumbering?: Map<number, number> } | null {
   // Use the engine's own naming function
   const { generateClassicPolycyclicName } = require('../naming/iupac-rings/utils');
   return generateClassicPolycyclicName(molecule, bridgedRings);

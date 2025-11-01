@@ -35,29 +35,10 @@ export const INITIAL_STRUCTURE_ANALYSIS_RULE: IUPACRule = {
   action: (context: ImmutableNamingContext) => {
     const molecule = context.getState().molecule;
     try {
-      // First, detect rings if not already present
-      let ringSystems: any[] = [];
-      if (molecule && Array.isArray(molecule.rings) && molecule.rings.length > 0) {
-        // Use parser-provided rings
-        for (const ringIdxs of molecule.rings) {
-          const atoms = ringIdxs.map((i: number) => molecule.atoms[i]).filter(Boolean);
-          if (atoms.length < 3) continue;
-          const bonds = molecule.bonds.filter((b: any) => ringIdxs.includes(b.atom1) && ringIdxs.includes(b.atom2));
-          ringSystems.push({ atoms, bonds, rings: [ringIdxs], size: atoms.length });
-        }
-      } else {
-        // Detect rings using ring analysis utilities
-        const ringInfo = analyzeRings(molecule as any);
-        if (ringInfo.rings.length > 0) {
-          for (const ring of ringInfo.rings) {
-            const atoms = ring.map((idx: number) => molecule.atoms[idx]).filter(Boolean);
-            const bonds = molecule.bonds.filter((b: any) =>
-              ring.includes(b.atom1) && ring.includes(b.atom2)
-            );
-            ringSystems.push({ atoms, bonds, rings: [ring], size: atoms.length });
-          }
-        }
-      }
+      // Use detectRingSystems from ring-analysis-layer to properly group connected rings
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { detectRingSystems } = require('./ring-analysis-layer');
+      const ringSystems: any[] = detectRingSystems(molecule);
 
       if (ringSystems.length > 0) {
         // Update state with candidateRings so ring-analysis rules run

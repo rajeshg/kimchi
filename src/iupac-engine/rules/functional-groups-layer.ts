@@ -560,13 +560,105 @@ function analyzeEsterHierarchy(context: ImmutableNamingContext, esters: Function
 }
 
 /**
+ * Check if an ester group is part of a ring (lactone)
+ * A lactone has both the carbonyl carbon and ester oxygen in the ring
+ * 
+ * For esters detected by OPSIN, esterGroup.atoms contains:
+ * [carbonyl C id, carbonyl O id, ester O id] (3 atom IDs as numbers)
+ */
+function isEsterInRing(mol: any, esters: FunctionalGroup[]): boolean {
+  // First detect all rings in the molecule
+  const rings = findAllRings(mol);
+  if (rings.length === 0) return false;
+  
+  // For each ester, check if both carbonyl C and ester O are in the same ring
+  for (const ester of esters) {
+    if (!ester.atoms || ester.atoms.length < 3) continue;
+    
+    // OPSIN returns atoms as numbers: [carbonyl C id, carbonyl O id, ester O id]
+    const carbonylCarbon = ester.atoms[0] as unknown as number;
+    const esterOxygen = ester.atoms[2] as unknown as number;
+    
+    if (process.env.VERBOSE) {
+      console.log('[isEsterInRing] Checking ester: carbonylC=', carbonylCarbon, 'esterO=', esterOxygen);
+    }
+    
+    // Check if both atoms are in the same ring
+    for (const ring of rings) {
+      const inRing = ring.includes(carbonylCarbon) && ring.includes(esterOxygen);
+      if (inRing) {
+        if (process.env.VERBOSE) {
+          console.log('[isEsterInRing] Lactone detected: ester atoms', [carbonylCarbon, esterOxygen], 'in ring', ring);
+        }
+        return true;
+      }
+    }
+  }
+  
+  if (process.env.VERBOSE) {
+    console.log('[isEsterInRing] Not a lactone: ester not in any ring');
+  }
+  return false;
+}
+
+/**
+ * Find all rings in a molecule using DFS cycle detection
+ * Returns array of rings, where each ring is an array of atom IDs
+ */
+function findAllRings(mol: any): number[][] {
+  const adj = new Map<number, number[]>();
+  for (const atom of mol.atoms) {
+    adj.set(atom.id, []);
+  }
+  
+  for (const bond of mol.bonds) {
+    const neighbors1 = adj.get(bond.atom1);
+    const neighbors2 = adj.get(bond.atom2);
+    if (neighbors1) neighbors1.push(bond.atom2);
+    if (neighbors2) neighbors2.push(bond.atom1);
+  }
+  
+  const rings: number[][] = [];
+  const visited = new Set<number>();
+  
+  function findRingDFS(atomId: number, parent: number, path: number[]): void {
+    visited.add(atomId);
+    path.push(atomId);
+    
+    const neighbors = adj.get(atomId) || [];
+    for (const neighborId of neighbors) {
+      if (neighborId === parent) continue;
+      
+      const cycleStart = path.indexOf(neighborId);
+      if (cycleStart >= 0) {
+        // Found a cycle
+        const ring = path.slice(cycleStart);
+        rings.push(ring);
+      } else if (!visited.has(neighborId)) {
+        findRingDFS(neighborId, atomId, path);
+      }
+    }
+    
+    path.pop();
+  }
+  
+  for (const atom of mol.atoms) {
+    if (!visited.has(atom.id)) {
+      findRingDFS(atom.id, -1, []);
+    }
+  }
+  
+  return rings;
+}
+
+/**
  * Check if an ester is suitable for functional class nomenclature
  * Functional class nomenclature is used for:
  * - Simple esters (single ester, no complex features)
  * - Diesters and polyesters (multiple ester groups)
  * 
  * Substitutive nomenclature is used when:
- * - The molecule has rings (lactones)
+ * - The ester is a lactone (ester group is part of a ring)
  * - The molecule has other high-priority functional groups
  * - Hierarchical esters (one ester nested in another's alkyl group)
  */
@@ -581,23 +673,46 @@ function checkIfSimpleEster(context: ImmutableNamingContext, esters: FunctionalG
     });
   }
   
-  // Has ring systems → use substitutive nomenclature (lactones)
-  // We need to detect rings directly since ring analysis happens later
-  const hasRings = detectSimpleRings(mol);
-  if (hasRings) {
-    if (process.env.VERBOSE) console.log('[checkIfSimpleEster] Has rings → complex (lactone)');
+  // Check if ester is a LACTONE (ester group is part of a ring)
+  // If the ester C=O and O are both in a ring → lactone → use substitutive nomenclature
+  // If there are rings but ester is NOT in the ring → use functional class nomenclature
+  const isLactone = isEsterInRing(mol, esters);
+  if (isLactone) {
+    if (process.env.VERBOSE) console.log('[checkIfSimpleEster] Ester is lactone (in ring) → use substitutive');
     return false;
   }
   
-  // Count other functional groups (excluding ester, ether, alkoxy)
-  const otherFunctionalGroups = allFunctionalGroups.filter(fg => 
-    fg.type !== 'ester' && fg.type !== 'ether' && fg.type !== 'alkoxy'
+  if (process.env.VERBOSE) {
+    const hasRings = detectSimpleRings(mol);
+    if (hasRings) {
+      console.log('[checkIfSimpleEster] Has rings but ester NOT in ring → use functional class');
+    }
+  }
+  
+  // Check for HIGHER priority functional groups that would override ester as principal group
+  // Ester priority = 3, so we only reject if there are groups with priority < 3
+  // (carboxylic acid = 1, sulfonic acid = 1, anhydride = 2)
+  // Lower priority groups (ketone = 8, alcohol = 9, etc.) are just substituents on the alkyl group
+  const higherPriorityGroups = allFunctionalGroups.filter(fg => 
+    fg.type !== 'ester' && 
+    fg.type !== 'ether' && 
+    fg.type !== 'alkoxy' &&
+    (fg.priority || 999) < 3  // Only reject if priority is HIGHER (lower number) than ester
   );
   
-  // Has other high-priority functional groups (amides, nitro, etc.) → use substitutive nomenclature
-  if (otherFunctionalGroups.length > 0) {
-    if (process.env.VERBOSE) console.log('[checkIfSimpleEster] Other FGs:', otherFunctionalGroups.map(fg => fg.type));
+  // Has higher-priority functional groups → use substitutive nomenclature
+  if (higherPriorityGroups.length > 0) {
+    if (process.env.VERBOSE) console.log('[checkIfSimpleEster] Higher priority FGs:', higherPriorityGroups.map(fg => fg.type));
     return false;
+  }
+  
+  if (process.env.VERBOSE) {
+    const otherFunctionalGroups = allFunctionalGroups.filter(fg => 
+      fg.type !== 'ester' && fg.type !== 'ether' && fg.type !== 'alkoxy'
+    );
+    if (otherFunctionalGroups.length > 0) {
+      console.log('[checkIfSimpleEster] Other (lower priority) FGs that are OK:', otherFunctionalGroups.map(fg => `${fg.type}(${fg.priority})`));
+    }
   }
   
   // Check for hierarchical esters (nested esters) → use substitutive nomenclature
