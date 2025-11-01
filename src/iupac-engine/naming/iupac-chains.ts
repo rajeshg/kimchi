@@ -122,6 +122,15 @@ export function findMainChain(molecule: Molecule): number[] {
   // they have the same number of carbons.
   const maxCarbonLen = carbonChains.length ? Math.max(...carbonChains.map(c => c.length)) : 0;
 
+  // Helper function to check if a chain contains halogens (F, Cl, Br, I)
+  // Halogens should NEVER be part of the parent chain - they must be substituents
+  const containsHalogen = (chain: number[]): boolean => {
+    return chain.some(idx => {
+      const symbol = molecule.atoms[idx]?.symbol;
+      return symbol === 'F' || symbol === 'Cl' || symbol === 'Br' || symbol === 'I';
+    });
+  };
+
   // If we have at least one carbon-only chain, use its carbon-length as primary
   // basis for candidate selection. Otherwise, fall back to heavy-atom chains.
   const candidates: number[][] = [];
@@ -129,15 +138,19 @@ export function findMainChain(molecule: Molecule): number[] {
     // take all carbon-only chains of the max carbon length
     for (const c of carbonChains) if (c.length === maxCarbonLen) candidates.push(c);
     // also include hetero-containing chains that have the same number of carbons
+    // BUT exclude any chains containing halogens (F, Cl, Br, I) - they must be substituents
     for (const c of atomChains) {
       const carbonCount = c.filter(idx => molecule.atoms[idx] && molecule.atoms[idx].symbol === 'C').length;
-      if (carbonCount === maxCarbonLen) candidates.push(c);
+      if (carbonCount === maxCarbonLen && !containsHalogen(c)) candidates.push(c);
     }
   } else {
     // no carbon chains found; pick longest heavy-atom chains
+    // BUT exclude any chains containing halogens
     const maxAtomLen = atomChains.length ? Math.max(...atomChains.map(c => c.length)) : 0;
     if (maxAtomLen < 1) return [];
-    for (const c of atomChains) if (c.length === maxAtomLen) candidates.push(c);
+    for (const c of atomChains) {
+      if (c.length === maxAtomLen && !containsHalogen(c)) candidates.push(c);
+    }
   }
 
   // Always evaluate orientation, even for single candidates, to ensure lowest locants
@@ -614,8 +627,27 @@ function findAllCarbonChains(molecule: Molecule, excludedAtomIds: Set<number> = 
 
   // Instead of enumerating every simple path (which explodes combinatorially),
   // first determine the maximum chain length and only search for chains of that length.
-  const longest = findLongestCarbonChain({ atoms: molecule.atoms, bonds: molecule.bonds });
-  const targetLength = longest.length;
+  // We compute this using the adjacency list we just built (which respects excludedAtomIds)
+  // rather than calling findLongestCarbonChain which would include excluded atoms.
+  let longestPath: number[] = [];
+  const dfsFindLongest = (node: number, visited: Set<number>, path: number[]): void => {
+    if (path.length > longestPath.length) longestPath = [...path];
+    const neighbors = adjList.get(node) ?? [];
+    for (const neighbor of neighbors) {
+      if (!visited.has(neighbor)) {
+        visited.add(neighbor);
+        path.push(neighbor);
+        dfsFindLongest(neighbor, visited, path);
+        path.pop();
+        visited.delete(neighbor);
+      }
+    }
+  };
+  for (const startAtom of carbonIndices) {
+    const visited = new Set<number>([startAtom]);
+    dfsFindLongest(startAtom, visited, [startAtom]);
+  }
+  const targetLength = longestPath.length;
   if (targetLength < 1) return [];
   
   // Special case: single atom (no bonds)
@@ -1426,6 +1458,215 @@ function buildLongestChainFrom(molecule: Molecule, startCarbon: number, allowedA
 }
 
 /**
+ * Names an aryloxy substituent: -O-Aryl (e.g., phenoxy, 4-chlorophenoxy, naphthoxy)
+ * Detects aromatic rings bonded to oxygen and names substituents on the ring
+ */
+function nameAryloxySubstituent(
+  molecule: Molecule,
+  substituentAtoms: Set<number>,
+  oxygenAtomIdx: number,
+  arylCarbonIdx: number
+): string {
+  if (process.env.VERBOSE) {
+    console.log(`[nameAryloxySubstituent] oxygen=${oxygenAtomIdx}, arylCarbon=${arylCarbonIdx}, substituentAtoms=${Array.from(substituentAtoms).join(',')}`);
+  }
+  
+  // Find all aromatic carbons in the substituent
+  const aromaticCarbons = Array.from(substituentAtoms)
+    .filter(idx => molecule.atoms[idx]?.symbol === 'C' && molecule.atoms[idx]?.aromatic);
+  
+  if (process.env.VERBOSE) {
+    console.log(`[nameAryloxySubstituent] aromaticCarbons=${aromaticCarbons.join(',')}`);
+  }
+  
+  // Identify which ring the aryl carbon belongs to
+  let arylRing: readonly number[] | null = null;
+  if (molecule.rings) {
+    for (const ring of molecule.rings) {
+      if (ring.includes(arylCarbonIdx)) {
+        // Check if all ring atoms are aromatic carbons
+        const allAromatic = ring.every(atomId => {
+          const atom = molecule.atoms[atomId];
+          return atom && atom.symbol === 'C' && atom.aromatic;
+        });
+        if (allAromatic) {
+          arylRing = ring;
+          break;
+        }
+      }
+    }
+  }
+  
+  if (!arylRing) {
+    // Fallback: couldn't identify aromatic ring
+    return 'phenoxy';
+  }
+  
+  if (process.env.VERBOSE) {
+    console.log(`[nameAryloxySubstituent] arylRing=${arylRing.join(',')}`);
+  }
+  
+  // Determine base aryl name
+  let arylBase = '';
+  if (arylRing.length === 6) {
+    arylBase = 'phen'; // phenyl → phenoxy
+  } else if (arylRing.length === 5) {
+    // Could be furan, pyrrole, thiophene - but if all C, it's cyclopentadienyl
+    arylBase = 'cyclopentadienyl';
+  } else {
+    // For now, use generic naming
+    arylBase = 'aryl';
+  }
+  
+  // Find substituents on the aromatic ring (excluding oxygen attachment point)
+  const ringSet = new Set(arylRing);
+  const ringSubstituents: Array<{ position: number; name: string }> = [];
+  
+  // We need to number the ring starting from the carbon bonded to oxygen (position 1)
+  // Number sequentially around the ring (not BFS) to get correct IUPAC positions
+  const ringNumbering = new Map<number, number>();
+  
+  // Helper to find ring neighbors
+  const getRingNeighbors = (atomIdx: number): number[] => {
+    const neighbors: number[] = [];
+    for (const bond of molecule.bonds) {
+      if (bond.atom1 === atomIdx && ringSet.has(bond.atom2)) {
+        neighbors.push(bond.atom2);
+      } else if (bond.atom2 === atomIdx && ringSet.has(bond.atom1)) {
+        neighbors.push(bond.atom1);
+      }
+    }
+    return neighbors;
+  };
+  
+  // Start numbering from the carbon bonded to oxygen (position 1)
+  ringNumbering.set(arylCarbonIdx, 1);
+  
+  // Get the two neighbors of the attachment carbon in the ring
+  const startNeighbors = getRingNeighbors(arylCarbonIdx);
+  
+  if (startNeighbors.length === 2) {
+    // Pick one direction and traverse the ring sequentially
+    // We'll number one path first, then if needed number the other direction
+    let prev: number = arylCarbonIdx;
+    let current: number = startNeighbors[0]!;
+    let position = 2;
+    
+    // Traverse in one direction until we return to start or reach the end
+    while (current !== arylCarbonIdx && position <= arylRing.length) {
+      if (!ringNumbering.has(current)) {
+        ringNumbering.set(current, position);
+        position++;
+      }
+      
+      // Find next atom in ring (not the one we came from)
+      const neighbors = getRingNeighbors(current);
+      let next: number | undefined = undefined;
+      for (const n of neighbors) {
+        if (n !== prev && !ringNumbering.has(n)) {
+          next = n;
+          break;
+        }
+      }
+      
+      if (next === undefined) break;
+      prev = current;
+      current = next;
+    }
+  } else {
+    // Fallback: use BFS if ring structure is unusual
+    const visited = new Set<number>([arylCarbonIdx]);
+    const queue: number[] = [arylCarbonIdx];
+    let currentPos = 1;
+    
+    while (queue.length > 0 && visited.size < arylRing.length) {
+      const atom = queue.shift()!;
+      const neighbors = getRingNeighbors(atom).filter(n => !visited.has(n));
+      
+      for (const neighbor of neighbors) {
+        currentPos++;
+        ringNumbering.set(neighbor, currentPos);
+        visited.add(neighbor);
+        queue.push(neighbor);
+      }
+    }
+  }
+  
+  if (process.env.VERBOSE) {
+    console.log(`[nameAryloxySubstituent] ringNumbering:`, Array.from(ringNumbering.entries()).map(([k, v]) => `${k}:${v}`).join(', '));
+  }
+  
+  // Find substituents on each ring carbon
+  for (const ringCarbon of arylRing) {
+    const position = ringNumbering.get(ringCarbon);
+    if (!position) continue;
+    
+    // Find non-ring attachments (excluding oxygen)
+    for (const bond of molecule.bonds) {
+      let substituent = -1;
+      if (bond.atom1 === ringCarbon && !ringSet.has(bond.atom2) && bond.atom2 !== oxygenAtomIdx) {
+        substituent = bond.atom2;
+      } else if (bond.atom2 === ringCarbon && !ringSet.has(bond.atom1) && bond.atom1 !== oxygenAtomIdx) {
+        substituent = bond.atom1;
+      }
+      
+      if (substituent >= 0) {
+        const subAtom = molecule.atoms[substituent];
+        if (subAtom) {
+          let subName = '';
+          if (subAtom.symbol === 'Cl') subName = 'chloro';
+          else if (subAtom.symbol === 'Br') subName = 'bromo';
+          else if (subAtom.symbol === 'I') subName = 'iodo';
+          else if (subAtom.symbol === 'F') subName = 'fluoro';
+          else if (subAtom.symbol === 'C') subName = 'methyl'; // Simple case
+          else subName = subAtom.symbol.toLowerCase();
+          
+          ringSubstituents.push({ position, name: subName });
+        }
+      }
+    }
+  }
+  
+  if (process.env.VERBOSE) {
+    console.log(`[nameAryloxySubstituent] ringSubstituents:`, ringSubstituents);
+  }
+  
+  // Build the final name
+  if (ringSubstituents.length === 0) {
+    return `${arylBase}oxy`;
+  }
+  
+  // Sort by position
+  ringSubstituents.sort((a, b) => a.position - b.position);
+  
+  // Group by name
+  const grouped = new Map<string, number[]>();
+  for (const sub of ringSubstituents) {
+    if (!grouped.has(sub.name)) {
+      grouped.set(sub.name, []);
+    }
+    grouped.get(sub.name)!.push(sub.position);
+  }
+  
+  // Build prefix
+  const prefixes: string[] = [];
+  for (const [name, positions] of grouped.entries()) {
+    const posStr = positions.join(',');
+    if (positions.length === 1) {
+      prefixes.push(`${posStr}-${name}`);
+    } else {
+      const mult = getGreekNumeral(positions.length);
+      prefixes.push(`${posStr}-${mult}${name}`);
+    }
+  }
+  
+  // Sort prefixes alphabetically
+  prefixes.sort();
+  
+  return `(${prefixes.join('-')}${arylBase}oxy)`;
+}
+
+/**
  * Names an alkoxy substituent (ether substituent): -O-R
  * Takes the oxygen atom and the substituent atoms, then names the alkyl chain attached to oxygen.
  * For example: -O-CH3 → "methoxy", -O-CH2CH3 → "ethoxy", -O-C(CH3)3 → "tert-butoxy"
@@ -1482,6 +1723,13 @@ function nameAlkoxySubstituent(
     return 'oxy'; // No carbon found
   }
   
+  // Check if carbon attached to oxygen is aromatic (phenoxy, naphthoxy, etc.)
+  const attachedCarbon = molecule.atoms[carbonAttachedToO];
+  if (attachedCarbon && attachedCarbon.aromatic) {
+    // This is an aryloxy substituent (e.g., phenoxy, 4-chlorophenoxy)
+    return nameAryloxySubstituent(molecule, substituentAtoms, oxygenAtomIdx, carbonAttachedToO);
+  }
+  
   // Special case: check for common branched patterns
   const carbonCount = carbonAtoms.length;
   
@@ -1512,7 +1760,7 @@ function nameAlkoxySubstituent(
       });
       
       if (allMethyl) {
-        return 'tert-butoxy';
+        return '2-methylpropan-2-yloxy';
       }
     }
   }
@@ -1542,7 +1790,7 @@ function nameAlkoxySubstituent(
       });
       
       if (allMethyl) {
-        return 'isopropoxy';
+        return 'propan-2-yloxy';
       }
     }
   }
@@ -1643,8 +1891,35 @@ export function classifySubstituent(molecule: Molecule, startAtomIdx: number, ch
     .filter((atom): atom is typeof molecule.atoms[0] => atom !== undefined);
   const carbonCount = atoms.filter(atom => atom.symbol === 'C').length;
   
+  // Check if this is an ether substituent FIRST (before checking for phenyl)
+  // This ensures O-Aryl patterns are detected as "aryloxy" not "phenyl"
+  const startAtom = molecule.atoms[startAtomIdx];
+  if (startAtom && startAtom.symbol === 'O' && startAtom.hydrogens === 0) {
+    // Check if oxygen has a double bond (ketone, aldehyde, etc.)
+    const hasDoubleBond = molecule.bonds.some(
+      bond => (bond.atom1 === startAtomIdx || bond.atom2 === startAtomIdx) && bond.type === 'double'
+    );
+    
+    // If oxygen has a double bond, it's part of a functional group (C=O), not an ether
+    if (hasDoubleBond) {
+      return null; // Skip this - it's part of a carbonyl group
+    }
+    
+    // This is an ether substituent: -O-R
+    // Name it as "alkoxy" where alkyl is the carbon chain attached to the oxygen
+    if (carbonCount === 0) {
+      // Just oxygen with no carbons - this shouldn't happen in normal ethers
+      return { type: 'functional', size: 1, name: 'oxy' };
+    }
+    
+    // Get the alkyl chain name
+    const alkylName = nameAlkoxySubstituent(molecule, substituentAtoms, startAtomIdx);
+    return { type: 'functional', size: carbonCount + 1, name: alkylName };
+  }
+  
   // Check if this is a phenyl substituent (benzene ring attached to chain)
   // Phenyl = aromatic 6-membered carbon ring
+  // This check comes AFTER oxygen check to avoid detecting O-phenyl as phenyl
   if (carbonCount === 6 || carbonCount === 7) {
     // Count aromatic carbons in the substituent
     const aromaticCarbons = atoms.filter(atom => atom.symbol === 'C' && atom.aromatic);
@@ -1670,31 +1945,6 @@ export function classifySubstituent(molecule: Molecule, startAtomIdx: number, ch
     }
   }
   
-  // Check if this is an ether substituent: starts with oxygen (not OH)
-  const startAtom = molecule.atoms[startAtomIdx];
-  if (startAtom && startAtom.symbol === 'O' && startAtom.hydrogens === 0) {
-    // Check if oxygen has a double bond (ketone, aldehyde, etc.)
-    const hasDoubleBond = molecule.bonds.some(
-      bond => (bond.atom1 === startAtomIdx || bond.atom2 === startAtomIdx) && bond.type === 'double'
-    );
-    
-    // If oxygen has a double bond, it's part of a functional group (C=O), not an ether
-    if (hasDoubleBond) {
-      return null; // Skip this - it's part of a carbonyl group
-    }
-    
-    // This is an ether substituent: -O-R
-    // Name it as "alkoxy" where alkyl is the carbon chain attached to the oxygen
-    if (carbonCount === 0) {
-      // Just oxygen with no carbons - this shouldn't happen in normal ethers
-      return { type: 'functional', size: 1, name: 'oxy' };
-    }
-    
-    // Get the alkyl chain name
-    const alkylName = nameAlkoxySubstituent(molecule, substituentAtoms, startAtomIdx);
-    return { type: 'functional', size: carbonCount + 1, name: alkylName };
-  }
-  
   // detect simple branched alkyls: isopropyl, tert-butyl, isobutyl
   const carbonNeighbors = new Map<number, number>();
   for (const idx of substituentAtoms) {
@@ -1715,8 +1965,8 @@ export function classifySubstituent(molecule: Molecule, startAtomIdx: number, ch
   } else if (carbonCount === 2 && atoms.length === 2) {
     return { type: 'alkyl', size: 2, name: 'ethyl' };
   } else if (carbonCount === 3 && atoms.length === 3) {
-    // if central carbon has two carbon neighbors it's isopropyl
-    if (maxCNeigh >= 2) return { type: 'alkyl', size: 3, name: 'isopropyl' };
+    // if central carbon has two carbon neighbors it's propan-2-yl (not isopropyl)
+    if (maxCNeigh >= 2) return { type: 'alkyl', size: 3, name: 'propan-2-yl' };
     return { type: 'alkyl', size: 3, name: 'propyl' };
   } else if (atoms.some(atom => atom.symbol === 'O' && atom.hydrogens === 1)) {
     return { type: 'functional', size: 1, name: 'hydroxy' };
@@ -1768,12 +2018,12 @@ export function classifySubstituent(molecule: Molecule, startAtomIdx: number, ch
     }
   }
   if (carbonCount > 0) {
-    // detect simple tert-/iso-butyl patterns for 4-carbon substituents
+    // detect simple branched alkyls: propan-2-yl, 2-methylpropan-2-yl, 2-methylpropyl
     if (carbonCount === 4) {
-      // tert-butyl: one carbon connected to three carbons inside substituent
-      if (maxCNeigh >= 3) return { type: 'alkyl', size: 4, name: 'tert-butyl' };
-      // isobutyl: contains a branch but not quaternary center
-      if (maxCNeigh === 2) return { type: 'alkyl', size: 4, name: 'isobutyl' };
+      // 2-methylpropan-2-yl (formerly tert-butyl): one carbon connected to three carbons inside substituent
+      if (maxCNeigh >= 3) return { type: 'alkyl', size: 4, name: '2-methylpropan-2-yl' };
+      // 2-methylpropyl (formerly isobutyl): contains a branch but not quaternary center
+      if (maxCNeigh === 2) return { type: 'alkyl', size: 4, name: '2-methylpropyl' };
     }
     return { type: 'alkyl', size: carbonCount, name: getAlkylName(carbonCount) };
   }

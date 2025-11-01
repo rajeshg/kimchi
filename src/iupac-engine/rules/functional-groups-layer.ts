@@ -30,6 +30,11 @@ export const FUNCTIONAL_GROUP_PRIORITY_RULE: IUPACRule = {
     // Use OPSIN detector directly so we can capture pattern metadata for traceability
   const mol = context.getState().molecule;
   const detected = opsinDetector.detectFunctionalGroups(mol);
+  
+  if (process.env.VERBOSE) {
+    console.log('[FUNCTIONAL_GROUP_PRIORITY_RULE] Molecule has rings?', mol.rings?.length || 0);
+    console.log('[FUNCTIONAL_GROUP_PRIORITY_RULE] Detected functional groups:', detected.map((d: any) => d.pattern || d.type || d.name));
+  }
 
     // Build normalized functional groups and a parallel trace metadata array
     const traceMeta: Array<{ pattern?: string; type?: string; atomIds: number[] }> = [];
@@ -224,10 +229,115 @@ export const FUNCTIONAL_CLASS_RULE: IUPACRule = {
 };
 
 /**
+ * Check if an ester is suitable for functional class nomenclature
+ * Functional class nomenclature is used for:
+ * - Simple esters (single ester, no complex features)
+ * - Diesters and polyesters (multiple ester groups)
+ * 
+ * Substitutive nomenclature is used when:
+ * - The molecule has rings (lactones)
+ * - The molecule has other high-priority functional groups
+ */
+function checkIfSimpleEster(context: ImmutableNamingContext, esters: FunctionalGroup[]): boolean {
+  const mol = context.getState().molecule;
+  const allFunctionalGroups = detectAllFunctionalGroups(context);
+  
+  if (process.env.VERBOSE) {
+    console.log('[checkIfSimpleEster] Checking ester complexity:', {
+      esterCount: esters.length,
+      atomCount: mol.atoms.length
+    });
+  }
+  
+  // Has ring systems → use substitutive nomenclature (lactones)
+  // We need to detect rings directly since ring analysis happens later
+  const hasRings = detectSimpleRings(mol);
+  if (hasRings) {
+    if (process.env.VERBOSE) console.log('[checkIfSimpleEster] Has rings → complex (lactone)');
+    return false;
+  }
+  
+  // Count other functional groups (excluding ester, ether, alkoxy)
+  const otherFunctionalGroups = allFunctionalGroups.filter(fg => 
+    fg.type !== 'ester' && fg.type !== 'ether' && fg.type !== 'alkoxy'
+  );
+  
+  // Has other high-priority functional groups (amides, nitro, etc.) → use substitutive nomenclature
+  if (otherFunctionalGroups.length > 0) {
+    if (process.env.VERBOSE) console.log('[checkIfSimpleEster] Other FGs:', otherFunctionalGroups.map(fg => fg.type));
+    return false;
+  }
+  
+  if (process.env.VERBOSE) console.log('[checkIfSimpleEster] Suitable for functional class nomenclature');
+  // All checks passed → use functional class nomenclature
+  return true;
+}
+
+/**
+ * Simple ring detection to check if molecule contains rings
+ * Returns true if any atom is part of a ring
+ */
+function detectSimpleRings(mol: any): boolean {
+  // Build adjacency list
+  const adj = new Map<number, number[]>();
+  for (const atom of mol.atoms) {
+    adj.set(atom.id, []);
+  }
+  
+  for (const bond of mol.bonds) {
+    const neighbors1 = adj.get(bond.atom1);
+    const neighbors2 = adj.get(bond.atom2);
+    if (neighbors1) neighbors1.push(bond.atom2);
+    if (neighbors2) neighbors2.push(bond.atom1);
+  }
+  
+  // DFS to detect cycles
+  const visited = new Set<number>();
+  const recStack = new Set<number>();
+  
+  function hasCycleDFS(atomId: number, parent: number): boolean {
+    visited.add(atomId);
+    recStack.add(atomId);
+    
+    const neighbors = adj.get(atomId) || [];
+    for (const neighborId of neighbors) {
+      if (neighborId === parent) continue; // Skip the edge we came from
+      
+      if (recStack.has(neighborId)) {
+        return true; // Found a cycle
+      }
+      
+      if (!visited.has(neighborId)) {
+        if (hasCycleDFS(neighborId, atomId)) {
+          return true;
+        }
+      }
+    }
+    
+    recStack.delete(atomId);
+    return false;
+  }
+  
+  // Check each connected component
+  for (const atom of mol.atoms) {
+    if (!visited.has(atom.id)) {
+      if (hasCycleDFS(atom.id, -1)) {
+        return true;
+      }
+    }
+  }
+  
+  return false;
+}
+
+
+/**
  * Rule: Ester Detection
  * 
  * Special case for esters which prefer functional class nomenclature
  * Example: CH3COOCH3 → methyl acetate (not methoxymethanone)
+ * 
+ * Complex molecules with esters should use substitutive nomenclature instead
  */
 
 export const ESTER_DETECTION_RULE: IUPACRule = {
@@ -235,30 +345,209 @@ export const ESTER_DETECTION_RULE: IUPACRule = {
   name: 'Ester Detection',
   description: 'Detect ester functional groups for functional class naming',
   blueBookReference: 'P-51.2.1 - Esters',
-  priority: 20,
-  conditions: (context: ImmutableNamingContext) => context.getState().molecule.bonds.length > 0,
+  priority: 5,  // Must run AFTER FUNCTIONAL_GROUP_PRIORITY_RULE (priority 10)
+  conditions: (context: ImmutableNamingContext) => {
+    // Check if there are any esters in the functional groups (detected by OPSIN or other detectors)
+    const functionalGroups = context.getState().functionalGroups;
+    const esters = functionalGroups.filter(fg => fg.type === 'ester');
+    if (process.env.VERBOSE) console.log('[ESTER_DETECTION_RULE] Checking conditions, esters found:', esters.length);
+    return esters.length > 0;
+  },
   action: (context: ImmutableNamingContext) => {
-    const esters: FunctionalGroup[] = detectEsters(context);
+    // Get esters from already-detected functional groups
+    const functionalGroups = context.getState().functionalGroups;
+    const esters = functionalGroups.filter(fg => fg.type === 'ester');
+    
+    if (process.env.VERBOSE) console.log('[ESTER_DETECTION_RULE] Found esters in functional groups:', esters.length);
+    
     let updatedContext = context;
-    if (esters.length > 0) {
-      updatedContext = updatedContext.withFunctionalGroups(
-        esters,
-        'ester-detection',
-        'Ester Detection',
-        'P-51.2.1',
-        ExecutionPhase.FUNCTIONAL_GROUP,
-        'Detected ester functional groups'
-      );
+    
+    // Only use functional class nomenclature for simple esters
+    // Complex molecules should use substitutive nomenclature
+    const isSimpleEster = checkIfSimpleEster(context, esters);
+    
+    if (process.env.VERBOSE) console.log('[ESTER_DETECTION_RULE] isSimpleEster:', isSimpleEster);
+    
+    if (isSimpleEster) {
       updatedContext = updatedContext.withNomenclatureMethod(
         NomenclatureMethod.FUNCTIONAL_CLASS,
         'ester-detection',
         'Ester Detection',
         'P-51.2.1',
         ExecutionPhase.FUNCTIONAL_GROUP,
-        'Set nomenclature method to functional class for esters'
+        'Set nomenclature method to functional class for simple esters'
+      );
+    } else {
+      // For complex esters, explicitly set substitutive nomenclature
+      updatedContext = updatedContext.withNomenclatureMethod(
+        NomenclatureMethod.SUBSTITUTIVE,
+        'ester-detection',
+        'Ester Detection',
+        'P-51.2.1',
+        ExecutionPhase.FUNCTIONAL_GROUP,
+        'Set nomenclature method to substitutive for complex esters'
       );
     }
+    
     return updatedContext;
+  }
+};
+
+/**
+ * Rule: Lactone to Ketone Conversion
+ * 
+ * Lactones (cyclic esters) are heterocycles and should be named as such.
+ * The ester C(=O)O group in a ring is treated as a ketone (C=O) suffix.
+ * 
+ * Reference: Blue Book P-66.1.1.4 - Lactones are named as heterocycles
+ * Example: CC1(CC(OC1=O)C(C)(C)I)C → 5-(2-iodopropan-2-yl)-3,3-dimethyloxolan-2-one
+ */
+export const LACTONE_TO_KETONE_RULE: IUPACRule = {
+  id: 'lactone-to-ketone',
+  name: 'Lactone to Ketone Conversion',
+  description: 'Convert cyclic esters (lactones) to ketones for heterocycle naming',
+  blueBookReference: 'P-66.1.1.4 - Lactones',
+  priority: 6,  // Must run AFTER ESTER_DETECTION_RULE (priority 5)
+  conditions: (context: ImmutableNamingContext) => {
+    const functionalGroups = context.getState().functionalGroups;
+    const esters = functionalGroups.filter(fg => fg.type === 'ester');
+    
+    if (process.env.VERBOSE) {
+      console.log('[LACTONE_TO_KETONE] Checking conditions: esters=', esters.length);
+    }
+    
+    if (esters.length === 0) {
+      if (process.env.VERBOSE) console.log('[LACTONE_TO_KETONE] No esters found');
+      return false;
+    }
+    
+    // Check if any ester is part of a ring (lactone)
+    // Use molecule.rings (from parser/analysis) since candidateRings isn't populated yet
+    const mol = context.getState().molecule;
+    const rings = mol.rings || [];
+    
+    if (process.env.VERBOSE) {
+      console.log('[LACTONE_TO_KETONE] Rings found (from molecule.rings):', rings.length);
+    }
+    
+    if (rings.length === 0) {
+      if (process.env.VERBOSE) console.log('[LACTONE_TO_KETONE] No rings found');
+      return false;
+    }
+    
+    // Check if any ester atoms are in a ring
+    for (const ester of esters) {
+      const esterAtomIds = new Set(ester.atoms.map((a: any) => a.id || a));
+      for (const ring of rings as any[]) {
+        // molecule.rings contains atom indices, not atom objects
+        const ringAtomIds = new Set(ring);
+        // If ester carbonyl carbon is in ring AND ester oxygen is in ring → lactone
+        for (const atomId of esterAtomIds) {
+          if (ringAtomIds.has(atomId)) {
+            if (process.env.VERBOSE) {
+              console.log('[LACTONE_TO_KETONE] Found lactone! Ester atoms:', Array.from(esterAtomIds), 'Ring atoms:', Array.from(ringAtomIds));
+            }
+            return true;
+          }
+        }
+      }
+    }
+    
+    if (process.env.VERBOSE) console.log('[LACTONE_TO_KETONE] No lactones found');
+    return false;
+  },
+  action: (context: ImmutableNamingContext) => {
+    const functionalGroups = context.getState().functionalGroups;
+    const mol = context.getState().molecule;
+    // Use molecule.rings (from parser/analysis) since candidateRings isn't populated yet
+    const rings = mol.rings || [];
+    
+    if (process.env.VERBOSE) {
+      console.log('[LACTONE_TO_KETONE] Converting cyclic esters to ketones');
+      console.log('[LACTONE_TO_KETONE] Found', rings.length, 'rings in molecule');
+      console.log('[LACTONE_TO_KETONE] Current functionalGroups:', functionalGroups.map(fg => ({ type: fg.type, atoms: fg.atoms?.map((a: any) => a.id || a) })));
+    }
+    
+    // Find all ring atoms
+    const ringAtomIds = new Set<number>();
+    for (const ring of rings as any[]) {
+      // molecule.rings contains atom indices, not atom objects
+      ring.forEach((atomId: number) => ringAtomIds.add(atomId));
+    }
+    
+    // Convert cyclic esters to ketones
+    const updatedFunctionalGroups = functionalGroups.map(fg => {
+      if (fg.type !== 'ester') {
+        return fg;
+      }
+      
+      // Check if this ester is cyclic (lactone)
+      const esterAtomIds = fg.atoms.map((a: any) => a.id || a);
+      const isCyclic = esterAtomIds.some((atomId: number) => ringAtomIds.has(atomId));
+      
+      if (process.env.VERBOSE) {
+        console.log('[LACTONE_TO_KETONE] Checking ester with atoms:', esterAtomIds, 'isCyclic:', isCyclic, 'ringAtomIds:', Array.from(ringAtomIds));
+      }
+      
+      if (isCyclic) {
+        if (process.env.VERBOSE) {
+          console.log('[LACTONE_TO_KETONE] Converting ester at atoms', esterAtomIds, 'to ketone (lactone)');
+        }
+        
+        // Find the carbonyl carbon (C=O) from the functional group atoms
+        // fg.atoms may contain atom IDs (numbers) or atom objects
+        const esterAtoms = fg.atoms.map((a: any) => {
+          if (typeof a === 'number') {
+            return mol.atoms.find((atom: any) => atom.id === a);
+          }
+          return a;
+        }).filter(Boolean);
+        
+        const carbonylCarbon = esterAtoms.find((atom: any) => 
+          atom && atom.symbol === 'C'
+        );
+        
+        if (process.env.VERBOSE) {
+          console.log('[LACTONE_TO_KETONE] carbonylCarbon found:', carbonylCarbon ? 'YES' : 'NO', 'esterAtoms:', esterAtoms.map((a: any) => ({ id: a?.id, symbol: a?.symbol })));
+        }
+        
+        if (!carbonylCarbon) {
+          if (process.env.VERBOSE) {
+            console.log('[LACTONE_TO_KETONE] ERROR: Could not find carbonyl carbon in ester group!');
+          }
+          return fg;
+        }
+        
+        // Convert to ketone: change suffix from 'oate' to 'one', priority from 8 to 3
+        return {
+          ...fg,
+          type: 'ketone',
+          name: 'ketone',
+          suffix: 'one',
+          priority: 3,  // Ketone priority (same as regular ketones)
+          atoms: [carbonylCarbon],  // Only keep carbonyl carbon atom object
+          prefix: 'oxo'
+        };
+      }
+      
+      return fg;
+    });
+    
+    if (process.env.VERBOSE) {
+      console.log('[LACTONE_TO_KETONE] After conversion, functionalGroups:', updatedFunctionalGroups.map(fg => ({ type: fg.type, suffix: fg.suffix, atoms: fg.atoms?.map((a: any) => a.id || a) })));
+    }
+    
+    return context.withStateUpdate(
+      (state) => ({
+        ...state,
+        functionalGroups: updatedFunctionalGroups
+      }),
+      'lactone-to-ketone',
+      'Lactone to Ketone Conversion',
+      'P-66.1.1.4',
+      ExecutionPhase.FUNCTIONAL_GROUP,
+      'Converted cyclic esters (lactones) to ketones for heterocycle naming'
+    );
   }
 };
 
@@ -486,6 +775,7 @@ function calculateFunctionalGroupPriority(functionalGroups: any[]): number {
 
 /**
  * Determine if functional class nomenclature is preferred
+ * NOTE: This is now handled separately for esters in ESTER_DETECTION_RULE
  */
 function isFunctionalClassPreferred(principalGroup: any): boolean {
   if (!principalGroup) {
@@ -493,8 +783,8 @@ function isFunctionalClassPreferred(principalGroup: any): boolean {
   }
   
   // Functional class is preferred for certain groups
+  // Esters are NOT included here because complexity checking is done in ESTER_DETECTION_RULE
   const functionalClassPreferred = [
-    'ester',
     'anhydride',
     'acyl_halide',
     'nitrile'
@@ -919,6 +1209,7 @@ export const FUNCTIONAL_GROUP_LAYER_RULES: IUPACRule[] = [
   ALCOHOL_DETECTION_RULE,
   AMINE_DETECTION_RULE,
   ESTER_DETECTION_RULE,
+  LACTONE_TO_KETONE_RULE,  // Convert cyclic esters to ketones
   FUNCTIONAL_GROUP_PRIORITY_RULE,
   ETHER_TO_ALKOXY_RULE,
   FUNCTIONAL_CLASS_RULE

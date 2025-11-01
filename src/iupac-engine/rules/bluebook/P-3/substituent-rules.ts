@@ -303,48 +303,289 @@ export const P3_2_RING_SUBSTITUENT_RULE: IUPACRule = {
 };
 
 /**
+ * Analyze substituent structure to detect branching and create systematic name
+ */
+interface SubstituentStructure {
+  mainChain: number[];
+  branches: Map<number, { atoms: number[]; substituents: string[] }>;
+  attachmentPoint: number;
+}
+
+function analyzeSubstituentStructure(
+  attachedAtomId: number,
+  molecule: any,
+  fromRingAtomId: number
+): SubstituentStructure | null {
+  // For substituents, we need to find the longest carbon chain
+  // The chain can extend in both directions from the attachment atom
+  // For example: CH3-C(I)(CH3)-C(ring) forms a propyl group with the attachment in the middle
+  
+  const findPathsFromAtom = (startId: number, excludeIds: Set<number>): number[][] => {
+    const paths: number[][] = [];
+    const stack: { currentId: number; path: number[]; visited: Set<number> }[] = [
+      { currentId: startId, path: [startId], visited: new Set([startId]) }
+    ];
+    
+    while (stack.length > 0) {
+      const { currentId, path, visited: localVisited } = stack.pop()!;
+      const currentAtom = molecule.atoms[currentId];
+      
+      if (!currentAtom || currentAtom.symbol !== 'C') continue;
+      
+      const neighbors = molecule.bonds
+        .filter((b: any) => b.atom1 === currentId || b.atom2 === currentId)
+        .map((b: any) => b.atom1 === currentId ? b.atom2 : b.atom1)
+        .filter((id: number) => 
+          !excludeIds.has(id) &&
+          !localVisited.has(id) && 
+          molecule.atoms[id]?.symbol === 'C'
+        );
+      
+      if (neighbors.length === 0) {
+        paths.push(path);
+      } else {
+        for (const neighborId of neighbors) {
+          const newVisited = new Set(localVisited);
+          newVisited.add(neighborId);
+          stack.push({
+            currentId: neighborId,
+            path: [...path, neighborId],
+            visited: newVisited
+          });
+        }
+      }
+    }
+    
+    return paths;
+  };
+  
+  // Find all paths from the attached atom (excluding the ring atom we came from)
+  const pathsFromAttached = findPathsFromAtom(attachedAtomId, new Set([fromRingAtomId]));
+  
+  // The longest chain should go through the attachment point
+  // Find the two longest paths in opposite directions, then combine them
+  let mainChain: number[];
+  
+  if (pathsFromAttached.length === 0) {
+    // No carbon neighbors, just the attachment atom
+    mainChain = [attachedAtomId];
+  } else if (pathsFromAttached.length === 1) {
+    // Linear chain in one direction
+    mainChain = pathsFromAttached[0] || [attachedAtomId];
+  } else {
+    // Multiple branches - need to find longest chain through attachment point
+    // Sort paths by length
+    const sortedPaths = pathsFromAttached.sort((a, b) => b.length - a.length);
+    
+    // Take two longest paths
+    const path1 = sortedPaths[0] || [attachedAtomId];
+    const path2 = sortedPaths[1];
+    
+    if (!path2 || path2.length === 1) {
+      // Only one real path
+      mainChain = path1;
+    } else {
+      // Check if paths diverge immediately from attachment point (Case 1)
+      // vs. sharing a common prefix before branching (Case 2)
+      const path1Next = path1[1];
+      const path2Next = path2[1];
+      
+      if (path1Next !== path2Next) {
+        // Paths diverge immediately - combine them through attachment point
+        // Example: [1,0] and [1,2] → [0,1,2]
+        const reversedPath2 = [...path2].reverse();
+        mainChain = [...reversedPath2.slice(0, -1), ...path1];
+      } else {
+        // Paths share a common prefix - they're branches, not opposite directions
+        // Just use the longest path
+        mainChain = path1;
+      }
+    }
+  }
+  
+  if (process.env.VERBOSE) {
+    console.log(`[SubstituentAnalysis] Paths from attached:`, pathsFromAttached);
+    console.log(`[SubstituentAnalysis] Main chain:`, mainChain);
+  }
+  
+  // Find where the attachment point is in the main chain
+  const attachmentIdx = mainChain.indexOf(attachedAtomId);
+  
+  // Find branches and substituents on each main chain atom
+  const branches = new Map<number, { atoms: number[]; substituents: string[] }>();
+  
+  for (let i = 0; i < mainChain.length; i++) {
+    const chainAtomId = mainChain[i];
+    const prevAtomId = i > 0 ? mainChain[i - 1] : -1;
+    const nextAtomId = i < mainChain.length - 1 ? mainChain[i + 1] : -1;
+    
+    const neighbors = molecule.bonds
+      .filter((b: any) => b.atom1 === chainAtomId || b.atom2 === chainAtomId)
+      .map((b: any) => b.atom1 === chainAtomId ? b.atom2 : b.atom1)
+      .filter((id: number) => 
+        id !== fromRingAtomId && 
+        id !== prevAtomId &&
+        id !== nextAtomId
+      );
+    
+    if (neighbors.length > 0) {
+      const branchAtoms: number[] = [];
+      const substituents: string[] = [];
+      
+      for (const neighborId of neighbors) {
+        const neighborAtom = molecule.atoms[neighborId];
+        if (!neighborAtom) continue;
+        
+        if (neighborAtom.symbol === 'C') {
+          branchAtoms.push(neighborId);
+          substituents.push('methyl');
+        } else if (neighborAtom.symbol === 'I') {
+          substituents.push('iodo');
+        } else if (neighborAtom.symbol === 'Br') {
+          substituents.push('bromo');
+        } else if (neighborAtom.symbol === 'Cl') {
+          substituents.push('chloro');
+        } else if (neighborAtom.symbol === 'F') {
+          substituents.push('fluoro');
+        } else if (neighborAtom.symbol === 'O' && neighborAtom.hydrogens === 1) {
+          substituents.push('hydroxy');
+        } else if (neighborAtom.symbol === 'N' && neighborAtom.hydrogens === 2) {
+          substituents.push('amino');
+        }
+      }
+      
+      if (branchAtoms.length > 0 || substituents.length > 0) {
+        branches.set(i, { atoms: branchAtoms, substituents });
+      }
+    }
+  }
+  
+  return {
+    mainChain,
+    branches,
+    attachmentPoint: attachmentIdx
+  };
+}
+
+/**
+ * Get parent chain name based on carbon count
+ */
+function getParentChainName(carbonCount: number): string | null {
+  const names = ['meth', 'eth', 'prop', 'but', 'pent', 'hex', 'hept', 'oct', 'non', 'dec'];
+  if (carbonCount <= 0 || carbonCount > names.length) return null;
+  const name = names[carbonCount - 1];
+  return name || null;
+}
+
+/**
  * Helper function to determine substituent name for ring attachments
  */
 function getRingSubstituentName(attachedAtom: any, molecule: any, fromIndex: number): string | null {
   if (!attachedAtom) return null;
 
   const symbol = attachedAtom.symbol;
+  const attachedAtomId = molecule.atoms.indexOf(attachedAtom);
 
   // Carbon-based substituents
   if (symbol === 'C') {
-    // Traverse the substituent chain starting from this carbon
-    const substituentChain = traverseSubstituentChain(attachedAtom, molecule, fromIndex);
-
-    console.log(`[P-3.2] Substituent chain length: ${substituentChain.length}`);
-
-    if (substituentChain.length === 1) {
-      // Single carbon substituents
-      const atom = substituentChain[0];
-      const hydrogens = atom.hydrogens || 0;
-      switch (hydrogens) {
-        case 3: return 'methyl';
-        case 2: return 'methylene';
-        case 1: return 'methine';
-        case 0: return 'carbon';
-        default: return null;
+    // Analyze the substituent structure
+    const structure = analyzeSubstituentStructure(attachedAtomId, molecule, fromIndex);
+    
+    if (!structure) {
+      if (process.env.VERBOSE) {
+        console.log(`[P-3.2] Failed to analyze substituent structure`);
       }
-    } else if (substituentChain.length === 2) {
-      // Two carbon substituents
-      return 'ethyl';
-    } else if (substituentChain.length === 3) {
-      // Three carbon substituents
-      return 'propyl';
-    } else if (substituentChain.length === 4) {
-      // Four carbon substituents
-      return 'butyl';
-    } else if (substituentChain.length === 5) {
-      // Five carbon substituents
-      return 'pentyl';
-    } else if (substituentChain.length === 6) {
-      // Six carbon substituents
-      return 'hexyl';
+      return null;
     }
-    // For longer chains, could implement more complex logic
+    
+    const chainLength = structure.mainChain.length;
+    const hasBranches = structure.branches.size > 0;
+    
+    if (process.env.VERBOSE) {
+      console.log(`[P-3.2] Substituent chain length: ${chainLength}, branches: ${structure.branches.size}`);
+    }
+    
+    // Simple unbranched substituents
+    if (!hasBranches) {
+      if (chainLength === 1) {
+        const firstAtomId = structure.mainChain[0];
+        if (firstAtomId === undefined) return null;
+        const atom = molecule.atoms[firstAtomId];
+        if (!atom) return null;
+        const hydrogens = atom.hydrogens || 0;
+        switch (hydrogens) {
+          case 3: return 'methyl';
+          case 2: return 'methylene';
+          case 1: return 'methine';
+          case 0: return 'carbon';
+          default: return null;
+        }
+      } else {
+        const baseName = getParentChainName(chainLength);
+        return baseName ? `${baseName}yl` : null;
+      }
+    }
+    
+    // Branched substituents - need systematic naming
+    const baseName = getParentChainName(chainLength);
+    if (!baseName) return null;
+    
+    // Determine numbering: attachment point should get a low number
+    // For substituents, number from the end that gives lowest locants to branches
+    // But attachment point must be indicated
+    
+    // Calculate locants for each branch position based on numbering from position 0
+    const locantMap = new Map<number, number>();
+    for (let i = 0; i < chainLength; i++) {
+      locantMap.set(i, i + 1); // 1-based numbering
+    }
+    
+    // Build substituent list with locants
+    const substituentParts: string[] = [];
+    const sortedPositions = Array.from(structure.branches.keys()).sort((a, b) => {
+      const locantA = locantMap.get(a) || 0;
+      const locantB = locantMap.get(b) || 0;
+      return locantA - locantB;
+    });
+    
+    for (const position of sortedPositions) {
+      const branch = structure.branches.get(position);
+      if (!branch) continue;
+      
+      const locant = locantMap.get(position) || 1;
+      
+      // Count identical substituents at this position
+      const substituentCounts = new Map<string, number>();
+      for (const sub of branch.substituents) {
+        substituentCounts.set(sub, (substituentCounts.get(sub) || 0) + 1);
+      }
+      
+      // Format substituents with multipliers
+      const sortedSubs = Array.from(substituentCounts.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+      for (const [subName, count] of sortedSubs) {
+        if (count > 1) {
+          const multiplier = count === 2 ? 'di' : count === 3 ? 'tri' : count === 4 ? 'tetra' : '';
+          substituentParts.push(`${locant},${locant}-${multiplier}${subName}`);
+        } else {
+          substituentParts.push(`${locant}-${subName}`);
+        }
+      }
+    }
+    
+    // Combine parts: substituents + parent chain + attachment locant + "yl"
+    if (substituentParts.length > 0) {
+      const substituentPrefix = substituentParts.join('-');
+      const attachmentLocant = locantMap.get(structure.attachmentPoint) || 1;
+      
+      // Omit locant if it's position 1 (terminal position) - use "propyl" not "propan-1-yl"
+      if (attachmentLocant === 1) {
+        return `(${substituentPrefix}${baseName}yl)`;
+      } else {
+        return `(${substituentPrefix}${baseName}an-${attachmentLocant}-yl)`;
+      }
+    }
+    
+    return `${baseName}yl`;
   }
 
   // Halogens

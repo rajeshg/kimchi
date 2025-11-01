@@ -45,8 +45,12 @@ export const P51_1_SUBSTITUTIVE_RULE: IUPACRule = {
 /**
  * Rule: P-51.2 - Functional Class Nomenclature
  * 
- * For certain functional groups (esters, anhydrides, etc.),
+ * For certain functional groups (anhydrides, acyl halides, etc.),
  * functional class nomenclature is preferred.
+ * 
+ * NOTE: Esters are NOT in this list because:
+ * - Cyclic esters (lactones) use heterocycle nomenclature (P-66.1.1.4)
+ * - Noncyclic esters may use functional class, handled separately
  */
 export const P51_2_FUNCTIONAL_CLASS_RULE: IUPACRule = {
   id: 'P-51.2',
@@ -70,8 +74,11 @@ export const P51_2_FUNCTIONAL_CLASS_RULE: IUPACRule = {
     }
     
     // Functional groups that prefer functional class nomenclature
+    // NOTE: esters are NOT included here because:
+    // - Cyclic esters (lactones) MUST use heterocycle nomenclature (Class 16)
+    // - Noncyclic esters can use functional class, but this is handled separately
+    // Reference: Blue Book P-66.1.1.4 - Lactones are named as heterocycles
     const functionalClassPreferred = [
-      'ester',
       'anhydride',
       'acyl_halide',
       'nitrile',

@@ -705,7 +705,25 @@ function getPrincipalGroupLocantFromSet(parentStructure: ParentStructure, princi
     // Return the locant at that position from the given locant set
     return locantSet[positionInChain] || 1;
   } else {
-    // For rings, principal group gets the lowest available locant
+    // For rings, find the position of the functional group atom in the ring
+    // This is important for lactones where the carbonyl must be at position 2
+    if (principalGroup.atoms.length === 0) {
+      return Math.min(...locantSet); // Fallback if no atoms
+    }
+    
+    const functionalGroupAtom = principalGroup.atoms[0]!;
+    const atomId = typeof functionalGroupAtom === 'number' ? functionalGroupAtom : functionalGroupAtom.id;
+    
+    // parentStructure.ring should have the atoms in numbered order
+    const ring = parentStructure.ring;
+    if (ring && ring.atoms) {
+      const positionInRing = ring.atoms.findIndex((atom: Atom) => atom.id === atomId);
+      if (positionInRing !== -1 && positionInRing < locantSet.length) {
+        return locantSet[positionInRing]!;
+      }
+    }
+    
+    // Fallback: return lowest locant
     return Math.min(...locantSet);
   }
 }
@@ -982,7 +1000,7 @@ function findOptimalRingNumbering(ring: any, molecule: any, functionalGroups?: a
  * @param heteroatomIndex - Index of the heteroatom in ring.atoms (0-based)
  * @returns Positive value for clockwise (starting position 1-based), negative for counterclockwise, 0 for no preference
  */
-function findOptimalRingNumberingFromHeteroatom(ring: any, molecule: any, heteroatomIndex: number): number {
+function findOptimalRingNumberingFromHeteroatom(ring: any, molecule: any, heteroatomIndex: number, functionalGroups?: any[]): number {
   if (!ring || !ring.atoms || ring.atoms.length === 0) {
     return -1;
   }
@@ -993,6 +1011,38 @@ function findOptimalRingNumberingFromHeteroatom(ring: any, molecule: any, hetero
 
   // Build set of ring atom IDs
   const ringAtomIds = new Set<number>(ring.atoms.map((a: any) => a.id));
+
+  // Build set of functional group atom IDs to exclude from substituent counting
+  const functionalGroupAtomIds = new Set<number>();
+  if (functionalGroups) {
+    for (const fg of functionalGroups) {
+      if (fg.atoms) {
+        for (const fgAtom of fg.atoms) {
+          // Handle both atom objects and atom IDs
+          const atomId = typeof fgAtom === 'object' ? fgAtom.id : fgAtom;
+          if (atomId !== undefined) {
+            functionalGroupAtomIds.add(atomId);
+            
+            // Also add all atoms bonded to this functional group atom
+            // (e.g., C=O oxygen should be excluded if C is in the functional group)
+            const bonds = molecule.bonds.filter((bond: any) =>
+              bond.atom1 === atomId || bond.atom2 === atomId
+            );
+            for (const bond of bonds) {
+              const otherAtomId = bond.atom1 === atomId ? bond.atom2 : bond.atom1;
+              // Only add if it's not a ring atom (we don't want to exclude ring substituents)
+              if (!ringAtomIds.has(otherAtomId)) {
+                functionalGroupAtomIds.add(otherAtomId);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  if (process.env.VERBOSE && functionalGroupAtomIds.size > 0) {
+    console.log(`[Heteroatom Ring Numbering] Functional group atom IDs to exclude: [${Array.from(functionalGroupAtomIds).join(', ')}]`);
+  }
 
   // Count substituents at each ring position (not just which atoms have substituents)
   const substituentCounts: number[] = new Array(ring.atoms.length).fill(0);
@@ -1011,6 +1061,13 @@ function findOptimalRingNumberingFromHeteroatom(ring: any, molecule: any, hetero
       if (!ringAtomIds.has(otherAtomId)) {
         const substituentAtom = molecule.atoms[otherAtomId];
         if (substituentAtom && substituentAtom.symbol !== 'H') {
+          // Skip functional group atoms - they're not substituents
+          if (functionalGroupAtomIds.has(otherAtomId)) {
+            if (process.env.VERBOSE) {
+              console.log(`[Heteroatom Ring Numbering] Skipping functional group atom ${otherAtomId} at position ${i}`);
+            }
+            continue;
+          }
           // Count this substituent
           const currentCount = substituentCounts[i];
           if (currentCount !== undefined) {
@@ -1021,26 +1078,106 @@ function findOptimalRingNumberingFromHeteroatom(ring: any, molecule: any, hetero
     }
   }
 
-  console.log(`[Heteroatom Ring Numbering] Substituent counts at each position: [${substituentCounts.join(', ')}]`);
+  if (process.env.VERBOSE) {
+    console.log(`[Heteroatom Ring Numbering] Substituent counts at each position: [${substituentCounts.join(', ')}]`);
+  }
   const heteroAtom = ring.atoms[heteroatomIndex];
   if (!heteroAtom) {
     return -1;
   }
-  console.log(`[Heteroatom Ring Numbering] Heteroatom at index ${heteroatomIndex} (atom ${heteroAtom.id})`);
+  if (process.env.VERBOSE) {
+    console.log(`[Heteroatom Ring Numbering] Heteroatom at index ${heteroatomIndex} (atom ${heteroAtom.id})`);
+  }
+  // Build a map of ring atom ID → index in ring.atoms
+  const ringAtomIdToIndex = new Map<number, number>();
+  for (let i = 0; i < ring.atoms.length; i++) {
+    const atom = ring.atoms[i];
+    if (atom && atom.id !== undefined) {
+      ringAtomIdToIndex.set(atom.id, i);
+    }
+  }
 
-  // If no substituents, default numbering is fine
+  // Find functional group atoms that are part of the ring
+  const functionalGroupRingPositions: number[] = [];
+  if (functionalGroups) {
+    for (const fg of functionalGroups) {
+      if (fg.atoms) {
+        for (const fgAtom of fg.atoms) {
+          const atomId = typeof fgAtom === 'object' ? fgAtom.id : fgAtom;
+          if (atomId !== undefined && ringAtomIdToIndex.has(atomId)) {
+            const idx = ringAtomIdToIndex.get(atomId);
+            if (idx !== undefined) {
+              functionalGroupRingPositions.push(idx);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  const ringSize = ring.atoms.length;
+  
+  // IUPAC Priority Order:
+  // 1. Heteroatom at position 1 (already ensured)
+  // 2. Functional groups at lowest locants (HIGHEST PRIORITY for direction)
+  // 3. Substituents at lowest locants (tiebreaker if functional group locants are equal)
+
+  // If there are functional groups in the ring, they take priority for direction selection
+  if (functionalGroupRingPositions.length > 0) {
+    if (process.env.VERBOSE) {
+      console.log(`[Heteroatom Ring Numbering] Functional groups at ring positions: [${functionalGroupRingPositions.join(', ')}]`);
+    }
+    
+    // Direction 1 (clockwise): calculate functional group locants
+    const fgLocants1 = functionalGroupRingPositions.map(pos => {
+      const offset = (pos - heteroatomIndex + ringSize) % ringSize;
+      return offset + 1; // 1-based locant
+    }).sort((a, b) => a - b);
+    
+    // Direction 2 (counterclockwise): calculate functional group locants
+    const fgLocants2 = functionalGroupRingPositions.map(pos => {
+      const offset = (heteroatomIndex - pos + ringSize) % ringSize;
+      return offset + 1; // 1-based locant
+    }).sort((a, b) => a - b);
+    
+    if (process.env.VERBOSE) {
+      console.log(`[Heteroatom Ring Numbering] Direction 1 (CW) functional group locants: [${fgLocants1.join(', ')}]`);
+      console.log(`[Heteroatom Ring Numbering] Direction 2 (CCW) functional group locants: [${fgLocants2.join(', ')}]`);
+    }
+    
+    // Compare functional group locants first
+    const fgComparison = compareLocantSets(fgLocants1, fgLocants2);
+    
+    if (fgComparison < 0) {
+      // Direction 1 has better functional group locants
+      if (process.env.VERBOSE) {
+        console.log(`[Heteroatom Ring Numbering] Choosing direction 1 (clockwise) based on functional group locants`);
+      }
+      return heteroatomIndex + 1;
+    } else if (fgComparison > 0) {
+      // Direction 2 has better functional group locants
+      if (process.env.VERBOSE) {
+        console.log(`[Heteroatom Ring Numbering] Choosing direction 2 (counterclockwise) based on functional group locants`);
+      }
+      return -1;
+    }
+    
+    // Functional group locants are equal, fall through to check substituents as tiebreaker
+    if (process.env.VERBOSE) {
+      console.log(`[Heteroatom Ring Numbering] Functional group locants are equal, checking substituents as tiebreaker`);
+    }
+  }
+
+  // Calculate substituent locants for both directions
   const totalSubstituents = substituentCounts.reduce((sum, count) => sum + count, 0);
+  
   if (totalSubstituents === 0) {
-    console.log(`[Heteroatom Ring Numbering] No substituents found, using default`);
+    if (process.env.VERBOSE) {
+      console.log(`[Heteroatom Ring Numbering] No substituents found, using default clockwise direction`);
+    }
     return heteroatomIndex + 1; // 1-based
   }
 
-  // For 3-membered rings with heteroatom at index heteroatomIndex:
-  // Direction 1: [heteroatom, next, prev] = [heteroatomIndex, heteroatomIndex+1, heteroatomIndex+2] mod ring.atoms.length
-  // Direction 2: [heteroatom, prev, next] = [heteroatomIndex, heteroatomIndex-1, heteroatomIndex-2] mod ring.atoms.length
-  
-  const ringSize = ring.atoms.length;
-  
   // Try direction 1: heteroatom → next atom (clockwise)
   const locants1: number[] = [];
   for (let i = 0; i < ringSize; i++) {
@@ -1065,19 +1202,25 @@ function findOptimalRingNumberingFromHeteroatom(ring: any, molecule: any, hetero
   }
   locants2.sort((a, b) => a - b);
 
-  console.log(`[Heteroatom Ring Numbering] Direction 1 (clockwise): locants = [${locants1.join(', ')}]`);
-  console.log(`[Heteroatom Ring Numbering] Direction 2 (counterclockwise): locants = [${locants2.join(', ')}]`);
+  if (process.env.VERBOSE) {
+    console.log(`[Heteroatom Ring Numbering] Direction 1 (clockwise) substituent locants: [${locants1.join(', ')}]`);
+    console.log(`[Heteroatom Ring Numbering] Direction 2 (counterclockwise) substituent locants: [${locants2.join(', ')}]`);
+  }
 
-  // Compare the two locant sets
+  // Compare the substituent locant sets
   const comparison = compareLocantSets(locants1, locants2);
   
   if (comparison <= 0) {
     // Direction 1 is better or equal (clockwise)
-    console.log(`[Heteroatom Ring Numbering] Choosing direction 1 (clockwise)`);
+    if (process.env.VERBOSE) {
+      console.log(`[Heteroatom Ring Numbering] Choosing direction 1 (clockwise) based on substituent locants`);
+    }
     return heteroatomIndex + 1; // 1-based, positive means use as-is
   } else {
     // Direction 2 is better (counterclockwise)
-    console.log(`[Heteroatom Ring Numbering] Choosing direction 2 (counterclockwise)`);
+    if (process.env.VERBOSE) {
+      console.log(`[Heteroatom Ring Numbering] Choosing direction 2 (counterclockwise) based on substituent locants`);
+    }
     return -1; // Negative signals to caller to reverse the ring
   }
 }
@@ -1111,15 +1254,16 @@ function findRingStartingPosition(ring: any, molecule?: any, functionalGroups?: 
   
   if (heteroatomIndex >= 0 && molecule) {
     // Found heteroatom - now determine best numbering direction
-    const result = findOptimalRingNumberingFromHeteroatom(ring, molecule, heteroatomIndex);
+    const result = findOptimalRingNumberingFromHeteroatom(ring, molecule, heteroatomIndex, functionalGroups);
     
     // If result is negative, it means we need to reverse the ring (counterclockwise)
     if (result < 0) {
-      // Reverse the ring atoms (keeping heteroatom at the start)
+      // Reverse the ring atoms for counterclockwise numbering
+      // CCW from heteroatomIndex means: heteroatom, then previous atoms in reverse, then following atoms in reverse
       const heteroAtom = ring.atoms[heteroatomIndex];
-      const remaining = ring.atoms.filter((_: any, idx: number) => idx !== heteroatomIndex);
-      remaining.reverse();
-      ring.atoms = [heteroAtom, ...remaining];
+      const before = ring.atoms.slice(0, heteroatomIndex).reverse(); // atoms before heteroatom, reversed
+      const after = ring.atoms.slice(heteroatomIndex + 1).reverse();  // atoms after heteroatom, reversed
+      ring.atoms = [heteroAtom, ...before, ...after];
       console.log(`[Ring Numbering] Reversed ring for counterclockwise numbering: [${ring.atoms.map((a: any) => a.id).join(', ')}]`);
       return 1; // Heteroatom is now at position 1
     }
@@ -1155,19 +1299,12 @@ function findRingStartingPosition(ring: any, molecule?: any, functionalGroups?: 
 }
 
 function adjustRingLocants(locants: number[], startingPosition: number): number[] {
-  if (startingPosition === 1) {
-    return locants;
-  }
-  
-  // Rotate locants to start from the desired position
-  const rotated = [...locants];
-  const rotation = startingPosition - 1;
-  
-  for (let i = 0; i < rotated.length; i++) {
-    rotated[i] = ((i + rotation - 1) % locants.length) + 1;
-  }
-  
-  return rotated;
+  // After reorderRingAtoms(), the atoms array is already in the correct order
+  // where atoms[0] corresponds to the starting position (e.g., heteroatom).
+  // Therefore, locants should just be [1, 2, 3, 4, ...] to match the positions.
+  // The old logic tried to rotate locants, but that's wrong because the atoms
+  // are already reordered.
+  return locants.map((_, i) => i + 1);
 }
 
 /**
@@ -1224,6 +1361,11 @@ function isPrincipalGroup(group: FunctionalGroup): boolean {
 }
 
 function assignSubstituentLocants(group: FunctionalGroup, parentStructure: ParentStructure, index: number): number[] {
+  // If the group already has valid locants assigned (e.g., from ring numbering), keep them
+  if (group.locants && group.locants.length > 0 && group.locants.every((l: number) => l > 0)) {
+    return group.locants;
+  }
+  
   // Simple implementation - assign consecutive locants
   const usedLocants = parentStructure.locants || [];
   const locants: number[] = [];

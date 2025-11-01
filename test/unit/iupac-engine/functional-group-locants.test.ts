@@ -60,4 +60,21 @@ describe('Functional group locants and trace metadata', () => {
       }
     }
   });
+
+  test('ring substituent locants are preserved from ring numbering (4-methoxycycloheptan-1-one)', () => {
+    const namer = new IUPACNamer();
+    const result = namer.generateNameFromSMILES('COC1CCCC(=O)CC1');
+
+    expect(result.name).toBe('4-methoxycycloheptan-1-one');
+
+    // Verify that the alkoxy group has the correct locant (4, not 8)
+    const alkoxy = result.functionalGroups.find(g => g.type === 'alkoxy');
+    expect(alkoxy).toBeDefined();
+    expect(alkoxy?.locants).toEqual([4]);
+
+    // Verify that the ketone has locant 1
+    const ketone = result.functionalGroups.find(g => g.type === 'ketone');
+    expect(ketone).toBeDefined();
+    expect(ketone?.locants).toContain(1);
+  });
 });

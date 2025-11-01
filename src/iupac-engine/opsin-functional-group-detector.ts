@@ -236,6 +236,24 @@ export class OPSINFunctionalGroupDetector {
               claimedAtoms.add(atomsMatched[i]!);
               claimedAtoms.add(atomsMatched[i + 1]!);
             }
+          } else if (check.pattern === 'C(=O)O' && atomsMatched.length > 2) {
+            // Special case: For esters, create one functional group per C-O pair
+            // since each ester should be counted separately for diesters, etc.
+            // atomsMatched contains pairs: [C1, O1, C2, O2, ...]
+            for (let i = 0; i < atomsMatched.length; i += 2) {
+              detectedGroups.push({
+                type: check.pattern,
+                name: fgEntry?.name || check.name,
+                suffix: fgEntry?.suffix || '',
+                prefix: fgEntry?.prefix || undefined,
+                priority: fgEntry?.priority || check.priority,
+                atoms: [atomsMatched[i]!, atomsMatched[i + 1]!],
+                pattern: check.pattern
+              });
+              // Claim these atoms
+              claimedAtoms.add(atomsMatched[i]!);
+              claimedAtoms.add(atomsMatched[i + 1]!);
+            }
           } else if (check.pattern === 'ROR' && atomsMatched.length > 1) {
             // Special case: For ethers, create one functional group per oxygen atom
             // since each ether oxygen should be independently convertible to alkoxy
@@ -828,7 +846,9 @@ export class OPSINFunctionalGroupDetector {
   }
 
   private findEsterPattern(atoms: readonly any[], bonds: readonly any[]): number[] {
-    // Look for carbonyl carbon (C=O) single-bonded to oxygen which is bonded to carbon
+    // Look for ALL carbonyl carbons (C=O) single-bonded to oxygen which is bonded to carbon
+    const esters: number[] = [];
+    
     for (let i = 0; i < atoms.length; i++) {
       const atom = atoms[i];
       if (atom.symbol !== 'C') continue;
@@ -855,11 +875,11 @@ export class OPSINFunctionalGroupDetector {
           this.getBondedAtom(b, oxygen.id, atoms)?.id !== atom.id
         );
         if (oxCarbonNeighbor) {
-          return [atom.id, oxygen.id];
+          esters.push(atom.id, oxygen.id);
         }
       }
     }
-    return [];
+    return esters;
   }
   
   // Ring systems
