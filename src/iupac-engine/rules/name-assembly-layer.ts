@@ -1323,9 +1323,10 @@ function buildEsterName(parentStructure: any, esterGroup: any, molecule: any, fu
       // Find which carbon in the alkoxy chain this substituent is attached to
       let attachmentCarbon: number | undefined;
       if (sub.atoms && sub.atoms.length > 0) {
-        // For acyloxy groups: atoms = [carbonyl C, ester O], so oxygen is at index 1
+        // For acyloxy groups: atoms = [carbonyl C, carbonyl O (double bond), ester O (single bond)]
+        // The ester oxygen that connects to the alkoxy chain is at index 2
         // For alkoxy groups: atoms = [ether O], so oxygen is at index 0
-        const oxygenIndices = sub.type === 'acyloxy' ? [1, 0] : [0];
+        const oxygenIndices = sub.type === 'acyloxy' ? [2] : [0];
         
         for (const oxygenIdx of oxygenIndices) {
           if (oxygenIdx < sub.atoms.length) {
@@ -1675,8 +1676,8 @@ function buildThiocyanateName(parentStructure: any, functionalGroups: any[]): st
     console.log('[buildThiocyanateName] alkylName:', alkylName);
   }
   
-  // Add "thiocyanate" at the end
-  return `${alkylName}thiocyanate`;
+  // Add "thiocyanate" at the end with space (functional class nomenclature)
+  return `${alkylName} thiocyanate`;
 }
 
 function buildAlkylGroupName(parentStructure: any, functionalGroups: any[]): string {

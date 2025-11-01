@@ -5,7 +5,7 @@ import { RuleEngine } from 'src/iupac-engine/engine';
 describe('Thiocyanate Functional Class Nomenclature', () => {
   const engine = new RuleEngine();
 
-  test('CSC#N should generate methylthiocyanate', () => {
+  test('CSC#N should generate methyl thiocyanate', () => {
     const result = parseSMILES('CSC#N');
     const mol = result.molecules[0];
     expect(mol).toBeDefined();
@@ -13,10 +13,10 @@ describe('Thiocyanate Functional Class Nomenclature', () => {
     const iupacResult = engine.generateName(mol!);
     const generated = iupacResult.name?.trim().toLowerCase();
     
-    expect(generated).toBe('methylthiocyanate');
+    expect(generated).toBe('methyl thiocyanate');
   });
 
-  test('CCSC#N should generate ethylthiocyanate', () => {
+  test('CCSC#N should generate ethyl thiocyanate', () => {
     const result = parseSMILES('CCSC#N');
     const mol = result.molecules[0];
     expect(mol).toBeDefined();
@@ -24,10 +24,10 @@ describe('Thiocyanate Functional Class Nomenclature', () => {
     const iupacResult = engine.generateName(mol!);
     const generated = iupacResult.name?.trim().toLowerCase();
     
-    expect(generated).toBe('ethylthiocyanate');
+    expect(generated).toBe('ethyl thiocyanate');
   });
 
-  test('CCCSC#N should generate propylthiocyanate', () => {
+  test('CCCSC#N should generate propyl thiocyanate', () => {
     const result = parseSMILES('CCCSC#N');
     const mol = result.molecules[0];
     expect(mol).toBeDefined();
@@ -35,10 +35,10 @@ describe('Thiocyanate Functional Class Nomenclature', () => {
     const iupacResult = engine.generateName(mol!);
     const generated = iupacResult.name?.trim().toLowerCase();
     
-    expect(generated).toBe('propylthiocyanate');
+    expect(generated).toBe('propyl thiocyanate');
   });
 
-  test('CC(=O)CCSC#N should generate 3-oxobutylthiocyanate', () => {
+  test('CC(=O)CCSC#N should generate 3-oxobutyl thiocyanate', () => {
     const result = parseSMILES('CC(=O)CCSC#N');
     const mol = result.molecules[0];
     expect(mol).toBeDefined();
@@ -46,10 +46,10 @@ describe('Thiocyanate Functional Class Nomenclature', () => {
     const iupacResult = engine.generateName(mol!);
     const generated = iupacResult.name?.trim().toLowerCase();
     
-    expect(generated).toBe('3-oxobutylthiocyanate');
+    expect(generated).toBe('3-oxobutyl thiocyanate');
   });
 
-  test('CC(C)CSC#N should generate 2-methylpropylthiocyanate', () => {
+  test('CC(C)CSC#N should generate 2-methylpropyl thiocyanate', () => {
     const result = parseSMILES('CC(C)CSC#N');
     const mol = result.molecules[0];
     expect(mol).toBeDefined();
@@ -57,6 +57,6 @@ describe('Thiocyanate Functional Class Nomenclature', () => {
     const iupacResult = engine.generateName(mol!);
     const generated = iupacResult.name?.trim().toLowerCase();
     
-    expect(generated).toBe('2-methylpropylthiocyanate');
+    expect(generated).toBe('2-methylpropyl thiocyanate');
   });
 });

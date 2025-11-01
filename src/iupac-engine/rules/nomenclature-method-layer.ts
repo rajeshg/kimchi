@@ -24,7 +24,7 @@ export const P51_1_SUBSTITUTIVE_RULE: IUPACRule = {
   name: 'Substitutive Nomenclature Method',
   description: 'Select substitutive nomenclature as default method (P-51.1)',
   blueBookReference: BLUE_BOOK_RULES.P51_1,
-  priority: 100,
+  priority: 50,
   conditions: (context: ImmutableNamingContext) => {
     // Apply if no method has been selected yet
     const state = context.getState();
@@ -57,7 +57,7 @@ export const P51_2_FUNCTIONAL_CLASS_RULE: IUPACRule = {
   name: 'Functional Class Nomenclature Method',
   description: 'Select functional class nomenclature for specific cases (P-51.2)',
   blueBookReference: BLUE_BOOK_RULES.P51_2,
-  priority: 90,
+  priority: 100,
   conditions: (context: ImmutableNamingContext) => {
     const state = context.getState();
     const functionalGroups = Array.isArray(state.functionalGroups) ? state.functionalGroups : [];

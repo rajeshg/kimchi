@@ -55,7 +55,7 @@
   {"smiles": "CC(C)C(=O)C(OC1=CC=C(C=C1)Cl)Cl", "iupac": "1-chloro-1-(4-chlorophenoxy)-3-methylbutan-2-one"},
   {"smiles": "CCC(C)COC(C)OCC(C)CC", "iupac": "2-methyl-1-[1-(2-methylbutoxy)ethoxy]butane"},
   {"smiles": "CC(C)(C)C(C(=O)NC1=CC=CC=C1)ONC(C)(C)C", "iupac": "2-(tert-butylamino)oxy-3,3-dimethyl-N-phenylbutanamide"},
-  {"smiles": "CC(=O)CCSC#N", "iupac": "3-oxobutylthiocyanate"},
+  {"smiles": "CC(=O)CCSC#N", "iupac": "3-oxobutyl thiocyanate"},
   {"smiles": "CC(C)C(=O)C(CCC(=O)C)C(=O)C(C)C", "iupac": "7-methyl-5-(2-methylpropanoyl)octane-2,6-dione"},
   {"smiles": "CC(C)C1(CC(C(O1)(C)C)C(=O)C)OC(=O)C", "iupac": "(4-acetyl-5,5-dimethyl-2-propan-2-yloxolan-2-yl)acetate"},
   {"smiles": "CC1(CC(OC1=O)C(C)(C)I)C", "iupac": "5-(2-iodopropan-2-yl)-3,3-dimethyloxolan-2-one"},
