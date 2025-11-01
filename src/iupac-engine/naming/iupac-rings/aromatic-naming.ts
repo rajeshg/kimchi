@@ -67,32 +67,106 @@ export function isRingAromatic(ring: number[], molecule: Molecule): boolean {
 export function generateAromaticRingName(ring: number[], molecule: Molecule): string {
   const ringSize = ring.length;
   const ringAtoms = ring.map(idx => molecule.atoms[idx]).filter((a): a is typeof molecule.atoms[0] => a !== undefined);
+  
+  if (process.env.VERBOSE) {
+    console.log('[VERBOSE] generateAromaticRingName called with ring:', ring);
+    console.log('[VERBOSE] Ring atom symbols:', ring.map(idx => molecule.atoms[idx]?.symbol).join(','));
+  }
+  
   if (ringSize === 6 && ringAtoms.every(atom => atom.symbol === 'C')) return 'benzene';
   if (ringSize === 6) {
     const heteroAtoms = findHeteroatomsInRing(ring, molecule);
+    
+    if (process.env.VERBOSE) {
+      console.log('[VERBOSE] Heteroatoms found:', heteroAtoms);
+    }
+    
+    // Check for 2 nitrogen atoms FIRST (stored as single entry with count=2)
+    const nitrogenEntry = heteroAtoms.find(a => a.symbol === 'N');
+    if (nitrogenEntry && nitrogenEntry.count === 2) {
+      // Distinguish pyrimidine (1,3-diazine) from pyrazine (1,4-diazine)
+      // Find positions of nitrogen atoms within the ring
+      const nitrogenIndices: number[] = [];
+      for (let i = 0; i < ring.length; i++) {
+        const atomIdx = ring[i];
+        const atom = atomIdx !== undefined ? molecule.atoms[atomIdx] : undefined;
+        if (atom && atom.symbol === 'N') {
+          nitrogenIndices.push(i);
+        }
+      }
+      
+      if (process.env.VERBOSE) {
+        console.log('[VERBOSE] Nitrogen indices in ring:', nitrogenIndices);
+      }
+      
+      if (nitrogenIndices.length === 2) {
+        const diff = Math.abs(nitrogenIndices[0]! - nitrogenIndices[1]!);
+        
+        if (process.env.VERBOSE) {
+          console.log('[VERBOSE] Position difference:', diff);
+        }
+        
+        // For a 6-membered ring:
+        // diff = 2 or 4 → adjacent positions → pyrimidine (1,3-diazine)
+        // diff = 3 → opposite positions → pyrazine (1,4-diazine)
+        if (diff === 2 || diff === 4) {
+          if (process.env.VERBOSE) console.log('[VERBOSE] Returning: pyrimidine');
+          return 'pyrimidine';
+        }
+        if (diff === 3) {
+          if (process.env.VERBOSE) console.log('[VERBOSE] Returning: pyrazine');
+          return 'pyrazine';
+        }
+      }
+      return 'pyrazine'; // default for 2 nitrogens
+    }
+    
+    // Then check heteroatom cases by total count
+    // Calculate total heteroatom counts
+    const totalNitrogenCount = heteroAtoms.filter(a => a.symbol === 'N').reduce((sum, a) => sum + a.count, 0);
+    const totalOxygenCount = heteroAtoms.filter(a => a.symbol === 'O').reduce((sum, a) => sum + a.count, 0);
+    const totalSulfurCount = heteroAtoms.filter(a => a.symbol === 'S').reduce((sum, a) => sum + a.count, 0);
+    
+    // Check for triazine and tetrazine first (3-4 nitrogens)
+    if (totalNitrogenCount === 4) return 'tetrazine';
+    if (totalNitrogenCount === 3) return 'triazine';
+    
+    // Check for single heteroatom cases
     if (heteroAtoms.length === 1) {
       const sym = heteroAtoms[0]!.symbol;
-      if (sym === 'N') return 'pyridine';
-      if (sym === 'O') return 'pyran';
-      if (sym === 'S') return 'thiopyran';
+      const count = heteroAtoms[0]!.count;
+      if (sym === 'N' && count === 1) return 'pyridine';
+      if (sym === 'O' && count === 1) return 'pyran';
+      if (sym === 'S' && count === 1) return 'thiopyran';
     }
+    
+    // Check for two different heteroatoms
     if (heteroAtoms.length === 2) {
-      const nitrogenCount = heteroAtoms.filter(a => a.symbol === 'N').length;
-      const oxygenCount = heteroAtoms.filter(a => a.symbol === 'O').length;
-      if (nitrogenCount === 2) return 'pyrazine';
-      if (nitrogenCount === 1 && oxygenCount === 1) return 'oxazine';
-      if (nitrogenCount === 1 && heteroAtoms.filter(a => a.symbol === 'S').length === 1) return 'thiazine';
+      if (totalNitrogenCount === 1 && totalOxygenCount === 1) return 'oxazine';
+      if (totalNitrogenCount === 1 && totalSulfurCount === 1) return 'thiazine';
     }
+    
+    // Check for mixed heteroatoms with multiple types
     if (heteroAtoms.length === 3) {
-      const nitrogenCount = heteroAtoms.filter(a => a.symbol === 'N').length;
-      if (nitrogenCount === 3) return 'triazine';
-      if (nitrogenCount === 2 && heteroAtoms.filter(a => a.symbol === 'O').length === 1) return 'triazinone';
+      if (totalNitrogenCount === 2 && totalOxygenCount === 1) return 'triazinone';
     }
-    if (heteroAtoms.length === 4 && heteroAtoms.filter(a => a.symbol === 'N').length === 4) return 'tetrazine';
   }
   if (ringSize === 5) {
     const heteroAtoms = findHeteroatomsInRing(ring, molecule);
     const carbonCount = ringAtoms.filter(a => a.symbol === 'C').length;
+    
+    // Count total heteroatoms using their count property
+    const nitrogenCount = heteroAtoms.filter(a => a.symbol === 'N').reduce((sum, a) => sum + a.count, 0);
+    const oxygenCount = heteroAtoms.filter(a => a.symbol === 'O').reduce((sum, a) => sum + a.count, 0);
+    const sulfurCount = heteroAtoms.filter(a => a.symbol === 'S').reduce((sum, a) => sum + a.count, 0);
+    
+    // Check multi-nitrogen cases first
+    if (nitrogenCount === 4) return 'tetrazole';
+    if (nitrogenCount === 3) return 'triazole';
+    if (nitrogenCount === 2 && carbonCount === 3) return 'imidazole';
+    if (nitrogenCount === 2 && oxygenCount === 1) return 'isoxazole';
+    
+    // Check single heteroatom cases
     if (heteroAtoms.length === 1) {
       const sym = heteroAtoms[0]!.symbol;
       if (sym === 'N') {
@@ -102,15 +176,10 @@ export function generateAromaticRingName(ring: number[], molecule: Molecule): st
       if (sym === 'O') return 'furan';
       if (sym === 'S') return 'thiophene';
     }
-    if (heteroAtoms.length === 2) {
-      const nitrogenCount = heteroAtoms.filter(a => a.symbol === 'N').length;
-      const oxygenCount = heteroAtoms.filter(a => a.symbol === 'O').length;
-      if (nitrogenCount === 2 && carbonCount === 3) return 'imidazole';
-      if (nitrogenCount === 1 && oxygenCount === 1 && carbonCount === 3) return 'oxazole';
-      if (nitrogenCount === 2 && oxygenCount === 1) return 'isoxazole';
-    }
-    if (heteroAtoms.length === 3 && heteroAtoms.filter(a => a.symbol === 'N').length === 3) return 'triazole';
-    if (heteroAtoms.length === 4 && heteroAtoms.filter(a => a.symbol === 'N').length === 4) return 'tetrazole';
+    
+    // Check mixed heteroatom cases
+    if (nitrogenCount === 1 && oxygenCount === 1 && carbonCount === 3) return 'oxazole';
+    if (nitrogenCount === 1 && sulfurCount === 1 && carbonCount === 3) return 'thiazole';
   }
   return `aromatic_C${ringSize}`;
 }

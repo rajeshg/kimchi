@@ -159,7 +159,7 @@ export class OPSINFunctionalGroupDetector {
     
     // First, run a set of built-in high-priority detectors to ensure common groups
     // (carboxylic acid, aldehyde, ketone, alcohol, amine, ester, amide, nitrile)
-    const builtinChecks: Array<{ pattern: string; name: string; priority: number; finder: (a:any,b:any)=>number[] }> = [
+    const builtinChecks: Array<{ pattern: string; name: string; priority: number; finder: (a:any,b:any,r?:any)=>number[] }> = [
       { pattern: 'C(=O)[OX2H1]', name: 'carboxylic acid', priority: 1, finder: this.findCarboxylicAcidPattern.bind(this) },
       { pattern: 'C=O', name: 'aldehyde', priority: 2, finder: this.findAldehydePattern.bind(this) },
       { pattern: '[CX3](=O)[CX4]', name: 'ketone', priority: 3, finder: this.findKetonePattern.bind(this) },
@@ -175,7 +175,7 @@ export class OPSINFunctionalGroupDetector {
 
     for (const check of builtinChecks) {
       try {
-        const atomsMatched = check.finder(atoms, bonds);
+        const atomsMatched = check.finder(atoms, bonds, molecule.rings);
         if (atomsMatched && atomsMatched.length > 0) {
           // Check if any of these atoms are already claimed by a higher-priority group
           const hasOverlap = atomsMatched.some(atomId => claimedAtoms.has(atomId));
@@ -419,7 +419,7 @@ export class OPSINFunctionalGroupDetector {
         result = this.findKetonePattern(atoms, bonds);
         break;
       case '[NX3][CX4]': // Amine
-        result = this.findAminePattern(atoms, bonds);
+        result = this.findAminePattern(atoms, bonds, molecule.rings);
         break;
       case 'C#N': // Nitrile
         result = this.findNitrilePattern(atoms, bonds);
@@ -443,7 +443,7 @@ export class OPSINFunctionalGroupDetector {
         result = this.findPiperazinePattern(atoms, bonds);
         break;
       case 'Nc1ccccc1': // Aniline
-        result = this.findAnilinePattern(atoms, bonds);
+        result = this.findAnilinePattern(atoms, bonds, molecule.rings);
         break;
       case '[O-]C#N': // Cyanate
         result = this.findCyanatePattern(atoms, bonds);
@@ -567,11 +567,17 @@ export class OPSINFunctionalGroupDetector {
     return ketones;
   }
   
-  private findAminePattern(atoms: readonly any[], bonds: readonly any[]): number[] {
+  private findAminePattern(atoms: readonly any[], bonds: readonly any[], rings?: readonly any[]): number[] {
     // Look for nitrogen bonded to carbon
     for (let i = 0; i < atoms.length; i++) {
       const atom = atoms[i];
       if (atom.symbol !== 'N') continue;
+      
+      // Skip nitrogen that is part of a ring structure (heterocycle like azirane, pyridine, etc.)
+      if (rings && rings.some(ring => ring.atoms.includes(atom.id))) {
+        continue;
+      }
+      
       // Only consider nitrogen as amine if it's single-bonded to carbon/hydrogen
       const carbonSingleBonds = bonds.filter(bond =>
         (bond.atom1 === atom.id || bond.atom2 === atom.id) && bond.type === 'single' &&
@@ -896,11 +902,19 @@ export class OPSINFunctionalGroupDetector {
     return this.findNitrogenRing(atoms, bonds, 6);
   }
   
-  private findAnilinePattern(atoms: readonly any[], bonds: readonly any[]): number[] {
-    // Look for nitrogen attached to aromatic ring
+  private findAnilinePattern(atoms: readonly any[], bonds: readonly any[], rings?: readonly (readonly number[])[]): number[] {
+    // Look for nitrogen attached to aromatic ring, but NOT part of an aromatic ring itself
     for (let i = 0; i < atoms.length; i++) {
       const atom = atoms[i];
       if (atom.symbol !== 'N') continue;
+      
+      // Skip nitrogen atoms that are part of aromatic rings (heterocycles like pyridine)
+      if (atom.aromatic && rings) {
+        const inRing = rings.some(ring => ring.includes(atom.id));
+        if (inRing) {
+          continue;
+        }
+      }
       
       const aromaticCarbons = bonds.filter(bond => {
         const bondedAtom = this.getBondedAtom(bond, atom.id, atoms);
@@ -1000,10 +1014,24 @@ export class OPSINFunctionalGroupDetector {
         matches.push(...atoms.filter(atom => atom.symbol === 'I').map(atom => atom.id));
         break;
       case 'O':
-        matches.push(...atoms.filter(atom => atom.symbol === 'O').map(atom => atom.id));
+        // Filter out oxygen atoms that are part of aromatic rings (heterocycles like furan)
+        matches.push(...atoms.filter(atom => {
+          if (atom.symbol !== 'O') return false;
+          if (atom.aromatic && molecule.rings) {
+            return !molecule.rings.some(ring => ring.includes(atom.id));
+          }
+          return true;
+        }).map(atom => atom.id));
         break;
       case 'S':
-        matches.push(...atoms.filter(atom => atom.symbol === 'S').map(atom => atom.id));
+        // Filter out sulfur atoms that are part of aromatic rings (heterocycles like thiophene)
+        matches.push(...atoms.filter(atom => {
+          if (atom.symbol !== 'S') return false;
+          if (atom.aromatic && molecule.rings) {
+            return !molecule.rings.some(ring => ring.includes(atom.id));
+          }
+          return true;
+        }).map(atom => atom.id));
         break;
     }
     

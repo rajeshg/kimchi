@@ -405,7 +405,7 @@ export const RING_SELECTION_COMPLETE_RULE: IUPACRule = {
     const parentStructure = {
       type: 'ring' as const,
       ring: parentRing,
-      name: generateRingName(parentRing),
+      name: generateRingName(parentRing, context.getState().molecule),
       locants: generateRingLocants(parentRing)
     };
     
@@ -552,61 +552,110 @@ function determineRingType(ringSystem: any): string {
 /**
  * Generate ring name from ring system
  */
-function generateRingName(ringSystem: any): string {
+function generateRingName(ringSystem: any, molecule?: Molecule): string {
   const size = ringSystem.size;
   const type = ringSystem.type;
   const atoms = ringSystem.atoms || [];
   
-  // Check for heterocycles first (3-6 membered rings with one heteroatom)
+  // Count heteroatoms first (used by both aromatic and saturated checks)
+  const heteroCount: Record<string, number> = {};
   if (atoms.length >= 3 && atoms.length <= 6) {
-    const heteroCount: Record<string, number> = {};
     for (const atom of atoms) {
       if (atom && atom.symbol && atom.symbol !== 'C') {
         heteroCount[atom.symbol] = (heteroCount[atom.symbol] || 0) + 1;
       }
     }
-    
-    const hasOxygen = heteroCount['O'] || 0;
-    const hasNitrogen = heteroCount['N'] || 0;
-    const hasSulfur = heteroCount['S'] || 0;
-    const totalHetero = hasOxygen + hasNitrogen + hasSulfur;
-    
-    // Only name simple heterocycles (one heteroatom)
-    if (totalHetero === 1) {
-      // Check if saturated (no double bonds in ring)
-      const molecule = { atoms, bonds: ringSystem.bonds || [] };
-      const ringIndices = atoms.map((atom: any) => atom.id);
-      const isSaturated = !ringIndices.some((atomIdx: number) => {
-        return (ringSystem.bonds || []).some((bond: any) => {
-          const isInRing = (ringIndices.includes(bond.atom1) && ringIndices.includes(bond.atom2));
-          return isInRing && bond.type === BondType.DOUBLE;
-        });
-      });
-      
-      if (isSaturated) {
-        // 3-membered rings
-        if (size === 3 && hasOxygen === 1) return 'oxirane';
-        if (size === 3 && hasNitrogen === 1) return 'azirane';
-        if (size === 3 && hasSulfur === 1) return 'thiirane';
-        
-        // 4-membered rings
-        if (size === 4 && hasOxygen === 1) return 'oxetane';
-        if (size === 4 && hasNitrogen === 1) return 'azetidine';
-        if (size === 4 && hasSulfur === 1) return 'thietane';
-        
-        // 5-membered rings
-        if (size === 5 && hasOxygen === 1) return 'oxolane';
-        if (size === 5 && hasNitrogen === 1) return 'pyrrolidine';
-        if (size === 5 && hasSulfur === 1) return 'thiolane';
-        
-        // 6-membered rings
-        if (size === 6 && hasOxygen === 1) return 'oxane';
-        if (size === 6 && hasNitrogen === 1) return 'piperidine';
-        if (size === 6 && hasSulfur === 1) return 'thiane';
+  }
+  
+  const hasOxygen = heteroCount['O'] || 0;
+  const hasNitrogen = heteroCount['N'] || 0;
+  const hasSulfur = heteroCount['S'] || 0;
+  const totalHetero = hasOxygen + hasNitrogen + hasSulfur;
+  
+  // Check aromatic heterocycles FIRST (before saturated heterocycles)
+  if (type === 'aromatic' && totalHetero > 0) {
+    // If we have molecule object and ring atoms, use proper aromatic naming
+    // which can distinguish pyrimidine from pyrazine based on nitrogen positions
+    if (molecule && ringSystem.rings && ringSystem.rings.length > 0) {
+      // Get ring indices from the atoms in the ring
+      const ringIndices: number[] = [];
+      for (const atom of atoms) {
+        const atomIndex = molecule.atoms.findIndex(a => a === atom || (a && atom && a.id === atom.id));
+        if (atomIndex !== -1) {
+          ringIndices.push(atomIndex);
+        }
       }
+      
+      if (ringIndices.length === atoms.length) {
+        // Import the proper aromatic naming function
+        const { generateAromaticRingName } = require('../naming/iupac-rings/aromatic-naming');
+        const aromaticName = generateAromaticRingName(ringIndices, molecule);
+        if (aromaticName && !aromaticName.startsWith('aromatic_C')) {
+          return aromaticName;
+        }
+      }
+    }
+    
+    // Fallback to simple heuristics for aromatic rings
+    // 6-membered aromatic heterocycles
+    if (size === 6) {
+      if (hasNitrogen === 1 && totalHetero === 1) return 'pyridine';
+      if (hasNitrogen === 2 && totalHetero === 2) {
+        // Without proper position analysis, default to pyrimidine (more common)
+        // This should rarely be reached now that we use generateAromaticRingName above
+        return 'pyrimidine';
+      }
+      if (hasNitrogen === 3 && totalHetero === 3) return 'triazine';
+      if (hasOxygen === 1 && totalHetero === 1) return 'pyran';
+    }
+    
+    // 5-membered aromatic heterocycles
+    if (size === 5) {
+      if (hasOxygen === 1 && totalHetero === 1) return 'furan';
+      if (hasNitrogen === 1 && totalHetero === 1) return 'pyrrole';
+      if (hasSulfur === 1 && totalHetero === 1) return 'thiophene';
+      if (hasNitrogen === 2 && totalHetero === 2) return 'imidazole';
+      if (hasNitrogen === 1 && hasSulfur === 1 && totalHetero === 2) return 'thiazole';
+      if (hasNitrogen === 1 && hasOxygen === 1 && totalHetero === 2) return 'oxazole';
     }
   }
   
+  // Check for saturated heterocycles (3-6 membered rings with one heteroatom)
+  if (type !== 'aromatic' && totalHetero === 1) {
+    // Check if saturated (no double bonds in ring)
+    const molecule = { atoms, bonds: ringSystem.bonds || [] };
+    const ringIndices = atoms.map((atom: any) => atom.id);
+    const isSaturated = !ringIndices.some((atomIdx: number) => {
+      return (ringSystem.bonds || []).some((bond: any) => {
+        const isInRing = (ringIndices.includes(bond.atom1) && ringIndices.includes(bond.atom2));
+        return isInRing && bond.type === BondType.DOUBLE;
+      });
+    });
+    
+    if (isSaturated) {
+      // 3-membered rings
+      if (size === 3 && hasOxygen === 1) return 'oxirane';
+      if (size === 3 && hasNitrogen === 1) return 'azirane';
+      if (size === 3 && hasSulfur === 1) return 'thiirane';
+      
+      // 4-membered rings
+      if (size === 4 && hasOxygen === 1) return 'oxetane';
+      if (size === 4 && hasNitrogen === 1) return 'azetidine';
+      if (size === 4 && hasSulfur === 1) return 'thietane';
+      
+      // 5-membered rings
+      if (size === 5 && hasOxygen === 1) return 'oxolane';
+      if (size === 5 && hasNitrogen === 1) return 'pyrrolidine';
+      if (size === 5 && hasSulfur === 1) return 'thiolane';
+      
+      // 6-membered rings
+      if (size === 6 && hasOxygen === 1) return 'oxane';
+      if (size === 6 && hasNitrogen === 1) return 'piperidine';
+      if (size === 6 && hasSulfur === 1) return 'thiane';
+    }
+  }
+  
+  // Generic aromatic ring names (no heteroatoms)
   if (type === 'aromatic') {
     const aromaticNames: { [key: number]: string } = {
       5: 'cyclopentadiene', 6: 'benzene', 7: 'cycloheptatriene'
