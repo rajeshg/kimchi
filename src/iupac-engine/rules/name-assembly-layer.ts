@@ -159,9 +159,14 @@ export const MULTIPLICATIVE_PREFIXES_RULE: IUPACRule = {
       return context;
     }
     
-    // Group identical types
+    // Group identical types (only consider principal groups for multiplicative prefixes)
     const groupedTypes = new Map<string, FunctionalGroup[]>();
     functionalGroups.forEach((group: FunctionalGroup) => {
+      // Only apply multiplicative prefixes to principal groups
+      // Non-principal groups should be treated as substituents
+      if (!group.isPrincipal) {
+        return;
+      }
       const type = group.type;
       if (!groupedTypes.has(type)) {
         groupedTypes.set(type, []);
@@ -579,9 +584,10 @@ function buildHeteroatomName(parentStructure: any, functionalGroups: any[]): str
   return parentStructure.name || 'unknown-heteroatom';
 }
 
-function buildEsterName(parentStructure: any, esterGroup: any, molecule: any): string {
+function buildEsterName(parentStructure: any, esterGroup: any, molecule: any, functionalGroups: any[]): string {
   // Ester functional class nomenclature:
   // Monoester: [alkyl] [alkanoate] (e.g., "methyl acetate")
+  // Complex alkyl: (substituted-alkyl)alkanoate (e.g., "(2-butanoyloxy-2-ethoxyethyl)butanoate")
   // Diester: [dialkyl] [numbered substituents] [alkanedioate] (e.g., "dimethyl 2-propoxybutanedioate")
   
   if (process.env.VERBOSE) {
@@ -608,37 +614,56 @@ function buildEsterName(parentStructure: any, esterGroup: any, molecule: any): s
   // Original monoester logic
   const chainAtomIds = chain.atoms?.map((a: any) => a.id) || [];
   
+  // Use esterGroup.atoms to identify the specific ester we're processing
+  // esterGroup.atoms typically contains [carbonyl C, ester O]
   let carbonylCarbonId: number | undefined;
   let esterOxygenId: number | undefined;
   
-  for (const bond of molecule.bonds) {
-    if (bond.type === 'double') {
-      const atom1 = molecule.atoms[bond.atom1];
-      const atom2 = molecule.atoms[bond.atom2];
-      
-      if (atom1?.symbol === 'C' && atom2?.symbol === 'O') {
-        carbonylCarbonId = bond.atom1;
-      } else if (atom1?.symbol === 'O' && atom2?.symbol === 'C') {
-        carbonylCarbonId = bond.atom2;
-      }
+  if (esterGroup.atoms && esterGroup.atoms.length >= 2) {
+    // Check which atom is the carbonyl carbon (has C=O bond)
+    const atom0 = molecule.atoms[esterGroup.atoms[0]];
+    const atom1 = molecule.atoms[esterGroup.atoms[1]];
+    
+    if (atom0?.symbol === 'C') {
+      carbonylCarbonId = esterGroup.atoms[0];
+      esterOxygenId = esterGroup.atoms[1];
+    } else if (atom1?.symbol === 'C') {
+      carbonylCarbonId = esterGroup.atoms[1];
+      esterOxygenId = esterGroup.atoms[0];
     }
   }
   
-  if (!carbonylCarbonId) {
-    return 'alkyl carboxylate';
-  }
-  
-  for (const bond of molecule.bonds) {
-    if (bond.type === 'single') {
-      const atom1 = molecule.atoms[bond.atom1];
-      const atom2 = molecule.atoms[bond.atom2];
-      
-      if (bond.atom1 === carbonylCarbonId && atom1?.symbol === 'C' && atom2?.symbol === 'O') {
-        esterOxygenId = bond.atom2;
-        break;
-      } else if (bond.atom2 === carbonylCarbonId && atom2?.symbol === 'C' && atom1?.symbol === 'O') {
-        esterOxygenId = bond.atom1;
-        break;
+  // Fallback to searching if esterGroup doesn't specify atoms
+  if (!carbonylCarbonId || !esterOxygenId) {
+    for (const bond of molecule.bonds) {
+      if (bond.type === 'double') {
+        const atom1 = molecule.atoms[bond.atom1];
+        const atom2 = molecule.atoms[bond.atom2];
+        
+        if (atom1?.symbol === 'C' && atom2?.symbol === 'O') {
+          carbonylCarbonId = bond.atom1;
+        } else if (atom1?.symbol === 'O' && atom2?.symbol === 'C') {
+          carbonylCarbonId = bond.atom2;
+        }
+      }
+    }
+    
+    if (!carbonylCarbonId) {
+      return 'alkyl carboxylate';
+    }
+    
+    for (const bond of molecule.bonds) {
+      if (bond.type === 'single') {
+        const atom1 = molecule.atoms[bond.atom1];
+        const atom2 = molecule.atoms[bond.atom2];
+        
+        if (bond.atom1 === carbonylCarbonId && atom1?.symbol === 'C' && atom2?.symbol === 'O') {
+          esterOxygenId = bond.atom2;
+          break;
+        } else if (bond.atom2 === carbonylCarbonId && atom2?.symbol === 'C' && atom1?.symbol === 'O') {
+          esterOxygenId = bond.atom1;
+          break;
+        }
       }
     }
   }
@@ -726,15 +751,146 @@ function buildEsterName(parentStructure: any, esterGroup: any, molecule: any): s
   const alkoxyLength = alkoxyCarbonIds.size;
   
   if (process.env.VERBOSE) {
+    console.log('[buildEsterName] carbonylCarbonId:', carbonylCarbonId);
+    console.log('[buildEsterName] esterOxygenId:', esterOxygenId);
+    console.log('[buildEsterName] alkoxyCarbonId:', alkoxyCarbonId);
     console.log('[buildEsterName] acylLength:', acylLength);
     console.log('[buildEsterName] alkoxyLength:', alkoxyLength);
+    console.log('[buildEsterName] alkoxyCarbonIds:', Array.from(alkoxyCarbonIds));
   }
   
-  const alkylNames = [
-    '', 'methyl', 'ethyl', 'propyl', 'butyl', 'pentyl', 'hexyl', 'heptyl', 'octyl', 'nonyl', 'decyl'
-  ];
+  // Check if alkoxy chain has substituents (acyloxy, alkoxy groups)
+  const alkoxySubstituents = functionalGroups.filter(fg => 
+    (fg.type === 'acyloxy' || fg.type === 'alkoxy') && 
+    fg.atoms && 
+    fg.atoms.some((atomId: number) => {
+      // Check if this functional group is attached to the alkoxy chain
+      for (const bond of molecule.bonds) {
+        const atom1 = bond.atom1;
+        const atom2 = bond.atom2;
+        if (alkoxyCarbonIds.has(atom1) && atomId === atom2) return true;
+        if (alkoxyCarbonIds.has(atom2) && atomId === atom1) return true;
+      }
+      return false;
+    })
+  );
   
-  const alkylName = alkoxyLength < alkylNames.length ? alkylNames[alkoxyLength] : `C${alkoxyLength}-alkyl`;
+  if (process.env.VERBOSE) {
+    console.log('[buildEsterName] alkoxySubstituents:', alkoxySubstituents.map(s => ({ type: s.type, prefix: s.prefix, atoms: s.atoms })));
+  }
+  
+  let alkylName: string;
+  
+  if (alkoxySubstituents.length > 0) {
+    // Complex alkoxy group with substituents - build detailed name
+    // Convert alkoxyCarbonIds to ordered chain (BFS from alkoxyCarbonId)
+    const alkoxyChain: number[] = [];
+    const visited = new Set<number>();
+    const queue = [alkoxyCarbonId];
+    
+    while (queue.length > 0) {
+      const currentId = queue.shift()!;
+      if (visited.has(currentId)) continue;
+      visited.add(currentId);
+      
+      if (molecule.atoms[currentId]?.symbol === 'C' && alkoxyCarbonIds.has(currentId)) {
+        alkoxyChain.push(currentId);
+        
+        for (const bond of molecule.bonds) {
+          if (bond.atom1 === currentId || bond.atom2 === currentId) {
+            const otherId = bond.atom1 === currentId ? bond.atom2 : bond.atom1;
+            if (alkoxyCarbonIds.has(otherId) && !visited.has(otherId)) {
+              queue.push(otherId);
+            }
+          }
+        }
+      }
+    }
+    
+    if (process.env.VERBOSE) {
+      console.log('[buildEsterName] alkoxyChain:', alkoxyChain);
+    }
+    
+    // Create atom ID to locant mapping
+    const atomIdToLocant = new Map<number, number>();
+    alkoxyChain.forEach((atomId, index) => {
+      atomIdToLocant.set(atomId, index + 1);
+    });
+    
+    // Build substituent prefixes with locants
+    const substituentParts: string[] = [];
+    const substituentGroups = new Map<string, number[]>();
+    
+    for (const sub of alkoxySubstituents) {
+      const subName = sub.prefix || sub.name || sub.type;
+      
+      // Find which carbon in the alkoxy chain this substituent is attached to
+      let attachmentCarbon: number | undefined;
+      if (sub.atoms && sub.atoms.length > 0) {
+        // For acyloxy groups: atoms = [carbonyl C, ester O], so oxygen is at index 1
+        // For alkoxy groups: atoms = [ether O], so oxygen is at index 0
+        const oxygenIndices = sub.type === 'acyloxy' ? [1, 0] : [0];
+        
+        for (const oxygenIdx of oxygenIndices) {
+          if (oxygenIdx < sub.atoms.length) {
+            const subOxygenId = sub.atoms[oxygenIdx];
+            
+            for (const bond of molecule.bonds) {
+              if (bond.atom1 === subOxygenId && alkoxyCarbonIds.has(bond.atom2)) {
+                attachmentCarbon = bond.atom2;
+                break;
+              } else if (bond.atom2 === subOxygenId && alkoxyCarbonIds.has(bond.atom1)) {
+                attachmentCarbon = bond.atom1;
+                break;
+              }
+            }
+            
+            if (attachmentCarbon !== undefined) break;
+          }
+        }
+      }
+      
+      if (attachmentCarbon !== undefined && subName) {
+        const locant = atomIdToLocant.get(attachmentCarbon);
+        if (locant) {
+          if (!substituentGroups.has(subName)) {
+            substituentGroups.set(subName, []);
+          }
+          substituentGroups.get(subName)!.push(locant);
+        }
+      }
+    }
+    
+    // Format substituent parts
+    for (const [subName, locants] of substituentGroups.entries()) {
+      locants.sort((a, b) => a - b);
+      const locantStr = locants.join(',');
+      substituentParts.push(`${locantStr}-${subName}`);
+    }
+    
+    // Sort substituent parts alphabetically by name
+    substituentParts.sort((a, b) => {
+      const aName = a.split('-').slice(1).join('-');
+      const bName = b.split('-').slice(1).join('-');
+      return aName.localeCompare(bName);
+    });
+    
+    // Build base alkyl name
+    const alkylNames = [
+      '', 'meth', 'eth', 'prop', 'but', 'pent', 'hex', 'hept', 'oct', 'non', 'dec'
+    ];
+    
+    const baseSuffix = (alkoxyLength < alkylNames.length && alkylNames[alkoxyLength]) ? alkylNames[alkoxyLength] : `C${alkoxyLength}-alk`;
+    const substituentPrefix = substituentParts.length > 0 ? substituentParts.join('-') : '';
+    alkylName = substituentPrefix ? `(${substituentPrefix}${baseSuffix}yl)` : `${baseSuffix}yl`;
+  } else {
+    // Simple alkoxy group with no substituents
+    const alkylNames = [
+      '', 'meth', 'eth', 'prop', 'but', 'pent', 'hex', 'hept', 'oct', 'non', 'dec'
+    ];
+    const baseSuffix = (alkoxyLength < alkylNames.length && alkylNames[alkoxyLength]) ? alkylNames[alkoxyLength] : `C${alkoxyLength}-alk`;
+    alkylName = baseSuffix + 'yl';
+  }
   
   const acylNames = [
     '', 'formate', 'acetate', 'propanoate', 'butanoate', 'pentanoate', 'hexanoate', 
@@ -743,11 +899,13 @@ function buildEsterName(parentStructure: any, esterGroup: any, molecule: any): s
   
   const acylName = acylLength < acylNames.length ? acylNames[acylLength] : `C${acylLength}-anoate`;
   
+  const result = alkoxySubstituents.length > 0 ? `${alkylName}${acylName}` : `${alkylName} ${acylName}`;
+  
   if (process.env.VERBOSE) {
-    console.log('[buildEsterName] result:', `${alkylName} ${acylName}`);
+    console.log('[buildEsterName] result:', result);
   }
   
-  return `${alkylName} ${acylName}`;
+  return result;
 }
 
 function buildDiesterName(parentStructure: any, esterGroup: any, molecule: any): string {
@@ -966,8 +1124,8 @@ function buildDiesterName(parentStructure: any, esterGroup: any, molecule: any):
   }
   
   const result = substituentPart 
-    ? `${alkylPart} ${substituentPart}${acidSuffix}`
-    : `${alkylPart} ${acidSuffix}`;
+    ? `${alkylPart}${substituentPart}${acidSuffix}`
+    : `${alkylPart}${acidSuffix}`;
   
   if (process.env.VERBOSE) {
     console.log('[buildDiesterName] result:', result);
@@ -993,7 +1151,7 @@ function buildFunctionalClassName(parentStructure: any, functionalGroups: any[],
   // Functional class naming
   switch (functionalGroup.type) {
     case 'ester':
-      return buildEsterName(parentStructure, functionalGroup, molecule);
+      return buildEsterName(parentStructure, functionalGroup, molecule, functionalGroups);
     case 'amide':
       return `${functionalGroup.assembledName || 'amide'}`;
     case 'thiocyanate':

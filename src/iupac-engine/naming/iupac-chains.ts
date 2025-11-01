@@ -166,6 +166,12 @@ export function findMainChain(molecule: Molecule): number[] {
 
   // Compute functional-group priority for each candidate
   const fgPriorities = candidates.map(c => getChainFunctionalGroupPriority(c, molecule));
+  if (process.env.VERBOSE) {
+    console.log('[findMainChain] Functional group priorities for candidates:');
+    candidates.forEach((c, i) => {
+      console.log(`  Chain ${i} [${c.join(',')}]: priority = ${fgPriorities[i]}`);
+    });
+  }
   const maxFG = Math.max(...fgPriorities);
   if (maxFG > 0) {
     // Prefer any candidate with the highest functional group priority
@@ -336,8 +342,9 @@ function findAllAtomChains(molecule: Molecule, excludedAtomIds: Set<number> = ne
 // Higher number => higher precedence as principal group
 export function getChainFunctionalGroupPriority(chain: number[], molecule: Molecule): number {
   // Priorities (example, not exhaustive):
+  // 7 = ester carbonyl carbon (C in C(=O)-O-C)
   // 6 = carboxylic acid / sulfonic acid / phosphonic acid
-  // 5 = amide / ester / acid chloride / sulfonamide
+  // 5 = amide / ester oxygen-bonded carbon / acid chloride / sulfonamide
   // 4 = aldehyde/ketone / nitrile / sulfone-like
   // 3 = alcohol
   let best = 0;
@@ -354,6 +361,8 @@ export function getChainFunctionalGroupPriority(chain: number[], molecule: Molec
       let hasSingleN = false;
       let hasCl = false;
       let singleOConnectedToC = false;
+      let isEsterCarbonyl = false;
+      
       for (const b of molecule.bonds) {
         if (b.atom1 !== idx && b.atom2 !== idx) continue;
         const neigh = b.atom1 === idx ? b.atom2 : b.atom1;
@@ -379,8 +388,17 @@ export function getChainFunctionalGroupPriority(chain: number[], molecule: Molec
           best = Math.max(best, 4);
         }
       }
+      
+      // Detect if this is an ester carbonyl carbon (C in R-C(=O)-O-R')
+      // This should get highest priority so one ester is chosen as parent chain
+      if (hasDoubleO && hasSingleO && singleOConnectedToC && !hasSingleOwithH) {
+        isEsterCarbonyl = true;
+      }
+      
       // carboxylic acid
       if (hasDoubleO && hasSingleOwithH) best = Math.max(best, 6);
+      // ester carbonyl carbon (highest priority for chain selection)
+      else if (isEsterCarbonyl) best = Math.max(best, 7);
       // amide
       else if (hasDoubleO && hasSingleN) best = Math.max(best, 5);
       // acid chloride
@@ -410,8 +428,6 @@ export function getChainFunctionalGroupPriority(chain: number[], molecule: Molec
           best = Math.max(best, 5);
         }
       }
-      // ester (R-C(=O)-O-R)
-      else if (hasDoubleO && hasSingleO && singleOConnectedToC) best = Math.max(best, 5);
       // ketone/aldehyde-like
       else if (hasDoubleO) best = Math.max(best, 4);
     }

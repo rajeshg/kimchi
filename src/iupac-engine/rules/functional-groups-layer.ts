@@ -2,6 +2,7 @@ import type { IUPACRule, FunctionalGroup } from '../types';
 import type { ImmutableNamingContext } from '../immutable-context';
 import { ExecutionPhase, NomenclatureMethod } from '../immutable-context';
 import { OPSINFunctionalGroupDetector } from '../opsin-functional-group-detector';
+import type { Molecule } from 'types';
 
 /**
  * Functional Group Detection Layer Rules
@@ -12,6 +13,76 @@ import { OPSINFunctionalGroupDetector } from '../opsin-functional-group-detector
  * Reference: Blue Book P-44.1 - Principal characteristic group selection
  * https://iupac.qmul.ac.uk/BlueBook/RuleP44.html
  */
+
+/**
+ * Find the acyl chain for an ester carbonyl carbon.
+ * Traverses from carbonyl carbon through C-C bonds to build the acyl chain.
+ * For CCCC(=O)O-, returns [C,C,C,C(=O)] (4 carbons including carbonyl)
+ */
+function findAcylChain(mol: Molecule, carbonylCarbon: number): number[] {
+  const visited = new Set<number>();
+  const chain: number[] = [carbonylCarbon];
+  visited.add(carbonylCarbon);
+  
+  // Find carbonyl oxygen and ester oxygen to know which direction to traverse
+  let esterOxygen: number | undefined;
+  for (const bond of mol.bonds) {
+    if (bond.type === 'single' && (bond.atom1 === carbonylCarbon || bond.atom2 === carbonylCarbon)) {
+      const otherId = bond.atom1 === carbonylCarbon ? bond.atom2 : bond.atom1;
+      const otherAtom = mol.atoms[otherId];
+      if (otherAtom?.symbol === 'O') {
+        esterOxygen = otherId;
+        break;
+      }
+    }
+  }
+  
+  // BFS to find all carbons in the acyl chain (away from ester oxygen)
+  const queue = [carbonylCarbon];
+  
+  while (queue.length > 0) {
+    const currentId = queue.shift()!;
+    
+    for (const bond of mol.bonds) {
+      if (bond.type !== 'single') continue;
+      if (bond.atom1 !== currentId && bond.atom2 !== currentId) continue;
+      
+      const otherId = bond.atom1 === currentId ? bond.atom2 : bond.atom1;
+      if (visited.has(otherId)) continue;
+      if (otherId === esterOxygen) continue; // Don't traverse into ester oxygen
+      
+      const otherAtom = mol.atoms[otherId];
+      if (otherAtom?.symbol === 'C') {
+        visited.add(otherId);
+        chain.push(otherId);
+        queue.push(otherId);
+      }
+    }
+  }
+  
+  return chain;
+}
+
+/**
+ * Build acyloxy name from chain length.
+ * Examples: 1 → "formyloxy", 2 → "acetoxy", 3 → "propanoyloxy", 4 → "butanoyloxy"
+ */
+function buildAcyloxyName(chainLength: number): string {
+  const prefixes: Record<number, string> = {
+    1: 'formyloxy',     // HC(=O)O-
+    2: 'acetoxy',       // CH3C(=O)O- (common name, preferred over "ethanoyloxy")
+    3: 'propanoyloxy',  // CH3CH2C(=O)O-
+    4: 'butanoyloxy',   // CH3CH2CH2C(=O)O-
+    5: 'pentanoyloxy',
+    6: 'hexanoyloxy',
+    7: 'heptanoyloxy',
+    8: 'octanoyloxy',
+    9: 'nonanoyloxy',
+    10: 'decanoyloxy'
+  };
+  
+  return prefixes[chainLength] || `C${chainLength}anoyloxy`;
+}
 
 /**
  * Rule: Principal Group Priority Detection
@@ -74,7 +145,8 @@ export const FUNCTIONAL_GROUP_PRIORITY_RULE: IUPACRule = {
 
     // Mark ALL functional groups of the principal type as principal
     // (e.g., if we have 2 ketones, both should be marked as principal)
-    const updatedFunctionalGroups = principalGroup
+    // EXCEPT for hierarchical esters - only mark the primary ester as principal
+    let updatedFunctionalGroups = principalGroup
       ? functionalGroups.map(g => {
           if (g.type === principalGroup.type && g.priority === principalGroup.priority) {
             return {
@@ -85,6 +157,35 @@ export const FUNCTIONAL_GROUP_PRIORITY_RULE: IUPACRule = {
           return g;
         })
       : functionalGroups;
+
+    // Special handling for hierarchical esters
+    // If we have multiple esters and they're hierarchical, only mark the primary ester as principal
+    if (principalGroup?.type === 'ester') {
+      const esters = updatedFunctionalGroups.filter(fg => fg.type === 'ester');
+      if (esters.length >= 2) {
+        const hierarchyResult = analyzeEsterHierarchy(context, esters);
+        if (hierarchyResult.isHierarchical && hierarchyResult.primaryEsterAtoms) {
+          if (process.env.VERBOSE) {
+            console.log('[FUNCTIONAL_GROUP_PRIORITY_RULE] Detected hierarchical esters - marking only primary ester as principal');
+            console.log('[FUNCTIONAL_GROUP_PRIORITY_RULE] Primary ester atoms:', hierarchyResult.primaryEsterAtoms);
+          }
+          // Only mark the primary ester as principal, demote nested esters
+          const primaryAtomSet = new Set(hierarchyResult.primaryEsterAtoms);
+          updatedFunctionalGroups = updatedFunctionalGroups.map(fg => {
+            if (fg.type === 'ester') {
+              // Check if this ester's atoms match the primary ester
+              const fgAtomIds = fg.atoms.map((a: any) => typeof a === 'number' ? a : a.id);
+              const isPrimaryEster = fgAtomIds.some(id => primaryAtomSet.has(id));
+              return {
+                ...fg,
+                isPrincipal: isPrimaryEster
+              } as FunctionalGroup;
+            }
+            return fg;
+          });
+        }
+      }
+    }
 
     // Convert non-principal ethers to alkoxy substituents
     // This must happen AFTER principal group is marked
@@ -130,6 +231,61 @@ export const FUNCTIONAL_GROUP_PRIORITY_RULE: IUPACRule = {
           ...fg,
           type: 'alkoxy',
           prefix: alkoxyName,
+          atoms: fg.atoms || []
+        } as FunctionalGroup;
+      }
+    }
+
+    // Convert non-principal esters to acyloxy substituents (e.g., "butanoyloxy")
+    // This must happen AFTER principal group is marked
+    for (let i = 0; i < updatedFunctionalGroups.length; i++) {
+      const fg = updatedFunctionalGroups[i];
+      if (!fg) continue;
+      
+      // Only convert esters that are NOT the principal group
+      if (fg.type === 'ester' && !fg.isPrincipal) {
+        if (process.env.VERBOSE) {
+          console.log('[FUNCTIONAL_GROUP_PRIORITY_RULE] Converting non-principal ester to acyloxy substituent:', fg.atoms);
+        }
+        
+        // Find the carbonyl carbon and build the acyl chain name
+        const esterAtomIds = fg.atoms.map((a: any) => typeof a === 'number' ? a : a.id);
+        let carbonylCarbon: number | undefined;
+        
+        // Find C=O bond
+        for (const bond of mol.bonds) {
+          if (bond.type === 'double') {
+            const atom1 = mol.atoms[bond.atom1];
+            const atom2 = mol.atoms[bond.atom2];
+            
+            if (atom1?.symbol === 'C' && atom2?.symbol === 'O' && esterAtomIds.includes(bond.atom1)) {
+              carbonylCarbon = bond.atom1;
+              break;
+            } else if (atom1?.symbol === 'O' && atom2?.symbol === 'C' && esterAtomIds.includes(bond.atom2)) {
+              carbonylCarbon = bond.atom2;
+              break;
+            }
+          }
+        }
+        
+        if (!carbonylCarbon) continue;
+        
+        // Find the acyl chain (carbons attached to carbonyl, excluding the ester oxygen side)
+        // For CCCC(=O)O-, we want to traverse from the carbonyl carbon through C-C bonds
+        const acylChainAtoms = findAcylChain(mol, carbonylCarbon);
+        const chainLength = acylChainAtoms.length;
+        
+        // Build acyloxy name: "butanoyloxy" for 4-carbon chain
+        const acyloxyName = buildAcyloxyName(chainLength);
+        
+        if (process.env.VERBOSE) {
+          console.log('[FUNCTIONAL_GROUP_PRIORITY_RULE] Acyl chain length:', chainLength, 'name:', acyloxyName);
+        }
+        
+        updatedFunctionalGroups[i] = {
+          ...fg,
+          type: 'acyloxy',
+          prefix: acyloxyName,
           atoms: fg.atoms || []
         } as FunctionalGroup;
       }
@@ -229,6 +385,181 @@ export const FUNCTIONAL_CLASS_RULE: IUPACRule = {
 };
 
 /**
+ * Analyze ester connectivity to detect hierarchical vs symmetric diesters
+ * 
+ * Hierarchical ester: One ester's alkyl group contains another ester
+ *   Example: CCCC(=O)OCC(OCC)OC(=O)CCC
+ *   Structure: R-C(=O)-O-[alkyl group containing another ester]
+ *   Named as: (2-butanoyloxy-2-ethoxyethyl)butanoate (monoester with complex alkyl)
+ * 
+ * Symmetric diester: Two independent ester groups
+ *   Example: CH3OC(=O)CC(=O)OCH3
+ *   Structure: R1-O-C(=O)-R-C(=O)-O-R2
+ *   Named as: dimethyl butanedioate
+ * 
+ * Returns: { isHierarchical: boolean, primaryEsterAtoms?: number[] }
+ */
+function analyzeEsterHierarchy(context: ImmutableNamingContext, esters: FunctionalGroup[]): {
+  isHierarchical: boolean;
+  primaryEsterAtoms?: number[];
+} {
+  if (esters.length < 2) {
+    return { isHierarchical: false };
+  }
+
+  const mol = context.getState().molecule;
+  
+  if (process.env.VERBOSE) {
+    console.log('[analyzeEsterHierarchy] Starting analysis with', esters.length, 'esters');
+  }
+  
+  // For each ester, identify:
+  // - carbonylCarbon: C in C(=O)O
+  // - esterOxygen: O in C(=O)-O-C
+  // - alkoxyCarbon: first C in C(=O)-O-C
+  
+  const esterStructures = esters.map((ester, idx) => {
+    if (process.env.VERBOSE) {
+      console.log(`[analyzeEsterHierarchy] Analyzing ester ${idx}:`, ester);
+      console.log(`[analyzeEsterHierarchy] Ester atoms type:`, typeof ester.atoms, Array.isArray(ester.atoms));
+      if (Array.isArray(ester.atoms)) {
+        console.log(`[analyzeEsterHierarchy] First atom:`, ester.atoms[0]);
+      }
+    }
+    // ester.atoms might be an array of atom IDs (numbers) or Atom objects
+    // Let's handle both cases
+    const esterAtomIds = new Set(
+      ester.atoms.map(a => typeof a === 'number' ? a : (a?.id ?? -1))
+    );
+    if (process.env.VERBOSE) {
+      console.log(`[analyzeEsterHierarchy] Ester ${idx} atom IDs:`, Array.from(esterAtomIds));
+    }
+    let carbonylCarbon: number | undefined;
+    let carbonylOxygen: number | undefined;
+    let esterOxygen: number | undefined;
+    let alkoxyCarbon: number | undefined;
+    
+    // Find C=O bond
+    for (const bond of mol.bonds) {
+      if (bond.type === 'double') {
+        const atom1 = mol.atoms[bond.atom1];
+        const atom2 = mol.atoms[bond.atom2];
+        
+        if (atom1?.symbol === 'C' && atom2?.symbol === 'O' && esterAtomIds.has(bond.atom1)) {
+          carbonylCarbon = bond.atom1;
+          carbonylOxygen = bond.atom2;
+          break;
+        } else if (atom1?.symbol === 'O' && atom2?.symbol === 'C' && esterAtomIds.has(bond.atom2)) {
+          carbonylCarbon = bond.atom2;
+          carbonylOxygen = bond.atom1;
+          break;
+        }
+      }
+    }
+    
+    if (!carbonylCarbon) return null;
+    
+    // Find C-O-C bond (ester linkage)
+    for (const bond of mol.bonds) {
+      if (bond.type === 'single') {
+        const atom1 = mol.atoms[bond.atom1];
+        const atom2 = mol.atoms[bond.atom2];
+        
+        if (bond.atom1 === carbonylCarbon && atom1?.symbol === 'C' && atom2?.symbol === 'O') {
+          esterOxygen = bond.atom2;
+        } else if (bond.atom2 === carbonylCarbon && atom2?.symbol === 'C' && atom1?.symbol === 'O') {
+          esterOxygen = bond.atom1;
+        }
+      }
+    }
+    
+    if (!esterOxygen) return null;
+    
+    // Find alkoxy carbon
+    for (const bond of mol.bonds) {
+      if (bond.type === 'single') {
+        const atom1 = mol.atoms[bond.atom1];
+        const atom2 = mol.atoms[bond.atom2];
+        
+        if (bond.atom1 === esterOxygen && atom2?.symbol === 'C' && bond.atom2 !== carbonylCarbon) {
+          alkoxyCarbon = bond.atom2;
+          break;
+        } else if (bond.atom2 === esterOxygen && atom1?.symbol === 'C' && bond.atom1 !== carbonylCarbon) {
+          alkoxyCarbon = bond.atom1;
+          break;
+        }
+      }
+    }
+    
+    if (!alkoxyCarbon) return null;
+    
+    return { carbonylCarbon, carbonylOxygen, esterOxygen, alkoxyCarbon, esterAtomIds };
+  }).filter(s => s !== null);
+  
+  if (esterStructures.length < 2) {
+    return { isHierarchical: false };
+  }
+  
+  // Check if any ester's alkyl group contains another ester's carbonyl carbon
+  // We need to traverse from alkoxyCarbon and see if we reach another ester's carbonyl
+  
+  for (let i = 0; i < esterStructures.length; i++) {
+    const ester1 = esterStructures[i];
+    if (!ester1) continue;
+    
+    // Traverse the alkyl group starting from ester1's alkoxyCarbon
+    const visited = new Set<number>();
+    const queue = [ester1.alkoxyCarbon];
+    const alkylGroupAtoms = new Set<number>();
+    
+    while (queue.length > 0) {
+      const currentId = queue.shift()!;
+      if (visited.has(currentId)) continue;
+      visited.add(currentId);
+      alkylGroupAtoms.add(currentId);
+      
+      // Find all neighbors
+      for (const bond of mol.bonds) {
+        if (bond.atom1 === currentId || bond.atom2 === currentId) {
+          const otherId = bond.atom1 === currentId ? bond.atom2 : bond.atom1;
+          
+          // Don't go back through the ester oxygen
+          if (otherId === ester1.esterOxygen) continue;
+          
+          if (!visited.has(otherId)) {
+            queue.push(otherId);
+          }
+        }
+      }
+    }
+    
+    // Check if any other ester's carbonyl carbon is in this alkyl group
+    for (let j = 0; j < esterStructures.length; j++) {
+      if (i === j) continue;
+      const ester2 = esterStructures[j];
+      if (!ester2) continue;
+      
+      if (alkylGroupAtoms.has(ester2.carbonylCarbon)) {
+        if (process.env.VERBOSE) {
+          console.log(`[analyzeEsterHierarchy] Hierarchical ester detected: ester at atom ${ester2.carbonylCarbon} is nested in alkyl group of ester at atom ${ester1.carbonylCarbon}`);
+        }
+        // ester1 is the primary ester, ester2 is nested in its alkyl group
+        return {
+          isHierarchical: true,
+          primaryEsterAtoms: [ester1.carbonylCarbon, ester1.esterOxygen]
+        };
+      }
+    }
+  }
+  
+  if (process.env.VERBOSE) {
+    console.log('[analyzeEsterHierarchy] No hierarchical relationship found - independent diesters');
+  }
+  
+  return { isHierarchical: false };
+}
+
+/**
  * Check if an ester is suitable for functional class nomenclature
  * Functional class nomenclature is used for:
  * - Simple esters (single ester, no complex features)
@@ -237,6 +568,7 @@ export const FUNCTIONAL_CLASS_RULE: IUPACRule = {
  * Substitutive nomenclature is used when:
  * - The molecule has rings (lactones)
  * - The molecule has other high-priority functional groups
+ * - Hierarchical esters (one ester nested in another's alkyl group)
  */
 function checkIfSimpleEster(context: ImmutableNamingContext, esters: FunctionalGroup[]): boolean {
   const mol = context.getState().molecule;
@@ -266,6 +598,16 @@ function checkIfSimpleEster(context: ImmutableNamingContext, esters: FunctionalG
   if (otherFunctionalGroups.length > 0) {
     if (process.env.VERBOSE) console.log('[checkIfSimpleEster] Other FGs:', otherFunctionalGroups.map(fg => fg.type));
     return false;
+  }
+  
+  // Check for hierarchical esters (nested esters) → use substitutive nomenclature
+  if (esters.length >= 2) {
+    if (process.env.VERBOSE) console.log('[checkIfSimpleEster] Checking for hierarchical esters, count:', esters.length);
+    const hierarchy = analyzeEsterHierarchy(context, esters);
+    if (hierarchy.isHierarchical) {
+      if (process.env.VERBOSE) console.log('[checkIfSimpleEster] Hierarchical ester detected → complex');
+      return false;
+    }
   }
   
   if (process.env.VERBOSE) console.log('[checkIfSimpleEster] Suitable for functional class nomenclature');
