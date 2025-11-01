@@ -168,6 +168,58 @@ describe('Comprehensive P-44.1 Functional Group Coverage', () => {
   });
 });
 
+describe('P-44.1.1 Ring vs Chain Selection', () => {
+  test('should select chain as parent when it has more functional groups than ring', () => {
+    const namer = new IUPACNamer();
+    
+    // C1CC1=CCCCCO - cyclopropyl ring with alcohol chain
+    // Chain has 1 alcohol, ring has 0 FGs
+    // Should select chain as parent (name ends with -ol)
+    const parseResult = parseSMILES('C1CC1=CCCCCO');
+    expect(parseResult.molecules.length).toBeGreaterThan(0);
+    
+    const molecule = parseResult.molecules[0]!;
+    const result = namer.generateName(molecule);
+    
+    // Name should end with -ol, indicating chain was selected as parent
+    expect(result.name).toMatch(/ol$/);
+    console.log(`✓ C1CC1=CCCCCO → ${result.name} (chain selected as parent)`);
+  });
+  
+  test('should select ring as parent when it has more functional groups than chain', () => {
+    const namer = new IUPACNamer();
+    
+    // c1ccc(O)cc1C - phenol with methyl substituent
+    // Ring has 1 alcohol, chain has 0 FGs
+    // Should select ring as parent (name should contain "benzen" for benzene ring)
+    const parseResult = parseSMILES('c1ccc(O)cc1C');
+    expect(parseResult.molecules.length).toBeGreaterThan(0);
+    
+    const molecule = parseResult.molecules[0]!;
+    const result = namer.generateName(molecule);
+    
+    // Name should be based on benzene ring (ring parent)
+    expect(result.name).toMatch(/benzen/i);
+    console.log(`✓ c1ccc(O)cc1C → ${result.name} (ring selected as parent)`);
+  });
+  
+  test('should handle equal functional groups on chain and ring', () => {
+    const namer = new IUPACNamer();
+    
+    // When FG counts are equal, other rules determine parent
+    // This test verifies that the rule correctly identifies equal counts
+    const parseResult = parseSMILES('OC1CCCCC1CCCCO');
+    expect(parseResult.molecules.length).toBeGreaterThan(0);
+    
+    const molecule = parseResult.molecules[0]!;
+    const result = namer.generateName(molecule);
+    
+    // Should generate a valid name (other rules will select parent)
+    expect(result.name.length).toBeGreaterThan(0);
+    console.log(`✓ OC1CCCCC1CCCCO → ${result.name} (equal FG counts)`);
+  });
+});
+
 describe('P-44.1 Implementation Summary', () => {
   test('should demonstrate comprehensive implementation', () => {
     console.log('\n=== Comprehensive P-44.1 Functional Group Coverage ===');

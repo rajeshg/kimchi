@@ -167,10 +167,13 @@ export class OPSINFunctionalGroupDetector {
   { pattern: '[NX3][CX4]', name: 'amine', priority: 5, finder: this.findAminePattern.bind(this) },
   { pattern: 'ROR', name: 'ether', priority: 6, finder: this.findEtherPattern.bind(this) },
   { pattern: 'C(=O)N', name: 'amide', priority: 7, finder: this.findAmidePattern.bind(this) },
-  { pattern: 'C(=O)O', name: 'ester', priority: 8, finder: this.findEsterPattern.bind(this) },
-  { pattern: 'SC#N', name: 'thiocyanate', priority: 9, finder: this.findThiocyanatePattern.bind(this) },
-  { pattern: 'C#N', name: 'nitrile', priority: 10, finder: this.findNitrilePattern.bind(this) },
-  { pattern: 'RSR', name: 'thioether', priority: 11, finder: this.findThioetherPattern.bind(this) }
+      { pattern: 'C(=O)O', name: 'ester', priority: 8, finder: this.findEsterPattern.bind(this) },
+      { pattern: 'C(=O)S', name: 'thioester', priority: 8.5, finder: this.findThioesterPattern.bind(this) },
+      { pattern: 'SC#N', name: 'thiocyanate', priority: 9, finder: this.findThiocyanatePattern.bind(this) },
+      { pattern: 'C#N', name: 'nitrile', priority: 10, finder: this.findNitrilePattern.bind(this) },
+      { pattern: 'RSR', name: 'thioether', priority: 11, finder: this.findThioetherPattern.bind(this) },
+      { pattern: 'S(=O)(=O)', name: 'sulfonyl', priority: 11.5, finder: this.findSulfonylPattern.bind(this) },
+      { pattern: 'S(=O)', name: 'sulfinyl', priority: 11.6, finder: this.findSulfinylPattern.bind(this) }
     ];
 
     for (const check of builtinChecks) {
@@ -197,16 +200,22 @@ export class OPSINFunctionalGroupDetector {
               '[OX2H]': 'ol',
               '[NX3][CX4]': 'amine',
               'C(=O)O': 'oate',
+              'C(=O)S': 'thioate',
               'C(=O)N': 'amide',
               'C#N': 'nitrile',
-              'SC#N': 'thiocyanate'
+              'SC#N': 'thiocyanate',
+              'S(=O)(=O)': 'sulfonyl',
+              'S(=O)': 'sulfinyl'
             };
             const defaultPrefixes: Record<string, string> = {
               '[OX2H]': 'hydroxy',
               '[NX3][CX4]': 'amino',
               '[CX3](=O)[CX4]': 'oxo',
               'C(=O)[OX2H1]': 'carboxy',
-              'SC#N': 'thiocyano'
+              'C(=O)S': 'sulfanylformyl',
+              'SC#N': 'thiocyano',
+              'S(=O)(=O)': 'sulfonyl',
+              'S(=O)': 'sulfinyl'
             };
             this.functionalGroups.set(check.pattern, {
               name: check.name,
@@ -240,6 +249,24 @@ export class OPSINFunctionalGroupDetector {
             // Special case: For esters, create one functional group per C=O-O triple
             // since each ester should be counted separately for diesters, etc.
             // atomsMatched contains triples: [C1, O_carbonyl1, O_ester1, C2, O_carbonyl2, O_ester2, ...]
+            for (let i = 0; i < atomsMatched.length; i += 3) {
+              detectedGroups.push({
+                type: check.pattern,
+                name: fgEntry?.name || check.name,
+                suffix: fgEntry?.suffix || '',
+                prefix: fgEntry?.prefix || undefined,
+                priority: fgEntry?.priority || check.priority,
+                atoms: [atomsMatched[i]!, atomsMatched[i + 1]!, atomsMatched[i + 2]!],
+                pattern: check.pattern
+              });
+              // Claim these atoms
+              claimedAtoms.add(atomsMatched[i]!);
+              claimedAtoms.add(atomsMatched[i + 1]!);
+              claimedAtoms.add(atomsMatched[i + 2]!);
+            }
+          } else if (check.pattern === 'C(=O)S' && atomsMatched.length > 3) {
+            // Special case: For thioesters, create one functional group per C=O-S triple
+            // atomsMatched contains triples: [C1, O_carbonyl1, S1, C2, O_carbonyl2, S2, ...]
             for (let i = 0; i < atomsMatched.length; i += 3) {
               detectedGroups.push({
                 type: check.pattern,
@@ -794,6 +821,64 @@ export class OPSINFunctionalGroupDetector {
     return [];
   }
   
+  private findSulfonylPattern(atoms: readonly any[], bonds: readonly any[]): number[] {
+    // Look for sulfur with exactly 2 double bonds to oxygen: -S(=O)(=O)-
+    for (let i = 0; i < atoms.length; i++) {
+      const atom = atoms[i];
+      if (atom.symbol !== 'S') continue;
+      
+      const doubleBonds = bonds.filter(bond =>
+        (bond.atom1 === atom.id || bond.atom2 === atom.id) && bond.type === 'double'
+      );
+      
+      const oxygenDoubleBonds = doubleBonds.filter(bond =>
+        this.getBondedAtom(bond, atom.id, atoms)?.symbol === 'O'
+      );
+      
+      // Must have exactly 2 double bonds to oxygen for sulfonyl
+      if (oxygenDoubleBonds.length === 2) {
+        // Must have at least 1 single bond to carbon or other atom (not sulfonic acid)
+        const singleBonds = bonds.filter(bond =>
+          (bond.atom1 === atom.id || bond.atom2 === atom.id) && bond.type === 'single'
+        );
+        
+        if (singleBonds.length >= 1) {
+          return [atom.id];
+        }
+      }
+    }
+    return [];
+  }
+  
+  private findSulfinylPattern(atoms: readonly any[], bonds: readonly any[]): number[] {
+    // Look for sulfur with exactly 1 double bond to oxygen: -S(=O)-
+    for (let i = 0; i < atoms.length; i++) {
+      const atom = atoms[i];
+      if (atom.symbol !== 'S') continue;
+      
+      const doubleBonds = bonds.filter(bond =>
+        (bond.atom1 === atom.id || bond.atom2 === atom.id) && bond.type === 'double'
+      );
+      
+      const oxygenDoubleBonds = doubleBonds.filter(bond =>
+        this.getBondedAtom(bond, atom.id, atoms)?.symbol === 'O'
+      );
+      
+      // Must have exactly 1 double bond to oxygen for sulfinyl
+      if (oxygenDoubleBonds.length === 1) {
+        // Must have at least 2 single bonds to carbon or other atoms
+        const singleBonds = bonds.filter(bond =>
+          (bond.atom1 === atom.id || bond.atom2 === atom.id) && bond.type === 'single'
+        );
+        
+        if (singleBonds.length >= 2) {
+          return [atom.id];
+        }
+      }
+    }
+    return [];
+  }
+  
   private findAldehydePattern(atoms: readonly any[], bonds: readonly any[]): number[] {
     // Look for carbonyl carbon with hydrogen
     for (let i = 0; i < atoms.length; i++) {
@@ -888,6 +973,52 @@ export class OPSINFunctionalGroupDetector {
       }
     }
     return esters;
+  }
+  
+  private findThioesterPattern(atoms: readonly any[], bonds: readonly any[]): number[] {
+    // Look for carbonyl carbons (C=O) single-bonded to sulfur: C(=O)-S-R
+    // BUT NOT bonded to oxygen ester (C(=O)-S-R where there's also C(=O)-O would be an ester with sulfanyl substituent)
+    const thioesters: number[] = [];
+    
+    for (let i = 0; i < atoms.length; i++) {
+      const atom = atoms[i];
+      if (atom.symbol !== 'C') continue;
+
+      const doubleBondOxygen = bonds.find(bond =>
+        (bond.atom1 === atom.id || bond.atom2 === atom.id) &&
+        bond.type === 'double' &&
+        this.getBondedAtom(bond, atom.id, atoms)?.symbol === 'O'
+      );
+
+      if (!doubleBondOxygen) continue;
+
+      const singleBondedSulfur = bonds.find(bond =>
+        (bond.atom1 === atom.id || bond.atom2 === atom.id) &&
+        bond.type === 'single' &&
+        this.getBondedAtom(bond, atom.id, atoms)?.symbol === 'S'
+      );
+
+      if (!singleBondedSulfur) continue;
+
+      // Check if there's also a single-bonded oxygen (ester linkage)
+      // If so, this is NOT a thioester but an ester with sulfanyl substituent
+      const singleBondedOxygen = bonds.find(bond =>
+        (bond.atom1 === atom.id || bond.atom2 === atom.id) &&
+        bond.type === 'single' &&
+        this.getBondedAtom(bond, atom.id, atoms)?.symbol === 'O'
+      );
+
+      if (singleBondedOxygen) {
+        // This is C(=O)-S-R with C(=O)-O-R' -> ester with sulfanyl substituent
+        continue;
+      }
+
+      // This is a true thioester: C(=O)-S-R (no oxygen ester linkage)
+      const sulfur = this.getBondedAtom(singleBondedSulfur, atom.id, atoms)!;
+      const carbonylOxygen = this.getBondedAtom(doubleBondOxygen, atom.id, atoms)!;
+      thioesters.push(atom.id, carbonylOxygen.id, sulfur.id);
+    }
+    return thioesters;
   }
   
   // Ring systems

@@ -104,138 +104,7 @@ export const INITIAL_STRUCTURE_ANALYSIS_RULE: IUPACRule = {
   }
 };
 
-/**
- * Rule: P-44.1.1 - Maximum Number of Principal Characteristic Groups
- * 
- * According to IUPAC Blue Book P-44.1.1, the parent structure should contain
- * the maximum number of principal characteristic groups (suffixes like -COOH, -one, etc.).
- * 
- * This rule compares chains with rings and selects chains that have principal functional
- * groups over rings (which typically have zero such groups).
- */
-export const P44_1_1_PRINCIPAL_CHARACTERISTIC_GROUPS_RULE: IUPACRule = {
-  id: 'P-44.1.1',
-  name: 'Maximum Number of Principal Characteristic Groups',
-  description: 'Select parent with maximum number of principal characteristic groups',
-  blueBookReference: BLUE_BOOK_RULES.P44_1,
-  priority: 65, // Higher than P-44.4 (60) but lower than P-2.1 (150)
-  conditions: (context: ImmutableNamingContext) => {
-    const state = context.getState();
-    // Skip if parent structure already selected
-    if (state.parentStructure) {
-      if (process.env.VERBOSE) console.log('[P-44.1.1] Skipping - parent already selected');
-      return false;
-    }
-    // Only apply if we have both chains and rings to compare
-    const chains = state.candidateChains as Chain[];
-    const rings = state.candidateRings;
-    const shouldApply = chains.length > 0 && rings && rings.length > 0;
-    if (process.env.VERBOSE) {
-      console.log(`[P-44.1.1] Conditions check: chains=${chains.length}, rings=${rings?.length || 0}, shouldApply=${shouldApply}`);
-    }
-    return shouldApply;
-  },
-  action: (context: ImmutableNamingContext) => {
-    const state = context.getState();
-    const chains = state.candidateChains as Chain[];
-    const molecule = state.molecule as Molecule;
-    
-    if (process.env.VERBOSE) {
-      console.log('[P-44.1.1] Action executing...');
-      console.log(`[P-44.1.1] chains.length=${chains?.length}, molecule=${!!molecule}`);
-    }
-    
-    if (!chains || chains.length === 0 || !molecule) return context;
-    
-    // Count functional groups that can be expressed as suffixes on each chain
-    // Priority >= 4 means ketone/aldehyde or higher (carboxylic acid = 6, amide = 5, etc.)
-    const chainFGCounts = chains.map(chain => {
-      // Get priority from utility function (may use different logic)
-      const atomIndices = chain.atoms.map(atom => {
-        const idx = molecule.atoms.findIndex(a => a === atom);
-        return idx;
-      });
-      const priority = getChainFunctionalGroupPriority(atomIndices, molecule);
-      
-      // Count atoms in the chain that have principal functional groups
-      let fgCount = 0;
-      for (const atom of chain.atoms) {
-        if (!atom || atom.symbol !== 'C') continue;
-        
-        // Find this atom's index in the molecule
-        const atomIdx = molecule.atoms.findIndex(a => a === atom);
-        if (atomIdx === -1) continue;
-        
-        // Check for C=O (ketone/aldehyde)
-        let hasDoubleO = false;
-        for (const bond of molecule.bonds) {
-          if (bond.atom1 !== atomIdx && bond.atom2 !== atomIdx) continue;
-          const neighIdx = bond.atom1 === atomIdx ? bond.atom2 : bond.atom1;
-          const neigh = molecule.atoms[neighIdx];
-          // Check for double bond to oxygen
-          if (neigh?.symbol === 'O' && bond.type === BondTypeEnum.DOUBLE) {
-            hasDoubleO = true;
-            break;
-          }
-        }
-        if (hasDoubleO) fgCount++;
-      }
-      
-      if (process.env.VERBOSE) {
-        console.log(`[P-44.1.1] Chain with ${chain.atoms.length} atoms: priority=${priority}, fgCount=${fgCount}`);
-      }
-      
-      return { chain, priority, fgCount };
-    });
-    
-    // Find maximum functional group count
-    const maxFGCount = Math.max(...chainFGCounts.map(c => c.fgCount));
-    
-    if (process.env.VERBOSE) {
-      console.log(`[P-44.1.1] maxFGCount=${maxFGCount}`);
-      console.log(`[P-44.1.1] candidateRings.length=${state.candidateRings?.length || 0}`);
-    }
-    
-    // Rings typically have 0 principal characteristic groups (benzene doesn't have -C=O groups)
-    // If any chain has principal functional groups (ketones, aldehydes, etc.), prefer it
-    if (maxFGCount > 0) {
-      const functionalChains = chainFGCounts
-        .filter(c => c.fgCount === maxFGCount)
-        .map(c => c.chain);
-      
-      if (process.env.VERBOSE) {
-        console.log(`[P-44.1.1] Selecting ${functionalChains.length} chains with ${maxFGCount} functional groups, clearing rings`);
-      }
-      
-      return context.withUpdatedCandidates(
-        functionalChains,
-        'P-44.1.1',
-        'Maximum Number of Principal Characteristic Groups',
-        BLUE_BOOK_RULES.P44_1,
-        ExecutionPhase.PARENT_STRUCTURE,
-        `Selected chains with ${maxFGCount} principal characteristic groups, ignoring rings`
-      ).withStateUpdate(
-        (state) => ({
-          ...state,
-          candidateRings: [], // Clear rings since functional chain takes precedence
-          p44_1_1_applied: true
-        }),
-        'P-44.1.1',
-        'Maximum Number of Principal Characteristic Groups',
-        BLUE_BOOK_RULES.P44_1,
-        ExecutionPhase.PARENT_STRUCTURE,
-        'Cleared candidate rings in favor of chains with principal characteristic groups'
-      );
-    }
-    
-    // If no chains have principal functional groups, let normal rules proceed
-    // (rings may win via P-44.4)
-    if (process.env.VERBOSE) {
-      console.log('[P-44.1.1] No functional groups found, letting other rules proceed');
-    }
-    return context;
-  }
-};
+
 
 /**
  * Rule: P-44.4 - Ring vs Chain Selection
@@ -352,8 +221,6 @@ export const INITIAL_STRUCTURE_LAYER_RULES: IUPACRule[] = [
   RING_NUMBERING_RULE,
   // P-3 rules run after parent selection to detect substituents
   ...P3_SUBSTITUENT_RULES,
-  // P-44.1.1 runs before P-44.4 to select chains with functional groups
-  P44_1_1_PRINCIPAL_CHARACTERISTIC_GROUPS_RULE,
   // Initial structure analysis seeds candidates
   INITIAL_STRUCTURE_ANALYSIS_RULE,
   // P-44.4 selects ring vs chain when no functional groups

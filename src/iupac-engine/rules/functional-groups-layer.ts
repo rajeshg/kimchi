@@ -112,13 +112,15 @@ export const FUNCTIONAL_GROUP_PRIORITY_RULE: IUPACRule = {
     const functionalGroups: FunctionalGroup[] = detected.map((d: any) => {
       const rawName = (d.name || d.type || d.pattern || '').toString().toLowerCase();
       const type = rawName.replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
-      const atoms = d.atoms || [];
+      // d.atoms contains atom indices (numbers), convert to Atom objects
+      const atomIndices = d.atoms || [];
+      const atoms = atomIndices.map((idx: number) => mol.atoms[idx]).filter((a: any) => a !== undefined);
       const bonds = d.bonds || [];
       const priority = typeof d.priority === 'number'
         ? d.priority
         : (FUNCTIONAL_GROUP_PRIORITIES[type] || opsinDetector.getFunctionalGroupPriority(d.pattern || d.type) || 999);
 
-      traceMeta.push({ pattern: d.pattern || d.type, type, atomIds: atoms.map((a: any) => a?.id ?? -1) });
+      traceMeta.push({ pattern: d.pattern || d.type, type, atomIds: atomIndices });
 
       // For ketones and aldehydes, only the carbonyl carbon (first atom) should be in locants
       // The oxygen is needed in atoms[] for detection, but not for locant numbering
