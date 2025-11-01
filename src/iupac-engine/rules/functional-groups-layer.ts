@@ -44,6 +44,11 @@ export const FUNCTIONAL_GROUP_PRIORITY_RULE: IUPACRule = {
 
       traceMeta.push({ pattern: d.pattern || d.type, type, atomIds: atoms.map((a: any) => a?.id ?? -1) });
 
+      // For ketones and aldehydes, only the carbonyl carbon (first atom) should be in locants
+      // The oxygen is needed in atoms[] for detection, but not for locant numbering
+      const isKetoneOrAldehyde = type === 'ketone' || type === 'aldehyde';
+      const locantAtoms = isKetoneOrAldehyde ? atoms.slice(0, 1) : atoms;
+      
       return {
         type,
         atoms,
@@ -52,7 +57,7 @@ export const FUNCTIONAL_GROUP_PRIORITY_RULE: IUPACRule = {
         prefix: d.prefix || undefined,
         priority,
         isPrincipal: false,
-        locants: atoms.map((a: any) => (a && typeof a.id === 'number') ? a.id : -1)
+        locants: locantAtoms.map((a: any) => (a && typeof a.id === 'number') ? a.id : -1)
       } as FunctionalGroup;
     });
 

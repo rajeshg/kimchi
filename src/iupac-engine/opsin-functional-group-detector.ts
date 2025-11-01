@@ -48,6 +48,11 @@ export class OPSINFunctionalGroupDetector {
             continue;
           }
           
+          // Skip 'S' pattern - we handle thioethers (RSR) in builtin checks
+          if (pattern === 'S') {
+            continue;
+          }
+          
           const name = Array.isArray(entry.aliases) && entry.aliases.length > 0 ? entry.aliases[0] : (entry.name || pattern);
           const priority = priorityMap[name.toLowerCase()] || (entry.priority as number) || 999;
           const suffix = entry.suffix || '';
@@ -124,6 +129,7 @@ export class OPSINFunctionalGroupDetector {
     type: string;
     name: string;
     suffix: string;
+    prefix?: string;
     priority: number;
     atoms: number[];
     pattern: string;
@@ -132,6 +138,7 @@ export class OPSINFunctionalGroupDetector {
       type: string;
       name: string;
       suffix: string;
+      prefix?: string;
       priority: number;
       atoms: number[];
       pattern: string;
@@ -150,6 +157,7 @@ export class OPSINFunctionalGroupDetector {
       { pattern: '[OX2H]', name: 'alcohol', priority: 4, finder: this.findAlcoholPattern.bind(this) },
   { pattern: '[NX3][CX4]', name: 'amine', priority: 5, finder: this.findAminePattern.bind(this) },
   { pattern: 'ROR', name: 'ether', priority: 6, finder: this.findEtherPattern.bind(this) },
+  { pattern: 'RSR', name: 'thioether', priority: 11, finder: this.findThioetherPattern.bind(this) },
   { pattern: 'C(=O)O', name: 'ester', priority: 8, finder: this.findEsterPattern.bind(this) },
   { pattern: 'C(=O)N', name: 'amide', priority: 7, finder: this.findAmidePattern.bind(this) },
       { pattern: 'C#N', name: 'nitrile', priority: 9, finder: this.findNitrilePattern.bind(this) }
@@ -175,9 +183,16 @@ export class OPSINFunctionalGroupDetector {
               'C(=O)N': 'amide',
               'C#N': 'nitrile'
             };
+            const defaultPrefixes: Record<string, string> = {
+              '[OX2H]': 'hydroxy',
+              '[NX3][CX4]': 'amino',
+              '[CX3](=O)[CX4]': 'oxo',
+              'C(=O)[OX2H1]': 'carboxy'
+            };
             this.functionalGroups.set(check.pattern, {
               name: check.name,
               suffix: defaultSuffixes[check.pattern] || '',
+              prefix: defaultPrefixes[check.pattern] || undefined,
               priority: check.priority
             });
           }
@@ -192,8 +207,23 @@ export class OPSINFunctionalGroupDetector {
                 type: check.pattern,
                 name: fgEntry?.name || check.name,
                 suffix: fgEntry?.suffix || '',
+                prefix: fgEntry?.prefix || undefined,
                 priority: fgEntry?.priority || check.priority,
                 atoms: [oxygenId],
+                pattern: check.pattern
+              });
+            }
+          } else if (check.pattern === 'RSR' && atomsMatched.length > 1) {
+            // Special case: For thioethers, create one functional group per sulfur atom
+            // since each thioether sulfur should be independently convertible to sulfanyl
+            for (const sulfurId of atomsMatched) {
+              detectedGroups.push({
+                type: check.pattern,
+                name: fgEntry?.name || check.name,
+                suffix: fgEntry?.suffix || '',
+                prefix: fgEntry?.prefix || undefined,
+                priority: fgEntry?.priority || check.priority,
+                atoms: [sulfurId],
                 pattern: check.pattern
               });
             }
@@ -202,6 +232,7 @@ export class OPSINFunctionalGroupDetector {
               type: check.pattern,
               name: fgEntry?.name || check.name,
               suffix: fgEntry?.suffix || '',
+              prefix: fgEntry?.prefix || undefined,
               priority: fgEntry?.priority || check.priority,
               atoms: atomsMatched,
               pattern: check.pattern
@@ -535,6 +566,39 @@ export class OPSINFunctionalGroupDetector {
       }
     }
     return etherOxygens;
+  }
+
+  private findThioetherPattern(atoms: readonly any[], bonds: readonly any[]): number[] {
+    // Look for ALL sulfurs bonded to two carbons (RSR)
+    const thioetherSulfurs: number[] = [];
+    
+    for (let i = 0; i < atoms.length; i++) {
+      const atom = atoms[i];
+      if (atom.symbol !== 'S') continue;
+
+      const carbonBonds = bonds.filter(bond =>
+        (bond.atom1 === atom.id || bond.atom2 === atom.id) && bond.type === 'single' &&
+        this.getBondedAtom(bond, atom.id, atoms)?.symbol === 'C'
+      );
+
+      if (carbonBonds.length === 2) {
+        // Exclude sulfurs that are part of thioesters (i.e., bonded to a carbonyl carbon)
+        const carbons = carbonBonds.map(b => this.getBondedAtom(b, atom.id, atoms));
+        const isPartOfCarbonyl = carbons.some(c => {
+          if (!c) return false;
+          const doubleToO = bonds.find(bb =>
+            (bb.atom1 === c.id || bb.atom2 === c.id) && bb.type === 'double' &&
+            this.getBondedAtom(bb, c.id, atoms)?.symbol === 'O'
+          );
+          return !!doubleToO;
+        });
+
+        if (!isPartOfCarbonyl) {
+          thioetherSulfurs.push(atom.id);
+        }
+      }
+    }
+    return thioetherSulfurs;
   }
   
   private findNitrilePattern(atoms: readonly any[], bonds: readonly any[]): number[] {

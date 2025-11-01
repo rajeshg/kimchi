@@ -1,4 +1,5 @@
 import type { IUPACRule, FunctionalGroup, ParentStructure, Chain, MultipleBond, Substituent, RuleConflict } from '../types';
+import type { Atom } from '../../../types';
 import { ExecutionPhase, ImmutableNamingContext } from '../immutable-context';
 import { generateChainName } from './parent-chain-selection-layer';
 
@@ -132,7 +133,19 @@ export const P14_3_PRINCIPAL_GROUP_NUMBERING_RULE: IUPACRule = {
       (prev.priority < current.priority) ? prev : current
     );
     
-    const principalLocant = getPrincipalGroupLocant(parentStructure, principalGroup);
+    if (process.env.VERBOSE) {
+      console.log('[P-14.3] Principal group:', principalGroup.type);
+      console.log('[P-14.3] Principal group atoms:', principalGroup.atoms);
+      console.log('[P-14.3] Parent chain atoms:', parentStructure.chain?.atoms.map((a: Atom) => a.id));
+      console.log('[P-14.3] Parent chain locants:', parentStructure.locants);
+    }
+    
+    // Calculate the principal locant based on the already-optimized locants from P-14.2
+    const principalLocant = getPrincipalGroupLocantFromSet(parentStructure, principalGroup, parentStructure.locants);
+    
+    if (process.env.VERBOSE) {
+      console.log('[P-14.3] Calculated principal locant:', principalLocant);
+    }
     
     // Update functional group locants
     const updatedFunctionalGroups = functionalGroups.map((group: FunctionalGroup) => ({
@@ -143,13 +156,7 @@ export const P14_3_PRINCIPAL_GROUP_NUMBERING_RULE: IUPACRule = {
     return context.withStateUpdate(
       (state: any) => ({ 
         ...state, 
-        functionalGroups: updatedFunctionalGroups,
-        parentStructure: {
-          ...parentStructure,
-          locants: parentStructure.locants.map((locant: number, index: number) => 
-            index === principalLocant - 1 ? principalLocant : locant
-          )
-        }
+        functionalGroups: updatedFunctionalGroups
       }),
       'P-14.3',
       'Principal Group Numbering',
@@ -315,7 +322,8 @@ export const RING_NUMBERING_RULE: IUPACRule = {
     
     // Apply numbering starting from preferred position (considering substituents for lowest locants)
     const molecule = state.molecule;
-    const startingPosition = findRingStartingPosition(ring, molecule);
+    const functionalGroups = state.functionalGroups || [];
+    const startingPosition = findRingStartingPosition(ring, molecule, functionalGroups);
     const adjustedLocants = adjustRingLocants(ringLocants, startingPosition);
     
     // Reorder ring.atoms array to match the optimized numbering
@@ -323,9 +331,131 @@ export const RING_NUMBERING_RULE: IUPACRule = {
     const reorderedAtoms = reorderRingAtoms(ring.atoms, startingPosition);
     const reorderedBonds = ring.bonds; // Bonds don't need reordering as they reference atom IDs
     
+    // Create mapping from atom ID to new ring position (1-based)
+    // This is needed because functional groups store atom IDs in locants[], but we need ring positions
+    const atomIdToPosition = new Map<number, number>();
+    for (let i = 0; i < reorderedAtoms.length; i++) {
+      const atom = reorderedAtoms[i];
+      if (atom && typeof atom.id === 'number') {
+        atomIdToPosition.set(atom.id, i + 1); // 1-based position
+      }
+    }
+    
+    if (process.env.VERBOSE) {
+      console.log(`[Ring Numbering] Atom ID to position mapping:`, Array.from(atomIdToPosition.entries()));
+    }
+    
+    // Build set of ring atom IDs
+    const ringAtomIds = new Set(reorderedAtoms.map((a: any) => a.id));
+    
+    // Update functional group locants to use ring positions instead of atom IDs
+    // For functional groups attached to the ring (like -OH), we need to find which ring atom they're bonded to
+    const updatedFunctionalGroups = functionalGroups.map((fg: any) => {
+      if (process.env.VERBOSE) {
+        console.log(`[Ring Numbering] Processing functional group ${fg.type}: atoms=${fg.atoms?.map((a: any) => a).join(',')}, old locants=${fg.locants}, old locant=${fg.locant}`);
+      }
+      
+      // Find which ring atoms this functional group is attached to
+      const attachedRingPositions: number[] = [];
+      
+      if (fg.atoms && fg.atoms.length > 0) {
+        for (const groupAtomId of fg.atoms) {
+          // Check if this functional group atom is itself in the ring
+          if (atomIdToPosition.has(groupAtomId)) {
+            attachedRingPositions.push(atomIdToPosition.get(groupAtomId)!);
+          } else {
+            // This functional group atom is NOT in the ring, so find which ring atom it's bonded to
+            const bonds = molecule.bonds.filter((bond: any) =>
+              (bond.atom1 === groupAtomId || bond.atom2 === groupAtomId)
+            );
+            
+            for (const bond of bonds) {
+              const otherAtomId = bond.atom1 === groupAtomId ? bond.atom2 : bond.atom1;
+              if (ringAtomIds.has(otherAtomId)) {
+                // Found a ring atom bonded to this functional group
+                const position = atomIdToPosition.get(otherAtomId);
+                if (position !== undefined && !attachedRingPositions.includes(position)) {
+                  attachedRingPositions.push(position);
+}
+
+function getPrincipalGroupLocantFromSet(parentStructure: ParentStructure, principalGroup: FunctionalGroup, locantSet: number[]): number {
+  // Calculate the principal group locant based on a specific locant set
+  if (parentStructure.type === 'chain') {
+    if (principalGroup.atoms.length === 0) {
+      return 1; // Fallback if no atoms
+    }
+    
+    const functionalGroupAtom = principalGroup.atoms[0]!;
+    const chain = parentStructure.chain;
+    
+    if (!chain) {
+      return 1; // Fallback if no chain
+    }
+    
+    // Check if functionalGroupAtom is an Atom object or just an ID
+    const atomId = typeof functionalGroupAtom === 'number' ? functionalGroupAtom : functionalGroupAtom.id;
+    
+    // Find where this atom appears in the chain
+    const positionInChain = chain.atoms.findIndex((atom: Atom) => atom.id === atomId);
+    
+    if (positionInChain === -1) {
+      return 1; // Fallback if atom not found
+    }
+    
+    // Return the locant at that position from the given locant set
+    return locantSet[positionInChain] || 1;
+  } else {
+    // For rings, principal group gets the lowest available locant
+    return Math.min(...locantSet);
+  }
+}
+
+              }
+            }
+          }
+        }
+      }
+      
+      // If we found ring positions, use those as locants
+      if (attachedRingPositions.length > 0) {
+        attachedRingPositions.sort((a, b) => a - b);
+        
+        if (process.env.VERBOSE) {
+          console.log(`[Ring Numbering] Updated functional group ${fg.type}: new locants=${attachedRingPositions}, new locant=${attachedRingPositions[0]}`);
+        }
+        
+        return {
+          ...fg,
+          locants: attachedRingPositions,
+          locant: attachedRingPositions[0]
+        };
+      }
+      
+      // Otherwise, try to convert existing locants using the atom ID to position map
+      if (fg.locants && fg.locants.length > 0) {
+        const newLocants = fg.locants.map((atomId: number) => {
+          const position = atomIdToPosition.get(atomId);
+          return position !== undefined ? position : atomId; // fallback to atom ID if not in ring
+        });
+        
+        const newLocant = fg.locant !== undefined && atomIdToPosition.has(fg.locant)
+          ? atomIdToPosition.get(fg.locant)
+          : fg.locant;
+        
+        return {
+          ...fg,
+          locants: newLocants,
+          locant: newLocant
+        };
+      }
+      
+      return fg;
+    });
+    
     return context.withStateUpdate(
       (state: any) => ({
         ...state,
+        functionalGroups: updatedFunctionalGroups,
         parentStructure: {
           ...parentStructure,
           locants: adjustedLocants,
@@ -439,10 +569,11 @@ export const NUMBERING_COMPLETE_RULE: IUPACRule = {
     
     // After numbering is validated, recompute human-readable parent name so that
     // multiple-bond locants (assigned in P-14.4) are included in the parent name
+    // Pass false to exclude substituents - they will be added in name assembly layer
     let updatedParent = parentStructure;
     if (validationResult.isValid && parentStructure.type === 'chain' && parentStructure.chain) {
       try {
-        const newName = generateChainName(parentStructure.chain as Chain);
+        const newName = generateChainName(parentStructure.chain as Chain, false);
         updatedParent = { ...parentStructure, name: newName };
       } catch (err) {
         // If name generation fails, keep existing name
@@ -474,15 +605,29 @@ function optimizeLocantSet(parentStructure: ParentStructure, principalGroup: Fun
   // Get all possible locant sets
   const possibleLocants = generatePossibleLocantSets(parentStructure);
   
+  if (process.env.VERBOSE) {
+    console.log('[optimizeLocantSet] Possible locant sets:', possibleLocants);
+  }
+  
   // Find the set that gives lowest locant to principal group
   let bestLocants = parentStructure.locants;
-  let bestScore = calculateLocantScore(bestLocants, principalGroup);
+  let bestScore = calculateLocantScore(parentStructure, bestLocants, principalGroup);
+  
+  if (process.env.VERBOSE) {
+    console.log('[optimizeLocantSet] Initial best score:', bestScore);
+  }
   
   for (const locantSet of possibleLocants) {
-    const score = calculateLocantScore(locantSet, principalGroup);
+    const score = calculateLocantScore(parentStructure, locantSet, principalGroup);
+    if (process.env.VERBOSE) {
+      console.log('[optimizeLocantSet] Testing locant set:', locantSet, 'score:', score);
+    }
     if (score < bestScore) {
       bestScore = score;
       bestLocants = locantSet;
+      if (process.env.VERBOSE) {
+        console.log('[optimizeLocantSet] New best locants:', bestLocants, 'score:', bestScore);
+      }
     }
   }
   
@@ -491,11 +636,78 @@ function optimizeLocantSet(parentStructure: ParentStructure, principalGroup: Fun
 
 function getPrincipalGroupLocant(parentStructure: ParentStructure, principalGroup: FunctionalGroup): number {
   if (parentStructure.type === 'chain') {
-    // Principal group gets locant 1 for chains
-    return 1;
+    // Find the position of the functional group's first atom in the parent chain
+    // The functional group's atoms should have already been set with the carbonyl carbon first
+    if (principalGroup.atoms.length === 0) {
+      return 1; // Fallback if no atoms
+    }
+    
+    const functionalGroupAtom = principalGroup.atoms[0]!; // Carbonyl carbon for ketones (checked above)
+    const chain = parentStructure.chain;
+    
+    if (!chain) {
+      return 1; // Fallback if no chain
+    }
+    
+    if (process.env.VERBOSE) {
+      console.log('[getPrincipalGroupLocant] functionalGroupAtom:', functionalGroupAtom);
+      console.log('[getPrincipalGroupLocant] functionalGroupAtom type:', typeof functionalGroupAtom);
+      console.log('[getPrincipalGroupLocant] functionalGroupAtom.id:', (functionalGroupAtom as any).id);
+      console.log('[getPrincipalGroupLocant] chain.atoms:', chain.atoms.map((a: Atom) => a.id));
+    }
+    
+    // Check if functionalGroupAtom is an Atom object or just an ID
+    const atomId = typeof functionalGroupAtom === 'number' ? functionalGroupAtom : functionalGroupAtom.id;
+    
+    // Find where this atom appears in the chain
+    const positionInChain = chain.atoms.findIndex((atom: Atom) => atom.id === atomId);
+    
+    if (process.env.VERBOSE) {
+      console.log('[getPrincipalGroupLocant] atomId:', atomId);
+      console.log('[getPrincipalGroupLocant] positionInChain:', positionInChain);
+    }
+    
+    if (positionInChain === -1) {
+      return 1; // Fallback if atom not found
+    }
+    
+    // Return the locant at that position
+    return parentStructure.locants[positionInChain] || 1;
   } else {
     // For rings, principal group gets the lowest available locant
     return Math.min(...parentStructure.locants);
+  }
+}
+
+function getPrincipalGroupLocantFromSet(parentStructure: ParentStructure, principalGroup: FunctionalGroup, locantSet: number[]): number {
+  // Calculate the principal group locant based on a specific locant set
+  if (parentStructure.type === 'chain') {
+    if (principalGroup.atoms.length === 0) {
+      return 1; // Fallback if no atoms
+    }
+    
+    const functionalGroupAtom = principalGroup.atoms[0]!;
+    const chain = parentStructure.chain;
+    
+    if (!chain) {
+      return 1; // Fallback if no chain
+    }
+    
+    // Check if functionalGroupAtom is an Atom object or just an ID
+    const atomId = typeof functionalGroupAtom === 'number' ? functionalGroupAtom : functionalGroupAtom.id;
+    
+    // Find where this atom appears in the chain
+    const positionInChain = chain.atoms.findIndex((atom: Atom) => atom.id === atomId);
+    
+    if (positionInChain === -1) {
+      return 1; // Fallback if atom not found
+    }
+    
+    // Return the locant at that position from the given locant set
+    return locantSet[positionInChain] || 1;
+  } else {
+    // For rings, principal group gets the lowest available locant
+    return Math.min(...locantSet);
   }
 }
 
@@ -508,8 +720,9 @@ function generatePossibleLocantSets(parentStructure: ParentStructure): number[][
     // Normal direction
     variations.push([...baseLocants]);
     
-    // Reverse direction (if applicable)
-    const reversed = [...baseLocants].reverse().map((locant, index) => index + 1);
+    // Reverse direction: reverse the locant array
+    // For a chain [0,1,2,4] with locants [1,2,3,4], reverse gives [4,3,2,1]
+    const reversed = [...baseLocants].reverse();
     if (JSON.stringify(reversed) !== JSON.stringify(baseLocants)) {
       variations.push(reversed);
     }
@@ -518,13 +731,27 @@ function generatePossibleLocantSets(parentStructure: ParentStructure): number[][
   return variations.length > 0 ? variations : [baseLocants];
 }
 
-function calculateLocantScore(locants: number[], principalGroup: FunctionalGroup): number {
+function calculateLocantScore(parentStructure: ParentStructure, locants: number[], principalGroup: FunctionalGroup): number {
   // Lower score = better (more preferred)
-  const principalLocant = locants.find(locant => 
-    principalGroup.locants && principalGroup.locants.includes(locant)
-  );
+  // Find the locant for the principal group based on atom position in the chain
   
-  return principalLocant || 999; // High penalty if no locant found
+  if (!parentStructure.chain || principalGroup.atoms.length === 0) {
+    return 999; // High penalty if no chain or no atoms
+  }
+  
+  // Get the functional group's first atom (e.g., carbonyl carbon for ketones)
+  const functionalGroupAtom = principalGroup.atoms[0]!;
+  const atomId = typeof functionalGroupAtom === 'number' ? functionalGroupAtom : (functionalGroupAtom as Atom).id;
+  
+  // Find where this atom appears in the chain
+  const positionInChain = parentStructure.chain.atoms.findIndex((atom: Atom) => atom.id === atomId);
+  
+  if (positionInChain === -1) {
+    return 999; // High penalty if atom not found
+  }
+  
+  // Return the locant at that position (lower is better)
+  return locants[positionInChain] || 999;
 }
 
 function hasFixedLocants(parentStructure: ParentStructure): boolean {
@@ -571,9 +798,9 @@ function generateRingLocants(ring: any): number[] {
 
 /**
  * Find optimal ring numbering to minimize substituent locants
- * Similar to chain direction optimization
+ * Prioritizes principal functional groups when locant sets are equal
  */
-function findOptimalRingNumbering(ring: any, molecule: any): number {
+function findOptimalRingNumbering(ring: any, molecule: any, functionalGroups?: any[]): number {
   if (!ring || !ring.atoms || ring.atoms.length === 0) {
     return 1;
   }
@@ -582,11 +809,46 @@ function findOptimalRingNumbering(ring: any, molecule: any): number {
     return 1;
   }
 
+  console.log(`[Ring Numbering] Functional groups available:`, functionalGroups?.map(g => `${g.type} at atoms [${g.atoms?.join(',')}]`).join(', ') || 'none');
+
   // Build set of ring atom IDs
   const ringAtomIds = new Set<number>(ring.atoms.map((a: any) => a.id));
 
-  // Find which ring atoms have substituents
-  const substituentPositions: number[] = [];
+  // Identify which ring positions have principal functional groups
+  const principalGroupPositions = new Set<number>();
+  if (functionalGroups && functionalGroups.length > 0) {
+    // Find principal functional groups (alcohol, ketone, aldehyde, etc.)
+    const principalGroups = functionalGroups.filter((g: any) => 
+      g.isPrincipal || g.priority <= 5 || g.type === 'alcohol' || g.type === 'ketone' || g.type === 'aldehyde'
+    );
+    
+    for (const group of principalGroups) {
+      if (group.atoms && group.atoms.length > 0) {
+        // Find which ring atoms this group is attached to
+        for (const groupAtomId of group.atoms) {
+          // Find bonds from group atom to ring atoms
+          const bonds = molecule.bonds.filter((bond: any) =>
+            (bond.atom1 === groupAtomId || bond.atom2 === groupAtomId)
+          );
+          
+          for (const bond of bonds) {
+            const otherAtomId = bond.atom1 === groupAtomId ? bond.atom2 : bond.atom1;
+            // Find which ring position this corresponds to
+            for (let i = 0; i < ring.atoms.length; i++) {
+              if (ring.atoms[i]?.id === otherAtomId) {
+                principalGroupPositions.add(i);
+                console.log(`[Ring Numbering] Principal group ${group.type} attached to ring position ${i} (atom ${otherAtomId})`);
+                break;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Count substituents at each ring position (not just which positions have substituents)
+  const substituentCounts: number[] = new Array(ring.atoms.length).fill(0);
   
   for (let i = 0; i < ring.atoms.length; i++) {
     const ringAtom = ring.atoms[i];
@@ -602,51 +864,114 @@ function findOptimalRingNumbering(ring: any, molecule: any): number {
       if (!ringAtomIds.has(otherAtomId)) {
         const substituentAtom = molecule.atoms[otherAtomId];
         if (substituentAtom && substituentAtom.symbol !== 'H') {
-          // This ring atom has a substituent
-          substituentPositions.push(i);
+          // Count this substituent
+          const currentCount = substituentCounts[i];
+          if (currentCount !== undefined) {
+            substituentCounts[i] = currentCount + 1;
+          }
           console.log(`[Ring Numbering] Found substituent at ring position ${i} (atom ${ringAtom.id})`);
-          break;
         }
       }
     }
   }
 
-  console.log(`[Ring Numbering] Total substituents found: ${substituentPositions.length}, positions: [${substituentPositions.join(', ')}]`);
+  const totalSubstituents = substituentCounts.reduce((sum, count) => sum + count, 0);
+  console.log(`[Ring Numbering] Substituent counts: [${substituentCounts.join(', ')}], total: ${totalSubstituents}`);
 
   // If no substituents, default numbering is fine
-  if (substituentPositions.length === 0) {
+  if (totalSubstituents === 0) {
     return 1;
   }
 
-  // Try all possible starting positions and find the one with lowest locant set
+  // Try all possible starting positions and directions to find the one with lowest locant set
   let bestStart = 1;
   let bestLocants: number[] = [];
+  let bestPrincipalLocants: number[] = []; // Track locants for principal groups separately
 
+  // Try both clockwise (direction = 1) and counter-clockwise (direction = -1)
   for (let start = 0; start < ring.atoms.length; start++) {
-    // Calculate locants for substituents with this starting position
-    const locants: number[] = [];
-    
-    for (const subPos of substituentPositions) {
-      // Calculate the locant for this substituent position
-      // Ring numbering goes: start -> start+1 -> ... -> start+n-1 (wrapping around)
-      let locant = ((subPos - start + ring.atoms.length) % ring.atoms.length) + 1;
-      locants.push(locant);
-    }
-    
-    // Sort locants for comparison
-    locants.sort((a, b) => a - b);
-    
-    console.log(`[Ring Numbering] Starting at position ${start}: locants = [${locants.join(', ')}]`);
-    
-    // Compare with best so far
-    if (bestLocants.length === 0 || compareLocantSets(locants, bestLocants) < 0) {
-      bestLocants = locants;
-      bestStart = start + 1; // 1-based
-      console.log(`[Ring Numbering] New best! Start at ${bestStart}`);
+    for (const direction of [1, -1]) {
+      // Calculate locants for ALL substituents with this starting position and direction
+      const locants: number[] = [];
+      const principalLocants: number[] = [];
+      
+      for (let i = 0; i < ring.atoms.length; i++) {
+        const count = substituentCounts[i];
+        if (count && count > 0) {
+          // Calculate the locant for this position
+          let locant: number;
+          if (direction === 1) {
+            // Clockwise: start -> start+1 -> ... -> start+n-1 (wrapping around)
+            locant = ((i - start + ring.atoms.length) % ring.atoms.length) + 1;
+          } else {
+            // Counter-clockwise: start -> start-1 -> ... -> start-n+1 (wrapping around)
+            locant = ((start - i + ring.atoms.length) % ring.atoms.length) + 1;
+          }
+          
+          // Add one locant for each substituent at this position
+          for (let j = 0; j < count; j++) {
+            locants.push(locant);
+            // Track if this is a principal group position
+            if (principalGroupPositions.has(i)) {
+              principalLocants.push(locant);
+            }
+          }
+        }
+      }
+      
+      // Sort locants for comparison
+      locants.sort((a, b) => a - b);
+      principalLocants.sort((a, b) => a - b);
+      
+      const directionStr = direction === 1 ? 'CW' : 'CCW';
+      console.log(`[Ring Numbering] Starting at position ${start} (${directionStr}): locants = [${locants.join(', ')}], principal locants = [${principalLocants.join(', ')}]`);
+      
+      // Compare with best so far
+      // IUPAC Rule P-14.3: Principal groups receive lowest locants first, then all substituents
+      if (bestLocants.length === 0) {
+        // First candidate
+        bestLocants = locants;
+        bestPrincipalLocants = principalLocants;
+        bestStart = direction === 1 ? (start + 1) : -(start + 1); // 1-based, signed for direction
+        console.log(`[Ring Numbering] New best! Start at ${Math.abs(bestStart)} (${directionStr})`);
+      } else {
+        let shouldUpdate = false;
+        let updateReason = "";
+        
+        // If we have principal groups, compare those FIRST
+        if (principalLocants.length > 0 && bestPrincipalLocants.length > 0) {
+          const principalComparison = compareLocantSets(principalLocants, bestPrincipalLocants);
+          if (principalComparison < 0) {
+            shouldUpdate = true;
+            updateReason = " (by principal group priority)";
+          } else if (principalComparison === 0) {
+            // Principal group locants are equal, check all substituent locants
+            const locantComparison = compareLocantSets(locants, bestLocants);
+            if (locantComparison < 0) {
+              shouldUpdate = true;
+              updateReason = " (by substituent locants, principal groups tied)";
+            }
+          }
+        } else {
+          // No principal groups, just compare all locants
+          const locantComparison = compareLocantSets(locants, bestLocants);
+          if (locantComparison < 0) {
+            shouldUpdate = true;
+            updateReason = "";
+          }
+        }
+        
+        if (shouldUpdate) {
+          bestLocants = locants;
+          bestPrincipalLocants = principalLocants;
+          bestStart = direction === 1 ? (start + 1) : -(start + 1); // 1-based, signed for direction
+          console.log(`[Ring Numbering] New best${updateReason}! Start at ${Math.abs(bestStart)} (${directionStr})`);
+        }
+      }
     }
   }
 
-  console.log(`[Ring Numbering] Final decision: start at position ${bestStart}, locants = [${bestLocants.join(', ')}]`);
+  console.log(`[Ring Numbering] Final decision: start at position ${Math.abs(bestStart)} (${bestStart > 0 ? 'CW' : 'CCW'}), locants = [${bestLocants.join(', ')}]`);
 
   return bestStart;
 }
@@ -774,7 +1099,7 @@ function compareLocantSets(a: number[], b: number[]): number {
   return a.length - b.length;
 }
 
-function findRingStartingPosition(ring: any, molecule?: any): number {
+function findRingStartingPosition(ring: any, molecule?: any, functionalGroups?: any[]): number {
   // Start at heteroatom if present, but consider numbering direction
   let heteroatomIndex = -1;
   for (let i = 0; i < ring.atoms.length; i++) {
@@ -820,9 +1145,9 @@ function findRingStartingPosition(ring: any, molecule?: any): number {
   
   // If molecule is provided, find the numbering that gives lowest locant set for substituents
   if (molecule) {
-    const optimalStart = findOptimalRingNumbering(ring, molecule);
-    if (optimalStart > 0) {
-      return optimalStart;
+    const optimalStart = findOptimalRingNumbering(ring, molecule, functionalGroups);
+    if (optimalStart !== 0) {
+      return optimalStart; // Can be positive (CW) or negative (CCW)
     }
   }
   
@@ -850,24 +1175,34 @@ function adjustRingLocants(locants: number[], startingPosition: number): number[
  * Reorder ring atoms array to match the optimized numbering
  * @param atoms - Original ring atoms array
  * @param startingPosition - The position (1-based) that should become position 1
+ *                           Positive = clockwise, Negative = counter-clockwise
  * @returns Reordered atoms array where atoms[0] is the new starting position
  */
 function reorderRingAtoms(atoms: any[], startingPosition: number): any[] {
-  if (startingPosition === 1 || atoms.length === 0) {
+  if (Math.abs(startingPosition) === 1 && startingPosition > 0) {
+    // Already starting at position 1 clockwise
     return atoms;
   }
   
   // Convert to 0-based index
-  const startIndex = startingPosition - 1;
+  const startIndex = Math.abs(startingPosition) - 1;
+  const isCounterClockwise = startingPosition < 0;
   
   // Rotate the array so that startIndex becomes index 0
-  const reordered = [
+  let reordered = [
     ...atoms.slice(startIndex),
     ...atoms.slice(0, startIndex)
   ];
   
+  // If counter-clockwise, reverse the order (except the first element)
+  if (isCounterClockwise) {
+    const first = reordered[0];
+    const rest = reordered.slice(1).reverse();
+    reordered = [first, ...rest];
+  }
+  
   console.log(`[Ring Reordering] Original atom IDs: [${atoms.map((a: any) => a.id).join(', ')}]`);
-  console.log(`[Ring Reordering] Reordered atom IDs: [${reordered.map((a: any) => a.id).join(', ')}] (starting from position ${startingPosition})`);
+  console.log(`[Ring Reordering] Reordered atom IDs: [${reordered.map((a: any) => a.id).join(', ')}] (starting from position ${Math.abs(startingPosition)}, ${isCounterClockwise ? 'CCW' : 'CW'})`);
   
   return reordered;
 }

@@ -7,17 +7,83 @@ import { OPSINFunctionalGroupDetector } from '../opsin-functional-group-detector
 // Singleton detector for functional group detection
 const opsinDetector = new OPSINFunctionalGroupDetector();
 
+/**
+ * Determines if an atom should be excluded from the parent chain based on functional group type
+ * For ketones/aldehydes: exclude oxygen only, keep carbonyl carbon
+ * For carboxylic acids: exclude oxygens only, keep COOH carbon
+ * For alcohols: exclude oxygen only, keep carbon bearing OH
+ * For amines: don't exclude any atoms (nitrogen is part of parent in amines)
+ * For ethers/esters: exclude oxygen only
+ */
+function shouldExcludeAtomFromChain(atom: any, fgName: string, fgType: string): boolean {
+  const symbol = atom.symbol;
+  const lowerName = fgName.toLowerCase();
+  
+  // For ketones and aldehydes: only exclude oxygen, keep carbonyl carbon
+  if (lowerName.includes('ketone') || lowerName.includes('aldehyde') || lowerName === 'carbonyl') {
+    return symbol === 'O';
+  }
+  
+  // For carboxylic acids: exclude oxygens only, keep COOH carbon
+  if (lowerName.includes('carboxylic') || lowerName.includes('acid')) {
+    return symbol === 'O';
+  }
+  
+  // For alcohols: exclude oxygen only, keep carbon bearing OH
+  if (lowerName.includes('alcohol') || lowerName === 'ol') {
+    return symbol === 'O';
+  }
+  
+  // For amines: don't exclude nitrogen (it can be part of parent chain in heterocycles)
+  // but for simple amines, nitrogen is typically a substituent
+  if (lowerName.includes('amine') || lowerName === 'amino') {
+    return symbol === 'N';
+  }
+  
+  // For ethers: exclude oxygen only
+  if (lowerName.includes('ether') || lowerName === 'oxy') {
+    return symbol === 'O';
+  }
+  
+  // For esters: exclude oxygens only, keep carbonyl carbon
+  if (lowerName.includes('ester') || lowerName.includes('oate')) {
+    return symbol === 'O';
+  }
+  
+  // For amides: exclude oxygen and nitrogen (not part of parent chain for simple amides)
+  if (lowerName.includes('amide')) {
+    return symbol === 'O' || symbol === 'N';
+  }
+  
+  // For nitriles: exclude nitrogen only, keep carbon
+  if (lowerName.includes('nitrile') || lowerName === 'cyano') {
+    return symbol === 'N';
+  }
+  
+  // Default: exclude all heteroatoms (non-carbon)
+  return symbol !== 'C';
+}
+
 export function findMainChain(molecule: Molecule): number[] {
   // Detect functional groups first to exclude their atoms from the parent chain
   const functionalGroups = opsinDetector.detectFunctionalGroups(molecule);
   const excludedAtomIds = new Set<number>();
   
-  // Collect all atom IDs that are part of functional groups
+  // Collect atom IDs that should be excluded from the parent chain
+  // For most functional groups, only heteroatoms (O, N, S, etc.) are excluded
+  // The carbon atoms bearing the functional groups should remain in the parent chain
   for (const fg of functionalGroups) {
     if (fg.atoms && Array.isArray(fg.atoms)) {
       for (const atomId of fg.atoms) {
         if (typeof atomId === 'number') {
-          excludedAtomIds.add(atomId);
+          const atom = molecule.atoms[atomId];
+          if (!atom) continue;
+          
+          // Apply selective exclusion based on functional group type
+          const shouldExclude = shouldExcludeAtomFromChain(atom, fg.name, fg.type);
+          if (shouldExclude) {
+            excludedAtomIds.add(atomId);
+          }
         }
       }
     }
@@ -836,6 +902,310 @@ export function findSubstituents(molecule: Molecule, mainChain: number[]): Subst
   return substituents;
 }
 
+/**
+ * Helper function to analyze an alkyl chain attached to sulfur and generate proper name
+ * For example: -S-C≡C-CH3 should be named "prop-1-ynyl"
+ */
+function nameAlkylSulfanylSubstituent(
+  molecule: Molecule,
+  substituentAtoms: Set<number>,
+  sulfurAtomIdx: number
+): string {
+  if (process.env.VERBOSE) {
+    console.log(`[nameAlkylSulfanylSubstituent] sulfur=${sulfurAtomIdx}, substituentAtoms=${Array.from(substituentAtoms).join(',')}`);
+  }
+  
+  // Find carbon atoms in the substituent (excluding sulfur)
+  const carbonAtoms = Array.from(substituentAtoms)
+    .filter(idx => molecule.atoms[idx]?.symbol === 'C');
+  
+  if (process.env.VERBOSE) {
+    console.log(`[nameAlkylSulfanylSubstituent] carbonAtoms=${carbonAtoms.join(',')}`);
+  }
+  
+  if (carbonAtoms.length === 0) {
+    return 'sulfanyl'; // Just -SH
+  }
+  
+  // Build a carbon chain starting from the carbon attached to sulfur
+  // Find the carbon directly bonded to sulfur
+  let carbonAttachedToS = -1;
+  for (const bond of molecule.bonds) {
+    if (bond.atom1 === sulfurAtomIdx && carbonAtoms.includes(bond.atom2)) {
+      carbonAttachedToS = bond.atom2;
+      break;
+    }
+    if (bond.atom2 === sulfurAtomIdx && carbonAtoms.includes(bond.atom1)) {
+      carbonAttachedToS = bond.atom1;
+      break;
+    }
+  }
+  
+  if (process.env.VERBOSE) {
+    console.log(`[nameAlkylSulfanylSubstituent] carbonAttachedToS=${carbonAttachedToS}`);
+  }
+  
+  if (carbonAttachedToS === -1) {
+    return 'sulfanyl'; // No carbon found
+  }
+  
+  // Build the carbon chain
+  const carbonChain: number[] = [];
+  const visited = new Set<number>([sulfurAtomIdx]);
+  const stack = [carbonAttachedToS];
+  
+  while (stack.length > 0) {
+    const current = stack.pop()!;
+    if (visited.has(current)) continue;
+    visited.add(current);
+    carbonChain.push(current);
+    
+    // Find neighbors that are carbons in the substituent
+    for (const bond of molecule.bonds) {
+      if (bond.atom1 === current && carbonAtoms.includes(bond.atom2) && !visited.has(bond.atom2)) {
+        stack.push(bond.atom2);
+      } else if (bond.atom2 === current && carbonAtoms.includes(bond.atom1) && !visited.has(bond.atom1)) {
+        stack.push(bond.atom1);
+      }
+    }
+  }
+  
+  if (process.env.VERBOSE) {
+    console.log(`[nameAlkylSulfanylSubstituent] carbonChain=${carbonChain.join(',')}, length=${carbonChain.length}`);
+  }
+  
+  const carbonCount = carbonChain.length;
+  
+  // Check for unsaturation in the carbon chain
+  const tripleBonds: number[] = [];
+  const doubleBonds: number[] = [];
+  
+  for (let i = 0; i < carbonChain.length; i++) {
+    const c1 = carbonChain[i];
+    for (let j = i + 1; j < carbonChain.length; j++) {
+      const c2 = carbonChain[j];
+      const bond = molecule.bonds.find(
+        b => (b.atom1 === c1 && b.atom2 === c2) || (b.atom1 === c2 && b.atom2 === c1)
+      );
+      if (bond) {
+        if (bond.type === 'triple') {
+          tripleBonds.push(i + 1); // Position is 1-indexed
+        } else if (bond.type === 'double') {
+          doubleBonds.push(i + 1);
+        }
+      }
+    }
+  }
+  
+  // Generate the alkyl name base (meth, eth, prop, but)
+  let baseName: string;
+  if (carbonCount === 1) {
+    baseName = 'meth';
+  } else if (carbonCount === 2) {
+    baseName = 'eth';
+  } else if (carbonCount === 3) {
+    baseName = 'prop';
+  } else if (carbonCount === 4) {
+    baseName = 'but';
+  } else {
+    baseName = getAlkaneBaseName(carbonCount);
+  }
+  
+  if (tripleBonds.length > 0) {
+    // Has triple bonds - use "ynyl" suffix
+    const positions = tripleBonds.sort((a, b) => a - b).join(',');
+    return `${baseName}-${positions}-ynylsulfanyl`;
+  } else if (doubleBonds.length > 0) {
+    // Has double bonds - use "enyl" suffix
+    const positions = doubleBonds.sort((a, b) => a - b).join(',');
+    return `${baseName}-${positions}-enylsulfanyl`;
+  } else {
+    // Saturated - use "yl" suffix
+    return `${baseName}ylsulfanyl`;
+  }
+}
+
+/**
+ * Names an alkoxy substituent (ether substituent): -O-R
+ * Takes the oxygen atom and the substituent atoms, then names the alkyl chain attached to oxygen.
+ * For example: -O-CH3 → "methoxy", -O-CH2CH3 → "ethoxy", -O-C(CH3)3 → "tert-butoxy"
+ */
+function nameAlkoxySubstituent(
+  molecule: Molecule,
+  substituentAtoms: Set<number>,
+  oxygenAtomIdx: number
+): string {
+  if (process.env.VERBOSE) {
+    console.log(`[nameAlkoxySubstituent] oxygen=${oxygenAtomIdx}, substituentAtoms=${Array.from(substituentAtoms).join(',')}`);
+  }
+  
+  // Find carbon atoms in the substituent (excluding oxygen)
+  const carbonAtoms = Array.from(substituentAtoms)
+    .filter(idx => molecule.atoms[idx]?.symbol === 'C');
+  
+  if (process.env.VERBOSE) {
+    console.log(`[nameAlkoxySubstituent] carbonAtoms=${carbonAtoms.join(',')}`);
+  }
+  
+  if (carbonAtoms.length === 0) {
+    return 'oxy'; // Just -O- with no carbons
+  }
+  
+  // Build a carbon chain starting from the carbon attached to oxygen
+  // Find the carbon directly bonded to oxygen
+  let carbonAttachedToO = -1;
+  for (const bond of molecule.bonds) {
+    if (bond.atom1 === oxygenAtomIdx && carbonAtoms.includes(bond.atom2)) {
+      carbonAttachedToO = bond.atom2;
+      break;
+    }
+    if (bond.atom2 === oxygenAtomIdx && carbonAtoms.includes(bond.atom1)) {
+      carbonAttachedToO = bond.atom1;
+      break;
+    }
+  }
+  
+  if (process.env.VERBOSE) {
+    console.log(`[nameAlkoxySubstituent] carbonAttachedToO=${carbonAttachedToO}`);
+  }
+  
+  if (carbonAttachedToO === -1) {
+    return 'oxy'; // No carbon found
+  }
+  
+  // Special case: check for common branched patterns
+  const carbonCount = carbonAtoms.length;
+  
+  // Check for tert-butoxy: C(C)(C)(C)-O
+  if (carbonCount === 4) {
+    // Count neighbors of the first carbon
+    const firstCarbon = carbonAttachedToO;
+    const neighbors = molecule.bonds.filter(
+      b => (b.atom1 === firstCarbon && carbonAtoms.includes(b.atom2)) ||
+           (b.atom2 === firstCarbon && carbonAtoms.includes(b.atom1))
+    );
+    
+    // If first carbon has 3 carbon neighbors, it's tert-butoxy
+    const carbonNeighbors = neighbors.filter(b => {
+      const otherAtom = b.atom1 === firstCarbon ? b.atom2 : b.atom1;
+      return molecule.atoms[otherAtom]?.symbol === 'C' && otherAtom !== oxygenAtomIdx;
+    });
+    
+    if (carbonNeighbors.length === 3) {
+      // Check if all three neighbors are CH3 (no further carbons)
+      const allMethyl = carbonNeighbors.every(b => {
+        const methyl = b.atom1 === firstCarbon ? b.atom2 : b.atom1;
+        const methylNeighbors = molecule.bonds.filter(
+          bond => (bond.atom1 === methyl && carbonAtoms.includes(bond.atom2) && bond.atom2 !== firstCarbon) ||
+                  (bond.atom2 === methyl && carbonAtoms.includes(bond.atom1) && bond.atom1 !== firstCarbon)
+        );
+        return methylNeighbors.length === 0;
+      });
+      
+      if (allMethyl) {
+        return 'tert-butoxy';
+      }
+    }
+  }
+  
+  // Check for isopropoxy: C(C)(C)-O
+  if (carbonCount === 3) {
+    const firstCarbon = carbonAttachedToO;
+    const neighbors = molecule.bonds.filter(
+      b => (b.atom1 === firstCarbon && carbonAtoms.includes(b.atom2)) ||
+           (b.atom2 === firstCarbon && carbonAtoms.includes(b.atom1))
+    );
+    
+    const carbonNeighbors = neighbors.filter(b => {
+      const otherAtom = b.atom1 === firstCarbon ? b.atom2 : b.atom1;
+      return molecule.atoms[otherAtom]?.symbol === 'C' && otherAtom !== oxygenAtomIdx;
+    });
+    
+    if (carbonNeighbors.length === 2) {
+      // Check if both neighbors are CH3
+      const allMethyl = carbonNeighbors.every(b => {
+        const methyl = b.atom1 === firstCarbon ? b.atom2 : b.atom1;
+        const methylNeighbors = molecule.bonds.filter(
+          bond => (bond.atom1 === methyl && carbonAtoms.includes(bond.atom2) && bond.atom2 !== firstCarbon) ||
+                  (bond.atom2 === methyl && carbonAtoms.includes(bond.atom1) && bond.atom1 !== firstCarbon)
+        );
+        return methylNeighbors.length === 0;
+      });
+      
+      if (allMethyl) {
+        return 'isopropoxy';
+      }
+    }
+  }
+  
+  // Check for 2,2-dimethylpropoxy pattern: CH2-C(CH3)3
+  if (carbonCount === 5) {
+    // Find if we have a CH2 attached to oxygen
+    const firstCarbon = carbonAttachedToO;
+    const firstCarbonBonds = molecule.bonds.filter(
+      b => (b.atom1 === firstCarbon && carbonAtoms.includes(b.atom2)) ||
+           (b.atom2 === firstCarbon && carbonAtoms.includes(b.atom1))
+    );
+    
+    const firstCarbonNeighbors = firstCarbonBonds.filter(b => {
+      const otherAtom = b.atom1 === firstCarbon ? b.atom2 : b.atom1;
+      return molecule.atoms[otherAtom]?.symbol === 'C' && otherAtom !== oxygenAtomIdx;
+    });
+    
+    // If first carbon has only 1 carbon neighbor, check if that's a tert-butyl
+    if (firstCarbonNeighbors.length === 1 && firstCarbonNeighbors[0]) {
+      const secondCarbon = firstCarbonNeighbors[0].atom1 === firstCarbon ? 
+        firstCarbonNeighbors[0].atom2 : firstCarbonNeighbors[0].atom1;
+      
+      const secondCarbonBonds = molecule.bonds.filter(
+        b => (b.atom1 === secondCarbon && carbonAtoms.includes(b.atom2)) ||
+             (b.atom2 === secondCarbon && carbonAtoms.includes(b.atom1))
+      );
+      
+      const secondCarbonNeighbors = secondCarbonBonds.filter(b => {
+        const otherAtom = b.atom1 === secondCarbon ? b.atom2 : b.atom1;
+        return molecule.atoms[otherAtom]?.symbol === 'C' && otherAtom !== firstCarbon;
+      });
+      
+      // If second carbon has 3 carbon neighbors, it's 2,2-dimethylpropoxy
+      if (secondCarbonNeighbors.length === 3) {
+        const allMethyl = secondCarbonNeighbors.every(b => {
+          const methyl = b.atom1 === secondCarbon ? b.atom2 : b.atom1;
+          const methylNeighbors = molecule.bonds.filter(
+            bond => (bond.atom1 === methyl && carbonAtoms.includes(bond.atom2) && bond.atom2 !== secondCarbon) ||
+                    (bond.atom2 === methyl && carbonAtoms.includes(bond.atom1) && bond.atom1 !== secondCarbon)
+          );
+          return methylNeighbors.length === 0;
+        });
+        
+        if (allMethyl) {
+          return '2,2-dimethylpropoxy';
+        }
+      }
+    }
+  }
+  
+  // For simple linear chains, use standard alkyl names
+  let baseName: string;
+  if (carbonCount === 1) {
+    baseName = 'methoxy';
+  } else if (carbonCount === 2) {
+    baseName = 'ethoxy';
+  } else if (carbonCount === 3) {
+    baseName = 'propoxy';
+  } else if (carbonCount === 4) {
+    baseName = 'butoxy';
+  } else if (carbonCount === 5) {
+    baseName = 'pentoxy';
+  } else if (carbonCount === 6) {
+    baseName = 'hexoxy';
+  } else {
+    baseName = getAlkaneBaseName(carbonCount) + 'oxy';
+  }
+  
+  return baseName;
+}
+
 export function classifySubstituent(molecule: Molecule, startAtomIdx: number, chainAtoms: Set<number>): SubstituentInfo | null {
   const visited = new Set<number>(chainAtoms);
   const substituentAtoms = new Set<number>();
@@ -863,6 +1233,32 @@ export function classifySubstituent(molecule: Molecule, startAtomIdx: number, ch
     .map(idx => molecule.atoms[idx])
     .filter((atom): atom is typeof molecule.atoms[0] => atom !== undefined);
   const carbonCount = atoms.filter(atom => atom.symbol === 'C').length;
+  
+  // Check if this is an ether substituent: starts with oxygen (not OH)
+  const startAtom = molecule.atoms[startAtomIdx];
+  if (startAtom && startAtom.symbol === 'O' && startAtom.hydrogens === 0) {
+    // Check if oxygen has a double bond (ketone, aldehyde, etc.)
+    const hasDoubleBond = molecule.bonds.some(
+      bond => (bond.atom1 === startAtomIdx || bond.atom2 === startAtomIdx) && bond.type === 'double'
+    );
+    
+    // If oxygen has a double bond, it's part of a functional group (C=O), not an ether
+    if (hasDoubleBond) {
+      return null; // Skip this - it's part of a carbonyl group
+    }
+    
+    // This is an ether substituent: -O-R
+    // Name it as "alkoxy" where alkyl is the carbon chain attached to the oxygen
+    if (carbonCount === 0) {
+      // Just oxygen with no carbons - this shouldn't happen in normal ethers
+      return { type: 'functional', size: 1, name: 'oxy' };
+    }
+    
+    // Get the alkyl chain name
+    const alkylName = nameAlkoxySubstituent(molecule, substituentAtoms, startAtomIdx);
+    return { type: 'functional', size: carbonCount + 1, name: alkylName };
+  }
+  
   // detect simple branched alkyls: isopropyl, tert-butyl, isobutyl
   const carbonNeighbors = new Map<number, number>();
   for (const idx of substituentAtoms) {
@@ -894,6 +1290,20 @@ export function classifySubstituent(molecule: Molecule, startAtomIdx: number, ch
     return { type: 'halo', size: 1, name: 'bromo' };
   } else if (atoms.some(atom => atom.symbol === 'I')) {
     return { type: 'halo', size: 1, name: 'iodo' };
+  } else if (atoms.some(atom => atom.symbol === 'S')) {
+    // Sulfur-containing substituents
+    if (atoms.length === 1 && carbonCount === 0) {
+      // Just sulfur: -SH → sulfanyl (or mercapto in older nomenclature)
+      return { type: 'functional', size: 1, name: 'sulfanyl' };
+    } else if (carbonCount > 0) {
+      // Alkylsulfanyl: -S-alkyl → alkylsulfanyl (e.g., methylsulfanyl, ethylsulfanyl, prop-1-ynylsulfanyl)
+      const sulfurAtomIdx = Array.from(substituentAtoms).find(idx => molecule.atoms[idx]?.symbol === 'S');
+      if (sulfurAtomIdx !== undefined) {
+        const name = nameAlkylSulfanylSubstituent(molecule, substituentAtoms, sulfurAtomIdx);
+        return { type: 'functional', size: carbonCount + 1, name };
+      }
+      return { type: 'functional', size: carbonCount + 1, name: 'sulfanyl' };
+    }
   }
   if (carbonCount > 0) {
     // detect simple tert-/iso-butyl patterns for 4-carbon substituents

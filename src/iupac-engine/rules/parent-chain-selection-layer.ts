@@ -740,7 +740,8 @@ export const PARENT_CHAIN_SELECTION_COMPLETE_RULE: IUPACRule = {
     const parentStructure = {
       type: 'chain' as const,
       chain: parentChain,
-      name: generateChainName(parentChain),
+      name: generateChainName(parentChain, false), // Base name without substituents for substitutive nomenclature
+      assembledName: undefined, // Will be set during name assembly
       locants: parentChain.locants,
       substituents: parentChain.substituents || []
     };
@@ -758,9 +759,11 @@ export const PARENT_CHAIN_SELECTION_COMPLETE_RULE: IUPACRule = {
 
 /**
  * Helper function to generate chain name from chain object
+ * @param chain - The chain to generate a name for
+ * @param includeSubstituents - If false, only return the base chain name without substituents (default: true)
  */
-export function generateChainName(chain: Chain): string {
-  if (process.env.VERBOSE) console.log(`[generateChainName] called with chain.length=${chain.length}, chain.substituents=${JSON.stringify(chain.substituents)}`);
+export function generateChainName(chain: Chain, includeSubstituents: boolean = true): string {
+  if (process.env.VERBOSE) console.log(`[generateChainName] called with chain.length=${chain.length}, includeSubstituents=${includeSubstituents}, chain.substituents=${JSON.stringify(chain.substituents)}`);
   const length = chain.length;
   // Base chain names
   const chainNames = [
@@ -841,7 +844,7 @@ export function generateChainName(chain: Chain): string {
   }
   // Handle substituents
   const substituents = chain.substituents ?? [];
-  if (substituents.length > 0) {
+  if (includeSubstituents && substituents.length > 0) {
     // Group by type and collect locants
     const substituentMap: Record<string, number[]> = {};
     chain.substituents.forEach(sub => {
