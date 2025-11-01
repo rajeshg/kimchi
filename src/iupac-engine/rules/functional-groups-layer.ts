@@ -67,25 +67,24 @@ export const FUNCTIONAL_GROUP_PRIORITY_RULE: IUPACRule = {
     const principalGroup = selectPrincipalGroup(functionalGroups);
     const priorityScore = calculateFunctionalGroupPriority(functionalGroups);
 
-    // Mark the principal group in the functional groups array
-    if (principalGroup) {
-      const principalIndex = functionalGroups.findIndex(g => 
-        g.type === principalGroup.type && 
-        g.priority === principalGroup.priority &&
-        JSON.stringify(g.atoms) === JSON.stringify(principalGroup.atoms)
-      );
-      if (principalIndex !== -1) {
-        functionalGroups[principalIndex] = {
-          ...functionalGroups[principalIndex],
-          isPrincipal: true
-        } as FunctionalGroup;
-      }
-    }
+    // Mark ALL functional groups of the principal type as principal
+    // (e.g., if we have 2 ketones, both should be marked as principal)
+    const updatedFunctionalGroups = principalGroup
+      ? functionalGroups.map(g => {
+          if (g.type === principalGroup.type && g.priority === principalGroup.priority) {
+            return {
+              ...g,
+              isPrincipal: true
+            } as FunctionalGroup;
+          }
+          return g;
+        })
+      : functionalGroups;
 
     // Convert non-principal ethers to alkoxy substituents
     // This must happen AFTER principal group is marked
-    for (let i = 0; i < functionalGroups.length; i++) {
-      const fg = functionalGroups[i];
+    for (let i = 0; i < updatedFunctionalGroups.length; i++) {
+      const fg = updatedFunctionalGroups[i];
       if (!fg) continue;
       
       // Only convert ethers that are NOT the principal group
@@ -122,7 +121,7 @@ export const FUNCTIONAL_GROUP_PRIORITY_RULE: IUPACRule = {
         // Determine which carbon is part of the parent chain and which is the substituent
         const alkoxyName = analyzeAlkoxySubstituent(mol, oxygenAtom, bondedCarbons);
 
-        functionalGroups[i] = {
+        updatedFunctionalGroups[i] = {
           ...fg,
           type: 'alkoxy',
           prefix: alkoxyName,
@@ -133,7 +132,7 @@ export const FUNCTIONAL_GROUP_PRIORITY_RULE: IUPACRule = {
 
     // Update functional groups
     let updatedContext = context.withFunctionalGroups(
-      functionalGroups,
+      updatedFunctionalGroups,
       'functional-group-priority',
       'Functional Group Priority Detection',
       'P-44.1',
@@ -809,17 +808,23 @@ export const ETHER_TO_ALKOXY_RULE: IUPACRule = {
 
 /**
  * Analyze an ether oxygen to determine the alkoxy substituent name
- * Returns: 'methoxy', 'ethoxy', 'propoxy', etc.
+ * Returns: 'methoxy', 'ethoxy', 'propoxy', etc., or complex names for nested ethers
  */
 function analyzeAlkoxySubstituent(mol: any, oxygenAtom: any, bondedCarbons: any[]): string {
   if (bondedCarbons.length !== 2) return 'oxy';
 
   // Analyze each carbon chain to determine which is the substituent
-  const chain1 = getAlkylChainLength(mol, bondedCarbons[0], oxygenAtom);
-  const chain2 = getAlkylChainLength(mol, bondedCarbons[1], oxygenAtom);
+  const chain1Info = getAlkylChainInfo(mol, bondedCarbons[0], oxygenAtom);
+  const chain2Info = getAlkylChainInfo(mol, bondedCarbons[1], oxygenAtom);
 
   // The smaller chain is the alkoxy substituent
-  const substituent = chain1.length <= chain2.length ? chain1 : chain2;
+  const substituent = chain1Info.carbonCount <= chain2Info.carbonCount ? chain1Info : chain2Info;
+
+  // Check if there are nested oxygens in the substituent
+  if (substituent.hasNestedOxygen) {
+    // For now, mark as complex - will be handled in naming phase
+    return 'complex-alkoxy';
+  }
 
   // Map chain length to alkoxy name
   const alkoxyNames: Record<number, string> = {
@@ -833,35 +838,58 @@ function analyzeAlkoxySubstituent(mol: any, oxygenAtom: any, bondedCarbons: any[
     8: 'octoxy'
   };
 
-  return alkoxyNames[substituent.length] || 'oxy';
+  return alkoxyNames[substituent.carbonCount] || 'oxy';
 }
 
 /**
- * Get the length of an alkyl chain starting from a carbon atom
- * Stops at the oxygen atom (excludes it from the chain)
+ * Get information about an alkyl chain starting from a carbon atom
+ * Detects nested oxygens and returns both carbon count and nested oxygen status
  */
-function getAlkylChainLength(mol: any, startCarbon: any, oxygenAtom: any): any[] {
+function getAlkylChainInfo(mol: any, startCarbon: any, oxygenAtom: any): { carbonCount: number; hasNestedOxygen: boolean; atoms: any[] } {
   const visited = new Set<number>([oxygenAtom.id]);
   const chain: any[] = [];
+  let hasNestedOxygen = false;
 
   function traverse(atom: any): void {
     if (visited.has(atom.id)) return;
+    
+    // If we encounter another oxygen, mark it
+    if (atom.symbol === 'O') {
+      hasNestedOxygen = true;
+      visited.add(atom.id);
+      
+      // Continue traversing through the oxygen to count all carbons
+      const oxygenBonds = mol.bonds.filter((bond: any) => {
+        if (bond.atom1 !== atom.id && bond.atom2 !== atom.id) return false;
+        const otherId = bond.atom1 === atom.id ? bond.atom2 : bond.atom1;
+        return !visited.has(otherId);
+      });
+      
+      for (const bond of oxygenBonds) {
+        const otherId = bond.atom1 === atom.id ? bond.atom2 : bond.atom1;
+        const otherAtom = mol.atoms.find((a: any) => a.id === otherId);
+        if (otherAtom) {
+          traverse(otherAtom);
+        }
+      }
+      return;
+    }
+    
     if (atom.symbol !== 'C') return;
 
     visited.add(atom.id);
     chain.push(atom);
 
-    // Find all single bonds to other carbons
-    const carbonBonds = mol.bonds.filter((bond: any) => {
+    // Find all single bonds to other atoms
+    const bonds = mol.bonds.filter((bond: any) => {
       if (bond.type !== 'single') return false;
       if (bond.atom1 !== atom.id && bond.atom2 !== atom.id) return false;
 
       const otherId = bond.atom1 === atom.id ? bond.atom2 : bond.atom1;
-      const otherAtom = mol.atoms.find((a: any) => a.id === otherId);
-      return otherAtom && otherAtom.symbol === 'C' && !visited.has(otherId);
+      return !visited.has(otherId);
     });
 
-    for (const bond of carbonBonds) {
+    for (const bond of bonds) {
       const otherId = bond.atom1 === atom.id ? bond.atom2 : bond.atom1;
       const otherAtom = mol.atoms.find((a: any) => a.id === otherId);
       if (otherAtom) {
@@ -871,7 +899,15 @@ function getAlkylChainLength(mol: any, startCarbon: any, oxygenAtom: any): any[]
   }
 
   traverse(startCarbon);
-  return chain;
+  return { carbonCount: chain.length, hasNestedOxygen, atoms: chain };
+}
+
+/**
+ * Legacy function for backward compatibility
+ */
+function getAlkylChainLength(mol: any, startCarbon: any, oxygenAtom: any): any[] {
+  const info = getAlkylChainInfo(mol, startCarbon, oxygenAtom);
+  return info.atoms;
 }
 
 /**

@@ -184,7 +184,11 @@ export const MULTIPLICATIVE_PREFIXES_RULE: IUPACRule = {
           assembledName: finalName,
           isMultiplicative: true,
           multiplicity: count,
-          locantString: groups.map((g: any) => g.locantString).filter(Boolean).join(',')
+          locantString: groups
+            .map((g: any) => g.locants?.[0] || -1)
+            .filter(l => l > 0)
+            .sort((a, b) => a - b)
+            .join(',')
         });
       } else {
         // Single group - keep as is
@@ -278,6 +282,13 @@ export const COMPLETE_NAME_ASSEMBLY_RULE: IUPACRule = {
     const parentStructure = context.getState().parentStructure;
     const functionalGroups = context.getState().functionalGroups;
     const nomenclatureMethod = context.getState().nomenclatureMethod;
+    const molecule = context.getState().molecule;
+    
+    if (process.env.VERBOSE) {
+      console.log('[COMPLETE_NAME_ASSEMBLY_RULE] nomenclatureMethod:', nomenclatureMethod);
+      console.log('[COMPLETE_NAME_ASSEMBLY_RULE] parentStructure:', parentStructure?.type);
+      console.log('[COMPLETE_NAME_ASSEMBLY_RULE] functionalGroups:', functionalGroups?.map(g => g.type));
+    }
     
     if (!parentStructure) {
       return context.withConflict(
@@ -299,10 +310,14 @@ export const COMPLETE_NAME_ASSEMBLY_RULE: IUPACRule = {
     let finalName = '';
     
     if (nomenclatureMethod === 'functional_class') {
-      finalName = buildFunctionalClassName(parentStructure, functionalGroups);
+      if (process.env.VERBOSE) console.log('[COMPLETE_NAME_ASSEMBLY_RULE] Building functional class name');
+      finalName = buildFunctionalClassName(parentStructure, functionalGroups, molecule);
     } else {
+      if (process.env.VERBOSE) console.log('[COMPLETE_NAME_ASSEMBLY_RULE] Building substitutive name');
       finalName = buildSubstitutiveName(parentStructure, functionalGroups);
     }
+    
+    if (process.env.VERBOSE) console.log('[COMPLETE_NAME_ASSEMBLY_RULE] finalName:', finalName);
     
     return context.withStateUpdate(
       (state: any) => ({
@@ -560,23 +575,365 @@ function buildHeteroatomName(parentStructure: any, functionalGroups: any[]): str
   return parentStructure.name || 'unknown-heteroatom';
 }
 
-function buildFunctionalClassName(parentStructure: any, functionalGroups: any[]): string {
+function buildEsterName(parentStructure: any, esterGroup: any, molecule: any): string {
+  // Ester functional class nomenclature: [alkyl] [alkanoate]
+  // Example: CC(=O)OC → methyl acetate
+  // Example: CCC(=O)OCC → ethyl propanoate
+  
+  if (process.env.VERBOSE) {
+    console.log('[buildEsterName] parentStructure:', parentStructure);
+    console.log('[buildEsterName] esterGroup:', esterGroup);
+  }
+  
+  // For esters, the parent structure is typically a chain
+  // The chain contains both the acyl group (R-C(=O)-) and the alkoxy group (-O-R')
+  
+  if (!parentStructure.chain) {
+    return 'alkyl carboxylate'; // Fallback
+  }
+  
+  const chain = parentStructure.chain;
+  const length = chain.length;
+  
+  // For simple esters like CC(=O)OC:
+  // - Chain is C-C(=O)-O-C (4 atoms total)
+  // - Acyl part: first 2 carbons (C-C(=O)-)
+  // - Alkoxy part: last carbon after oxygen (C)
+  
+  // Find the carbonyl carbon and ester oxygen in the chain
+  const chainAtomIds = chain.atoms?.map((a: any) => a.id) || [];
+  
+  // Find C=O double bond
+  let carbonylCarbonId: number | undefined;
+  let esterOxygenId: number | undefined;
+  
+  for (const bond of molecule.bonds) {
+    if (bond.type === 'double') {
+      const atom1 = molecule.atoms[bond.atom1];
+      const atom2 = molecule.atoms[bond.atom2];
+      
+      if (atom1?.symbol === 'C' && atom2?.symbol === 'O') {
+        carbonylCarbonId = bond.atom1;
+      } else if (atom1?.symbol === 'O' && atom2?.symbol === 'C') {
+        carbonylCarbonId = bond.atom2;
+      }
+    }
+  }
+  
+  if (!carbonylCarbonId) {
+    return 'alkyl carboxylate'; // Fallback
+  }
+  
+  // Find the ester oxygen (single bond to carbonyl carbon)
+  for (const bond of molecule.bonds) {
+    if (bond.type === 'single') {
+      const atom1 = molecule.atoms[bond.atom1];
+      const atom2 = molecule.atoms[bond.atom2];
+      
+      if (bond.atom1 === carbonylCarbonId && atom1?.symbol === 'C' && atom2?.symbol === 'O') {
+        esterOxygenId = bond.atom2;
+        break;
+      } else if (bond.atom2 === carbonylCarbonId && atom2?.symbol === 'C' && atom1?.symbol === 'O') {
+        esterOxygenId = bond.atom1;
+        break;
+      }
+    }
+  }
+  
+  if (!esterOxygenId) {
+    return 'alkyl carboxylate'; // Fallback
+  }
+  
+  // Find the alkoxy carbon (carbon bonded to ester oxygen, not the carbonyl carbon)
+  let alkoxyCarbonId: number | undefined;
+  for (const bond of molecule.bonds) {
+    if (bond.type === 'single') {
+      const atom1 = molecule.atoms[bond.atom1];
+      const atom2 = molecule.atoms[bond.atom2];
+      
+      if (bond.atom1 === esterOxygenId && atom2?.symbol === 'C' && bond.atom2 !== carbonylCarbonId) {
+        alkoxyCarbonId = bond.atom2;
+        break;
+      } else if (bond.atom2 === esterOxygenId && atom1?.symbol === 'C' && bond.atom1 !== carbonylCarbonId) {
+        alkoxyCarbonId = bond.atom1;
+        break;
+      }
+    }
+  }
+  
+  if (!alkoxyCarbonId) {
+    return 'alkyl carboxylate'; // Fallback
+  }
+  
+  // Count the acyl chain length (from carbonyl carbon backwards, excluding oxygen)
+  // For CC(=O)OC: acyl chain is C-C(=O) = 2 carbons
+  // For CCC(=O)OCC: acyl chain is C-C-C(=O) = 3 carbons
+  
+  // Find all carbons in the acyl group by traversing from carbonyl carbon
+  const acylCarbonIds = new Set<number>();
+  const visitedAcyl = new Set<number>();
+  const queueAcyl = [carbonylCarbonId];
+  
+  while (queueAcyl.length > 0) {
+    const currentId = queueAcyl.shift()!;
+    if (visitedAcyl.has(currentId)) continue;
+    visitedAcyl.add(currentId);
+    
+    const currentAtom = molecule.atoms[currentId];
+    if (currentAtom?.symbol === 'C') {
+      acylCarbonIds.add(currentId);
+      
+      // Find connected carbons (not through the ester oxygen)
+      for (const bond of molecule.bonds) {
+        if (bond.atom1 === currentId || bond.atom2 === currentId) {
+          const otherId = bond.atom1 === currentId ? bond.atom2 : bond.atom1;
+          const otherAtom = molecule.atoms[otherId];
+          
+          // Don't cross the ester oxygen boundary
+          if (otherId === esterOxygenId) continue;
+          
+          if (otherAtom?.symbol === 'C' && !visitedAcyl.has(otherId)) {
+            queueAcyl.push(otherId);
+          }
+        }
+      }
+    }
+  }
+  
+  const acylLength = acylCarbonIds.size;
+  
+  // Count the alkoxy chain length (from alkoxy carbon)
+  const alkoxyCarbonIds = new Set<number>();
+  const visitedAlkoxy = new Set<number>();
+  const queueAlkoxy = [alkoxyCarbonId];
+  
+  while (queueAlkoxy.length > 0) {
+    const currentId = queueAlkoxy.shift()!;
+    if (visitedAlkoxy.has(currentId)) continue;
+    visitedAlkoxy.add(currentId);
+    
+    const currentAtom = molecule.atoms[currentId];
+    if (currentAtom?.symbol === 'C') {
+      alkoxyCarbonIds.add(currentId);
+      
+      // Find connected carbons
+      for (const bond of molecule.bonds) {
+        if (bond.atom1 === currentId || bond.atom2 === currentId) {
+          const otherId = bond.atom1 === currentId ? bond.atom2 : bond.atom1;
+          const otherAtom = molecule.atoms[otherId];
+          
+          if (otherAtom?.symbol === 'C' && !visitedAlkoxy.has(otherId)) {
+            queueAlkoxy.push(otherId);
+          }
+        }
+      }
+    }
+  }
+  
+  const alkoxyLength = alkoxyCarbonIds.size;
+  
+  if (process.env.VERBOSE) {
+    console.log('[buildEsterName] acylLength:', acylLength);
+    console.log('[buildEsterName] alkoxyLength:', alkoxyLength);
+  }
+  
+  // Build alkyl name (methyl, ethyl, propyl, etc.)
+  const alkylNames = [
+    '', 'methyl', 'ethyl', 'propyl', 'butyl', 'pentyl', 'hexyl', 'heptyl', 'octyl', 'nonyl', 'decyl'
+  ];
+  
+  const alkylName = alkoxyLength < alkylNames.length ? alkylNames[alkoxyLength] : `C${alkoxyLength}-alkyl`;
+  
+  // Build acyl name (acetate, propanoate, butanoate, etc.)
+  const acylNames = [
+    '', 'formate', 'acetate', 'propanoate', 'butanoate', 'pentanoate', 'hexanoate', 
+    'heptanoate', 'octanoate', 'nonanoate', 'decanoate'
+  ];
+  
+  const acylName = acylLength < acylNames.length ? acylNames[acylLength] : `C${acylLength}-anoate`;
+  
+  if (process.env.VERBOSE) {
+    console.log('[buildEsterName] result:', `${alkylName} ${acylName}`);
+  }
+  
+  return `${alkylName} ${acylName}`;
+}
+
+function buildFunctionalClassName(parentStructure: any, functionalGroups: any[], molecule: any): string {
   // Functional class nomenclature: substituent name + parent name + functional class term
-  const functionalGroup = functionalGroups.find(group => group.type === 'ester' || group.type === 'amide');
+  const functionalGroup = functionalGroups.find(group => 
+    group.type === 'ester' || group.type === 'amide' || group.type === 'thiocyanate'
+  );
+  
+  if (process.env.VERBOSE) {
+    console.log('[buildFunctionalClassName] functionalGroup:', functionalGroup);
+  }
   
   if (!functionalGroup) {
     return buildSubstitutiveName(parentStructure, functionalGroups);
   }
   
-  // Simplified functional class naming
+  // Functional class naming
   switch (functionalGroup.type) {
     case 'ester':
-      return `alkyl ${functionalGroup.assembledName || 'carboxylate'}`;
+      return buildEsterName(parentStructure, functionalGroup, molecule);
     case 'amide':
       return `${functionalGroup.assembledName || 'amide'}`;
+    case 'thiocyanate':
+      return buildThiocyanateName(parentStructure, functionalGroups);
     default:
       return buildSubstitutiveName(parentStructure, functionalGroups);
   }
+}
+
+function buildThiocyanateName(parentStructure: any, functionalGroups: any[]): string {
+  // Thiocyanate functional class nomenclature: [alkyl]thiocyanate
+  // Example: CC(=O)CCSC#N → 3-oxobutylthiocyanate
+  
+  if (process.env.VERBOSE) {
+    console.log('[buildThiocyanateName] functionalGroups:', functionalGroups.map((g: any) => ({ type: g.type, atoms: g.atoms })));
+  }
+  
+  // Get all functional groups except the thiocyanate
+  const otherGroups = functionalGroups.filter(group => group.type !== 'thiocyanate');
+  
+  if (process.env.VERBOSE) {
+    console.log('[buildThiocyanateName] otherGroups:', otherGroups.map((g: any) => ({ type: g.type, atoms: g.atoms })));
+  }
+  
+  // Build the alkyl portion name from parent structure + other substituents
+  const alkylName = buildAlkylGroupName(parentStructure, otherGroups);
+  
+  if (process.env.VERBOSE) {
+    console.log('[buildThiocyanateName] alkylName:', alkylName);
+  }
+  
+  // Add "thiocyanate" at the end
+  return `${alkylName}thiocyanate`;
+}
+
+function buildAlkylGroupName(parentStructure: any, functionalGroups: any[]): string {
+  // Build alkyl group name (like "3-oxobutyl")
+  // This is similar to buildSubstitutiveName but ends with "yl" instead of "ane"
+  
+  if (process.env.VERBOSE) {
+    console.log('[buildAlkylGroupName] parentStructure.chain:', parentStructure.chain?.atoms?.map((a: any) => a.id));
+    console.log('[buildAlkylGroupName] functionalGroups:', functionalGroups.map((g: any) => ({ type: g.type, locants: g.locants, atoms: g.atoms })));
+  }
+  
+  // For functional class nomenclature with thiocyanate:
+  // The chain needs to be renumbered from the attachment point (where thiocyanate was attached)
+  // The attachment point is the first atom in the chain (lowest locant becomes 1)
+  
+  let name = '';
+  
+  // Add substituents from functional groups
+  // For functional class nomenclature, ALL functional groups (except thiocyanate) become substituents
+  const fgSubstituents = functionalGroups; // Don't filter by isPrincipal - include all
+  const parentSubstituents = parentStructure.substituents || [];
+  
+  // Filter out thiocyanate substituents from parent
+  const filteredParentSubstituents = parentSubstituents.filter((sub: any) => 
+    sub.type !== 'thiocyanate' && sub.type !== 'thiocyano' && sub.name !== 'thiocyano'
+  );
+  
+  // Renumber functional groups based on chain position
+  const chain = parentStructure.chain;
+  const chainAtomIds = chain?.atoms?.map((a: any) => a.id) || [];
+  
+  // Create a map from atom ID to new locant (1-indexed from start of chain)
+  const atomIdToLocant = new Map<number, number>();
+  chainAtomIds.forEach((atomId: number, index: number) => {
+    atomIdToLocant.set(atomId, index + 1);
+  });
+  
+  if (process.env.VERBOSE) {
+    console.log('[buildAlkylGroupName] atomIdToLocant:', Array.from(atomIdToLocant.entries()));
+  }
+  
+  // Renumber functional groups
+  const renumberedFgSubstituents = fgSubstituents.map(group => {
+    if (group.atoms && group.atoms.length > 0) {
+      // For ketone, the carbon of C=O is the position
+      const carbonAtomId = group.atoms[0]; // First atom is typically the C in C=O
+      const newLocant = atomIdToLocant.get(carbonAtomId);
+      if (newLocant) {
+        return { ...group, locants: [newLocant], locant: newLocant };
+      }
+    }
+    return group;
+  });
+  
+  const allSubstituents = [...renumberedFgSubstituents, ...filteredParentSubstituents];
+  
+  if (process.env.VERBOSE) {
+    console.log('[buildAlkylGroupName] renumberedFgSubstituents:', renumberedFgSubstituents.map((s: any) => ({ type: s.type, locants: s.locants })));
+    console.log('[buildAlkylGroupName] allSubstituents:', allSubstituents.map((s: any) => ({ type: s.type, name: s.name, locant: s.locant, locants: s.locants })));
+  }
+  
+  if (allSubstituents.length > 0) {
+    const substituentParts: string[] = [];
+    const substituentGroups = new Map<string, number[]>();
+    
+    for (const sub of allSubstituents) {
+      // For ketone groups, use "oxo" prefix
+      let subName = sub.assembledName || sub.name || sub.prefix || sub.type;
+      
+      if (sub.type === '[CX3](=O)[CX4]' || sub.type === 'ketone') {
+        subName = 'oxo';
+      }
+      
+      if (subName) {
+        if (!substituentGroups.has(subName)) {
+          substituentGroups.set(subName, []);
+        }
+        const locant = sub.locant || sub.locants?.[0];
+        if (locant) {
+          substituentGroups.get(subName)!.push(locant);
+        }
+      }
+    }
+    
+    for (const [subName, locants] of substituentGroups.entries()) {
+      locants.sort((a, b) => a - b);
+      const locantStr = locants.length > 0 ? locants.join(',') + '-' : '';
+      const multiplicativePrefix = locants.length > 1 ? getMultiplicativePrefix(locants.length) : '';
+      const fullSubName = `${locantStr}${multiplicativePrefix}${subName}`;
+      substituentParts.push(fullSubName);
+    }
+    
+    substituentParts.sort((a, b) => {
+      const aName = a.split('-').slice(1).join('-');
+      const bName = b.split('-').slice(1).join('-');
+      return aName.localeCompare(bName);
+    });
+    
+    if (substituentParts.length > 0) {
+      // Join substituent parts with commas if multiple, no trailing hyphen
+      name += substituentParts.join(',');
+    }
+  }
+  
+  // Add parent chain name with "yl" ending (no hyphen between prefix and base)
+  if (parentStructure.type === 'chain') {
+    const chain = parentStructure.chain;
+    const length = chain?.length || 0;
+    
+    const chainNames = [
+      '', 'meth', 'eth', 'prop', 'but', 'pent', 'hex', 'hept', 'oct', 'non', 'dec'
+    ];
+    
+    let baseName = 'alkyl';
+    if (length < chainNames.length) {
+      baseName = (chainNames[length] ?? 'alk') + 'yl';
+    }
+    
+    name += baseName;
+  } else {
+    name += 'alkyl';
+  }
+  
+  return name;
 }
 
 function buildSubstitutiveName(parentStructure: any, functionalGroups: any[]): string {
@@ -733,10 +1090,24 @@ function buildSubstitutiveName(parentStructure: any, functionalGroups: any[]): s
         // Add multiplicative prefix if there are multiple identical substituents
         const multiplicativePrefix = locants.length > 1 ? getMultiplicativePrefix(locants.length) : '';
         
-        // Check if substituent name contains internal locants (e.g., "2,2-dimethylpropoxy")
-        // If so, wrap in parentheses per IUPAC rules
-        const hasInternalLocants = /\d+,\d+/.test(subName);
-        const wrappedSubName = hasInternalLocants ? `(${subName})` : subName;
+        // Check if substituent name contains internal locants (e.g., "2,2-dimethylpropoxy" or "2-methylbutan-2-yloxy")
+        // Complex ether substituents like "2-methylbutan-2-yloxymethoxy" need parentheses or square brackets
+        // Patterns to detect:
+        // 1. Contains comma-separated digits: "2,2-dimethyl"
+        // 2. Contains "-\d+-" pattern: "butan-2-yl"
+        // 3. Contains "oxy" AND internal digits: complex ether like "2-methylbutan-2-yloxymethoxy"
+        const hasInternalLocants = /\d+,\d+/.test(subName) || // Pattern: 2,2-
+                                   /an-\d+-yl/.test(subName) || // Pattern: butan-2-yl
+                                   (subName.includes('oxy') && /\d+-\w+/.test(subName)); // Complex ether
+        
+        // For nested complex ethers with parentheses in the tail part, use square brackets
+        // Otherwise use parentheses for simple complex substituents
+        const hasNestedParens = subName.includes('(') && subName.includes(')');
+        const needsSquareBrackets = hasInternalLocants && hasNestedParens;
+        
+        const wrappedSubName = needsSquareBrackets ? `[${subName}]` : 
+                              hasInternalLocants ? `(${subName})` : 
+                              subName;
         
         const fullSubName = `${locantStr}${multiplicativePrefix}${wrappedSubName}`;
         substituentParts.push(fullSubName);
@@ -746,7 +1117,7 @@ function buildSubstitutiveName(parentStructure: any, functionalGroups: any[]): s
     // Sort alphabetically by substituent name
     // Per IUPAC P-14.3: ignore multiplicative prefixes (di-, tri-, tetra-, etc.) when alphabetizing
     substituentParts.sort((a, b) => {
-      // Extract name after locants: "2,2-dichloro" → "dichloro"
+      // Extract name after locants: "2,2-dichloro" → "dichloro" or "2-[1-(2-methylbutoxy)ethoxy]" → "[1-(2-methylbutoxy)ethoxy]"
       const aName = a.split('-').slice(1).join('-');
       const bName = b.split('-').slice(1).join('-');
       
@@ -761,8 +1132,63 @@ function buildSubstitutiveName(parentStructure: any, functionalGroups: any[]): s
         return name;
       };
       
-      const aBase = stripMultiplicativePrefix(aName);
-      const bBase = stripMultiplicativePrefix(bName);
+      // Extract the principal substituent name for complex substituents for alphabetization
+      // Per IUPAC P-14.4: For complex substituents, alphabetize by the first letter of the complex name
+      // ignoring locants, multiplicative prefixes, and opening delimiters
+      // Example: "[1-(2-methylbutoxy)ethoxy]" → alphabetize by first letter inside: "m" (from methylbutoxy)
+      // Example: "bis(1,1-dimethylethyl)" → alphabetize by "d" (from dimethylethyl)
+      const extractPrincipalName = (name: string): string => {
+        let result = name;
+        
+        // Remove leading brackets/parentheses and locants recursively
+        // "[1-(2-methylbutoxy)ethoxy]" → "1-(2-methylbutoxy)ethoxy" → "(2-methylbutoxy)ethoxy"
+        while (true) {
+          const before = result;
+          
+          // Remove leading brackets/parentheses
+          if (result.startsWith('(') || result.startsWith('[')) {
+            result = result.slice(1);
+          }
+          // Remove trailing brackets/parentheses
+          if (result.endsWith(')') || result.endsWith(']')) {
+            result = result.slice(0, -1);
+          }
+          // Remove leading locants (number followed by hyphen)
+          result = result.replace(/^\d+-/, '');
+          
+          // If nothing changed, we're done
+          if (result === before) break;
+        }
+        
+        // Now for complex substituents with nested parentheses/brackets, 
+        // we need to find the first alphabetic character
+        // "(2-methylbutoxy)ethoxy" → look inside the first parenthetical → "methylbutoxy"
+        if (result.startsWith('(') || result.startsWith('[')) {
+          // Find the matching closing delimiter
+          const openDelim = result[0];
+          const closeDelim = openDelim === '(' ? ')' : ']';
+          let depth = 1;
+          let i = 1;
+          while (i < result.length && depth > 0) {
+            if (result[i] === openDelim) depth++;
+            else if (result[i] === closeDelim) depth--;
+            i++;
+          }
+          // Extract content inside the first parenthetical
+          const insideFirst = result.substring(1, i - 1);
+          // Recursively extract from inside, removing any locants
+          result = extractPrincipalName(insideFirst);
+        }
+        
+        return result;
+      };
+      
+      let aBase = stripMultiplicativePrefix(aName);
+      let bBase = stripMultiplicativePrefix(bName);
+      
+      // Extract principal names for alphabetization
+      aBase = extractPrincipalName(aBase);
+      bBase = extractPrincipalName(bBase);
       
       return aBase.localeCompare(bBase);
     });
@@ -770,18 +1196,26 @@ function buildSubstitutiveName(parentStructure: any, functionalGroups: any[]): s
     // IUPAC hyphenation rules:
     // 1. If single substituent with no locant (e.g., "methyl"): join directly to parent → "methylcyclohexane"
     // 2. If single substituent with locant (e.g., "2-methyl"): already has hyphen, join directly → "2-methylcyclohexane"
-    // 3. If multiple substituents: join with hyphens between them but NO hyphen before parent → "2,2-dichloro-1-methylcyclohexane"
+    // 3. If multiple substituents on chain/ring: join with hyphens between them → "2,2-dichloro-1-methylcyclohexane"
+    // 4. If multiple substituents on heteroatom (no locants): join directly → "ethylmethylsilane"
     
     if (process.env.VERBOSE) {
       console.log('[DEBUG] substituentParts before join:', JSON.stringify(substituentParts));
+      console.log('[DEBUG] isHeteroatomParent:', isHeteroatomParent);
     }
     
     if (substituentParts.length === 1) {
       // Single substituent - join directly (it may already have a locant with hyphen)
       name += substituentParts[0];
     } else if (substituentParts.length > 1) {
-      // Multiple substituents - join with hyphens between them, but no hyphen before parent
-      name += substituentParts.join('-');
+      // Multiple substituents - join differently based on parent type
+      if (isHeteroatomParent) {
+        // Heteroatom parents: no locants, join directly (e.g., "ethylmethylsilane")
+        name += substituentParts.join('');
+      } else {
+        // Chain/ring parents: have locants, join with hyphens (e.g., "2,2-dichloro-1-methylcyclohexane")
+        name += substituentParts.join('-');
+      }
     }
   }
 
@@ -806,58 +1240,78 @@ function buildSubstitutiveName(parentStructure: any, functionalGroups: any[]): s
     console.log('[buildSubstitutiveName] principalGroup:', JSON.stringify(principalGroup));
   }
   if (principalGroup && principalGroup.suffix) {
-    // Get locant for the principal functional group
-    // Try to find it from parentStructure.substituents first
-    // by matching the prefix (e.g., "hydroxy" for alcohol)
-    let fgLocant: number | undefined;
-    if (principalGroup.prefix && parentStructure.substituents) {
-      const matchingSubstituent = parentStructure.substituents.find(
-        (sub: any) => sub.type === principalGroup.prefix
-      );
-      if (matchingSubstituent) {
-        fgLocant = matchingSubstituent.locant;
-        if (process.env.VERBOSE) {
-          console.log(`[buildSubstitutiveName] mapped principal FG locant from substituent: ${fgLocant}`);
+    // Handle multiplicative suffix (e.g., dione, trione)
+    if (principalGroup.isMultiplicative && principalGroup.multiplicity > 1) {
+      // For multiplicative suffixes starting with a consonant, keep the terminal 'e'
+      // This follows IUPAC rule P-16.3.1: hexane-2,4-dione (not hexan-2,4-dione)
+      // Build suffix: "dione", "trione", etc.
+      const multiplicityPrefix = getMultiplicativePrefix(principalGroup.multiplicity);
+      const baseSuffix = principalGroup.suffix;
+      const multipliedSuffix = `${multiplicityPrefix}${baseSuffix}`;
+      
+      // Get locants from locantString (e.g., "2,4")
+      const locants = principalGroup.locantString || '';
+      
+      if (process.env.VERBOSE) {
+        console.log(`[buildSubstitutiveName] multiplicative suffix: ${locants}-${multipliedSuffix}`);
+      }
+      
+      if (locants) {
+        name += `-${locants}-${multipliedSuffix}`;
+      } else {
+        name += multipliedSuffix;
+      }
+    } else {
+      // Single functional group - replace terminal 'e' if suffix starts with vowel
+      // Replace ending with "an" for saturated systems, "en" for unsaturated
+      if (/ane$/.test(name)) {
+        name = name.replace(/ane$/, 'an');
+      } else if (/ene$/.test(name)) {
+        name = name.replace(/ene$/, 'en');
+      } else if (/yne$/.test(name)) {
+        name = name.replace(/yne$/, 'yn');
+      }
+      
+      // Get locant for the principal functional group
+      // Try to find it from parentStructure.substituents first
+      // by matching the prefix (e.g., "hydroxy" for alcohol)
+      let fgLocant: number | undefined;
+      if (principalGroup.prefix && parentStructure.substituents) {
+        const matchingSubstituent = parentStructure.substituents.find(
+          (sub: any) => sub.type === principalGroup.prefix
+        );
+        if (matchingSubstituent) {
+          fgLocant = matchingSubstituent.locant;
+          if (process.env.VERBOSE) {
+            console.log(`[buildSubstitutiveName] mapped principal FG locant from substituent: ${fgLocant}`);
+          }
         }
       }
-    }
-    
-    // Fallback to locant/locants from the principal group if not found
-    if (!fgLocant) {
-      fgLocant = principalGroup.locant || principalGroup.locants?.[0];
-      if (process.env.VERBOSE) {
-        console.log('[buildSubstitutiveName] using fallback fgLocant:', fgLocant);
+      
+      // Fallback to locant/locants from the principal group if not found
+      if (!fgLocant) {
+        fgLocant = principalGroup.locant || principalGroup.locants?.[0];
+        if (process.env.VERBOSE) {
+          console.log('[buildSubstitutiveName] using fallback fgLocant:', fgLocant);
+        }
       }
-    }
-    
-    // For cyclic and chain systems, we need to add the suffix with proper formatting
-    // Example: cyclohexane + alcohol at C1 → cyclohexan-1-ol
-    // Example: propane + alcohol at C2 → propan-2-ol
-    
-    // Replace ending with "an" for saturated systems, "en" for unsaturated
-    if (/ane$/.test(name)) {
-      name = name.replace(/ane$/, 'an');
-    } else if (/ene$/.test(name)) {
-      name = name.replace(/ene$/, 'en');
-    } else if (/yne$/.test(name)) {
-      name = name.replace(/yne$/, 'yn');
-    }
-    
-    // Add locant if present and not position 1 on a chain/ring
-    // For alcohols and other functional groups, we typically need the locant
-    // unless it's unambiguous (like methanol)
-    const parentName = parentStructure.assembledName || parentStructure.name || '';
-    const chainLength = parentStructure.chain?.length || parentStructure.size || 0;
-    const needsLocant = fgLocant && (fgLocant !== 1 || parentStructure.type === 'ring' || chainLength > 2);
-    
-    if (process.env.VERBOSE) {
-      console.log(`[needsLocant calc] fgLocant=${fgLocant}, type=${parentStructure.type}, chainLength=${chainLength}, needsLocant=${needsLocant}`);
-    }
-    
-    if (needsLocant && fgLocant) {
-      name += `-${fgLocant}-${principalGroup.suffix}`;
-    } else {
-      name += principalGroup.suffix;
+      
+      // Add locant if present and not position 1 on a chain/ring
+      // For alcohols and other functional groups, we typically need the locant
+      // unless it's unambiguous (like methanol)
+      const parentName = parentStructure.assembledName || parentStructure.name || '';
+      const chainLength = parentStructure.chain?.length || parentStructure.size || 0;
+      const needsLocant = fgLocant && (fgLocant !== 1 || parentStructure.type === 'ring' || chainLength > 2);
+      
+      if (process.env.VERBOSE) {
+        console.log(`[needsLocant calc] fgLocant=${fgLocant}, type=${parentStructure.type}, chainLength=${chainLength}, needsLocant=${needsLocant}`);
+      }
+      
+      if (needsLocant && fgLocant) {
+        name += `-${fgLocant}-${principalGroup.suffix}`;
+      } else {
+        name += principalGroup.suffix;
+      }
     }
   }
 

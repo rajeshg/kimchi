@@ -58,8 +58,14 @@ export const P51_2_FUNCTIONAL_CLASS_RULE: IUPACRule = {
     const state = context.getState();
     const functionalGroups = Array.isArray(state.functionalGroups) ? state.functionalGroups : [];
     
+    if (process.env.VERBOSE) {
+      console.log('[P-51.2] Checking functional class nomenclature conditions');
+      console.log('[P-51.2] functionalGroups:', functionalGroups.map(g => ({ type: g.type, priority: g.priority })));
+    }
+    
     // Check if we have functional groups that prefer functional class
     if (!functionalGroups || functionalGroups.length === 0) {
+      if (process.env.VERBOSE) console.log('[P-51.2] No functional groups found');
       return false;
     }
     
@@ -69,14 +75,24 @@ export const P51_2_FUNCTIONAL_CLASS_RULE: IUPACRule = {
       'anhydride',
       'acyl_halide',
       'nitrile',
-      'thioester'
+      'thioester',
+      'thiocyanate'  // thiocyanate functional group
     ];
     
-    return functionalGroups.some((group: FunctionalGroup) => 
+    const shouldApply = functionalGroups.some((group: FunctionalGroup) => 
       functionalClassPreferred.includes(group.type)
     );
+    
+    if (process.env.VERBOSE) {
+      console.log('[P-51.2] Should apply functional class nomenclature:', shouldApply);
+    }
+    
+    return shouldApply;
   },
   action: (context: ImmutableNamingContext) => {
+    if (process.env.VERBOSE) {
+      console.log('[P-51.2] ACTION: Setting nomenclature method to FUNCTIONAL_CLASS');
+    }
     return context.withNomenclatureMethod(
       NomenclatureMethod.FUNCTIONAL_CLASS,
       'P-51.2',
@@ -104,6 +120,11 @@ export const P51_3_SKELETAL_REPLACEMENT_RULE: IUPACRule = {
     const state = context.getState();
     const functionalGroups = Array.isArray(state.functionalGroups) ? state.functionalGroups : [];
     const atomicAnalysis = context.getState().atomicAnalysis;
+    
+    // Don't override if a method has already been selected
+    if (state.nomenclatureMethod) {
+      return false;
+    }
     
     // Check if we have significant heteroatom content
     if (!atomicAnalysis || !atomicAnalysis.heteroatoms) {
@@ -146,6 +167,11 @@ export const P51_4_MULTIPLICATIVE_RULE: IUPACRule = {
     const state = context.getState();
     const functionalGroups = Array.isArray(state.functionalGroups) ? state.functionalGroups : [];
     
+    // Don't override if a method has already been selected
+    if (state.nomenclatureMethod) {
+      return false;
+    }
+    
     if (!functionalGroups || functionalGroups.length === 0) {
       return false;
     }
@@ -182,7 +208,13 @@ export const CONJUNCTIVE_NOMENCLATURE_RULE: IUPACRule = {
   blueBookReference: 'P-51 - Special cases',
   priority: 60,
   conditions: (context: ImmutableNamingContext) => {
-    const candidateRings = context.getState().candidateRings as RingSystem[] | undefined;
+    const state = context.getState();
+    const candidateRings = state.candidateRings as RingSystem[] | undefined;
+    
+    // Don't override if a method has already been selected
+    if (state.nomenclatureMethod) {
+      return false;
+    }
     
     // Check for fused ring systems
     return !!candidateRings && candidateRings.some((ring: RingSystem) => ring.fused);

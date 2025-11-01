@@ -3,12 +3,14 @@ import { BLUE_BOOK_RULES } from '../types';
 import { normalizeCitationName, canonicalizeCitationList, compareCitationArrays } from '../utils/citation-normalizer';
 import type { ImmutableNamingContext } from '../immutable-context';
 import { ExecutionPhase } from '../immutable-context';
+import type { Molecule } from '../../../types';
+import { BondType } from '../../../types';
 
 // Use canonical types for chain analysis
 import type { Chain, MultipleBond, Substituent } from '../types';
 // import utility to find substituents on a ring
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const { findSubstituents: _findSubstituents } = require('../naming/iupac-chains');
+const { findSubstituents: _findSubstituents, getChainFunctionalGroupPriority } = require('../naming/iupac-chains');
 
 /**
  * Find lexicographically smallest array among a list of number arrays.
@@ -46,6 +48,140 @@ function lexicographicallySmallest(sets: (number | undefined)[][]): number[] | n
  * Reference: Blue Book P-44.3 - Seniority of acyclic chains
  * https://iupac.qmul.ac.uk/BlueBook/RuleP44.html
  */
+
+/**
+ * Rule: P-44.1.1 - Maximum Number of Principal Characteristic Groups
+ * 
+ * Per IUPAC Blue Book P-44.1.1: "The senior parent structure has the maximum 
+ * number of substituents corresponding to the principal characteristic group (suffix)".
+ * 
+ * This rule ensures that structures bearing the most principal functional groups
+ * (like ketones, aldehydes, carboxylic acids) are preferred as parent structures,
+ * even if a ring is present.
+ */
+export const P44_1_1_PRINCIPAL_CHARACTERISTIC_GROUPS_RULE: IUPACRule = {
+  id: 'P-44.1.1',
+  name: 'Maximum Number of Principal Characteristic Groups',
+  description: 'Select parent with maximum number of principal characteristic groups',
+  blueBookReference: BLUE_BOOK_RULES.P44_1,
+  priority: 120, // Higher than ring seniority (110) and chain rules (100)
+  conditions: (context: ImmutableNamingContext) => {
+    const state = context.getState();
+    // Skip if parent structure already selected
+    if (state.parentStructure) {
+      if (process.env.VERBOSE) console.log('[P-44.1.1] Skipping - parent already selected');
+      return false;
+    }
+    // Only apply if we have both chains and rings to compare
+    const chains = state.candidateChains as Chain[];
+    const rings = state.candidateRings;
+    const shouldApply = chains.length > 0 && rings && rings.length > 0;
+    if (process.env.VERBOSE) {
+      console.log(`[P-44.1.1] Conditions check: chains=${chains.length}, rings=${rings?.length || 0}, shouldApply=${shouldApply}`);
+    }
+    return shouldApply;
+  },
+  action: (context: ImmutableNamingContext) => {
+    const state = context.getState();
+    const chains = state.candidateChains as Chain[];
+    const molecule = state.molecule as Molecule;
+    
+    if (process.env.VERBOSE) {
+      console.log('[P-44.1.1] Action executing...');
+      console.log(`[P-44.1.1] chains.length=${chains?.length}, molecule=${!!molecule}`);
+    }
+    
+    if (!chains || chains.length === 0 || !molecule) return context;
+    
+    // Count functional groups that can be expressed as suffixes on each chain
+    // Priority >= 4 means ketone/aldehyde or higher (carboxylic acid = 6, amide = 5, etc.)
+    const chainFGCounts = chains.map(chain => {
+      // Get priority from utility function (may use different logic)
+      const atomIndices = chain.atoms.map(atom => {
+        const idx = molecule.atoms.findIndex(a => a === atom);
+        return idx;
+      });
+      const priority = getChainFunctionalGroupPriority(atomIndices, molecule);
+      
+      // Count atoms in the chain that have principal functional groups
+      let fgCount = 0;
+      for (const atom of chain.atoms) {
+        if (!atom || atom.symbol !== 'C') continue;
+        
+        // Find this atom's index in the molecule
+        const atomIdx = molecule.atoms.findIndex(a => a === atom);
+        if (atomIdx === -1) continue;
+        
+        // Check for C=O (ketone/aldehyde)
+        let hasDoubleO = false;
+        for (const bond of molecule.bonds) {
+          if (bond.atom1 !== atomIdx && bond.atom2 !== atomIdx) continue;
+          const neighIdx = bond.atom1 === atomIdx ? bond.atom2 : bond.atom1;
+          const neigh = molecule.atoms[neighIdx];
+          // Check for double bond to oxygen
+          if (neigh?.symbol === 'O' && bond.type === BondType.DOUBLE) {
+            hasDoubleO = true;
+            break;
+          }
+        }
+        if (hasDoubleO) fgCount++;
+      }
+      
+      if (process.env.VERBOSE) {
+        console.log(`[P-44.1.1] Chain with ${chain.atoms.length} atoms: priority=${priority}, fgCount=${fgCount}`);
+      }
+      
+      return { chain, priority, fgCount };
+    });
+    
+    // Find maximum functional group count
+    const maxFGCount = Math.max(...chainFGCounts.map(c => c.fgCount));
+    
+    if (process.env.VERBOSE) {
+      console.log(`[P-44.1.1] maxFGCount=${maxFGCount}`);
+      console.log(`[P-44.1.1] candidateRings.length=${state.candidateRings?.length || 0}`);
+    }
+    
+    // Rings typically have 0 principal characteristic groups (benzene doesn't have -C=O groups)
+    // If any chain has principal functional groups (ketones, aldehydes, etc.), prefer it
+    if (maxFGCount > 0) {
+      const functionalChains = chainFGCounts
+        .filter(c => c.fgCount === maxFGCount)
+        .map(c => c.chain);
+      
+      if (process.env.VERBOSE) {
+        console.log(`[P-44.1.1] Selecting ${functionalChains.length} chains with ${maxFGCount} functional groups, clearing rings`);
+      }
+      
+      return context.withUpdatedCandidates(
+        functionalChains,
+        'P-44.1.1',
+        'Maximum Number of Principal Characteristic Groups',
+        BLUE_BOOK_RULES.P44_1,
+        ExecutionPhase.PARENT_STRUCTURE,
+        `Selected chains with ${maxFGCount} principal characteristic groups, ignoring rings`
+      ).withStateUpdate(
+        (state) => ({
+          ...state,
+          candidateRings: [], // Clear rings since functional chain takes precedence
+          p44_1_1_applied: true
+        }),
+        'P-44.1.1',
+        'Maximum Number of Principal Characteristic Groups',
+        BLUE_BOOK_RULES.P44_1,
+        ExecutionPhase.PARENT_STRUCTURE,
+        'Cleared candidate rings in favor of chains with principal characteristic groups'
+      );
+    }
+    
+    // If no chains have principal functional groups, let normal rules proceed
+    // (rings may win via P-44.2 ring seniority)
+    if (process.env.VERBOSE) {
+      console.log('[P-44.1.1] No functional groups found, letting other rules proceed');
+    }
+    return context;
+  }
+};
 
 /**
  * Rule: P-44.3.1 - Maximum Length of Continuous Chain
@@ -845,33 +981,63 @@ export function generateChainName(chain: Chain, includeSubstituents: boolean = t
   // Handle substituents
   const substituents = chain.substituents ?? [];
   if (includeSubstituents && substituents.length > 0) {
-    // Group by type and collect locants
-    const substituentMap: Record<string, number[]> = {};
+    // Helper to detect if a substituent name is complex (has internal locants)
+    const isComplexSubstituent = (name: string): boolean => {
+      // Complex if contains digits followed by hyphen (e.g., "2-methylbutan-2-yloxy")
+      // but not just at the start (that's our locant)
+      return /\d+-\w/.test(name) || name.includes('oxy') && name.match(/-\d/) !== null;
+    };
+    
+    // Helper to determine if square brackets are needed
+    const needsSquareBrackets = (name: string): boolean => {
+      // Square brackets for nested complex substituents (contains "oxy" and internal locants)
+      return name.includes('oxy') && /\d+-/.test(name) && name.split('oxy').length > 2;
+    };
+    
+    // Create array of individual substituent entries with their locants
+    interface SubstituentEntry {
+      type: string;
+      locant: number;
+      sortKey: string; // For alphabetical sorting (the substituent name part)
+    }
+    
+    const substituentEntries: SubstituentEntry[] = [];
     chain.substituents.forEach(sub => {
       if (sub && sub.type && typeof sub.locant === 'number') {
-  if (process.env.VERBOSE) console.log(`[generateChainName] substituent: ${sub.type}, locant: ${sub.locant}`);
-  if (!substituentMap[sub.type]) substituentMap[sub.type] = [];
-  substituentMap[sub.type]!.push(sub.locant);
+        if (process.env.VERBOSE) console.log(`[generateChainName] substituent: ${sub.type}, locant: ${sub.locant}`);
+        
+        // Extract the base name for alphabetical sorting (ignore any existing locant prefix)
+        const sortKey = sub.type.replace(/^\d+-/, '');
+        
+        substituentEntries.push({
+          type: sub.type,
+          locant: sub.locant,
+          sortKey: sortKey
+        });
       }
     });
-    // Build substituent prefix string
-    const substituentStrings: string[] = Object.entries(substituentMap).map(([type, locantsRaw]) => {
-      const locants: number[] = Array.isArray(locantsRaw)
-        ? (locantsRaw as Array<number | undefined>).map(x => typeof x === 'number' ? x : 0)
-        : [];
-      locants.sort((a, b) => a - b);
-      const locantStr = locants.join(',');
-      let prefix = '';
-      if (locants.length === 1) {
-        prefix = `${locantStr}-${type}`;
-      } else if (locants.length > 1) {
-        const multiplicity = locants.length;
-        const multiplicativePrefixes = ['di', 'tri', 'tetra', 'penta', 'hexa', 'hepta', 'octa', 'nona', 'deca'];
-        const multiPrefix = multiplicativePrefixes[multiplicity - 2] || `${multiplicity}-`;
-        prefix = `${locantStr}-${multiPrefix}${type}`;
-      }
-      return prefix;
+    
+    // Sort substituents: first by locant (ascending), then alphabetically by name
+    substituentEntries.sort((a, b) => {
+      if (a.locant !== b.locant) return a.locant - b.locant;
+      return a.sortKey.localeCompare(b.sortKey);
     });
+    
+    // Build substituent prefix string with proper formatting
+    const substituentStrings: string[] = substituentEntries.map(entry => {
+      const { type, locant } = entry;
+      const isComplex = isComplexSubstituent(type);
+      const useBrackets = needsSquareBrackets(type);
+      
+      if (isComplex) {
+        // Wrap complex substituents in parentheses or square brackets
+        const wrapped = useBrackets ? `[${type}]` : `(${type})`;
+        return `${locant}-${wrapped}`;
+      } else {
+        return `${locant}-${type}`;
+      }
+    });
+    
     const substituentPrefix = substituentStrings.filter(Boolean).join('-');
     return substituentPrefix ? `${substituentPrefix}${baseName}` : baseName;
   }
@@ -920,6 +1086,7 @@ export const P44_2_RING_SENIORITY_RULE: IUPACRule = {
     const largestRings = rings.filter(r => r.atoms.length === maxSize);
     // Choose the first largest ring and set as parentStructure (preserve ring semantics)
     const ring = largestRings[0];
+    if (!ring) return context;
     const size = ring.atoms ? ring.atoms.length : (ring.size || 0);
     const type = ring.type || (ring.atoms && ring.atoms.some((a:any) => a.aromatic) ? 'aromatic' : 'aliphatic');
     let name = '';
@@ -949,6 +1116,7 @@ export const P44_2_RING_SENIORITY_RULE: IUPACRule = {
 };
 
 export const PARENT_CHAIN_SELECTION_LAYER_RULES: IUPACRule[] = [
+  P44_1_1_PRINCIPAL_CHARACTERISTIC_GROUPS_RULE,
   P44_2_RING_SENIORITY_RULE,
   P44_3_1_MAX_LENGTH_RULE,
   P44_3_2_MULTIPLE_BONDS_RULE,

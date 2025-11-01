@@ -128,30 +128,62 @@ export const P14_3_PRINCIPAL_GROUP_NUMBERING_RULE: IUPACRule = {
       return context;
     }
     
-    // Principal group gets locant 1 for chains, or the lowest possible for rings
-    const principalGroup = functionalGroups.reduce((prev: FunctionalGroup, current: FunctionalGroup) => 
-      (prev.priority < current.priority) ? prev : current
-    );
+    // Get ALL principal groups (may be multiple of the same type)
+    const principalGroups = functionalGroups.filter((g: FunctionalGroup) => g.isPrincipal);
+    
+    if (principalGroups.length === 0) {
+      return context;
+    }
+    
+    // For debug logging, pick the first one
+    const firstPrincipal = principalGroups[0];
     
     if (process.env.VERBOSE) {
-      console.log('[P-14.3] Principal group:', principalGroup.type);
-      console.log('[P-14.3] Principal group atoms:', principalGroup.atoms);
+      console.log('[P-14.3] Principal group:', firstPrincipal?.type);
+      console.log('[P-14.3] Number of principal groups:', principalGroups.length);
+      console.log('[P-14.3] Principal group atoms:', principalGroups.map(g => g.atoms));
       console.log('[P-14.3] Parent chain atoms:', parentStructure.chain?.atoms.map((a: Atom) => a.id));
       console.log('[P-14.3] Parent chain locants:', parentStructure.locants);
     }
     
-    // Calculate the principal locant based on the already-optimized locants from P-14.2
-    const principalLocant = getPrincipalGroupLocantFromSet(parentStructure, principalGroup, parentStructure.locants);
+    // Calculate locants for each principal group
+    let principalLocants: number[];
+    let optimizedLocants = parentStructure.locants;
+    
+    if (parentStructure.type === 'chain' && principalGroups.length === 1) {
+      // For a single principal group on a chain, optimize numbering to minimize its locant
+      const firstPrincipalGroup = principalGroups[0]!;
+      optimizedLocants = optimizeLocantSet(parentStructure, firstPrincipalGroup);
+      
+      // Update parent structure with optimized locants
+      parentStructure.locants = optimizedLocants;
+      
+      // Calculate locant based on optimized numbering
+      principalLocants = [getPrincipalGroupLocantFromSet(parentStructure, firstPrincipalGroup, optimizedLocants)];
+    } else {
+      // For multiple principal groups or rings, calculate positions
+      principalLocants = principalGroups.map(group => 
+        getPrincipalGroupLocantFromSet(parentStructure, group, parentStructure.locants)
+      );
+    }
     
     if (process.env.VERBOSE) {
-      console.log('[P-14.3] Calculated principal locant:', principalLocant);
+      console.log('[P-14.3] Calculated principal locants:', principalLocants);
     }
     
     // Update functional group locants
-    const updatedFunctionalGroups = functionalGroups.map((group: FunctionalGroup) => ({
-      ...group,
-      locants: group === principalGroup ? [principalLocant] : group.locants
-    }));
+    let principalIdx = 0;
+    const updatedFunctionalGroups = functionalGroups.map((group: FunctionalGroup) => {
+      if (group.isPrincipal && principalIdx < principalLocants.length) {
+        const locant = principalLocants[principalIdx];
+        principalIdx++;
+        return {
+          ...group,
+          locants: [locant]
+        };
+      }
+      return group;
+    });
     
     return context.withStateUpdate(
       (state: any) => ({ 
@@ -162,7 +194,7 @@ export const P14_3_PRINCIPAL_GROUP_NUMBERING_RULE: IUPACRule = {
       'Principal Group Numbering',
       'P-14.3',
       ExecutionPhase.NUMBERING,
-      `Assigned locant ${principalLocant} to principal group: ${principalGroup.type}`
+      `Assigned locants ${principalLocants.join(',')} to ${principalGroups.length} principal group(s): ${firstPrincipal?.type}`
     );
   }
 };
@@ -376,40 +408,7 @@ export const RING_NUMBERING_RULE: IUPACRule = {
                 const position = atomIdToPosition.get(otherAtomId);
                 if (position !== undefined && !attachedRingPositions.includes(position)) {
                   attachedRingPositions.push(position);
-}
-
-function getPrincipalGroupLocantFromSet(parentStructure: ParentStructure, principalGroup: FunctionalGroup, locantSet: number[]): number {
-  // Calculate the principal group locant based on a specific locant set
-  if (parentStructure.type === 'chain') {
-    if (principalGroup.atoms.length === 0) {
-      return 1; // Fallback if no atoms
-    }
-    
-    const functionalGroupAtom = principalGroup.atoms[0]!;
-    const chain = parentStructure.chain;
-    
-    if (!chain) {
-      return 1; // Fallback if no chain
-    }
-    
-    // Check if functionalGroupAtom is an Atom object or just an ID
-    const atomId = typeof functionalGroupAtom === 'number' ? functionalGroupAtom : functionalGroupAtom.id;
-    
-    // Find where this atom appears in the chain
-    const positionInChain = chain.atoms.findIndex((atom: Atom) => atom.id === atomId);
-    
-    if (positionInChain === -1) {
-      return 1; // Fallback if atom not found
-    }
-    
-    // Return the locant at that position from the given locant set
-    return locantSet[positionInChain] || 1;
-  } else {
-    // For rings, principal group gets the lowest available locant
-    return Math.min(...locantSet);
-  }
-}
-
+                }
               }
             }
           }

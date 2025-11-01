@@ -64,7 +64,7 @@ describe("P-14 numbering rules", () => {
     expect(result).toEqual([1, 2, 3, 4]);
   });
 
-  it("P-14.3: principal group gets locant 1 for chain", () => {
+  it("P-14.3: principal group gets lowest locant for chain", () => {
     const parentStructure: ParentStructure = {
       type: "chain",
       name: "butane",
@@ -72,7 +72,7 @@ describe("P-14 numbering rules", () => {
       locants: [1, 2, 3, 4],
     };
     const functionalGroups: FunctionalGroup[] = [
-      makeGroup("alcohol", 3, [2], true),
+      makeGroup("alcohol", 3, [2], true), // Alcohol at atom 2 (position 1 in chain)
       makeGroup("methyl", 10, [3], false),
     ];
     let context = ImmutableNamingContext.create({ atoms: [], bonds: [] });
@@ -85,7 +85,8 @@ describe("P-14 numbering rules", () => {
   expect(updatedGroups).toBeDefined();
   expect((updatedGroups!).length).toBeGreaterThan(0);
   const firstGroup = (updatedGroups![0]!);
-  expect(firstGroup.locants).toEqual([1]);
+  // Alcohol at atom 2 (position 1) should get locant 2 with forward numbering
+  expect(firstGroup.locants).toEqual([2]);
   });
 
   it("P-14.2: tie-break by first point of difference", () => {

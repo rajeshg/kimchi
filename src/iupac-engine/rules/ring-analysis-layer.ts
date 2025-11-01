@@ -203,6 +203,130 @@ export const P44_2_4_MAXIMUM_RINGS_RULE: IUPACRule = {
 
 
 /**
+ * Rule: P-44.1.1 - Maximum Number of Principal Characteristic Groups
+ * 
+ * According to IUPAC Blue Book P-44.1.1, the parent structure should contain
+ * the maximum number of principal characteristic groups (suffixes like -COOH, -one, etc.).
+ * 
+ * This rule compares chains with rings and selects chains that have principal functional
+ * groups over rings (which typically have zero such groups).
+ * 
+ * This rule must run BEFORE RING_SELECTION_COMPLETE_RULE to prevent rings from being
+ * selected as parent when chains have functional groups.
+ */
+export const P44_1_1_PRINCIPAL_CHARACTERISTIC_GROUPS_RULE: IUPACRule = {
+  id: 'P-44.1.1',
+  name: 'Maximum Number of Principal Characteristic Groups',
+  description: 'Select parent with maximum number of principal characteristic groups',
+  blueBookReference: BLUE_BOOK_RULES.P44_1,
+  priority: 55, // Higher than RING_SELECTION_COMPLETE (50) so it runs first
+  conditions: (context) => {
+    const state = context.getState();
+    // Skip if parent structure already selected
+    if (state.parentStructure) {
+      if (process.env.VERBOSE) console.log('[P-44.1.1] Skipping - parent already selected');
+      return false;
+    }
+    // Only apply if we have both chains and rings to compare
+    const chains = state.candidateChains;
+    const rings = state.candidateRings;
+    const shouldApply = chains && chains.length > 0 && rings && rings.length > 0;
+    if (process.env.VERBOSE) {
+      console.log(`[P-44.1.1] Conditions check: chains=${chains?.length || 0}, rings=${rings?.length || 0}, shouldApply=${shouldApply}`);
+    }
+    return shouldApply;
+  },
+  action: (context) => {
+    const state = context.getState();
+    const chains = state.candidateChains;
+    const molecule = state.molecule;
+    
+    if (process.env.VERBOSE) {
+      console.log('[P-44.1.1] Action executing...');
+      console.log(`[P-44.1.1] chains.length=${chains?.length}, molecule=${!!molecule}`);
+    }
+    
+    if (!chains || chains.length === 0 || !molecule) return context;
+    
+    // Count functional groups that can be expressed as suffixes on each chain
+    // Priority >= 4 means ketone/aldehyde or higher (carboxylic acid = 6, amide = 5, etc.)
+    const chainFGCounts = chains.map((chain: any) => {
+      // Count atoms in the chain that have principal functional groups
+      let fgCount = 0;
+      for (const atom of chain.atoms) {
+        if (!atom || atom.symbol !== 'C') continue;
+        
+        // Find this atom's index in the molecule
+        const atomIdx = molecule.atoms.findIndex((a: any) => a === atom);
+        if (atomIdx === -1) continue;
+        
+        // Check for C=O (ketone/aldehyde)
+        let hasDoubleO = false;
+        for (const bond of molecule.bonds) {
+          if (bond.atom1 !== atomIdx && bond.atom2 !== atomIdx) continue;
+          const neighIdx = bond.atom1 === atomIdx ? bond.atom2 : bond.atom1;
+          const neigh = molecule.atoms[neighIdx];
+          // Check for double bond to oxygen
+          if (neigh?.symbol === 'O' && bond.type === BondType.DOUBLE) {
+            hasDoubleO = true;
+            break;
+          }
+        }
+        if (hasDoubleO) fgCount++;
+      }
+      
+      if (process.env.VERBOSE) {
+        console.log(`[P-44.1.1] Chain with ${chain.atoms.length} atoms: fgCount=${fgCount}`);
+      }
+      
+      return { chain, fgCount };
+    });
+    
+    // Find maximum functional group count
+    const maxFGCount = Math.max(...chainFGCounts.map(c => c.fgCount));
+    
+    if (process.env.VERBOSE) {
+      console.log(`[P-44.1.1] maxFGCount=${maxFGCount}`);
+      console.log(`[P-44.1.1] candidateRings.length=${state.candidateRings?.length || 0}`);
+    }
+    
+    // Rings typically have 0 principal characteristic groups (benzene doesn't have -C=O groups)
+    // If any chain has principal functional groups (ketones, aldehydes, etc.), prefer it
+    if (maxFGCount > 0) {
+      const functionalChains = chainFGCounts
+        .filter(c => c.fgCount === maxFGCount)
+        .map(c => c.chain);
+      
+      if (process.env.VERBOSE) {
+        console.log(`[P-44.1.1] Selecting ${functionalChains.length} chains with ${maxFGCount} functional groups, clearing rings`);
+      }
+      
+      // Clear rings and keep only chains with functional groups
+      return context.withStateUpdate(
+        (state: any) => ({
+          ...state,
+          candidateChains: functionalChains,
+          candidateRings: [], // Clear rings since functional chain takes precedence
+          p44_1_1_applied: true
+        }),
+        'P-44.1.1',
+        'Maximum Number of Principal Characteristic Groups',
+        'P-44.1',
+        ExecutionPhase.PARENT_STRUCTURE,
+        `Selected chains with ${maxFGCount} principal characteristic groups, cleared rings`
+      );
+    }
+    
+    // If no chains have principal functional groups, let normal rules proceed
+    // (rings may win via RING_SELECTION_COMPLETE)
+    if (process.env.VERBOSE) {
+      console.log('[P-44.1.1] No functional groups found, letting other rules proceed');
+    }
+    return context;
+  }
+};
+
+/**
  * Rule: Parent Ring Selection Complete
  * 
  * Finalizes ring system selection and sets the parent structure.
@@ -698,5 +822,6 @@ export const RING_ANALYSIS_LAYER_RULES: IUPACRule[] = [
   P2_3_RING_ASSEMBLIES_RULE,
   P2_4_SPIRO_COMPOUNDS_RULE,
   P2_5_FUSED_RING_SYSTEMS_RULE,
+  P44_1_1_PRINCIPAL_CHARACTERISTIC_GROUPS_RULE, // Must run before RING_SELECTION_COMPLETE
   RING_SELECTION_COMPLETE_RULE
 ];
