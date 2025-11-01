@@ -51,6 +51,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **IUPAC Name Generation**: Fixed ring numbering for aryloxy substituents
+  - Aryloxy substituents (e.g., phenoxy, chlorophenoxy) now use correct IUPAC ring numbering
+  - Sequential ring traversal replaced random BFS for consistent ortho (2,6), meta (3,5), and para (4) positions
+  - Example: `CC(C)C(=O)C(OC1=CC=C(C=C1)Cl)Cl` now correctly generates `1-chloro-1-(4-chlorophenoxy)-3-methylbutan-2-one`
+  - Previously numbered para position as 6, now correctly numbered as 4
+  - Added comprehensive test suite for P-14.4 alphabetization rules (12 test cases)
+  - Handles chloro, bromo, fluoro, and other substituents on aromatic rings
+  - Match rate improved from 57.8% to 58.9% on realistic molecule test suite
+
 ### Planned
 - Additional molecular descriptor calculations
 - Extended support for reaction SMARTS

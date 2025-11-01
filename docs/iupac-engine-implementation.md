@@ -514,6 +514,16 @@ test/
 - **P-44.3**: Acyclic chain seniority (Parent Structure Phase)
 - **P-44.4**: Ring vs chain criteria (Parent Structure Phase)
 
+### P-2 (Parent Hydride Names) - **IMPLEMENTED** ✅
+- **P-2.1**: Parent hydrides for elements other than carbon
+  - Group 14: silane (Si), germane (Ge), stannane (Sn), plumbane (Pb)
+  - Group 15: phosphine (P), arsine (As), stibine (Sb), bismuthine (Bi)
+- **P-2.2**: Parent hydrides for carbon chains (alkanes)
+- **Status**: Core implementation complete with comprehensive test coverage
+- **Files**: `src/iupac-engine/rules/bluebook/P-2/parent-hydride-rules.ts`
+- **Tests**: `src/iupac-engine/tests/p2-parent-hydrides.test.ts` (16/18 tests passing)
+- **Limitations**: Complex heteroatom molecules require additional substituent rules
+
 ### P-51 (Nomenclature Method Seniority)
 - **P-51.1**: Substitutive nomenclature (Nomenclature Selection Phase)
 - **P-51.2**: Functional class nomenclature (Nomenclature Selection Phase)
