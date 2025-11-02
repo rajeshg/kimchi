@@ -1,10 +1,10 @@
 import { LayerType } from './types';
 import type { Layer } from './types';
-import { ATOMIC_LAYER_RULES } from './rules/atomic-layer';
+import { ATOMIC_LAYER_RULES } from './rules/atomic-layer/index';
 import { FUNCTIONAL_GROUP_LAYER_RULES } from './rules/functional-groups-layer';
-import { NOMENCLATURE_METHOD_LAYER_RULES } from './rules/nomenclature-method-layer';
-import { PARENT_CHAIN_SELECTION_LAYER_RULES } from './rules/parent-chain-selection-layer';
-import { INITIAL_STRUCTURE_LAYER_RULES } from './rules/initial-structure-layer';
+import { NOMENCLATURE_METHOD_LAYER_RULES } from './rules/nomenclature-method-layer/index';
+import { PARENT_CHAIN_SELECTION_LAYER_RULES } from './rules/parent-chain-selection-layer/index';
+import { INITIAL_STRUCTURE_LAYER_RULES } from './rules/initial-structure-layer/index';
 import { RING_ANALYSIS_LAYER_RULES } from './rules/ring-analysis-layer';
 import { NUMBERING_LAYER_RULES } from './rules/numbering-layer';
 import { NAME_ASSEMBLY_LAYER_RULES } from './rules/name-assembly-layer';
