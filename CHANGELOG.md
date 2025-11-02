@@ -60,6 +60,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added comprehensive test suite for P-14.4 alphabetization rules (12 test cases)
   - Handles chloro, bromo, fluoro, and other substituents on aromatic rings
   - Match rate improved from 57.8% to 58.9% on realistic molecule test suite
+- **IUPAC Name Generation**: Fixed parentheses wrapping for complex yl substituents
+  - Simple yl groups (e.g., propan-2-yl, butan-2-yl) now correctly avoid unnecessary parentheses
+  - Complex yl groups with substituent prefixes (e.g., 2-methylbutan-2-yl) correctly wrapped in parentheses
+  - Improved regex pattern from `/an-\d+-yl/` to `/\d+-\w+an-\d+-yl/` for accurate detection
+  - Added comprehensive test suite with 17 test cases covering simple/complex groups and edge cases
+  - Handles nested parentheses correctly (converts to square brackets when needed)
 
 ### Planned
 - Additional molecular descriptor calculations

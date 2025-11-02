@@ -1,5 +1,5 @@
 import type { IUPACRule } from '../types';
-import { BLUE_BOOK_RULES } from '../types';
+import { BLUE_BOOK_RULES, RulePriority } from '../types';
 import type { ImmutableNamingContext } from '../immutable-context';
 import { ExecutionPhase } from '../immutable-context';
 import { P2_PARENT_HYDRIDE_RULES } from './bluebook/P-2/parent-hydride-rules';
@@ -23,7 +23,7 @@ export const INITIAL_STRUCTURE_ANALYSIS_RULE: IUPACRule = {
   name: 'Initial Structure Analysis',
   description: 'Seed candidate chains using iupac chain utilities',
   blueBookReference: BLUE_BOOK_RULES.P44_3_1,
-  priority: 2000,
+  priority: RulePriority.TEN,  // 100 - Run very early to seed candidate structures
   conditions: (context: ImmutableNamingContext) => {
     const chains = context.getState().candidateChains;
     if (process.env.VERBOSE) {
@@ -118,7 +118,7 @@ export const P44_4_RING_CHAIN_SELECTION_RULE: IUPACRule = {
   name: 'Ring vs Chain Selection',
   description: 'Select ring system over chain when both are present (P-44.4)',
   blueBookReference: BLUE_BOOK_RULES.P44_4,
-  priority: 60,
+  priority: RulePriority.SIX,  // 60 - Mid-priority structure selection
   conditions: (context: ImmutableNamingContext) => {
     const candidateRings = context.getState().candidateRings;
     const candidateChains = context.getState().candidateChains;

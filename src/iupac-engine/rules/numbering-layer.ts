@@ -1,4 +1,5 @@
 import type { IUPACRule, FunctionalGroup, ParentStructure, Chain, MultipleBond, Substituent, RuleConflict } from '../types';
+import { RulePriority } from '../types';
 import type { Atom } from '../../../types';
 import { ExecutionPhase, ImmutableNamingContext } from '../immutable-context';
 import { generateChainName } from './parent-chain-selection-layer';
@@ -24,7 +25,7 @@ export const P14_2_LOWEST_LOCANT_SET_RULE: IUPACRule = {
   name: 'Lowest Locant Set Principle',
   description: 'Apply lowest locant set principle for numbering (P-14.2)',
   blueBookReference: 'P-14.2 - Lowest locant set principle',
-  priority: 100,
+  priority: RulePriority.NINE,  // 90 - Run after ring numbering
   conditions: (context: ImmutableNamingContext) => {
     const state = context.getState();
     const parentStructure = state.parentStructure;
@@ -111,7 +112,7 @@ export const P14_3_PRINCIPAL_GROUP_NUMBERING_RULE: IUPACRule = {
   name: 'Principal Group Numbering',
   description: 'Assign lowest locant to principal group (P-14.3)',
   blueBookReference: 'P-14.3 - Numbering of principal group',
-  priority: 95,
+  priority: RulePriority.EIGHT,  // 80 - After lowest locant set
   conditions: (context: ImmutableNamingContext) => {
     const state = context.getState();
     const parentStructure = state.parentStructure;
@@ -210,7 +211,7 @@ export const P14_4_MULTIPLE_BONDS_SUBSTITUENTS_RULE: IUPACRule = {
   name: 'Multiple Bonds and Substituents Numbering',
   description: 'Number multiple bonds and substituents (P-14.4)',
   blueBookReference: 'P-14.4 - Numbering of multiple bonds and substituents',
-  priority: 90,
+  priority: RulePriority.SEVEN,  // 70 - After principal group
   conditions: (context: ImmutableNamingContext) => {
     const state = context.getState();
     const parentStructure = state.parentStructure;
@@ -286,7 +287,7 @@ export const P14_1_FIXED_LOCANTS_RULE: IUPACRule = {
   name: 'Fixed Locants for Retained Names',
   description: 'Apply fixed locants for retained names (P-14.1)',
   blueBookReference: 'P-14.1 - Fixed locants',
-  priority: 80,
+  priority: RulePriority.SIX,  // 60 - Mid-priority
   conditions: (context: ImmutableNamingContext) => {
     const state = context.getState();
     const parentStructure = state.parentStructure;
@@ -330,7 +331,7 @@ export const RING_NUMBERING_RULE: IUPACRule = {
   name: 'Ring System Numbering',
   description: 'Number ring systems starting from heteroatom or unsaturation',
   blueBookReference: 'Ring numbering conventions',
-  priority: 160, // Must run before P-3.2 (priority 155) - higher priority executes first
+  priority: RulePriority.TEN,  // 100 - Must run first (was 160, highest priority)
   conditions: (context: ImmutableNamingContext) => {
     const state = context.getState();
     const parentStructure = state.parentStructure;
@@ -649,7 +650,7 @@ export const SUBSTITUENT_NUMBERING_RULE: IUPACRule = {
   name: 'Substituent Group Numbering',
   description: 'Number substituent groups attached to parent structure',
   blueBookReference: 'Substituent numbering conventions',
-  priority: 75,
+  priority: RulePriority.FIVE,  // 50 - After fixed locants
   conditions: (context: ImmutableNamingContext) => {
     const state = context.getState();
     const functionalGroups = state.functionalGroups;
@@ -700,7 +701,7 @@ export const NUMBERING_COMPLETE_RULE: IUPACRule = {
   name: 'Numbering Phase Complete',
   description: 'Finalize numbering and validate locant assignments',
   blueBookReference: 'P-14 - Complete numbering validation',
-  priority: 50,
+  priority: RulePriority.FOUR,  // 40 - Final completion step
   conditions: (context: ImmutableNamingContext) => {
     const state = context.getState();
     const parentStructure = state.parentStructure;

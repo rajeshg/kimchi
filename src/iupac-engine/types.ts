@@ -52,6 +52,29 @@ export interface IUPACRule {
   conflicts?: string[];
 }
 
+/**
+ * Standard priority values for rule execution within each layer.
+ * 
+ * IMPORTANT: Rules execute in DESCENDING order (higher numbers run FIRST).
+ * - Priority 100 executes before priority 50
+ * - Priority 50 executes before priority 10
+ * 
+ * Priority values use increments of 10 (10, 20, 30... 100).
+ * Higher priority numbers execute earlier in the layer.
+ */
+export enum RulePriority {
+  ONE = 10,
+  TWO = 20,
+  THREE = 30,
+  FOUR = 40,
+  FIVE = 50,
+  SIX = 60,
+  SEVEN = 70,
+  EIGHT = 80,
+  NINE = 90,
+  TEN = 100
+}
+
 export interface Layer {
   name: string;
   description: string;

@@ -1,6 +1,6 @@
 import type { IUPACRule, FunctionalGroup, RingSystem } from '../types';
 import type { ImmutableNamingContext } from '../immutable-context';
-import { BLUE_BOOK_RULES } from '../types';
+import { BLUE_BOOK_RULES, RulePriority } from '../types';
 import { NomenclatureMethod, ExecutionPhase } from '../immutable-context';
 
 /**
@@ -24,7 +24,7 @@ export const P51_1_SUBSTITUTIVE_RULE: IUPACRule = {
   name: 'Substitutive Nomenclature Method',
   description: 'Select substitutive nomenclature as default method (P-51.1)',
   blueBookReference: BLUE_BOOK_RULES.P51_1,
-  priority: 50,
+  priority: RulePriority.FIVE,  // 50 - Default method, lowest priority
   conditions: (context: ImmutableNamingContext) => {
     // Apply if no method has been selected yet
     const state = context.getState();
@@ -57,7 +57,7 @@ export const P51_2_FUNCTIONAL_CLASS_RULE: IUPACRule = {
   name: 'Functional Class Nomenclature Method',
   description: 'Select functional class nomenclature for specific cases (P-51.2)',
   blueBookReference: BLUE_BOOK_RULES.P51_2,
-  priority: 100,
+  priority: RulePriority.TEN,  // 100 - Highest priority for special cases
   conditions: (context: ImmutableNamingContext) => {
     const state = context.getState();
     const functionalGroups = Array.isArray(state.functionalGroups) ? state.functionalGroups : [];
@@ -128,7 +128,7 @@ export const P51_3_SKELETAL_REPLACEMENT_RULE: IUPACRule = {
   name: 'Skeletal Replacement Nomenclature',
   description: 'Select skeletal replacement for heterocyclic systems (P-51.3)',
   blueBookReference: BLUE_BOOK_RULES.P51_3,
-  priority: 80,
+  priority: RulePriority.EIGHT,  // 80 - High priority for heteroatoms
   conditions: (context: ImmutableNamingContext) => {
     const state = context.getState();
     const functionalGroups = Array.isArray(state.functionalGroups) ? state.functionalGroups : [];
@@ -175,7 +175,7 @@ export const P51_4_MULTIPLICATIVE_RULE: IUPACRule = {
   name: 'Multiplicative Nomenclature Method',
   description: 'Select multiplicative nomenclature for identical substituents (P-51.4)',
   blueBookReference: BLUE_BOOK_RULES.P51_4,
-  priority: 70,
+  priority: RulePriority.SEVEN,  // 70 - Mid-high priority for duplicates
   conditions: (context: ImmutableNamingContext) => {
     const state = context.getState();
     const functionalGroups = Array.isArray(state.functionalGroups) ? state.functionalGroups : [];
@@ -219,7 +219,7 @@ export const CONJUNCTIVE_NOMENCLATURE_RULE: IUPACRule = {
   name: 'Conjunctive Nomenclature Method',
   description: 'Select conjunctive nomenclature for fused systems (special cases)',
   blueBookReference: 'P-51 - Special cases',
-  priority: 60,
+  priority: RulePriority.SIX,  // 60 - Mid priority for fused rings
   conditions: (context: ImmutableNamingContext) => {
     const state = context.getState();
     const candidateRings = state.candidateRings as RingSystem[] | undefined;

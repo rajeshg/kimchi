@@ -1,4 +1,5 @@
 import type { IUPACRule, FunctionalGroup } from '../types';
+import { RulePriority } from '../types';
 import type { ImmutableNamingContext } from '../immutable-context';
 import { ExecutionPhase, NomenclatureMethod } from '../immutable-context';
 import { OPSINFunctionalGroupDetector } from '../opsin-functional-group-detector';
@@ -95,7 +96,7 @@ export const FUNCTIONAL_GROUP_PRIORITY_RULE: IUPACRule = {
   name: 'Functional Group Priority Detection',
   description: 'Detect and prioritize functional groups per Blue Book Table 5.1',
   blueBookReference: 'P-44.1 - Principal characteristic group selection',
-  priority: 10,
+  priority: RulePriority.SIX,  // 60 - Consolidate all FG detections (runs after individual detections)
   conditions: (context: ImmutableNamingContext) => context.getState().molecule.atoms.length > 0,
   action: (context: ImmutableNamingContext) => {
     // Use OPSIN detector directly so we can capture pattern metadata for traceability
@@ -342,7 +343,7 @@ export const FUNCTIONAL_CLASS_RULE: IUPACRule = {
   name: 'Functional Class Nomenclature Detection',
   description: 'Detect if functional class nomenclature should be used (P-51.2)',
   blueBookReference: 'P-51.2 - Functional class nomenclature',
-  priority: 15,
+  priority: RulePriority.ONE,  // 10 - Functional class runs last (lowest priority)
   conditions: (context: ImmutableNamingContext) => context.getState().functionalGroups.length > 0,
   action: (context: ImmutableNamingContext) => {
     const principalGroup = context.getState().principalGroup;
@@ -804,7 +805,7 @@ export const ESTER_DETECTION_RULE: IUPACRule = {
   name: 'Ester Detection',
   description: 'Detect ester functional groups for functional class naming',
   blueBookReference: 'P-51.2.1 - Esters',
-  priority: 5,  // Must run AFTER FUNCTIONAL_GROUP_PRIORITY_RULE (priority 10)
+  priority: RulePriority.FIVE,  // 50 - Must run AFTER FUNCTIONAL_GROUP_PRIORITY_RULE (60)
   conditions: (context: ImmutableNamingContext) => {
     // Check if there are any esters in the functional groups (detected by OPSIN or other detectors)
     const functionalGroups = context.getState().functionalGroups;
@@ -866,7 +867,7 @@ export const LACTONE_TO_KETONE_RULE: IUPACRule = {
   name: 'Lactone to Ketone Conversion',
   description: 'Convert cyclic esters (lactones) to ketones for heterocycle naming',
   blueBookReference: 'P-66.1.1.4 - Lactones',
-  priority: 6,  // Must run AFTER ESTER_DETECTION_RULE (priority 5)
+  priority: RulePriority.FOUR,  // 40 - Must run AFTER ESTER_DETECTION_RULE (priority FIVE = 50)
   conditions: (context: ImmutableNamingContext) => {
     const functionalGroups = context.getState().functionalGroups;
     const esters = functionalGroups.filter(fg => fg.type === 'ester');
@@ -977,13 +978,13 @@ export const LACTONE_TO_KETONE_RULE: IUPACRule = {
           return fg;
         }
         
-        // Convert to ketone: change suffix from 'oate' to 'one', priority from 8 to 3
+        // Convert to ketone: change suffix from 'oate' to 'one'
         return {
           ...fg,
           type: 'ketone',
           name: 'ketone',
           suffix: 'one',
-          priority: 3,  // Ketone priority (same as regular ketones)
+          priority: 3,  // Keep numeric priority for FG object (not IUPACRule priority)
           atoms: [carbonylCarbon],  // Only keep carbonyl carbon atom object
           prefix: 'oxo'
         };
@@ -1019,9 +1020,9 @@ export const LACTONE_TO_KETONE_RULE: IUPACRule = {
 export const CARBOXYLIC_ACID_RULE: IUPACRule = {
   id: 'carboxylic-acid-detection',
   name: 'Carboxylic Acid Detection',
-  description: 'Detect carboxylic acid groups (-COOH)',
-  blueBookReference: 'P-44.1.1 - Carboxylic acids',
-  priority: 1,
+  description: 'Detect carboxylic acid functional groups',
+  blueBookReference: 'P-44.1 - Principal characteristic groups',
+  priority: RulePriority.TEN,  // 100 - Carboxylic acids have highest priority
   conditions: (context: ImmutableNamingContext) => context.getState().molecule.bonds.length > 0,
   action: (context: ImmutableNamingContext) => {
     const carboxylicAcids: FunctionalGroup[] = detectCarboxylicAcids(context);
@@ -1061,9 +1062,9 @@ export const CARBOXYLIC_ACID_RULE: IUPACRule = {
 export const ALCOHOL_DETECTION_RULE: IUPACRule = {
   id: 'alcohol-detection',
   name: 'Alcohol Detection',
-  description: 'Detect alcohol groups (-OH)',
-  blueBookReference: 'P-44.1.9 - Alcohols',
-  priority: 9,
+  description: 'Detect alcohol functional groups',
+  blueBookReference: 'P-44.1 - Principal characteristic groups',
+  priority: RulePriority.EIGHT,  // 80 - Alcohols detected early
   conditions: (context: ImmutableNamingContext) => context.getState().molecule.atoms.length > 0,
   action: (context: ImmutableNamingContext) => {
     const alcohols: FunctionalGroup[] = detectAlcohols(context);
@@ -1091,9 +1092,9 @@ export const ALCOHOL_DETECTION_RULE: IUPACRule = {
 export const AMINE_DETECTION_RULE: IUPACRule = {
   id: 'amine-detection',
   name: 'Amine Detection',
-  description: 'Detect amine groups (-NH2, -NHR, -NR2)',
-  blueBookReference: 'P-44.1.10 - Amines',
-  priority: 10,
+  description: 'Detect amine functional groups',
+  blueBookReference: 'P-44.1 - Principal characteristic groups',
+  priority: RulePriority.SEVEN,  // 70 - Amines detected early
   conditions: (context: ImmutableNamingContext) => context.getState().molecule.atoms.length > 0,
   action: (context: ImmutableNamingContext) => {
     const amines: FunctionalGroup[] = detectAmines(context);
@@ -1123,7 +1124,7 @@ export const KETONE_DETECTION_RULE: IUPACRule = {
   name: 'Ketone Detection',
   description: 'Detect ketone groups (>C=O)',
   blueBookReference: 'P-44.1.8 - Ketones',
-  priority: 8,
+  priority: RulePriority.NINE,  // 90 - Run before alcohol (80) but after carboxylic acid (100)
   conditions: (context: ImmutableNamingContext) => context.getState().molecule.bonds.length > 0,
   action: (context: ImmutableNamingContext) => {
     const ketones: FunctionalGroup[] = detectKetones(context);
@@ -1498,7 +1499,7 @@ export const ETHER_TO_ALKOXY_RULE: IUPACRule = {
   name: 'Convert Ethers to Alkoxy Substituents',
   description: 'Convert non-principal ethers to alkoxy substituent names (methoxy, ethoxy, propoxy)',
   blueBookReference: 'P-63.2.2 - Ethers as substituents',
-  priority: 11,
+  priority: RulePriority.THREE,  // 30 - Runs late, after lactone conversion (40)
   conditions: (context: ImmutableNamingContext) => {
     const functionalGroups = context.getState().functionalGroups;
     const principalGroup = context.getState().principalGroup;

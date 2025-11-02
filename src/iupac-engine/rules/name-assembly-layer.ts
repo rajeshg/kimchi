@@ -1,4 +1,5 @@
 import type { IUPACRule } from '../types';
+import { RulePriority } from '../types';
 import { ExecutionPhase } from '../immutable-context';
 import type { ImmutableNamingContext } from '../immutable-context';
 import type { FunctionalGroup } from '../types';
@@ -30,7 +31,7 @@ export const SUBSTITUENT_ALPHABETIZATION_RULE: IUPACRule = {
   name: 'Substituent Alphabetization',
   description: 'Arrange substituents in alphabetical order',
   blueBookReference: 'P-14.3 - Alphabetization of substituents',
-  priority: 100,
+  priority: RulePriority.TEN,  // 100 - Run first in assembly phase
   conditions: (context: ImmutableNamingContext) => {
     const functionalGroups = context.getState().functionalGroups as FunctionalGroup[];
     return functionalGroups && functionalGroups.length > 0;
@@ -77,7 +78,7 @@ export const LOCANT_ASSIGNMENT_ASSEMBLY_RULE: IUPACRule = {
   name: 'Locant Assignment Assembly',
   description: 'Combine locants with substituents and functional groups',
   blueBookReference: 'P-14 - Locant assignment assembly',
-  priority: 95,
+  priority: RulePriority.NINE,  // 90 - After alphabetization
   conditions: (context: ImmutableNamingContext) => {
     const functionalGroups = context.getState().functionalGroups as FunctionalGroup[];
     return functionalGroups && functionalGroups.length > 0;
@@ -148,7 +149,7 @@ export const MULTIPLICATIVE_PREFIXES_RULE: IUPACRule = {
   name: 'Multiplicative Prefixes',
   description: 'Apply multiplicative prefixes for identical groups',
   blueBookReference: 'P-16.1 - Multiplicative prefixes',
-  priority: 90,
+  priority: RulePriority.EIGHT,  // 80 - After locant assembly
   conditions: (context: ImmutableNamingContext) => {
     const functionalGroups = context.getState().functionalGroups as FunctionalGroup[];
     if (!functionalGroups || functionalGroups.length === 0) return false;
@@ -236,7 +237,7 @@ export const PARENT_NAME_ASSEMBLY_RULE: IUPACRule = {
   name: 'Parent Structure Name Assembly',
   description: 'Build complete parent structure name',
   blueBookReference: 'P-2 - Parent structure names',
-  priority: 50,
+  priority: RulePriority.SEVEN,  // 70 - Build parent name structure
   conditions: (context) => {
     const parentStructure = context.getState().parentStructure;
     return parentStructure !== undefined;
@@ -289,7 +290,7 @@ export const COMPLETE_NAME_ASSEMBLY_RULE: IUPACRule = {
   name: 'Complete Name Assembly',
   description: 'Assemble the final IUPAC name from all components',
   blueBookReference: 'Complete name construction',
-  priority: 80,
+  priority: RulePriority.SIX,  // 60 - Assemble complete name
   conditions: (context) => {
     const parentStructure = context.getState().parentStructure;
     return parentStructure !== undefined;
@@ -360,7 +361,7 @@ export const NAME_VALIDATION_RULE: IUPACRule = {
   name: 'Name Validation and Finalization',
   description: 'Validate and finalize the IUPAC name',
   blueBookReference: 'Complete name validation',
-  priority: 70,
+  priority: RulePriority.FIVE,  // 50 - Validate assembled name
   conditions: (context) => {
     const finalName = context.getState().finalName;
     return !!finalName && finalName.length > 0;
@@ -420,7 +421,7 @@ export const NAME_ASSEMBLY_COMPLETE_RULE: IUPACRule = {
   name: 'Name Assembly Complete',
   description: 'Mark the name assembly phase as complete',
   blueBookReference: 'Assembly phase completion',
-  priority: 50,
+  priority: RulePriority.FOUR,  // 40 - Final completion step
   conditions: (context) => {
     const finalName = context.getState().finalName;
     return !!finalName && finalName.length > 0;

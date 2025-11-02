@@ -1,5 +1,5 @@
 import type { IUPACRule } from '../types';
-import { BLUE_BOOK_RULES } from '../types';
+import { BLUE_BOOK_RULES, RulePriority } from '../types';
 import { normalizeCitationName, canonicalizeCitationList, compareCitationArrays } from '../utils/citation-normalizer';
 import type { ImmutableNamingContext } from '../immutable-context';
 import { ExecutionPhase } from '../immutable-context';
@@ -59,7 +59,7 @@ export const P44_3_1_MAX_LENGTH_RULE: IUPACRule = {
   name: 'Maximum Length of Continuous Chain',
   description: 'Select the chain with highest score (length + substituents)',
   blueBookReference: BLUE_BOOK_RULES.P44_3_1,
-  priority: 100,
+  priority: RulePriority.NINE,
    conditions: (context: ImmutableNamingContext) => {
      const chains = context.getState().candidateChains as Chain[];
      return chains.length > 1 && !context.getState().p44_3_8_applied && !context.getState().parentStructure;
@@ -122,7 +122,7 @@ export const P44_4_RING_VS_CHAIN_IN_CHAIN_ANALYSIS_RULE: IUPACRule = {
   name: 'Ring vs Chain Selection (chain-analysis)',
   description: 'Prefer ring system as parent when both ring and chain candidates exist (P-44.4)',
   blueBookReference: BLUE_BOOK_RULES.P44_4,
-  priority: 110,
+  priority: RulePriority.TEN,
    conditions: (context: ImmutableNamingContext) => {
     const state = context.getState();
     // Skip if parent structure already selected
@@ -191,7 +191,7 @@ export const P44_3_2_MULTIPLE_BONDS_RULE: IUPACRule = {
   name: 'Greatest Number of Multiple Bonds',
   description: 'Select chain with most multiple bonds (P-44.3.2)',
   blueBookReference: BLUE_BOOK_RULES.P44_3_2,
-  priority: 90,
+  priority: RulePriority.EIGHT,
    conditions: (context: ImmutableNamingContext) => {
       const chains = context.getState().candidateChains as Chain[];
       return chains.length > 1 &&
@@ -258,7 +258,7 @@ export const P44_3_3_DOUBLE_BONDS_RULE: IUPACRule = {
   name: 'Greatest Number of Double Bonds',
   description: 'Select chain with most double bonds (P-44.3.3)',
   blueBookReference: BLUE_BOOK_RULES.P44_3_3,
-  priority: 85,
+  priority: RulePriority.SEVEN,
    conditions: (context: ImmutableNamingContext) => {
       const chains = context.getState().candidateChains as Chain[];
       const maxMultipleBonds = context.getState().max_multiple_bonds;
@@ -329,7 +329,7 @@ export const P44_3_4_MULTIPLE_BOND_LOCANTS_RULE: IUPACRule = {
   name: 'Lowest Locant Set for Multiple Bonds',
   description: 'Select chain with lowest locants for multiple bonds (P-44.3.4)',
   blueBookReference: BLUE_BOOK_RULES.P44_3_4,
-  priority: 80,
+  priority: RulePriority.SIX,
    conditions: (context: ImmutableNamingContext) => {
       const chains = context.getState().candidateChains as Chain[];
       const maxDoubleBonds = context.getState().max_double_bonds;
@@ -410,7 +410,7 @@ export const P44_3_5_DOUBLE_BOND_LOCANTS_RULE: IUPACRule = {
   name: 'Lowest Locant Set for Double Bonds',
   description: 'Select chain with lowest locants for double bonds (P-44.3.5)',
   blueBookReference: BLUE_BOOK_RULES.P44_3_5,
-  priority: 75,
+  priority: RulePriority.FIVE,
    conditions: (context: ImmutableNamingContext) => {
       const chains = context.getState().candidateChains as Chain[];
       const lowestMultipleBondLocants = context.getState().lowest_multiple_bond_locants;
@@ -487,7 +487,7 @@ export const P44_3_6_SUBSTITUENTS_RULE: IUPACRule = {
    name: 'Greatest Number of Substituents',
    description: 'Select chain with most substituents (P-44.3.6)',
    blueBookReference: BLUE_BOOK_RULES.P44_3_6,
-   priority: 70,
+   priority: RulePriority.FOUR,
     conditions: (context: ImmutableNamingContext) => {
       const chains = context.getState().candidateChains as Chain[];
       return chains.length > 1 && !!context.getState().p44_3_5_applied && !context.getState().p44_3_6_applied && !context.getState().parentStructure;
@@ -549,7 +549,7 @@ export const P44_3_7_SUBSTITUENT_LOCANTS_RULE: IUPACRule = {
   name: 'Lowest Locant Set for Substituents',
   description: 'Select chain with lowest locants for substituents (P-44.3.7)',
   blueBookReference: BLUE_BOOK_RULES.P44_3_7,
-  priority: 65,
+  priority: RulePriority.THREE,
    conditions: (context: ImmutableNamingContext) => {
       const chains = context.getState().candidateChains as Chain[];
       const maxSubstituents = context.getState().max_substituents;
@@ -626,7 +626,7 @@ export const P44_3_8_ALPHABETICAL_LOCANT_RULE: IUPACRule = {
   name: 'Lowest Alphabetical Locant',
   description: 'Final tie-breaker using alphabetical order (P-44.3.8)',
   blueBookReference: BLUE_BOOK_RULES.P44_3_8,
-  priority: 60,
+  priority: RulePriority.TWO,
   conditions: (context: ImmutableNamingContext) => {
     const chains = context.getState().candidateChains as Chain[];
     return chains.length > 1;
@@ -712,7 +712,7 @@ export const PARENT_CHAIN_SELECTION_COMPLETE_RULE: IUPACRule = {
   name: 'Parent Chain Selection Complete',
   description: 'Finalize parent chain selection and set parent structure',
   blueBookReference: 'P-44.3 - Chain seniority hierarchy',
-  priority: 1000,
+  priority: RulePriority.TEN,
   conditions: (context: ImmutableNamingContext) => {
     const chains = context.getState().candidateChains as Chain[];
     // Only finalize chain parent selection if no parentStructure has already been set (e.g., a ring)
@@ -936,7 +936,7 @@ export const P44_2_RING_SENIORITY_RULE: IUPACRule = {
   name: 'Ring System Seniority',
   description: 'Prefer ring systems over chains when applicable',
   blueBookReference: BLUE_BOOK_RULES.P44_2,
-  priority: 110, // Higher than chain rules
+  priority: RulePriority.TEN, // Higher than chain rules
    conditions: (context) => {
     const state = context.getState();
     // Skip if parent structure already selected

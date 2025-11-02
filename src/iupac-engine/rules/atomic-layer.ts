@@ -1,4 +1,5 @@
 import type { IUPACRule } from '../types';
+import { RulePriority } from '../types';
 import type { ImmutableNamingContext } from '../immutable-context';
 import { ExecutionPhase } from '../immutable-context';
 
@@ -18,7 +19,7 @@ export const ATOMIC_VALENCE_RULE: IUPACRule = {
   name: 'Atomic Valence Analysis',
   description: 'Analyze valence of each atom to understand bonding patterns',
   blueBookReference: 'Basic analysis - no specific rule',
-  priority: 1,
+  priority: RulePriority.TEN,  // 100 - Valence analysis runs first
   conditions: (context: ImmutableNamingContext) => {
     const state = context.getState();
     return Array.isArray(state.molecule?.atoms) && state.molecule.atoms.length > 0;
@@ -68,7 +69,7 @@ export const ATOMIC_HYBRIDIZATION_RULE: IUPACRule = {
   name: 'Atomic Hybridization Analysis',
   description: 'Determine hybridization state of each atom',
   blueBookReference: 'Basic analysis - no specific rule',
-  priority: 2,
+  priority: RulePriority.NINE,  // 90 - Hybridization analysis
   conditions: (context: ImmutableNamingContext) => {
     const state = context.getState();
     return Array.isArray(state.molecule?.atoms) && state.molecule.atoms.length > 0;
@@ -123,7 +124,7 @@ export const ATOMIC_AROMATIC_RULE: IUPACRule = {
   name: 'Aromatic Atom Detection',
   description: 'Identify atoms that are part of aromatic systems',
   blueBookReference: 'P-25.1 - Aromatic parent structures',
-  priority: 3,
+  priority: RulePriority.EIGHT,  // 80 - Aromatic atom detection
   conditions: (context: ImmutableNamingContext) => {
     const state = context.getState();
     return Array.isArray(state.molecule?.atoms) && state.molecule.atoms.length > 0;
@@ -171,7 +172,7 @@ export const ATOMIC_HETEROATOM_RULE: IUPACRule = {
   name: 'Heteroatom Detection',
   description: 'Identify non-carbon atoms and their types',
   blueBookReference: 'P-44.2.2 - Heteroatom seniority',
-  priority: 4,
+  priority: RulePriority.SEVEN,  // 70 - Heteroatom detection
   conditions: (context: ImmutableNamingContext) => {
     const state = context.getState();
     return Array.isArray(state.molecule?.atoms) && state.molecule.atoms.length > 0;
@@ -217,7 +218,7 @@ export const ATOMIC_BOND_ORDER_RULE: IUPACRule = {
   name: 'Bond Order Analysis',
   description: 'Analyze the distribution of bond orders in the molecule',
   blueBookReference: 'P-44.3.2-3 - Multiple bond seniority',
-  priority: 5,
+  priority: RulePriority.SIX,  // 60 - Bond order analysis
   conditions: (context: ImmutableNamingContext) => {
     const state = context.getState();
     return Array.isArray(state.molecule?.bonds) && state.molecule.bonds.length > 0;
@@ -271,7 +272,7 @@ export const ATOMIC_SEED_RINGS_RULE: IUPACRule = {
   name: 'Seed Candidate Rings from Parser',
   description: 'Seed candidateRings state from parser-provided rings',
   blueBookReference: 'P-44.2 - Ring system seniority',
-  priority: 6,
+  priority: RulePriority.FIVE,  // 50 - Seed candidate rings (runs last in atomic layer)
   conditions: (context: ImmutableNamingContext) => {
     const state = context.getState();
     return Array.isArray(state.molecule?.rings) && state.molecule.rings.length > 0 && !state.candidateRings;

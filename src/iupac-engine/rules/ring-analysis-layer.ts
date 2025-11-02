@@ -1,5 +1,5 @@
 import type { IUPACRule, Chain } from '../types';
-import { BLUE_BOOK_RULES } from '../types';
+import { BLUE_BOOK_RULES, RulePriority } from '../types';
 import { ExecutionPhase } from '../immutable-context';
 import { classifyRingSystems, analyzeRings } from '../../utils/ring-analysis';
 import type { Molecule } from '../../../types';
@@ -26,7 +26,7 @@ export const P44_2_1_RING_SYSTEM_DETECTION_RULE: IUPACRule = {
   name: 'Ring System Detection',
   description: 'Detect and classify all ring systems (P-44.2.1)',
   blueBookReference: BLUE_BOOK_RULES.P44_2,
-  priority: 100,
+  priority: RulePriority.TEN,
   conditions: (context) => {
     // Always run ring detection to ensure rings are found
     return true;
@@ -58,7 +58,7 @@ export const P44_2_2_HETEROATOM_SENIORITY_RULE: IUPACRule = {
   name: 'Heteroatom Seniority in Ring Systems',
   description: 'Select ring with most senior heteroatoms (P-44.2.2)',
   blueBookReference: BLUE_BOOK_RULES.P44_2,
-  priority: 90,
+  priority: RulePriority.NINE,
   conditions: (context) => {
     const candidateRings = context.getState().candidateRings;
     return candidateRings && candidateRings.length > 1;
@@ -116,7 +116,7 @@ export const P44_2_3_RING_SIZE_SENIORITY_RULE: IUPACRule = {
   name: 'Ring Size Seniority',
   description: 'Select smallest ring system (P-44.2.3)',
   blueBookReference: BLUE_BOOK_RULES.P44_2,
-  priority: 80,
+  priority: RulePriority.EIGHT,
   conditions: (context) => {
     const candidateRings = context.getState().candidateRings;
     return candidateRings && candidateRings.length > 1;
@@ -152,7 +152,7 @@ export const P44_2_4_MAXIMUM_RINGS_RULE: IUPACRule = {
   name: 'Maximum Number of Rings',
   description: 'Select ring system with most rings (P-44.2.4)',
   blueBookReference: BLUE_BOOK_RULES.P44_2,
-  priority: 70,
+  priority: RulePriority.SEVEN,
   conditions: (context) => {
     const candidateRings = context.getState().candidateRings;
     return candidateRings && candidateRings.length > 1;
@@ -212,7 +212,7 @@ export const RING_SELECTION_COMPLETE_RULE: IUPACRule = {
   name: 'Ring Selection Complete',
   description: 'Finalize ring system selection and set parent structure',
   blueBookReference: 'P-44.2 - Ring system seniority',
-  priority: 50,
+  priority: RulePriority.FIVE,
   conditions: (context) => {
     const candidateRings = context.getState().candidateRings;
     if (!candidateRings || candidateRings.length === 0 || context.getState().parentStructure) {
@@ -632,7 +632,7 @@ export const P44_1_1_PRINCIPAL_CHARACTERISTIC_GROUPS_RULE: IUPACRule = {
   name: 'Maximum Number of Principal Characteristic Groups',
   description: 'Select parent with maximum number of principal characteristic groups',
   blueBookReference: BLUE_BOOK_RULES.P44_1,
-  priority: 85, // Higher than P2_3 (75) to run before ring parent selection
+  priority: RulePriority.EIGHT, // Higher than P2_3 (75) to run before ring parent selection
   conditions: (context) => {
     const state = context.getState();
     // Skip if parent structure already selected
@@ -841,7 +841,7 @@ export const P2_3_RING_ASSEMBLIES_RULE: IUPACRule = {
   name: 'Ring Assemblies (von Baeyer System)',
   description: 'Apply von Baeyer bicyclo/tricyclo nomenclature for bridged systems (P-2.3)',
   blueBookReference: BLUE_BOOK_RULES.P2_3,
-  priority: 75,
+  priority: RulePriority.SEVEN,
   conditions: (context) => {
     const candidateRings = context.getState().candidateRings;
     if (process.env.VERBOSE) {
@@ -924,7 +924,7 @@ export const P2_4_SPIRO_COMPOUNDS_RULE: IUPACRule = {
   name: 'Spiro Compounds',
   description: 'Apply spiro[x.y]alkane nomenclature for spiro systems (P-2.4)',
   blueBookReference: BLUE_BOOK_RULES.P2_4,
-  priority: 74,
+  priority: RulePriority.SEVEN,
   conditions: (context) => {
     const candidateRings = context.getState().candidateRings;
     if (!candidateRings || candidateRings.length === 0 || context.getState().parentStructure) {
@@ -979,7 +979,7 @@ export const P2_5_FUSED_RING_SYSTEMS_RULE: IUPACRule = {
   name: 'Fused Ring Systems',
   description: 'Apply fusion nomenclature for fused polycyclic systems (P-2.5)',
   blueBookReference: BLUE_BOOK_RULES.P2_5,
-  priority: 73,
+  priority: RulePriority.SEVEN,
   conditions: (context) => {
     const candidateRings = context.getState().candidateRings;
     return candidateRings && candidateRings.length > 1 && !context.getState().parentStructure;
