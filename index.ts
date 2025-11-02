@@ -37,15 +37,25 @@ import { parseMolfile } from 'src/parsers/molfile-parser';
 import type { Molecule } from 'types';
 import type { NamingResult } from 'src/iupac-engine/types';
 
-// Create a singleton instance for efficiency
-const iupacNamer = new IUPACNamer();
+// Export IUPACNamer class for advanced usage
+export { IUPACNamer };
+export type { NamingResult };
+
+// Lazy singleton instance for efficiency
+let iupacNamer: IUPACNamer | null = null;
+function getIUPACNamer(): IUPACNamer {
+  if (!iupacNamer) {
+    iupacNamer = new IUPACNamer();
+  }
+  return iupacNamer;
+}
 
 /**
  * Generate IUPAC name for a molecule
  */
 export function generateIUPACName(molecule: Molecule, options?: IUPACGeneratorOptions): IUPACGenerationResult {
   try {
-    const result = iupacNamer.generateName(molecule);
+    const result = getIUPACNamer().generateName(molecule);
     return {
       name: result.name,
       errors: [],
@@ -69,7 +79,7 @@ export function generateIUPACName(molecule: Molecule, options?: IUPACGeneratorOp
  */
 export function generateIUPACNameFromSMILES(smiles: string): IUPACGenerationResult {
   try {
-    const result = iupacNamer.generateNameFromSMILES(smiles);
+    const result = getIUPACNamer().generateNameFromSMILES(smiles);
     return {
       name: result.name,
       errors: [],
