@@ -4,6 +4,7 @@ import { ExecutionPhase } from '../immutable-context';
 import { classifyRingSystems, analyzeRings } from '../../utils/ring-analysis';
 import type { Molecule } from '../../../types';
 import { BondType } from '../../../types';
+import { generateCyclicName, generateBaseCyclicName } from '../naming/iupac-rings/index';
 
 /**
  * Ring Analysis Layer Rules (P-44.2, P-44.4)
@@ -276,11 +277,13 @@ export const RING_SELECTION_COMPLETE_RULE: IUPACRule = {
     
     // Select the final ring system
     const parentRing = candidateRings[0];
+    const molecule = context.getState().molecule;
+    const ringInfo = analyzeRings(molecule);
     
     const parentStructure = {
       type: 'ring' as const,
       ring: parentRing,
-      name: generateRingName(parentRing, context.getState().molecule),
+      name: generateBaseCyclicName(molecule, ringInfo),
       locants: generateRingLocants(parentRing)
     };
     

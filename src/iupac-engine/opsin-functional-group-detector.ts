@@ -771,7 +771,7 @@ export class OPSINFunctionalGroupDetector {
     return [];
   }
 
-  private findAmidePattern(atoms: readonly any[], bonds: readonly any[]): number[] {
+  private findAmidePattern(atoms: readonly any[], bonds: readonly any[], rings?: readonly (readonly number[])[]): number[] {
     // Look for carbonyl carbon (C=O) bonded to nitrogen
     for (let i = 0; i < atoms.length; i++) {
       const atom = atoms[i];
@@ -794,10 +794,56 @@ export class OPSINFunctionalGroupDetector {
       if (nitrogenBond) {
         const oxygen = this.getBondedAtom(doubleBondOxygen, atom.id, atoms)!;
         const nitrogen = this.getBondedAtom(nitrogenBond, atom.id, atoms)!;
+        
+        // Check if carbonyl is incorporated into a heterocycle with "-one" suffix
+        // If C and N are both in the same ring, this might be a lactam/cyclic amide
+        // that's already named as part of the heterocycle (e.g., diaziridin-3-one)
+        if (rings && rings.length > 0) {
+          const carbonylInRing = atom.ringIds || [];
+          const nitrogenInRing = nitrogen.ringIds || [];
+          
+          // Find common rings between C and N
+          const commonRings = carbonylInRing.filter((ringId: number) => nitrogenInRing.includes(ringId));
+          
+          if (commonRings.length > 0) {
+            // Check if any of these rings is a heterocycle with "-one" suffix
+            let skipAmide = false;
+            for (const ringId of commonRings) {
+              const ring = rings[ringId];
+              if (ring && this.isHeterocycleWithCarbonyl(ring, atoms)) {
+                // Skip this amide - it's already incorporated in heterocycle name
+                skipAmide = true;
+                break;
+              }
+            }
+            if (skipAmide) {
+              continue; // Skip to next carbon atom
+            }
+          }
+        }
+        
         return [atom.id, oxygen.id, nitrogen.id];
       }
     }
     return [];
+  }
+  
+  private isHeterocycleWithCarbonyl(ring: readonly number[], atoms: readonly any[]): boolean {
+    // Check if this is a heterocycle with a carbonyl (e.g., diaziridin-3-one)
+    // Simple heuristic: 3-membered ring with 2+ heteroatoms (N, O, S) and a C=O
+    const ringAtoms = ring.map(idx => atoms[idx]).filter((a): a is any => a !== undefined);
+    
+    if (ringAtoms.length === 3) {
+      const heteroCount = ringAtoms.filter(a => a.symbol !== 'C').length;
+      const nitrogenCount = ringAtoms.filter(a => a.symbol === 'N').length;
+      
+      // Diaziridin-3-one case: 3-membered ring, 2 nitrogens, 1 carbon with C=O
+      if (nitrogenCount === 2 && heteroCount === 2) {
+        return true;
+      }
+    }
+    
+    return false;
   }
   
   private findSulfonicAcidPattern(atoms: readonly any[], bonds: readonly any[]): number[] {

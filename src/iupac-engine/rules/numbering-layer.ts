@@ -527,7 +527,13 @@ export const RING_NUMBERING_RULE: IUPACRule = {
     
     // Reorder ring.atoms array to match the optimized numbering
     // This ensures that ring.atoms[0] corresponds to locant 1, ring.atoms[1] to locant 2, etc.
+    if (process.env.VERBOSE) {
+      console.log(`[Ring Numbering] Before reorderRingAtoms: ring.atoms = [${ring.atoms.map((a: any) => a.id).join(', ')}], startingPosition = ${startingPosition}`);
+    }
     const reorderedAtoms = reorderRingAtoms(ring.atoms, startingPosition);
+    if (process.env.VERBOSE) {
+      console.log(`[Ring Numbering] After reorderRingAtoms: reorderedAtoms = [${reorderedAtoms.map((a: any) => a.id).join(', ')}]`);
+    }
     const reorderedBonds = ring.bonds; // Bonds don't need reordering as they reference atom IDs
     
     // Create mapping from atom ID to new ring position (1-based)
@@ -1462,7 +1468,81 @@ function compareLocantSets(a: number[], b: number[]): number {
 }
 
 function findRingStartingPosition(ring: any, molecule?: any, functionalGroups?: any[]): number {
-  // Start at heteroatom if present, but consider numbering direction
+  // Find all heteroatoms in the ring
+  const heteroatomIndices: number[] = [];
+  for (let i = 0; i < ring.atoms.length; i++) {
+    const atom = ring.atoms[i];
+    if (atom.symbol !== 'C') {
+      heteroatomIndices.push(i);
+    }
+  }
+  
+  // If multiple heteroatoms, find arrangement that gives lowest heteroatom locants
+  if (heteroatomIndices.length > 1 && molecule) {
+    let bestArrangement: { atoms: any[], start: number } | null = null;
+    let bestHeteroatomLocants: number[] = [];
+    
+    // Try each heteroatom as starting position, both clockwise and counterclockwise
+    for (const startIdx of heteroatomIndices) {
+      // Try clockwise from this heteroatom
+      const cwAtoms = [...ring.atoms.slice(startIdx), ...ring.atoms.slice(0, startIdx)];
+      const cwHeteroLocants = heteroatomIndices
+        .map(idx => {
+          const offset = (idx - startIdx + ring.atoms.length) % ring.atoms.length;
+          return offset + 1; // 1-based locant
+        })
+        .sort((a, b) => a - b);
+      
+      // Try counterclockwise from this heteroatom
+      const heteroAtom = ring.atoms[startIdx];
+      const before = ring.atoms.slice(0, startIdx).reverse();
+      const after = ring.atoms.slice(startIdx + 1).reverse();
+      const ccwAtoms = [heteroAtom, ...after, ...before];
+      const ccwHeteroLocants = heteroatomIndices
+        .map(idx => {
+          // Find where this heteroatom ended up in the new arrangement
+          const atomId = ring.atoms[idx].id;
+          const newIdx = ccwAtoms.findIndex((a: any) => a.id === atomId);
+          return newIdx + 1; // 1-based locant
+        })
+        .sort((a, b) => a - b);
+      
+      // Compare with current best
+      if (!bestArrangement || compareLocantSets(cwHeteroLocants, bestHeteroatomLocants) < 0) {
+        bestArrangement = { atoms: cwAtoms, start: 1 };
+        bestHeteroatomLocants = cwHeteroLocants;
+      }
+      
+      if (compareLocantSets(ccwHeteroLocants, bestHeteroatomLocants) < 0) {
+        bestArrangement = { atoms: ccwAtoms, start: 1 };
+        bestHeteroatomLocants = ccwHeteroLocants;
+      }
+    }
+    
+    if (bestArrangement) {
+      const oldAtoms = ring.atoms.map((a: any) => a.id);
+      ring.atoms = bestArrangement.atoms;
+      if (process.env.VERBOSE) {
+        console.log(`[findRingStartingPosition] BEFORE mutation: ring.atoms = [${oldAtoms.join(', ')}]`);
+        console.log(`[findRingStartingPosition] AFTER mutation: ring.atoms = [${ring.atoms.map((a: any) => a.id).join(', ')}]`);
+        console.log(`[Ring Numbering] Multiple heteroatoms - reordered to [${ring.atoms.map((a: any) => `${a.id}:${a.symbol}`).join(', ')}] for lowest heteroatom locants [${bestHeteroatomLocants.join(', ')}]`);
+      }
+      
+      // NOTE: We already optimized for lowest heteroatom locants above.
+      // The Blue Book rule for multiple heteroatoms (P-14.3.5) states that heteroatoms
+      // should get the lowest locants, which we've already done.
+      // Substituent-based optimization should NOT override this, as heteroatom locants
+      // have higher priority than substituent locants.
+      // Therefore, we do NOT call findOptimalRingNumberingFromHeteroatom here.
+      
+      if (process.env.VERBOSE) {
+        console.log(`[findRingStartingPosition] About to return 1, ring.atoms is now: [${ring.atoms.map((a: any) => a.id).join(', ')}]`);
+      }
+      return 1;
+    }
+  }
+  
+  // Single heteroatom or no heteroatoms - use original logic
   let heteroatomIndex = -1;
   for (let i = 0; i < ring.atoms.length; i++) {
     const atom = ring.atoms[i];

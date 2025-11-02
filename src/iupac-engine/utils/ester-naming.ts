@@ -737,6 +737,89 @@ export function buildEsterName(parentStructure: any, esterGroup: any, molecule: 
       return false;
     })
   );
+
+  // Also consider substituents recorded on the parent chain (which may represent the alkoxy chain)
+  // e.g., trimethylsilyloxy recorded in parentStructure.chain.substituents for the alkoxy group
+  try {
+    const parentSubstituents = parentStructure.chain?.substituents || [];
+    for (const sub of parentSubstituents) {
+      // Avoid duplicates by checking if a similar type already exists in alkoxySubstituents
+      const key = (sub.type || sub.name || '').toString();
+      // We'll attempt to find an attachment atom below; declare here so we can merge if needed
+      let attachmentAtomId: number | undefined;
+      const exists = alkoxySubstituents.some((s: any) => (s.type || s.prefix || s.name || '').toString() === key);
+  if (!exists) {
+        // Attempt to find the attachment atom in the molecule for this substituent
+        let attachmentAtomId: number | undefined;
+
+        try {
+          // If substituent looks like a silyloxy group, find an O bonded to an alkoxy carbon that connects to Si
+          const typeStr = (sub.type || sub.name || '').toString().toLowerCase();
+          if (typeStr.includes('silyl') || typeStr.includes('silyloxy') || typeStr.includes('trimethylsilyl')) {
+            for (const cid of Array.from(alkoxyCarbonIds)) {
+              for (const b of molecule.bonds) {
+                if (b.type !== 'single') continue;
+                const other = b.atom1 === cid ? b.atom2 : (b.atom2 === cid ? b.atom1 : undefined);
+                if (other === undefined) continue;
+                const otherAtom = molecule.atoms[other];
+                if (!otherAtom || otherAtom.symbol !== 'O') continue;
+                // check if this oxygen connects to Si
+                const neigh = molecule.bonds
+                  .filter((bb: any) => (bb.atom1 === other || bb.atom2 === other) && bb.type === 'single')
+                  .map((bb: any) => (bb.atom1 === other ? bb.atom2 : bb.atom1))
+                  .map((id: number) => molecule.atoms[id]);
+                if (neigh.some((na: any) => na && na.symbol === 'Si')) {
+                  attachmentAtomId = other;
+                  break;
+                }
+              }
+              if (attachmentAtomId) break;
+            }
+          }
+
+          // Fallback: find a carbon neighbor of alkoxy carbons that likely represents a simple alkyl branch
+          if (!attachmentAtomId) {
+            for (const cid of Array.from(alkoxyCarbonIds)) {
+              for (const b of molecule.bonds) {
+                if (b.type !== 'single') continue;
+                const other = b.atom1 === cid ? b.atom2 : (b.atom2 === cid ? b.atom1 : undefined);
+                if (other === undefined) continue;
+                const otherAtom = molecule.atoms[other];
+                if (!otherAtom) continue;
+                if (otherAtom.symbol === 'C' && !alkoxyCarbonIds.has(other)) {
+                  attachmentAtomId = other;
+                  break;
+                }
+              }
+              if (attachmentAtomId) break;
+            }
+          }
+        } catch (e) {
+          // ignore errors, leave attachmentAtomId undefined
+        }
+
+        const newEntry: any = {
+          type: sub.type || sub.name || 'substituent',
+          prefix: sub.prefix || sub.name || undefined,
+          atoms: attachmentAtomId ? [attachmentAtomId] : [],
+          isPrincipal: false
+        };
+
+        alkoxySubstituents.push(newEntry);
+      } else {
+        // merge attachment atom into existing entry so multiplicities (bis/tri) can be computed
+        if (attachmentAtomId) {
+          const existing = alkoxySubstituents.find((s: any) => (s.type || s.prefix || s.name || '').toString() === key);
+          if (existing) {
+            existing.atoms = existing.atoms || [];
+            if (!existing.atoms.includes(attachmentAtomId)) existing.atoms.push(attachmentAtomId);
+          }
+        }
+      }
+    }
+  } catch (e) {
+    // non-fatal - just proceed
+  }
   
   if (process.env.VERBOSE) {
     console.log('[buildEsterName] alkoxySubstituents:', alkoxySubstituents.map(s => ({ type: s.type, prefix: s.prefix, atoms: s.atoms })));
@@ -783,81 +866,147 @@ export function buildEsterName(parentStructure: any, esterGroup: any, molecule: 
     // Build substituent prefixes with locants
     const substituentParts: string[] = [];
     const substituentGroups = new Map<string, number[]>();
-    
+
+    // First, incorporate any known alkoxySubstituents (from functional groups / parent substituents)
     for (const sub of alkoxySubstituents) {
       const subName = sub.prefix || sub.name || sub.type;
-      
-      // Find which carbon in the alkoxy chain this substituent is attached to
       let attachmentCarbon: number | undefined;
       if (sub.atoms && sub.atoms.length > 0) {
-        // For acyloxy groups: atoms = [carbonyl C, carbonyl O (double bond), ester O (single bond)]
-        // The ester oxygen that connects to the alkoxy chain is at index 2
-        // For alkoxy groups: atoms = [ether O], so oxygen is at index 0
-        const oxygenIndices = sub.type === 'acyloxy' ? [2] : [0];
-        
-        for (const oxygenIdx of oxygenIndices) {
-          if (oxygenIdx < sub.atoms.length) {
-            const subOxygenId = sub.atoms[oxygenIdx];
-            
-            for (const bond of molecule.bonds) {
-              if (bond.atom1 === subOxygenId && alkoxyCarbonIds.has(bond.atom2)) {
-                attachmentCarbon = bond.atom2;
-                break;
-              } else if (bond.atom2 === subOxygenId && alkoxyCarbonIds.has(bond.atom1)) {
-                attachmentCarbon = bond.atom1;
-                break;
-              }
+        // Try to find an alkoxy carbon connected to one of the atoms reported for this substituent
+        for (const atomId of sub.atoms) {
+          for (const bond of molecule.bonds) {
+            if (bond.atom1 === atomId && alkoxyCarbonIds.has(bond.atom2)) {
+              attachmentCarbon = bond.atom2; break;
+            } else if (bond.atom2 === atomId && alkoxyCarbonIds.has(bond.atom1)) {
+              attachmentCarbon = bond.atom1; break;
             }
-            
-            if (attachmentCarbon !== undefined) break;
           }
+          if (attachmentCarbon !== undefined) break;
         }
       }
-      
+
       if (attachmentCarbon !== undefined && subName) {
         const locant = atomIdToLocant.get(attachmentCarbon);
         if (locant) {
-          if (!substituentGroups.has(subName)) {
-            substituentGroups.set(subName, []);
-          }
+          if (!substituentGroups.has(subName)) substituentGroups.set(subName, []);
           substituentGroups.get(subName)!.push(locant);
         }
       }
     }
-    
-    // Format substituent parts
-    for (const [subName, locants] of substituentGroups.entries()) {
-      locants.sort((a, b) => a - b);
-      const locantStr = locants.join(',');
-      substituentParts.push(`${locantStr}-${subName}`);
+
+    // Next, scan the alkoxy chain directly to discover substituents (robust against missing atoms arrays)
+    for (const atomId of alkoxyChain) {
+      const locant = atomIdToLocant.get(atomId);
+      if (!locant) continue;
+
+      for (const bond of molecule.bonds) {
+        const otherId = bond.atom1 === atomId ? bond.atom2 : (bond.atom2 === atomId ? bond.atom1 : undefined);
+        if (otherId === undefined) continue;
+        const otherAtom = molecule.atoms[otherId];
+        if (!otherAtom) continue;
+
+        // Detect silyloxy: oxygen neighbor that connects to Si
+        if (otherAtom.symbol === 'O') {
+          const neigh = molecule.bonds
+            .filter((bb: any) => (bb.atom1 === otherId || bb.atom2 === otherId) && bb.type === 'single')
+            .map((bb: any) => (bb.atom1 === otherId ? bb.atom2 : bb.atom1))
+            .map((id: number) => molecule.atoms[id]);
+          if (neigh.some((na: any) => na && na.symbol === 'Si')) {
+            const name = 'trimethylsilyloxy';
+            if (!substituentGroups.has(name)) substituentGroups.set(name, []);
+            substituentGroups.get(name)!.push(locant);
+            continue;
+          }
+        }
+
+        // Detect simple alkyl branch (methyl)
+        if (otherAtom.symbol === 'C' && !alkoxyCarbonIds.has(otherId)) {
+          // Heuristic: terminal carbon (degree 1) -> methyl
+          if (otherAtom.degree <= 1 || molecule.bonds.filter((bb: any) => bb.atom1 === otherId || bb.atom2 === otherId).length <= 1) {
+            const name = 'methyl';
+            if (!substituentGroups.has(name)) substituentGroups.set(name, []);
+            substituentGroups.get(name)!.push(locant);
+            continue;
+          }
+          // Could be larger branch; name as alkyl (fallback)
+          const name = 'alkyl';
+          if (!substituentGroups.has(name)) substituentGroups.set(name, []);
+          substituentGroups.get(name)!.push(locant);
+        }
+      }
     }
     
-    // Sort substituent parts alphabetically by name
+    // Format substituent parts: group locants, dedupe, and use multiplicative words for complex substituents
+    for (const [subName, locants] of substituentGroups.entries()) {
+      const uniqueLocants = Array.from(new Set(locants)).sort((a, b) => a - b);
+      const locantStr = uniqueLocants.join(',');
+      if (uniqueLocants.length > 1) {
+        const multWords: any = {2: 'bis', 3: 'tris', 4: 'tetrakis'};
+        const mult = multWords[uniqueLocants.length] || getMultiplicativePrefix(uniqueLocants.length);
+        substituentParts.push(`${locantStr}-${mult}(${subName})`);
+      } else {
+        substituentParts.push(`${locantStr}-${subName}`);
+      }
+    }
+
+    // Sort substituent parts alphabetically by substituent name (after the locant and dash)
     substituentParts.sort((a, b) => {
-      const aName = a.split('-').slice(1).join('-');
-      const bName = b.split('-').slice(1).join('-');
+      const aName = a.replace(/^[0-9,\-]+-/, '');
+      const bName = b.replace(/^[0-9,\-]+-/, '');
       return aName.localeCompare(bName);
     });
-    
+
     // Build base alkyl name
-    const alkylNames = [
-      '', 'meth', 'eth', 'prop', 'but', 'pent', 'hex', 'hept', 'oct', 'non', 'dec'
-    ];
-    
+    const alkylNames = ['', 'meth', 'eth', 'prop', 'but', 'pent', 'hex', 'hept', 'oct', 'non', 'dec'];
     const baseSuffix = (alkoxyLength < alkylNames.length && alkylNames[alkoxyLength]) ? alkylNames[alkoxyLength] : `C${alkoxyLength}-alk`;
-    const substituentPrefix = substituentParts.length > 0 ? substituentParts.join('-') : '';
-    alkylName = substituentPrefix ? `(${substituentPrefix}${baseSuffix}yl)` : `${baseSuffix}yl`;
+    const substituentPrefix = substituentParts.length > 0 ? substituentParts.join('') : '';
+    // For substituted alkyls, combine substituent prefix + baseSuffix + 'yl'
+    alkylName = substituentPrefix ? `${substituentPrefix}${baseSuffix}yl` : `${baseSuffix}yl`;
   } else {
     // Simple alkoxy group - use getAlkoxyGroupName to detect branching
     alkylName = getAlkoxyGroupName(esterGroup, molecule);
   }
   
-  const acylNames = [
-    '', 'formate', 'acetate', 'propanoate', 'butanoate', 'pentanoate', 'hexanoate', 
-    'heptanoate', 'octanoate', 'nonanoate', 'decanoate'
-  ];
-  
-  const acylName = acylLength < acylNames.length ? acylNames[acylLength] : `C${acylLength}-anoate`;
+  // Prefer deriving the acyl name from the parentStructure.chain when the parent chain contains the carbonyl carbon
+  let acylName = '';
+  try {
+  const parentChainAtoms = (parentStructure.chain?.atoms || []).map((a: any) => (a && typeof a === 'object' && typeof a.id === 'number') ? a.id : a);
+    const parentIsAcyl = carbonylCarbonId !== undefined && parentChainAtoms.includes(carbonylCarbonId);
+
+    if (parentIsAcyl) {
+      if (process.env.VERBOSE) console.log('[buildEsterName] parentIsAcyl true, parentChainAtoms:', parentChainAtoms);
+      // Count carbon atoms in parent chain
+      const carbonCount = (parentStructure.chain?.atoms || []).filter((a: any) => {
+        const atomId = (a && typeof a === 'object' && typeof a.id === 'number') ? a.id : a;
+        return molecule.atoms[atomId]?.symbol === 'C';
+      }).length;
+      if (process.env.VERBOSE) console.log('[buildEsterName] computed carbonCount from parent chain:', carbonCount);
+
+      // Build substituent part from parent chain substituents (e.g., 2-methyl)
+      const acylSubs = parentStructure.chain?.substituents || [];
+      const acylSubParts: string[] = [];
+      for (const s of acylSubs) {
+        const loc = s.locant || s.position;
+        const name = s.name || s.type;
+        if (loc && name && !(name || '').toLowerCase().includes('oxy')) {
+          acylSubParts.push(`${loc}-${name}`);
+        }
+      }
+
+      const baseNames = ['', 'methane', 'ethane', 'propane', 'butane', 'pentane', 'hexane', 'heptane', 'octane', 'nonane', 'decane'];
+      const base = carbonCount < baseNames.length ? baseNames[carbonCount] : `C${carbonCount}-alkane`;
+    const baseAnoate = (base || '').replace('ane', 'anoate');
+    acylName = acylSubParts.length > 0 ? `${acylSubParts.join(',')}${baseAnoate}` : baseAnoate;
+    } else {
+      const acylNames = ['', 'formate', 'acetate', 'propanoate', 'butanoate', 'pentanoate', 'hexanoate', 
+        'heptanoate', 'octanoate', 'nonanoate', 'decanoate'];
+        acylName = (acylLength < acylNames.length && acylNames[acylLength]) ? acylNames[acylLength] : `C${acylLength}-anoate`;
+    }
+  } catch (e) {
+    const acylNames = ['', 'formate', 'acetate', 'propanoate', 'butanoate', 'pentanoate', 'hexanoate', 
+      'heptanoate', 'octanoate', 'nonanoate', 'decanoate'];
+      acylName = (acylLength < acylNames.length && acylNames[acylLength]) ? acylNames[acylLength] : `C${acylLength}-anoate`;
+  }
   
   const result = alkoxySubstituents.length > 0 ? `${alkylName}${acylName}` : `${alkylName} ${acylName}`;
   

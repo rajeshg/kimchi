@@ -66,10 +66,14 @@ export const P3_1_HETEROATOM_SUBSTITUENT_RULE: IUPACRule = {
       const substituentName = getSubstituentName(otherAtom, molecule, heteroatomIndex);
 
       if (substituentName) {
+        if (process.env.VERBOSE) {
+          console.log(`[P-3.1] Detected substituent on heteroatom: name=${substituentName}, atomIndex=${otherAtomIndex}, atom=${otherAtom.symbol}`);
+        }
         substituents.push({
           name: substituentName,
           locant: '', // For heteroatoms, locants are not used in simple cases
-          atoms: [otherAtom],
+          atoms: [otherAtom],            // keep object for backward compatibility
+          atomIndices: [otherAtomIndex], // explicit atom indices for robust downstream processing
           bond: bond
         });
       }
@@ -100,17 +104,34 @@ export const P3_1_HETEROATOM_SUBSTITUENT_RULE: IUPACRule = {
  */
 function getSubstituentName(attachedAtom: any, molecule: any, fromIndex: number): string | null {
   if (!attachedAtom) return null;
-
   const symbol = attachedAtom.symbol;
+
+  // Helper: get atom index robustly (accept atom object or numeric index)
+  const getAtomIndex = (a: any) => {
+    if (a === undefined || a === null) return -1;
+    if (typeof a === 'number') return a;
+    if (typeof a.id === 'number') {
+      // Prefer atom.id if present
+      const idx = molecule.atoms.findIndex((x: any) => x.id === a.id);
+      return idx >= 0 ? idx : molecule.atoms.indexOf(a);
+    }
+    return molecule.atoms.indexOf(a);
+  };
 
   // Carbon-based substituents
   if (symbol === 'C') {
-    // Traverse the substituent chain starting from this carbon
-    const substituentChain = traverseSubstituentChain(attachedAtom, molecule, fromIndex);
+    // Traverse the substituent chain starting from this carbon (use indices)
+    const startIdx = getAtomIndex(attachedAtom);
+    const chainIndices = traverseSubstituentChainByIndex(startIdx, molecule, fromIndex);
 
-    if (substituentChain.length === 1) {
-      // Single carbon substituents
-      const atom = substituentChain[0];
+    // If traversal produced no carbons, bail
+    if (!chainIndices || chainIndices.length === 0) return null;
+
+    // Single carbon substituents -> methyl/methylene/methine
+    if (chainIndices.length === 1) {
+      const firstIdx = chainIndices[0];
+      if (typeof firstIdx !== 'number') return null;
+      const atom = molecule.atoms[firstIdx];
       const hydrogens = atom.hydrogens || 0;
       switch (hydrogens) {
         case 3: return 'methyl';
@@ -119,23 +140,30 @@ function getSubstituentName(attachedAtom: any, molecule: any, fromIndex: number)
         case 0: return 'carbon';
         default: return null;
       }
-    } else if (substituentChain.length === 2) {
-      // Two carbon substituents
-      return 'ethyl';
-    } else if (substituentChain.length === 3) {
-      // Three carbon substituents
-      return 'propyl';
-    } else if (substituentChain.length === 4) {
-      // Four carbon substituents
-      return 'butyl';
-    } else if (substituentChain.length === 5) {
-      // Five carbon substituents
-      return 'pentyl';
-    } else if (substituentChain.length === 6) {
-      // Six carbon substituents
-      return 'hexyl';
     }
-    // For longer chains, could implement more complex logic
+
+    // For simple linear alkyls, map by length
+    const alkylNames: Record<number, string> = {
+      2: 'ethyl', 3: 'propyl', 4: 'butyl', 5: 'pentyl', 6: 'hexyl', 7: 'heptyl', 8: 'octyl', 9: 'nonyl', 10: 'decyl'
+    };
+
+    // Detect branching: if any carbon in chain has more than 2 carbon neighbors (excluding back to parent)
+    let branched = false;
+    for (const idx of chainIndices) {
+      const carbonNeighbors = molecule.bonds
+        .filter((b: any) => (b.atom1 === idx || b.atom2 === idx) && b.type === 'single')
+        .map((b: any) => (b.atom1 === idx ? b.atom2 : b.atom1))
+        .filter((nid: number) => molecule.atoms[nid]?.symbol === 'C' && nid !== getAtomIndex({ id: molecule.atoms[fromIndex]?.id }));
+      if (carbonNeighbors.length > 2) { branched = true; break; }
+    }
+
+    if (!branched) {
+      const candidate = alkylNames[chainIndices.length];
+      if (candidate) return candidate;
+    }
+
+    // For branched or longer chains we currently return a generic 'alkyl' placeholder
+    return 'alkyl';
   }
 
   // Aromatic substituents
@@ -143,10 +171,21 @@ function getSubstituentName(attachedAtom: any, molecule: any, fromIndex: number)
     // Check if it's a phenyl group (benzene ring)
     const ringAtoms = findRingContainingAtom(attachedAtom, molecule);
     if (ringAtoms && ringAtoms.length === 6) {
-      // Check if all ring atoms are carbon
       const allCarbon = ringAtoms.every((atom: any) => atom.symbol === 'C');
-      if (allCarbon) {
-        return 'phenyl';
+      if (allCarbon) return 'phenyl';
+    }
+  }
+
+  // If the attached atom is nitrogen attached to an aromatic carbon, treat as anilino
+  if (symbol === 'N') {
+    const nIdx = getAtomIndex(attachedAtom);
+    for (const b of molecule.bonds) {
+      if ((b.atom1 === nIdx || b.atom2 === nIdx) && b.type === 'single') {
+        const other = b.atom1 === nIdx ? b.atom2 : b.atom1;
+        const otherAtom = molecule.atoms[other];
+        if (otherAtom && otherAtom.symbol === 'C' && otherAtom.aromatic) {
+          return 'anilino';
+        }
       }
     }
   }
@@ -167,36 +206,40 @@ function getSubstituentName(attachedAtom: any, molecule: any, fromIndex: number)
  * Traverse a substituent chain starting from an attached atom
  */
 function traverseSubstituentChain(startAtom: any, molecule: any, excludeIndex: number): any[] {
+  // Backwards-compatible wrapper: accept atom object or index
+  const startIdx = (typeof startAtom === 'number') ? startAtom : molecule.atoms.indexOf(startAtom);
+  return traverseSubstituentChainByIndex(startIdx, molecule, excludeIndex).map((i) => molecule.atoms[i]);
+}
+
+/**
+ * Traverse substituent chain starting from an atom index and return carbon atom indices
+ */
+function traverseSubstituentChainByIndex(startIndex: number, molecule: any, excludeIndex: number): number[] {
+  if (startIndex === undefined || startIndex < 0) return [];
   const visited = new Set<number>();
-  const chain: any[] = [];
+  const stack = [startIndex];
 
-  function dfs(atom: any, fromIndex: number): void {
-    const atomIndex = molecule.atoms.indexOf(atom);
-    if (visited.has(atomIndex)) return;
+  while (stack.length > 0) {
+    const idx = stack.pop()!;
+    if (visited.has(idx)) continue;
+    const atom = molecule.atoms[idx];
+    if (!atom || atom.symbol !== 'C') continue;
+    visited.add(idx);
 
-    visited.add(atomIndex);
-    chain.push(atom);
-
-    // Find connected atoms (excluding the one we came from and the heteroatom)
-    const connectedBonds = molecule.bonds.filter((bond: any) =>
-      (bond.atom1 === atomIndex || bond.atom2 === atomIndex) &&
-      (bond.atom1 !== fromIndex && bond.atom2 !== fromIndex) &&
-      (bond.atom1 !== excludeIndex && bond.atom2 !== excludeIndex)
-    );
-
-    for (const bond of connectedBonds) {
-      const nextIndex = bond.atom1 === atomIndex ? bond.atom2 : bond.atom1;
-      const nextAtom = molecule.atoms[nextIndex];
-
-      // Only traverse carbon chains for now
-      if (nextAtom.symbol === 'C' && !visited.has(nextIndex)) {
-        dfs(nextAtom, atomIndex);
+    // push neighboring carbon atoms (single bonds), excluding the heteroatom index
+    for (const b of molecule.bonds) {
+      if (b.type !== 'single') continue;
+      const other = b.atom1 === idx ? b.atom2 : (b.atom2 === idx ? b.atom1 : undefined);
+      if (other === undefined) continue;
+      if (other === excludeIndex) continue;
+      const otherAtom = molecule.atoms[other];
+      if (otherAtom && otherAtom.symbol === 'C' && !visited.has(other)) {
+        stack.push(other);
       }
     }
   }
 
-  dfs(startAtom, excludeIndex);
-  return chain;
+  return Array.from(visited);
 }
 
 /**

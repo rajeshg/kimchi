@@ -97,6 +97,9 @@ export function findMainChain(molecule: Molecule): number[] {
   
   // Exclude all ring atoms from the main chain
   // Rings should be treated as substituents unless P-44.1.1 or other rules override this
+  // Exclude all ring atoms from the main chain by default. This keeps rings
+  // treated as substituents which is the historically-correct behavior for
+  // selecting a hydrocarbon parent chain in the presence of aromatic systems.
   if (molecule.rings && molecule.rings.length > 0) {
     for (const ring of molecule.rings) {
       for (const atomId of ring) {
@@ -1700,20 +1703,124 @@ function nameAlkoxySubstituent(
   const carbonAtoms = Array.from(substituentAtoms)
     .filter(idx => molecule.atoms[idx]?.symbol === 'C');
   
-  // Check for nested oxygens in the substituent
+  // Check for nested oxygens in the substituent (ether-like oxygens only)
+  // Exclude carbonyl oxygens or nitro oxygens (double-bonded O) which are not
+  // part of an ether chain. We only consider oxygens that have at least one
+  // single bond (typical for ethers) and are not double-bonded to carbon.
   const oxygenAtoms = Array.from(substituentAtoms)
-    .filter(idx => molecule.atoms[idx]?.symbol === 'O' && idx !== oxygenAtomIdx);
+    .filter(idx => {
+      const atom = molecule.atoms[idx];
+      if (!atom || atom.symbol !== 'O' || idx === oxygenAtomIdx) return false;
+      const bondsToO = molecule.bonds.filter(b => b.atom1 === idx || b.atom2 === idx);
+      // must have at least one single bond
+      const hasSingle = bondsToO.some(b => b.type === BondType.SINGLE);
+      if (!hasSingle) return false;
+      // exclude oxygens that have a double bond to carbon (carbonyl)
+      const hasDoubleToC = bondsToO.some(b => b.type === BondType.DOUBLE && (molecule.atoms[b.atom1 === idx ? b.atom2 : b.atom1]?.symbol === 'C'));
+      if (hasDoubleToC) return false;
+      return true;
+    });
   
   if (process.env.VERBOSE) {
     console.log(`[nameAlkoxySubstituent] carbonAtoms=${carbonAtoms.join(',')}, nestedOxygens=${oxygenAtoms.join(',')}`);
   }
   
+  // Special-case: silyl-protected oxygens (O-Si). If oxygen is bonded to a silicon
+  // atom, try to construct a trialkylsilyl name (e.g., trimethylsilyl) and return
+  // the silyloxy substituent name (e.g., trimethylsilyloxy). This covers common
+  // protecting groups like TMS (trimethylsilyl).
+  for (const bond of molecule.bonds) {
+    if (bond.atom1 === oxygenAtomIdx || bond.atom2 === oxygenAtomIdx) {
+      const other = bond.atom1 === oxygenAtomIdx ? bond.atom2 : bond.atom1;
+      const otherAtom = molecule.atoms[other];
+      if (otherAtom && otherAtom.symbol === 'Si') {
+        if (process.env.VERBOSE) console.log(`[nameAlkoxySubstituent] Detected silicon at ${other} attached to O${oxygenAtomIdx}`);
+        // Inspect substituents on silicon to determine alkyl groups
+        const siAlkyls: string[] = [];
+        for (const b2 of molecule.bonds) {
+          if (b2.atom1 === other || b2.atom2 === other) {
+            const nbr = b2.atom1 === other ? b2.atom2 : b2.atom1;
+            const nbrAtom = molecule.atoms[nbr];
+            if (!nbrAtom) continue;
+            if (nbrAtom.symbol === 'C') {
+              // Check if this carbon is a methyl (no other carbon neighbors)
+              const carbonNeighbors = molecule.bonds.filter(bb => (bb.atom1 === nbr || bb.atom2 === nbr) && (bb.atom1 !== other && bb.atom2 !== other));
+              const isMethyl = carbonNeighbors.every(bb => molecule.atoms[(bb.atom1 === nbr ? bb.atom2 : bb.atom1)]?.symbol !== 'C');
+              siAlkyls.push(isMethyl ? 'methyl' : getAlkylName(1));
+            }
+          }
+        }
+
+        // Build silyl name: e.g., ['methyl','methyl','methyl'] -> 'trimethylsilyl'
+        if (siAlkyls.length > 0) {
+          // Count occurrences
+          const counts: Record<string, number> = {};
+          for (const a of siAlkyls) counts[a] = (counts[a] || 0) + 1;
+          const parts: string[] = [];
+          for (const [alk, cnt] of Object.entries(counts)) {
+            // Local multiplicative prefix helper (di, tri, tetra...)
+            const mult = cnt > 1 ? (cnt === 2 ? 'di' : cnt === 3 ? 'tri' : cnt === 4 ? 'tetra' : `${cnt}-`) : '';
+            parts.push(`${mult}${alk}`);
+          }
+          const silylBase = parts.join('');
+          const silylName = `${silylBase}silyl`;
+          return `${silylName}oxy`;
+        }
+        // Fallback: generic silyloxy
+        return 'silyloxy';
+      }
+    }
+  }
+
   if (carbonAtoms.length === 0) {
     return 'oxy'; // Just -O- with no carbons
   }
   
   // Handle nested ether structures
   if (oxygenAtoms.length > 0) {
+    // Check nested oxygens for silyl protection (O-Si). If any nested oxygen is
+    // bonded to a silicon atom, construct a silyloxy name like 'trimethylsilyloxy'.
+    for (const oIdx of oxygenAtoms) {
+      for (const b of molecule.bonds) {
+        if (b.atom1 === oIdx || b.atom2 === oIdx) {
+          const other = b.atom1 === oIdx ? b.atom2 : b.atom1;
+          const otherAtom = molecule.atoms[other];
+          if (otherAtom && otherAtom.symbol === 'Si') {
+            if (process.env.VERBOSE) console.log(`[nameAlkoxySubstituent] Detected silicon at ${other} attached to nested O${oIdx}`);
+            // Inspect substituents on silicon to determine alkyl groups
+            const siAlkyls: string[] = [];
+            for (const b2 of molecule.bonds) {
+              if (b2.atom1 === other || b2.atom2 === other) {
+                const nbr = b2.atom1 === other ? b2.atom2 : b2.atom1;
+                const nbrAtom = molecule.atoms[nbr];
+                if (!nbrAtom) continue;
+                if (nbrAtom.symbol === 'C') {
+                  // Determine if this carbon is methyl (no further carbon neighbors in substituent)
+                  const carbonNeighbors = molecule.bonds.filter(bb => (bb.atom1 === nbr || bb.atom2 === nbr) && (bb.atom1 !== other && bb.atom2 !== other));
+                  const isMethyl = carbonNeighbors.every(bb => molecule.atoms[(bb.atom1 === nbr ? bb.atom2 : bb.atom1)]?.symbol !== 'C');
+                  siAlkyls.push(isMethyl ? 'methyl' : getAlkylName(1));
+                }
+              }
+            }
+
+            if (siAlkyls.length > 0) {
+              const counts: Record<string, number> = {};
+              for (const a of siAlkyls) counts[a] = (counts[a] || 0) + 1;
+              const parts: string[] = [];
+              for (const [alk, cnt] of Object.entries(counts)) {
+                const mult = cnt > 1 ? (cnt === 2 ? 'di' : cnt === 3 ? 'tri' : cnt === 4 ? 'tetra' : `${cnt}-`) : '';
+                parts.push(`${mult}${alk}`);
+              }
+              const silylBase = parts.join('');
+              const silylName = `${silylBase}silyl`;
+              return `${silylName}oxy`;
+            }
+            return 'silyloxy';
+          }
+        }
+      }
+    }
+
     return nameComplexAlkoxySubstituent(molecule, substituentAtoms, oxygenAtomIdx, carbonAtoms, oxygenAtoms);
   }
   
