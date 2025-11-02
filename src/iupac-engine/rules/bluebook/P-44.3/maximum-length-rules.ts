@@ -7,6 +7,7 @@
 
 import { ImmutableNamingContext, ExecutionPhase } from '../../../immutable-context';
 import type { IUPACRule } from '../../../types';
+import { RulePriority } from '../../../types';
 
 /**
  * Blue Book Rule P-44.3.1: Maximum Length of Continuous Chain
@@ -123,7 +124,7 @@ export const P51_1_SUBSTITUTIVE_RULE: IUPACRule = {
   name: 'Substitutive Nomenclature Method',
   description: 'Select substitutive nomenclature as default method per Blue Book P-51.1',
   blueBookReference: 'P-51.1 - Substitutive nomenclature',
-  priority: 200,
+  priority: RulePriority.FIVE,
   conditions: (context: ImmutableNamingContext) => {
     const state = context.getState();
     return !state.nomenclatureMethod; // Only apply if no method selected yet

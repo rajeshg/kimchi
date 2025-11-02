@@ -9,6 +9,7 @@
  */
 
 import { ImmutableNamingContext, ExecutionPhase } from '../../../immutable-context';
+import { RulePriority } from '../../../types';
 import type { IUPACRule } from '../../../types';
 
 /**
@@ -22,7 +23,7 @@ export const P3_1_HETEROATOM_SUBSTITUENT_RULE: IUPACRule = {
   name: 'Heteroatom Parent Substituent Detection',
   description: 'Detect substituents attached to heteroatom parent hydrides',
   blueBookReference: 'P-3.1 - Substituent detection for heteroatom parents',
-  priority: 140, // Run after P-2.1 parent selection (priority 150)
+  priority: RulePriority.SIX, // was 140 - run after parent selection; use enum to keep ordering consistent
   conditions: (context: ImmutableNamingContext) => {
     const parentStructure = context.getState().parentStructure;
     if (process.env.VERBOSE) {
@@ -227,7 +228,7 @@ export const P3_2_RING_SUBSTITUENT_RULE: IUPACRule = {
   name: 'Ring Parent Substituent Detection',
   description: 'Detect substituents attached to ring parent structures',
   blueBookReference: 'P-3.2 - Substituent detection for ring parents',
-  priority: 155, // Run after ring numbering
+  priority: RulePriority.FIVE, // was 155 - should run after ring-numbering (RulePriority.TEN=100). use enum
   conditions: (context: ImmutableNamingContext) => {
     const parentStructure = context.getState().parentStructure;
     return parentStructure?.type === 'ring';
@@ -244,9 +245,11 @@ export const P3_2_RING_SUBSTITUENT_RULE: IUPACRule = {
     const ringAtomIds = new Set(ring.atoms.map((atom: any) => atom.id));
     const vonBaeyerNumbering = parentStructure.vonBaeyerNumbering;
 
-    console.log(`[P-3.2] Ring atom IDs in order: [${ring.atoms.map((a: any) => a.id).join(', ')}]`);
-    if (vonBaeyerNumbering) {
-      console.log(`[P-3.2] Using von Baeyer numbering:`, Array.from(vonBaeyerNumbering.entries()));
+    if (process.env.VERBOSE) {
+      console.log(`[P-3.2] Ring atom IDs in order: [${ring.atoms.map((a: any) => a.id).join(', ')}]`);
+      if (vonBaeyerNumbering) {
+        console.log(`[P-3.2] Using von Baeyer numbering:`, Array.from(vonBaeyerNumbering.entries()));
+      }
     }
 
     const substituents: any[] = [];
@@ -272,10 +275,14 @@ export const P3_2_RING_SUBSTITUENT_RULE: IUPACRule = {
             let position: number;
             if (vonBaeyerNumbering && vonBaeyerNumbering.has(ringAtom.id)) {
               position = vonBaeyerNumbering.get(ringAtom.id)!;
-              console.log(`[P-3.2] Detected substituent: ${substituentName} at ringAtom.id=${ringAtom.id}, von Baeyer position=${position}`);
+              if (process.env.VERBOSE) {
+                console.log(`[P-3.2] Detected substituent: ${substituentName} at ringAtom.id=${ringAtom.id}, von Baeyer position=${position}`);
+              }
             } else {
               position = ring.atoms.indexOf(ringAtom) + 1; // 1-based position
-              console.log(`[P-3.2] Detected substituent: ${substituentName} at ringAtom.id=${ringAtom.id}, indexOf=${ring.atoms.indexOf(ringAtom)}, position=${position}`);
+              if (process.env.VERBOSE) {
+                console.log(`[P-3.2] Detected substituent: ${substituentName} at ringAtom.id=${ringAtom.id}, indexOf=${ring.atoms.indexOf(ringAtom)}, position=${position}`);
+              }
             }
 
             if (substituentName) {

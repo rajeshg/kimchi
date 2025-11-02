@@ -1155,6 +1155,7 @@ const FUNCTIONAL_GROUP_PRIORITIES: Record<string, number> = {
   acyl_halide: 4,
   amide: 5,
   nitrile: 6,
+  thiocyanate: 6,
   aldehyde: 7,
   ketone: 8,
   alcohol: 9,
@@ -1247,7 +1248,9 @@ function isFunctionalClassPreferred(principalGroup: any): boolean {
   const functionalClassPreferred = [
     'anhydride',
     'acyl_halide',
-    'nitrile'
+    'nitrile',
+    'thioester',
+    'thiocyanate'
   ];
   
   return functionalClassPreferred.includes(principalGroup.type);
