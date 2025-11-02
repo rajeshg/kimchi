@@ -8,9 +8,9 @@
  * This includes detection and naming of substituents attached to parent structures.
  */
 
-import { ImmutableNamingContext, ExecutionPhase } from '../../../immutable-context';
-import { RulePriority } from '../../../types';
-import type { IUPACRule } from '../../../types';
+import { ImmutableNamingContext, ExecutionPhase } from '../../immutable-context';
+import { RulePriority } from '../../types';
+import type { IUPACRule } from '../../types';
 
 /**
  * Rule P-3.1: Heteroatom Parent Substituent Detection

@@ -1,6 +1,6 @@
 import type { IUPACRule } from '../../types';
-import { P2_PARENT_HYDRIDE_RULES } from '../bluebook/P-2/parent-hydride-rules';
-import { P3_SUBSTITUENT_RULES } from '../bluebook/P-3/substituent-rules';
+import { P2_PARENT_HYDRIDE_RULES } from './P-2.1-heteroatom-parents';
+import { P3_SUBSTITUENT_RULES } from './P-3-heteroatom-substituents';
 import { RING_NUMBERING_RULE } from '../numbering-layer';
 import { INITIAL_STRUCTURE_ANALYSIS_RULE } from './P-44.3.1-initial-structure-analysis';
 import { P44_4_RING_CHAIN_SELECTION_RULE } from './P-44.4-ring-vs-chain';

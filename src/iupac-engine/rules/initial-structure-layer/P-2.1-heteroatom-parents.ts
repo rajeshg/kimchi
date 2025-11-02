@@ -18,12 +18,12 @@
  * - PbH4 → plumbane
  */
 
-import { ImmutableNamingContext, ExecutionPhase } from '../../../immutable-context';
-import type { IUPACRule } from '../../../types';
+import { ImmutableNamingContext, ExecutionPhase } from '../../immutable-context';
+import type { IUPACRule } from '../../types';
 
 // Load OPSIN rules to reuse alkane stems and substituent aliases where helpful
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const OPSIN_RULES: any = require('../../../../../opsin-rules.json');
+const OPSIN_RULES: any = require('../../../../opsin-rules.json');
 
 // Parent hydride definitions per IUPAC P-2.1
 const HETEROATOM_PARENT_HYDRIDES: Record<string, { name: string; valence: number }> = {
