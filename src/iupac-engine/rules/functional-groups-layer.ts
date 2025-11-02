@@ -923,20 +923,25 @@ function checkIfSimpleEster(context: ImmutableNamingContext, esters: FunctionalG
   }
 
   // Inspect alkoxy groups for branching or substituents
+  // NOTE: Branching and attached functional groups are OK for functional class nomenclature
+  // The complex alkoxy name will be handled by getAlkoxyGroupName() using bracket notation
+  // e.g., [2-methyl-1-[4-nitro-3-(trifluoromethyl)anilino]-1-oxopropan-2-yl]butanoate
+  // Only truly problematic cases (nested esters within alkoxy chain) should use substitutive
   for (const ester of esters) {
     try {
       const info = getAlkoxyGroupInfo(context, ester as FunctionalGroup);
       if (process.env.VERBOSE) console.log('[checkIfSimpleEster] Alkoxy info:', info);
 
-      // Branched alkoxy chain or any attached functional groups make the ester complex
-      if (info.branched || info.hasAttachedFG) {
-        if (process.env.VERBOSE) console.log('[checkIfSimpleEster] Alkoxy chain is branched or has attached FG -> complex ester');
-        return false;
+      // Allow branched and substituted alkoxy chains - functional class can handle these
+      // The naming logic in ester-naming.ts will generate proper bracketed names
+      if (process.env.VERBOSE && (info.branched || info.hasAttachedFG)) {
+        console.log('[checkIfSimpleEster] Alkoxy chain is branched or has attached FG -> will use complex functional class naming');
       }
+      
+      // No restrictions here - functional class nomenclature can handle complexity
     } catch (e) {
       if (process.env.VERBOSE) console.log('[checkIfSimpleEster] Error analyzing alkoxy group:', e);
-      // On error, be conservative and mark as complex
-      return false;
+      // On error, still allow functional class - the ester-naming.ts logic will handle it
     }
   }
   
