@@ -60,7 +60,13 @@ export const INITIAL_STRUCTURE_ANALYSIS_RULE: IUPACRule = {
        const { findMainChain, findSubstituents } = require('../naming/iupac-chains');
        const mainChain = findMainChain(molecule as any);
        console.log(`[initial-structure-layer] findMainChain returned: ${mainChain?.join(',') || 'empty'}`);
-       if (!mainChain || mainChain.length === 0) return context;
+       
+       // If no main chain found, return context (which may have rings already set)
+       // This allows ring-only molecules to be processed by ring-analysis rules
+       if (!mainChain || mainChain.length === 0) {
+         console.log(`[initial-structure-layer] No chain found, returning context with ${ringSystems.length} ring(s)`);
+         return context;
+       }
 
       const candidates: any[] = [];
       // Use only the main chain (already optimally oriented by findMainChain)
@@ -181,17 +187,11 @@ export const P44_4_RING_CHAIN_SELECTION_RULE: IUPACRule = {
     if (!ring) {
       return context;
     }
-    const size = ring.size || (ring.atoms ? ring.atoms.length : 0);
-    const type = ring.type || (ring.atoms && ring.atoms.some((a: any) => a.aromatic) ? 'aromatic' : 'aliphatic');
-    let name = '';
-    if (type === 'aromatic') {
-      const aromaticNames: { [key: number]: string } = { 6: 'benzene', 5: 'cyclopentadiene', 7: 'cycloheptatriene' };
-      name = aromaticNames[size] || `aromatic-${size}-membered`;
-    } else {
-      const ringNames: { [key: number]: string } = { 3: 'cyclopropane', 4: 'cyclobutane', 5: 'cyclopentane', 6: 'cyclohexane', 7: 'cycloheptane', 8: 'cyclooctane' };
-      name = ringNames[size] || `cyclo${size}ane`;
-    }
-    const locants = ring.atoms ? ring.atoms.map((_: any, idx: number) => idx + 1) : [];
+    
+    // Use generateRingName from ring-analysis-layer to properly handle heterocycles
+    const { generateRingName: generateRingNameFn, generateRingLocants: generateRingLocantsFn } = require('./ring-analysis-layer');
+    const name = generateRingNameFn(ring, context.getState().molecule);
+    const locants = generateRingLocantsFn(ring);
 
     const parentStructure = {
       type: 'ring' as const,

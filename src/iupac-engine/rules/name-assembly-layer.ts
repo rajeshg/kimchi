@@ -520,6 +520,58 @@ function buildRingName(parentStructure: any, functionalGroups: any[]): string {
     return parentStructure.name || 'unknown-ring';
   }
 
+  // PRIORITY ORDER: Use name from parent structure identification phase if already set
+  // This respects IUPAC P-22 (monocyclic) naming which handles heterocycles
+  // The parent structure name was set by generateRingName() which properly identifies
+  // heterocycles like pyridine, furan, thiophene, etc.
+  if (parentStructure.name && parentStructure.name !== 'unknown' && parentStructure.name !== 'unknown-ring') {
+    // If we have substituents, we still need to build the substituted name
+    const subs = parentStructure.substituents || ring.substituents || [];
+    if (subs && subs.length > 0) {
+      // Group substituents by name and collect their locants
+      const substituentGroups = new Map<string, number[]>();
+      for (const sub of subs) {
+        const subName = sub.name || sub.type;
+        if (subName) {
+          if (!substituentGroups.has(subName)) {
+            substituentGroups.set(subName, []);
+          }
+          // Get locant from substituent
+          const locant = sub.locant || sub.position;
+          if (locant) {
+            substituentGroups.get(subName)!.push(locant);
+          }
+        }
+      }
+
+      // Build substituent names with locants and multiplicative prefixes
+      const substituentParts: string[] = [];
+      for (const [subName, locants] of substituentGroups.entries()) {
+        locants.sort((a, b) => a - b);
+        const locantStr = locants.join(',') + '-';
+        
+        // Add multiplicative prefix if there are multiple identical substituents
+        const multiplicativePrefix = locants.length > 1 ? getMultiplicativePrefix(locants.length) : '';
+        const fullSubName = `${locantStr}${multiplicativePrefix}${subName}`;
+        substituentParts.push(fullSubName);
+      }
+
+      // Sort alphabetically by substituent name
+      substituentParts.sort((a, b) => {
+        const aName = a.split('-').slice(1).join('-');
+        const bName = b.split('-').slice(1).join('-');
+        return aName.localeCompare(bName);
+      });
+
+      const substituentPrefix = substituentParts.join('');
+      return substituentPrefix ? `${substituentPrefix}${parentStructure.name}` : parentStructure.name;
+    }
+    
+    // No substituents - just return the parent structure name
+    return parentStructure.name;
+  }
+
+  // FALLBACK: Generic ring naming for carbocycles without specific names
   // This is simplified - real implementation would use comprehensive ring naming
   const ringNames: { [key: number]: string } = {
     3: 'cyclopropane', 4: 'cyclobutane', 5: 'cyclopentane',

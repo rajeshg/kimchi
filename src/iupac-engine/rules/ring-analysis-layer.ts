@@ -500,7 +500,7 @@ function determineRingType(ringSystem: any): string {
 /**
  * Generate ring name from ring system
  */
-function generateRingName(ringSystem: any, molecule?: Molecule): string {
+export function generateRingName(ringSystem: any, molecule?: Molecule): string {
   const size = ringSystem.size;
   const type = ringSystem.type;
   const atoms = ringSystem.atoms || [];
@@ -637,30 +637,21 @@ export const P44_1_1_PRINCIPAL_CHARACTERISTIC_GROUPS_RULE: IUPACRule = {
     const state = context.getState();
     // Skip if parent structure already selected
     if (state.parentStructure) {
-      console.log('[P-44.1.1] Skipping - parent already selected');
+      if (process.env.VERBOSE) console.log('[P-44.1.1] Skipping - parent already selected');
       return false;
     }
     // Only apply if we have both chains and rings to compare
     const chains = state.candidateChains as Chain[];
     const rings = state.candidateRings;
     const shouldApply = chains.length > 0 && rings && rings.length > 0;
-    console.log(`[P-44.1.1] Conditions check: chains=${chains.length}, rings=${rings?.length || 0}, shouldApply=${shouldApply}`);
+    if (process.env.VERBOSE) console.log(`[P-44.1.1] Conditions check: chains=${chains.length}, rings=${rings?.length || 0}, shouldApply=${shouldApply}`);
     return shouldApply;
   },
   action: (context) => {
     const state = context.getState();
-    console.log('[P-44.1.1] Action executing... got state');
     const chains = state.candidateChains as Chain[];
-    console.log('[P-44.1.1] Got chains');
     const molecule = state.molecule as Molecule;
-    console.log('[P-44.1.1] Got molecule');
     const functionalGroups = state.functionalGroups || [];
-    console.log('[P-44.1.1] Got functionalGroups:', !!functionalGroups);
-    
-    // Always log for debugging
-    console.log(`[P-44.1.1] chains.length=${chains?.length}, molecule=${!!molecule}`);
-    console.log(`[P-44.1.1] functionalGroups:`, functionalGroups);
-    console.log(`[P-44.1.1] functionalGroups.length=${functionalGroups?.length || 0}`);
     
     if (!chains || chains.length === 0 || !molecule) return context;
     
@@ -826,7 +817,7 @@ export const P44_1_1_PRINCIPAL_CHARACTERISTIC_GROUPS_RULE: IUPACRule = {
 /**
  * Generate locants for ring atoms
  */
-function generateRingLocants(ringSystem: any): number[] {
+export function generateRingLocants(ringSystem: any): number[] {
   return ringSystem.atoms.map((atom: any, index: number) => index + 1);
 }
 
