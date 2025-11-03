@@ -694,9 +694,18 @@ function buildAlkylGroupName(parentStructure: any, functionalGroups: any[]): str
   const chainAtomIds = chain?.atoms?.map((a: any) => a.id) || [];
   
   // Create a map from atom ID to new locant (1-indexed from start of chain)
+  // For functional class nomenclature, number from the ATTACHMENT POINT (end of chain)
+  // back toward the other end. This means we reverse the chain numbering.
+  // Example: CC(=O)CCSC#N
+  // Chain: [C(0), C(1), C(3), C(4)] where C(4) is attached to S-C≡N
+  // Standard numbering: C(0)=1, C(1)=2, C(3)=3, C(4)=4
+  // Functional class numbering: C(4)=1, C(3)=2, C(1)=3, C(0)=4
+  // So ketone at C(1) gets locant 3 → "3-oxobutyl thiocyanate"
   const atomIdToLocant = new Map<number, number>();
   chainAtomIds.forEach((atomId: number, index: number) => {
-    atomIdToLocant.set(atomId, index + 1);
+    // Reverse the numbering: last atom gets 1, first atom gets length
+    const reversedLocant = chainAtomIds.length - index;
+    atomIdToLocant.set(atomId, reversedLocant);
   });
   
   if (process.env.VERBOSE) {

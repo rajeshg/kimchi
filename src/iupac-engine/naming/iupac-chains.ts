@@ -80,11 +80,34 @@ function countDirectFunctionalGroupAttachments(
   let count = 0;
   const chainSet = new Set(chain);
   
-  // Look for sulfonyl/sulfinyl groups that are directly bonded to chain atoms
+  // Look for functional groups that are directly bonded to chain atoms
   for (const fg of functionalGroups) {
-    if ((fg.name === 'sulfonyl' || fg.name === 'sulfinyl') && fg.atoms && fg.atoms.length > 0) {
-      // Check if the sulfur atom is directly bonded to any chain atom
+    if (!fg.atoms || fg.atoms.length === 0) continue;
+    
+    // For sulfonyl/sulfinyl groups, check if sulfur is bonded to chain
+    if (fg.name === 'sulfonyl' || fg.name === 'sulfinyl') {
       const sulfurIdx = fg.atoms[0]; // Sulfur is the first atom in the functional group
+      if (sulfurIdx === undefined) continue;
+      
+      const sulfurAtom = molecule.atoms[sulfurIdx];
+      if (!sulfurAtom) continue;
+      
+      // Check bonds from sulfur to see if any connect to chain atoms
+      for (const bond of molecule.bonds) {
+        const otherAtomIdx = bond.atom1 === sulfurIdx ? bond.atom2 : 
+                             bond.atom2 === sulfurIdx ? bond.atom1 : null;
+        
+        if (otherAtomIdx !== null && chainSet.has(otherAtomIdx)) {
+          // Sulfur is directly bonded to a chain atom
+          count++;
+          break; // Count this FG once
+        }
+      }
+    }
+    
+    // For thiocyanate groups (S-C≡N), check if sulfur is bonded to chain
+    if (fg.name === 'thiocyanate' && fg.atoms.length >= 1) {
+      const sulfurIdx = fg.atoms[0]; // Sulfur is the first atom in thiocyanate (S-C≡N)
       if (sulfurIdx === undefined) continue;
       
       const sulfurAtom = molecule.atoms[sulfurIdx];
