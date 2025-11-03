@@ -133,32 +133,94 @@ export const FUNCTIONAL_GROUP_PRIORITY_RULE: IUPACRule = {
       const isKetoneOrAldehyde = type === 'ketone' || type === 'aldehyde';
       const locantAtoms = isKetoneOrAldehyde ? atoms.slice(0, 1) : atoms;
       
-      // Try to preserve bonds from previously detected functional groups
+      // Try to preserve bonds, atoms, and locants from previously detected functional groups
       // Match by atom IDs to find the corresponding previous detection
       let preservedBonds = bonds;
-      if ((!bonds || bonds.length === 0) && previousFunctionalGroups.length > 0) {
-        const atomIdSet = new Set(atomIndices);
+      let preservedAtoms = atoms;
+      let preservedLocants = locantAtoms.map((a: any) => (a && typeof a.id === 'number') ? a.id : -1);
+      
+      if (previousFunctionalGroups.length > 0) {
+        // atomIndices are array indices, but atoms have IDs. Convert indices to IDs for comparison
+        const atomIds = atoms.map((a: any) => a.id);
+        const atomIdSet = new Set(atomIds);
+        
+        if (process.env.VERBOSE && type === 'alcohol') {
+          console.log(`[FUNCTIONAL_GROUP_PRIORITY_RULE] Matching ${type}: atomIndices=`, atomIndices, 'atomIds=', atomIds);
+        }
+        
         const matchingPrevious = previousFunctionalGroups.find((prev: any) => {
+          // Must match by type first
+          if (prev.type !== type) return false;
+          
           const prevAtomIds = prev.atoms?.map((a: any) => typeof a === 'number' ? a : a.id) || [];
-          return prevAtomIds.some((id: number) => atomIdSet.has(id));
+          
+          // For alcohols, OPSIN detects oxygen but we store carbon
+          // Match by checking if any current atom (oxygen) is bonded to any previous atom (carbon)
+          if (type === 'alcohol') {
+            for (const currentAtomId of atomIds) {
+              for (const prevAtomId of prevAtomIds) {
+                // Check if these atoms are bonded
+                const bonded = mol.bonds.some((b: any) => 
+                  (b.atom1 === currentAtomId && b.atom2 === prevAtomId) ||
+                  (b.atom2 === currentAtomId && b.atom1 === prevAtomId)
+                );
+                if (bonded) {
+                  if (process.env.VERBOSE) {
+                    console.log(`[FUNCTIONAL_GROUP_PRIORITY_RULE] Found alcohol match: oxygen ${currentAtomId} bonded to carbon ${prevAtomId}`);
+                  }
+                  return true;
+                }
+              }
+            }
+            return false;
+          }
+          
+          // For other functional groups, match by overlapping atom IDs
+          const matches = prevAtomIds.some((id: number) => atomIdSet.has(id));
+          
+          if (process.env.VERBOSE && type === 'ketone') {
+            console.log(`[FUNCTIONAL_GROUP_PRIORITY_RULE] Checking prev.type=${prev.type} prevAtomIds=`, prevAtomIds, 'matches=', matches);
+          }
+          
+          return matches;
         });
-        if (matchingPrevious && matchingPrevious.bonds && matchingPrevious.bonds.length > 0) {
-          preservedBonds = matchingPrevious.bonds;
-          if (process.env.VERBOSE) {
-            console.log(`[FUNCTIONAL_GROUP_PRIORITY_RULE] Preserved bonds for ${type} from previous detection:`, preservedBonds.length);
+        
+        if (matchingPrevious) {
+          // Preserve bonds if available
+          if (matchingPrevious.bonds && matchingPrevious.bonds.length > 0) {
+            preservedBonds = matchingPrevious.bonds;
+            if (process.env.VERBOSE) {
+              console.log(`[FUNCTIONAL_GROUP_PRIORITY_RULE] Preserved bonds for ${type} from previous detection:`, preservedBonds.length);
+            }
+          }
+          
+          // Preserve atoms if available (e.g., alcohol detection stores carbon instead of oxygen)
+          if (matchingPrevious.atoms && matchingPrevious.atoms.length > 0) {
+            preservedAtoms = matchingPrevious.atoms;
+            if (process.env.VERBOSE) {
+              console.log(`[FUNCTIONAL_GROUP_PRIORITY_RULE] Preserved atoms for ${type} from previous detection:`, preservedAtoms.map((a: any) => a.id));
+            }
+          }
+          
+          // Preserve locants if explicitly set (e.g., alcohol detection sets carbon atom ID)
+          if (matchingPrevious.locants && matchingPrevious.locants.length > 0) {
+            preservedLocants = matchingPrevious.locants;
+            if (process.env.VERBOSE) {
+              console.log(`[FUNCTIONAL_GROUP_PRIORITY_RULE] Preserved locants for ${type} from previous detection:`, preservedLocants);
+            }
           }
         }
       }
       
       return {
         type,
-        atoms,
+        atoms: preservedAtoms,
         bonds: preservedBonds,
         suffix: d.suffix || getSharedDetector().getFunctionalGroupSuffix(d.pattern || d.type) || undefined,
         prefix: d.prefix || undefined,
         priority,
         isPrincipal: false,
-        locants: locantAtoms.map((a: any) => (a && typeof a.id === 'number') ? a.id : -1)
+        locants: preservedLocants
       } as FunctionalGroup;
     });
 
@@ -1769,10 +1831,10 @@ function detectCarboxylicAcids(context: any): any[] {
   // Look for C=O bonds followed by O-H
   for (const bond of molecules.bonds) {
     if (bond.type === 'double') {
-      const atom1 = molecules.atoms[bond.atom1];
-      const atom2 = molecules.atoms[bond.atom2];
+      const atom1 = molecules.atoms.find((a: any) => a.id === bond.atom1);
+      const atom2 = molecules.atoms.find((a: any) => a.id === bond.atom2);
       
-      if (isCarbonyl(atom1, atom2)) {
+      if (atom1 && atom2 && isCarbonyl(atom1, atom2)) {
         // Check if attached to OH
         const carbon = getCarbonFromCarbonyl(atom1, atom2);
         const ohBond = findOHBond(carbon, molecules);
@@ -1809,27 +1871,40 @@ function detectAlcohols(context: any): any[] {
       
       // Check if oxygen is bonded to carbon and has one hydrogen (implicit or explicit)
       const carbonBonds = bonds.filter((b: any) => {
-        const otherAtom = b.atom1 === atom.id ? molecules.atoms[b.atom2] : molecules.atoms[b.atom1];
-        return otherAtom.symbol === 'C';
+        const otherId = b.atom1 === atom.id ? b.atom2 : b.atom1;
+        const otherAtom = molecules.atoms.find((a: any) => a.id === otherId);
+        return otherAtom && otherAtom.symbol === 'C';
       });
       
       const hydrogenBonds = bonds.filter((b: any) => {
-        const otherAtom = b.atom1 === atom.id ? molecules.atoms[b.atom2] : molecules.atoms[b.atom1];
-        return otherAtom.symbol === 'H';
+        const otherId = b.atom1 === atom.id ? b.atom2 : b.atom1;
+        const otherAtom = molecules.atoms.find((a: any) => a.id === otherId);
+        return otherAtom && otherAtom.symbol === 'H';
       });
       
       // Check for implicit hydrogens if no explicit H bonds found
       const totalHydrogens = hydrogenBonds.length + (atom.hydrogens || 0);
       
       if (carbonBonds.length === 1 && totalHydrogens === 1) {
+        // Get the carbon atom that the oxygen is bonded to
+        const carbonBond = carbonBonds[0];
+        const carbonId = carbonBond.atom1 === atom.id ? carbonBond.atom2 : carbonBond.atom1;
+        const carbonAtom = molecules.atoms.find((a: any) => a.id === carbonId);
+        
+        if (process.env.VERBOSE) {
+          console.log(`[ALCOHOL DETECTION] Oxygen atom ${atom.id} bonded to carbon atom ${carbonId}`);
+          console.log(`[ALCOHOL DETECTION] Carbon atom:`, carbonAtom);
+        }
+        
         alcohols.push({
           type: 'alcohol',
-          atoms: [atom],
+          atoms: [carbonAtom],  // Store carbon atom, not oxygen
           bonds: carbonBonds,  // Only include the C-O bond
           suffix: 'ol',
           prefix: 'hydroxy',
           priority: FUNCTIONAL_GROUP_PRIORITIES.alcohol,
-          isPrincipal: false
+          isPrincipal: false,
+          locants: [carbonId]  // Set locant to carbon atom ID
         });
       }
     }
@@ -1852,13 +1927,15 @@ function detectAmines(context: any): any[] {
       );
       
       const carbonBonds = bonds.filter((b: any) => {
-        const otherAtom = b.atom1 === atom.id ? molecules.atoms[b.atom2] : molecules.atoms[b.atom1];
-        return otherAtom.symbol === 'C';
+        const otherId = b.atom1 === atom.id ? b.atom2 : b.atom1;
+        const otherAtom = molecules.atoms.find((a: any) => a.id === otherId);
+        return otherAtom && otherAtom.symbol === 'C';
       });
       
       const hydrogenBonds = bonds.filter((b: any) => {
-        const otherAtom = b.atom1 === atom.id ? molecules.atoms[b.atom2] : molecules.atoms[b.atom1];
-        return otherAtom.symbol === 'H';
+        const otherId = b.atom1 === atom.id ? b.atom2 : b.atom1;
+        const otherAtom = molecules.atoms.find((a: any) => a.id === otherId);
+        return otherAtom && otherAtom.symbol === 'H';
       });
       
       if (carbonBonds.length > 0) {
@@ -1887,10 +1964,10 @@ function detectKetones(context: any): any[] {
   
   for (const bond of molecules.bonds) {
     if (bond.type === 'double') {
-      const atom1 = molecules.atoms[bond.atom1];
-      const atom2 = molecules.atoms[bond.atom2];
+      const atom1 = molecules.atoms.find((a: any) => a.id === bond.atom1);
+      const atom2 = molecules.atoms.find((a: any) => a.id === bond.atom2);
       
-      if (isCarbonyl(atom1, atom2)) {
+      if (atom1 && atom2 && isCarbonyl(atom1, atom2)) {
         // Check if the carbon is not part of carboxylic acid
         const carbon = getCarbonFromCarbonyl(atom1, atom2);
         
@@ -1900,8 +1977,9 @@ function detectKetones(context: any): any[] {
         );
         
         const carbonAtomBonds = carbonBonds.filter((b: any) => {
-          const otherAtom = b.atom1 === carbon.id ? molecules.atoms[b.atom2] : molecules.atoms[b.atom1];
-          return otherAtom.symbol === 'C';
+          const otherId = b.atom1 === carbon.id ? b.atom2 : b.atom1;
+          const otherAtom = molecules.atoms.find((a: any) => a.id === otherId);
+          return otherAtom && otherAtom.symbol === 'C';
         });
         
         if (carbonAtomBonds.length === 2) {
@@ -1942,16 +2020,18 @@ function detectEsters(context: any): any[] {
       );
       
       const carbonBonds = bonds.filter((b: any) => {
-        const otherAtom = b.atom1 === oxygen.id ? molecules.atoms[b.atom2] : molecules.atoms[b.atom1];
-        return otherAtom.symbol === 'C';
+        const otherId = b.atom1 === oxygen.id ? b.atom2 : b.atom1;
+        const otherAtom = molecules.atoms.find((a: any) => a.id === otherId);
+        return otherAtom && otherAtom.symbol === 'C';
       });
       
       if (carbonBonds.length > 0) {
         esters.push({
           type: 'ester',
-          atoms: acid.atoms.concat(carbonBonds.map((b: any) => 
-            b.atom1 === oxygen.id ? molecules.atoms[b.atom2] : molecules.atoms[b.atom1]
-          )),
+          atoms: acid.atoms.concat(carbonBonds.map((b: any) => {
+            const otherId = b.atom1 === oxygen.id ? b.atom2 : b.atom1;
+            return molecules.atoms.find((a: any) => a.id === otherId);
+          }).filter(Boolean)),
           bonds: acid.bonds.concat(carbonBonds),
           priority: FUNCTIONAL_GROUP_PRIORITIES.ester,
           isPrincipal: false
@@ -1978,13 +2058,15 @@ function getCarbonFromCarbonyl(atom1: any, atom2: any): any {
 function findOHBond(carbon: any, molecules: any): any | null {
   for (const bond of molecules.bonds) {
     if (bond.atom1 === carbon.id || bond.atom2 === carbon.id) {
-      const otherAtom = bond.atom1 === carbon.id ? molecules.atoms[bond.atom2] : molecules.atoms[bond.atom1];
-      if (otherAtom.symbol === 'O') {
+      const otherId = bond.atom1 === carbon.id ? bond.atom2 : bond.atom1;
+      const otherAtom = molecules.atoms.find((a: any) => a.id === otherId);
+      if (otherAtom && otherAtom.symbol === 'O') {
         // Check for H bonded to O
         for (const bond2 of molecules.bonds) {
           if ((bond2.atom1 === otherAtom.id || bond2.atom2 === otherAtom.id)) {
-            const otherAtom2 = bond2.atom1 === otherAtom.id ? molecules.atoms[bond2.atom2] : molecules.atoms[bond2.atom1];
-            if (otherAtom2.symbol === 'H') {
+            const otherId2 = bond2.atom1 === otherAtom.id ? bond2.atom2 : bond2.atom1;
+            const otherAtom2 = molecules.atoms.find((a: any) => a.id === otherId2);
+            if (otherAtom2 && otherAtom2.symbol === 'H') {
               return bond2;
             }
           }

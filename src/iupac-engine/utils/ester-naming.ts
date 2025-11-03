@@ -162,7 +162,7 @@ export function buildEsterWithRingAcylGroup(parentStructure: any, esterGroup: an
     const acylName = 'benzoate';
     
     // Now find the alkoxy group
-    const alkoxyName = getAlkoxyGroupName(esterGroup, molecule);
+    const alkoxyName = getAlkoxyGroupName(esterGroup, molecule, functionalGroups);
     
     if (process.env.VERBOSE) {
       console.log('[buildEsterWithRingAcylGroup] aromatic acylName:', acylName);
@@ -178,7 +178,7 @@ export function buildEsterWithRingAcylGroup(parentStructure: any, esterGroup: an
   const acylName = `${ringBaseName}carboxylate`;
   
   // Now find the alkoxy group
-  const alkoxyName = getAlkoxyGroupName(esterGroup, molecule);
+  const alkoxyName = getAlkoxyGroupName(esterGroup, molecule, functionalGroups);
   
   if (process.env.VERBOSE) {
     console.log('[buildEsterWithRingAcylGroup] ringBaseName:', ringBaseName);
@@ -621,7 +621,7 @@ function buildAnilinoPart(substituents: Array<{ position: number, name: string }
  * Get the alkoxy group name from an ester
  * Walks from ester oxygen to find the alkoxy chain
  */
-export function getAlkoxyGroupName(esterGroup: any, molecule: Molecule): string {
+export function getAlkoxyGroupName(esterGroup: any, molecule: Molecule, functionalGroups?: any[]): string {
   // Find carbonyl carbon and ester oxygen
   let carbonylCarbonId: number | undefined;
   let esterOxygenId: number | undefined;
@@ -830,7 +830,111 @@ export function getAlkoxyGroupName(esterGroup: any, molecule: Molecule): string 
   const chainLength = carbonChain.length;
   
   // **DETECT SUBSTITUENTS ON ALKOXY CHAIN**
-  // Check each carbon in the alkoxy chain for O-Si groups (silyloxy substituents)
+  type AlkoxySubstituent = {
+    position: number;
+    name: string;
+    type: string;
+  };
+  const alkoxySubstituents: AlkoxySubstituent[] = [];
+  
+  if (process.env.VERBOSE) {
+    console.log('[getAlkoxyGroupName] functionalGroups provided:', functionalGroups ? functionalGroups.length : 'none');
+    if (functionalGroups) {
+      for (const fg of functionalGroups) {
+        console.log('[getAlkoxyGroupName] FG:', fg.type, 'prefix:', fg.prefix, 'atoms:', fg.atoms);
+      }
+    }
+    console.log('[getAlkoxyGroupName] alkoxyCarbonIds:', Array.from(alkoxyCarbonIds));
+    console.log('[getAlkoxyGroupName] carbonChain:', carbonChain);
+  }
+  
+  // 1. Detect acyloxy substituents (nested esters converted to acyloxy)
+  if (functionalGroups) {
+    for (const fg of functionalGroups) {
+      if (fg.type === 'acyloxy' && fg.atoms && fg.prefix) {
+        // Find the attachment point: oxygen atom connected to alkoxy chain
+        for (const fgAtomObj of fg.atoms) {
+          // Extract atom ID from Atom object or use directly if it's a number
+          const fgAtomId = typeof fgAtomObj === 'number' ? fgAtomObj : fgAtomObj.id;
+          const fgAtom = molecule.atoms[fgAtomId];
+          if (fgAtom?.symbol === 'O') {
+            // Check if this oxygen is bonded to any carbon in the alkoxy chain
+            for (const bond of molecule.bonds) {
+              if (bond.type === 'single') {
+                let alkoxyChainCarbon: number | undefined;
+                if (bond.atom1 === fgAtomId && alkoxyCarbonIds.has(bond.atom2)) {
+                  alkoxyChainCarbon = bond.atom2;
+                } else if (bond.atom2 === fgAtomId && alkoxyCarbonIds.has(bond.atom1)) {
+                  alkoxyChainCarbon = bond.atom1;
+                }
+                
+                if (alkoxyChainCarbon !== undefined) {
+                  // Found attachment point! Determine position in chain
+                  const position = carbonChain.indexOf(alkoxyChainCarbon) + 1;
+                  if (position > 0) {
+                    alkoxySubstituents.push({
+                      position,
+                      name: fg.prefix,
+                      type: 'acyloxy'
+                    });
+                    if (process.env.VERBOSE) {
+                      console.log(`[getAlkoxyGroupName] Found acyloxy substituent "${fg.prefix}" at position ${position}`);
+                    }
+                  }
+                  break;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  // 2. Detect alkoxy (ether) substituents
+  if (functionalGroups) {
+    for (const fg of functionalGroups) {
+      if (fg.type === 'alkoxy' && fg.atoms && fg.prefix) {
+        // Find the attachment point: oxygen atom connected to alkoxy chain
+        for (const fgAtomObj of fg.atoms) {
+          // Extract atom ID from Atom object or use directly if it's a number
+          const fgAtomId = typeof fgAtomObj === 'number' ? fgAtomObj : fgAtomObj.id;
+          const fgAtom = molecule.atoms[fgAtomId];
+          if (fgAtom?.symbol === 'O') {
+            // Check if this oxygen is bonded to any carbon in the alkoxy chain
+            for (const bond of molecule.bonds) {
+              if (bond.type === 'single') {
+                let alkoxyChainCarbon: number | undefined;
+                if (bond.atom1 === fgAtomId && alkoxyCarbonIds.has(bond.atom2)) {
+                  alkoxyChainCarbon = bond.atom2;
+                } else if (bond.atom2 === fgAtomId && alkoxyCarbonIds.has(bond.atom1)) {
+                  alkoxyChainCarbon = bond.atom1;
+                }
+                
+                if (alkoxyChainCarbon !== undefined) {
+                  // Found attachment point! Determine position in chain
+                  const position = carbonChain.indexOf(alkoxyChainCarbon) + 1;
+                  if (position > 0) {
+                    alkoxySubstituents.push({
+                      position,
+                      name: fg.prefix,
+                      type: 'alkoxy'
+                    });
+                    if (process.env.VERBOSE) {
+                      console.log(`[getAlkoxyGroupName] Found alkoxy substituent "${fg.prefix}" at position ${position}`);
+                    }
+                  }
+                  break;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  // 3. Check each carbon in the alkoxy chain for O-Si groups (silyloxy substituents)
   type SilyloxySubstituent = {
     position: number;
     oxygenId: number;
@@ -925,46 +1029,116 @@ export function getAlkoxyGroupName(esterGroup: any, molecule: Molecule): string 
     }
   }
   
-  // Build prefix for silyloxy substituents
+  // Merge all substituents (acyloxy, alkoxy, silyloxy) for unified naming
+  const allSubstituents: AlkoxySubstituent[] = [
+    ...alkoxySubstituents,
+    ...silyloxySubstituents.map(s => ({
+      position: s.position,
+      name: s.name,
+      type: 'silyloxy'
+    }))
+  ];
+  
+  // Build prefix for all substituents
   let substituentsPrefix = '';
-  if (silyloxySubstituents.length > 0) {
-    // Group by name to detect multiplicity (bis, tris, etc.)
-    const groupedByName = new Map<string, number[]>();
-    for (const sub of silyloxySubstituents) {
-      if (!groupedByName.has(sub.name)) {
-        groupedByName.set(sub.name, []);
+  if (allSubstituents.length > 0) {
+    // Sort by position first, then alphabetically by name
+    allSubstituents.sort((a, b) => {
+      if (a.position !== b.position) return a.position - b.position;
+      return a.name.localeCompare(b.name);
+    });
+    
+    // Group substituents by name to detect identical substituents at different positions
+    const byName = new Map<string, number[]>();
+    for (const sub of allSubstituents) {
+      if (!byName.has(sub.name)) {
+        byName.set(sub.name, []);
       }
-      groupedByName.get(sub.name)!.push(sub.position);
+      byName.get(sub.name)!.push(sub.position);
     }
     
+    // Build prefix parts with multiplicative prefixes for identical substituents
     const prefixParts: string[] = [];
-    for (const [name, positions] of groupedByName) {
-      positions.sort((a, b) => a - b);
-      const positionsStr = positions.join(',');
+    const sortedNames = Array.from(byName.keys()).sort();
+    
+    for (const name of sortedNames) {
+      const positions = byName.get(name)!;
+      const positionString = positions.join(',');
       
       if (positions.length === 1) {
-        prefixParts.push(`${positionsStr}-${name}`);
-      } else if (positions.length === 2) {
-        prefixParts.push(`${positionsStr}-bis(${name})`);
-      } else if (positions.length === 3) {
-        prefixParts.push(`${positionsStr}-tris(${name})`);
-      } else if (positions.length === 4) {
-        prefixParts.push(`${positionsStr}-tetrakis(${name})`);
+        // Single substituent: "2-trimethylsilyloxy"
+        prefixParts.push(`${positionString}-${name}`);
       } else {
-        prefixParts.push(`${positionsStr}-${name}`);
+        // Multiple identical substituents: use bis/tris/tetrakis
+        const multiplicity = positions.length;
+        let multiplicativePrefix = '';
+        
+        if (multiplicity === 2) {
+          multiplicativePrefix = 'bis';
+        } else if (multiplicity === 3) {
+          multiplicativePrefix = 'tris';
+        } else if (multiplicity === 4) {
+          multiplicativePrefix = 'tetrakis';
+        } else if (multiplicity === 5) {
+          multiplicativePrefix = 'pentakis';
+        } else if (multiplicity === 6) {
+          multiplicativePrefix = 'hexakis';
+        } else {
+          multiplicativePrefix = `${multiplicity}-kis`;
+        }
+        
+        // For complex substituent names (containing hyphens or being compound),
+        // wrap in parentheses: "2,3-bis(trimethylsilyloxy)"
+        // For simple names, no parentheses needed
+        const needsParentheses = name.includes('-') || name.includes('oxy') || name.length > 6;
+        
+        if (needsParentheses) {
+          prefixParts.push(`${positionString}-${multiplicativePrefix}(${name})`);
+        } else {
+          prefixParts.push(`${positionString}-${multiplicativePrefix}${name}`);
+        }
       }
     }
     
     substituentsPrefix = prefixParts.join('-');
+    
+    if (process.env.VERBOSE) {
+      console.log('[getAlkoxyGroupName] Built substituentsPrefix:', substituentsPrefix);
+    }
   }
   
   if (branches.size === 0) {
-    // Simple alkyl group (possibly with silyloxy substituents)
+    // Simple alkyl group (possibly with substituents)
     const alkylPrefixes = ['', 'meth', 'eth', 'prop', 'but', 'pent', 'hex', 'hept', 'oct', 'non', 'dec'];
     const baseName = chainLength < alkylPrefixes.length ? `${alkylPrefixes[chainLength]}yl` : `C${chainLength}-alkyl`;
     
     if (substituentsPrefix) {
-      return `${substituentsPrefix}${baseName}`;
+      // Determine if parentheses are needed based on substituent complexity
+      // Use parentheses when:
+      // 1. Multiple different substituent types (mixed substituents)
+      // 2. Substituents at the same position
+      
+      // Check if all substituents are identical (same name)
+      const uniqueNames = new Set(allSubstituents.map(s => s.name));
+      const hasMultipleTypes = uniqueNames.size > 1;
+      
+      // Check if any position has multiple substituents
+      const positionCounts = new Map<number, number>();
+      for (const sub of allSubstituents) {
+        positionCounts.set(sub.position, (positionCounts.get(sub.position) || 0) + 1);
+      }
+      const hasMultipleAtSamePosition = Array.from(positionCounts.values()).some(count => count > 1);
+      
+      // Use parentheses for complex cases (mixed types or multiple at same position)
+      const needsParentheses = hasMultipleTypes || hasMultipleAtSamePosition;
+      
+      if (needsParentheses) {
+        return `(${substituentsPrefix}${baseName})`;
+      } else {
+        // Simple case: all identical substituents at different positions
+        // Example: "2,3-bis(trimethylsilyloxy)propyl"
+        return `${substituentsPrefix}${baseName}`;
+      }
     }
     return baseName;
   } else {
@@ -983,7 +1157,8 @@ export function getAlkoxyGroupName(esterGroup: any, molecule: Molecule): string 
     const baseName = chainLength < alkylPrefixes.length ? alkylPrefixes[chainLength] : `C${chainLength}-alk`;
     
     const allSubstituents = substituentsPrefix ? `${substituentsPrefix}-${branchNames.join('-')}` : branchNames.join('-');
-    return `${allSubstituents}${baseName}yl`;
+    // Wrap in parentheses for complex alkyl names
+    return `(${allSubstituents}${baseName}yl)`;
   }
 }
 
@@ -1405,7 +1580,7 @@ export function buildEsterName(parentStructure: any, esterGroup: any, molecule: 
   
   // Always use getAlkoxyGroupName - it handles both simple and complex cases
   // It has built-in detection for amide groups and other complex structural features
-  const alkylName = getAlkoxyGroupName(esterGroup, molecule);
+  const alkylName = getAlkoxyGroupName(esterGroup, molecule, functionalGroups);
   
   // Prefer deriving the acyl name from the parentStructure.chain when the parent chain contains the carbonyl carbon
   let acylName = '';
