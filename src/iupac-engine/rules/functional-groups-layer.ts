@@ -260,10 +260,19 @@ export const FUNCTIONAL_GROUP_PRIORITY_RULE: IUPACRule = {
         // Determine which carbon is part of the parent chain and which is the substituent
         const alkoxyName = analyzeAlkoxySubstituent(mol, oxygenAtom, bondedCarbons);
 
+        if (process.env.VERBOSE) {
+          console.log(`[functional-groups-layer] Converting ether to alkoxy:`);
+          console.log(`  fg.name: ${fg.name}`);
+          console.log(`  fg.prefix: ${fg.prefix}`);
+          console.log(`  alkoxyName: ${alkoxyName}`);
+          console.log(`  will use name: ${fg.name || alkoxyName}`);
+        }
+
         updatedFunctionalGroups[i] = {
           ...fg,
           type: 'alkoxy',
           prefix: alkoxyName,
+          name: fg.name || alkoxyName,  // Preserve original name if it exists
           atoms: fg.atoms || []
         } as FunctionalGroup;
       }

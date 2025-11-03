@@ -91,6 +91,7 @@ export interface FunctionalGroup {
   isPrincipal: boolean;
   suffix?: string;
   prefix?: string;
+  name?: string;  // Full name from complex substituent analysis (e.g., flattened alkoxy names)
   locants: number[];
   // Assembled metadata used during name assembly
   assembledName?: string;
@@ -153,6 +154,7 @@ export interface Substituent {
   type: string;
   locant: number;
   isPrincipal: boolean;
+  name?: string;
 }
 
 export interface MultipleBond {

@@ -184,7 +184,19 @@ export class ImmutableNamingContext {
           }
         }
         const subsRaw = findSubstituents(molecule as any, main as number[]);
-        const substituents = subsRaw.map((s: any) => ({ atoms: [], bonds: [], type: s.name, locant: parseInt(s.position, 10), isPrincipal: false }));
+        const substituents = subsRaw.map((s: any) => {
+          if (process.env.VERBOSE) {
+            console.log(`[immutable-context] Creating substituent: name="${s.name}", type="${s.type}", position="${s.position}"`);
+          }
+          return { 
+            atoms: [], 
+            bonds: [], 
+            type: s.name, 
+            locant: parseInt(s.position, 10), 
+            isPrincipal: false,
+            name: s.name
+          };
+        });
         candidates.push({ atoms, bonds, length: atoms.length, multipleBonds, substituents, locants: Array.from({ length: atoms.length }, (_, i) => i + 1) });
       }
       initialState.candidateChains = candidates;

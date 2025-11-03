@@ -993,36 +993,43 @@ function buildSubstitutiveName(parentStructure: any, functionalGroups: any[]): s
         const needsLocant = !isSingleSubstituentOnly;
         const locantStr = needsLocant ? locants.join(',') + '-' : '';
         
-        // Check if substituent name contains internal locants (e.g., "2,2-dimethylpropoxy" or "2-methylbutan-2-yloxy")
-        // Complex ether substituents like "2-methylbutan-2-yloxymethoxy" need parentheses or square brackets
-        // Patterns to detect:
-        // 1. Contains comma-separated digits: "2,2-dimethyl"
-        // 2. Contains "\d+-\w+an-\d+-yl" pattern: "2-methylbutan-2-yl" (complex substituted yl group)
-        // 3. Contains "oxy" AND internal digits: complex ether like "2-methylbutan-2-yloxymethoxy"
-        // Note: Simple yl groups like "propan-2-yl" or "butan-2-yl" should NOT be wrapped
-        const hasInternalLocants = /\d+,\d+/.test(subName) || // Pattern: 2,2-dimethyl
-                                   /\d+-\w+an-\d+-yl/.test(subName) || // Pattern: 2-methylbutan-2-yl
-                                   (subName.includes('oxy') && /\d+-\w+/.test(subName)); // Complex ether
+        // Check if substituent name contains nested parentheses
+        // Per IUPAC P-14.4: square brackets are used for complex substituents with nested structure
+        // that require clarification for alphabetization (e.g., "[1-(2-methylbutoxy)ethoxy]")
+        // 
+        // Pattern to detect:
+        // - Contains parentheses AND additional locants: "1-(2-methylbutoxy)ethoxy"
+        // - This indicates nested substituents that need square brackets for clarity
+        // 
+        // Do NOT use square brackets for:
+        // - Simple locants: "2,2-dimethylpropyl" (just use parentheses)
+        // - Linear chains: "2,2-dimethylpropylsulfonyl" (no nesting, use parentheses)
+        const hasNestedParentheses = subName.includes('(') && subName.includes(')');
+        
+        // Also check for complex yl groups that need wrapping
+        const hasComplexYlGroup = /\d+-\w+an-\d+-yl/.test(subName); // Pattern: 2-methylbutan-2-yl
+        
+        // Determine if this substituent needs ANY wrapping (brackets or parentheses)
+        const needsWrapping = hasNestedParentheses || hasComplexYlGroup || /\d+,\d+/.test(subName);
         
         // Add multiplicative prefix if there are multiple identical substituents
-        // Use bis/tris for complex substituents (those with internal locants)
-        const multiplicativePrefix = locants.length > 1 ? getMultiplicativePrefix(locants.length, hasInternalLocants) : '';
+        // Use bis/tris for complex substituents (those that need wrapping)
+        const multiplicativePrefix = locants.length > 1 ? getMultiplicativePrefix(locants.length, needsWrapping) : '';
         
-        // Check if already wrapped in parentheses
-        const alreadyWrapped = subName.startsWith('(') && subName.endsWith(')');
+        // Check if already wrapped in brackets or parentheses
+        const alreadyWrapped = (subName.startsWith('(') && subName.endsWith(')')) ||
+                              (subName.startsWith('[') && subName.endsWith(']'));
         
-        // For nested complex ethers with parentheses in the tail part, use square brackets
-        // Otherwise use parentheses for simple complex substituents
-        const hasNestedParens = subName.includes('(') && subName.includes(')');
-        const needsSquareBrackets = hasInternalLocants && hasNestedParens && !alreadyWrapped;
-        
+        // Use square brackets ONLY for nested substituents with parentheses
+        // Use regular parentheses for simple complex substituents
+        // Per IUPAC P-14.4: square brackets distinguish nested complex substituents for alphabetization
         if (process.env.VERBOSE && (subName.includes('methyl') || subName.includes('propyl'))) {
-          console.log(`[WRAP DEBUG] subName="${subName}", hasInternalLocants=${hasInternalLocants}, alreadyWrapped=${alreadyWrapped}`);
+          console.log(`[WRAP DEBUG] subName="${subName}", hasNestedParentheses=${hasNestedParentheses}, needsWrapping=${needsWrapping}, alreadyWrapped=${alreadyWrapped}`);
         }
         
         const wrappedSubName = alreadyWrapped ? subName :
-                              needsSquareBrackets ? `[${subName}]` : 
-                              hasInternalLocants ? `(${subName})` : 
+                              hasNestedParentheses ? `[${subName}]` :
+                              needsWrapping ? `(${subName})` :
                               subName;
         
         const fullSubName = `${locantStr}${multiplicativePrefix}${wrappedSubName}`;

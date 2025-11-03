@@ -1869,9 +1869,30 @@ function nameComplexAlkoxySubstituent(
   let tailName = '';
   if (tailAtoms.size > 0) {
     const tailCarbons = Array.from(tailAtoms).filter(idx => molecule.atoms[idx]?.symbol === 'C');
+    const tailOxygens = Array.from(tailAtoms).filter(idx => {
+      const atom = molecule.atoms[idx];
+      if (!atom || atom.symbol !== 'O' || idx === firstNestedOxygen) return false;
+      // Only include ether-like oxygens (single bonds, not carbonyl)
+      const bondsToO = molecule.bonds.filter(b => b.atom1 === idx || b.atom2 === idx);
+      const hasSingle = bondsToO.some(b => b.type === BondType.SINGLE);
+      if (!hasSingle) return false;
+      const hasDoubleToC = bondsToO.some(b => b.type === BondType.DOUBLE && (molecule.atoms[b.atom1 === idx ? b.atom2 : b.atom1]?.symbol === 'C'));
+      if (hasDoubleToC) return false;
+      return true;
+    });
     
     if (tailCarbons.length === 0) {
       tailName = 'oxy';
+    } else if (tailOxygens.length > 0) {
+      // Tail contains additional nested ethers - recursively name it
+      if (process.env.VERBOSE) {
+        console.log(`  Tail contains nested oxygens: [${tailOxygens.join(',')}], recursively naming`);
+      }
+      // Recursively call nameAlkoxySubstituent to handle the nested ether structure
+      tailName = nameAlkoxySubstituent(molecule, tailAtoms, firstNestedOxygen);
+      if (process.env.VERBOSE) {
+        console.log(`  Recursive call returned tailName="${tailName}"`);
+      }
     } else {
       // Find the carbon directly bonded to the nested oxygen (attachment point)
       let tailAttachmentCarbon = -1;
@@ -2002,7 +2023,51 @@ function nameComplexAlkoxySubstituent(
   // Combine tail + linker with proper locant and parentheses
   // Format: "1-(2-methylbutoxy)ethoxy" where the tail is attached at position 1 of the linker
   if (tailName && tailName !== 'oxy') {
-    return `1-(${tailName})${linkerName}`;
+    // If tailName is already in format "1-(...)", flatten it for concatenation while preserving the inner "1-"
+    // This prevents excessive nesting like "1-(1-(ethoxy)ethoxy)" and instead produces "1-ethoxyethoxy"
+    let cleanedTailName = tailName;
+    if (process.env.VERBOSE) {
+      console.log(`[nameComplexAlkoxySubstituent] Before cleaning: tailName="${tailName}"`);
+    }
+    if (tailName.startsWith('1-(')) {
+      // Find the matching closing parenthesis for the opening paren at index 2
+      let depth = 0;
+      let closeIdx = -1;
+      for (let i = 3; i < tailName.length; i++) {  // Start at 3, after "1-("
+        if (tailName[i] === '(') depth++;
+        else if (tailName[i] === ')') {
+          if (depth === 0) {
+            closeIdx = i;
+            break;
+          }
+          depth--;
+        }
+      }
+      if (closeIdx !== -1) {
+        // Extract content inside parentheses and flatten: "1-(...)" + remainder → "1-..." + remainder
+        const innerPart = tailName.slice(3, closeIdx);  // Content inside parens
+        const remainder = tailName.slice(closeIdx + 1);  // After closing paren
+        // Only prepend "1-" if innerPart doesn't already start with a locant
+        if (innerPart.startsWith('1-')) {
+          cleanedTailName = `${innerPart}${remainder}`;  // Already has "1-" prefix
+        } else {
+          cleanedTailName = `1-${innerPart}${remainder}`;  // Add "1-" prefix
+        }
+        if (process.env.VERBOSE) {
+          console.log(`[nameComplexAlkoxySubstituent] After cleaning: cleanedTailName="${cleanedTailName}" (inner="${innerPart}", remainder="${remainder}")`);
+        }
+      }
+    }
+    // After flattening, if cleanedTailName already starts with "1-", we should concatenate directly
+    // Example: "1-ethoxyethoxy" + "methoxy" → "1-ethoxyethoxymethoxy"  
+    // NOT "1-(1-ethoxyethoxy)methoxy"
+    const result = cleanedTailName.startsWith('1-') 
+      ? `${cleanedTailName}${linkerName}`  // Already flattened, just append
+      : `1-(${cleanedTailName})${linkerName}`;  // Not flattened, needs wrapper
+    if (process.env.VERBOSE) {
+      console.log(`[nameComplexAlkoxySubstituent] Returning: "${result}"`);
+    }
+    return result;
   } else {
     return linkerName;
   }

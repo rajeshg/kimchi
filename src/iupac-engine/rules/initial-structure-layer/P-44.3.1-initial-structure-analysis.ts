@@ -82,7 +82,14 @@ export const INITIAL_STRUCTURE_ANALYSIS_RULE: IUPACRule = {
         }
 
         const subsRaw = findSubstituents(molecule as any, main as number[]);
-        const substituents = subsRaw.map((s: any) => ({ atoms: [], bonds: [], type: s.name, locant: parseInt(s.position, 10), isPrincipal: false }));
+        const substituents = subsRaw.map((s: any) => ({ 
+          atoms: [], 
+          bonds: [], 
+          type: s.name, 
+          locant: parseInt(s.position, 10), 
+          isPrincipal: false,
+          name: s.name
+        }));
 
         console.log(`Candidate chain: ${main.join(',')}, length: ${atoms.length}`);
         candidates.push({ atoms, bonds, length: atoms.length, multipleBonds, substituents, locants: Array.from({ length: atoms.length }, (_, i) => i + 1) });
