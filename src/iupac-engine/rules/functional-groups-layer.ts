@@ -1086,8 +1086,10 @@ export const LACTONE_TO_KETONE_RULE: IUPACRule = {
   blueBookReference: 'P-66.1.1.4 - Lactones',
   priority: RulePriority.FOUR,  // 40 - Must run AFTER ESTER_DETECTION_RULE (priority FIVE = 50)
   conditions: (context: ImmutableNamingContext) => {
-    // Detect lactones directly: look for carbonyl C=O where the carbon is single-bonded to an O
-    // which in turn is in the same ring as the carbon (cyclic ester)
+    // Detect lactones: look for carbonyl C=O in a ring where an ester oxygen
+    // is also in the same ring. The pattern can be:
+    // 1. C(=O)-O (oxygen directly bonded to carbonyl carbon) - simple lactones
+    // 2. C(=O)-C-...-O (oxygen connected through the ring) - bicyclic lactones
     const functionalGroups = context.getState().functionalGroups;
     const mol = context.getState().molecule;
     const rings = mol.rings || [];
@@ -1102,29 +1104,88 @@ export const LACTONE_TO_KETONE_RULE: IUPACRule = {
       return false;
     }
 
-    // Scan for carbonyl double bonds and check for an adjacent oxygen that is in the same ring
+    const ringAtomSets = rings.map((r: readonly number[]) => new Set(r));
+    
+    // Scan for carbonyl double bonds
     for (const bond of mol.bonds) {
       if (bond.type !== 'double') continue;
       const a1 = mol.atoms[bond.atom1];
       const a2 = mol.atoms[bond.atom2];
       if (!isCarbonyl(a1, a2)) continue;
-      const carbon = getCarbonFromCarbonyl(a1, a2);
-      // find single-bonded oxygens attached to this carbon
-      if (process.env.VERBOSE) console.log('[LACTONE_TO_KETONE] Examining carbonyl at', carbon.id);
-      for (const b of mol.bonds) {
-        if (b.type !== 'single') continue;
-        const otherId = b.atom1 === carbon.id ? b.atom2 : (b.atom2 === carbon.id ? b.atom1 : undefined);
-        if (otherId === undefined) continue;
-        const otherAtom = mol.atoms[otherId];
-        if (!otherAtom || otherAtom.symbol !== 'O') continue;
-        if (process.env.VERBOSE) console.log('[LACTONE_TO_KETONE]  found single-bonded O at', otherId);
-
-        // Check if carbon and this oxygen share a ring
-        for (const ring of rings as any[]) {
-          const ringSet = new Set(ring);
-          if (ringSet.has(carbon.id) && ringSet.has(otherId)) {
-            if (process.env.VERBOSE) console.log('[LACTONE_TO_KETONE] Lactone pattern detected at carbon', carbon.id, 'oxygen', otherId);
-            return true;
+      const carbonylCarbon = getCarbonFromCarbonyl(a1, a2);
+      
+      if (process.env.VERBOSE) console.log('[LACTONE_TO_KETONE] Examining carbonyl at', carbonylCarbon.id);
+      
+      // Check which rings contain this carbonyl carbon
+      for (let ringIdx = 0; ringIdx < ringAtomSets.length; ringIdx++) {
+        const ringSet = ringAtomSets[ringIdx];
+        if (!ringSet || !ringSet.has(carbonylCarbon.id)) continue;
+        
+        // Pattern 1: Check if ester oxygen is directly bonded to carbonyl carbon (simple lactones)
+        for (const b of mol.bonds) {
+          if (b.type !== 'single') continue;
+          const oxId = b.atom1 === carbonylCarbon.id ? b.atom2 : (b.atom2 === carbonylCarbon.id ? b.atom1 : -1);
+          if (oxId === -1) continue;
+          const oxAtom = mol.atoms[oxId];
+          
+          if (oxAtom?.symbol === 'O' && ringSet.has(oxId)) {
+            // Count how many carbons this oxygen is bonded to
+            let carbonCount = 0;
+            for (const b2 of mol.bonds) {
+              if (b2.atom1 === oxId || b2.atom2 === oxId) {
+                const neighborId = b2.atom1 === oxId ? b2.atom2 : b2.atom1;
+                if (mol.atoms[neighborId]?.symbol === 'C') carbonCount++;
+              }
+            }
+            
+            // If oxygen is bonded to exactly 2 carbons, it's an ester oxygen forming a simple lactone
+            if (carbonCount === 2) {
+              if (process.env.VERBOSE) console.log('[LACTONE_TO_KETONE]   Simple lactone detected: C(=O)-O at carbonyl', carbonylCarbon.id, ', ester O at', oxId);
+              return true;
+            }
+          }
+        }
+        
+        // Pattern 2: Check if ester oxygen is bonded to an alpha carbon (bicyclic lactones)
+        // Find all carbons bonded to the carbonyl carbon (alpha carbons)
+        const alphaAtomIds: number[] = [];
+        for (const b of mol.bonds) {
+          if (b.type !== 'single') continue;
+          const otherId = b.atom1 === carbonylCarbon.id ? b.atom2 : (b.atom2 === carbonylCarbon.id ? b.atom1 : -1);
+          if (otherId === -1) continue;
+          const otherAtom = mol.atoms[otherId];
+          if (otherAtom?.symbol === 'C' && ringSet.has(otherId)) {
+            alphaAtomIds.push(otherId);
+          }
+        }
+        
+        if (process.env.VERBOSE) console.log('[LACTONE_TO_KETONE]   Alpha carbons in ring:', alphaAtomIds);
+        
+        // For each alpha carbon, check if it's bonded to an ester oxygen in the same ring
+        for (const alphaId of alphaAtomIds) {
+          for (const b of mol.bonds) {
+            if (b.type !== 'single') continue;
+            const oxId = b.atom1 === alphaId ? b.atom2 : (b.atom2 === alphaId ? b.atom1 : -1);
+            if (oxId === -1) continue;
+            const oxAtom = mol.atoms[oxId];
+            
+            // Check if this is an ester oxygen (O bonded to two carbons, one of which is the alpha carbon)
+            if (oxAtom?.symbol === 'O' && ringSet.has(oxId)) {
+              // Count how many carbons this oxygen is bonded to
+              let carbonCount = 0;
+              for (const b2 of mol.bonds) {
+                if (b2.atom1 === oxId || b2.atom2 === oxId) {
+                  const neighborId = b2.atom1 === oxId ? b2.atom2 : b2.atom1;
+                  if (mol.atoms[neighborId]?.symbol === 'C') carbonCount++;
+                }
+              }
+              
+              // If oxygen is bonded to exactly 2 carbons, it's an ester oxygen forming a bicyclic lactone
+              if (carbonCount === 2) {
+                if (process.env.VERBOSE) console.log('[LACTONE_TO_KETONE]   Bicyclic lactone detected: C(=O)-C-O at carbonyl', carbonylCarbon.id, ', alpha C at', alphaId, ', ester O at', oxId);
+                return true;
+              }
+            }
           }
         }
       }
@@ -1143,8 +1204,11 @@ export const LACTONE_TO_KETONE_RULE: IUPACRule = {
       console.log('[LACTONE_TO_KETONE] Current functionalGroups:', functionalGroups.map((fg: any) => ({ type: fg.type, atoms: fg.atoms?.map((a: any) => a.id || a) })));
     }
 
-    // Find lactone carbonyls directly on the molecule (C=O with adjacent O in same ring)
-  const ringAtomSets = (rings || []).map((r: readonly number[]) => new Set(r));
+    // Find lactone carbonyls using the same logic as conditions function
+    // Pattern can be:
+    // 1. C(=O)-O (oxygen directly bonded to carbonyl carbon) - simple lactones
+    // 2. C(=O)-C-...-O (oxygen connected through alpha carbon) - bicyclic lactones
+    const ringAtomSets = (rings || []).map((r: readonly number[]) => new Set(r));
     const lactoneCarbonIds = new Set<number>();
 
     for (const bond of mol.bonds) {
@@ -1152,21 +1216,75 @@ export const LACTONE_TO_KETONE_RULE: IUPACRule = {
       const a1 = mol.atoms[bond.atom1];
       const a2 = mol.atoms[bond.atom2];
       if (!isCarbonyl(a1, a2)) continue;
-      const carbon = getCarbonFromCarbonyl(a1, a2);
+      const carbonylCarbon = getCarbonFromCarbonyl(a1, a2);
 
-      // find single-bonded oxygen attached to carbon
-      for (const b of mol.bonds) {
-        if (b.type !== 'single') continue;
-        const otherId = b.atom1 === carbon.id ? b.atom2 : (b.atom2 === carbon.id ? b.atom1 : undefined);
-        if (otherId === undefined) continue;
-        const otherAtom = mol.atoms[otherId];
-        if (!otherAtom || otherAtom.symbol !== 'O') continue;
+      // Check which rings contain this carbonyl carbon
+      for (const ringSet of ringAtomSets) {
+        if (!ringSet.has(carbonylCarbon.id)) continue;
 
-        // check if carbon and oxygen are in same ring
-        for (const ringSet of ringAtomSets) {
-          if (ringSet.has(carbon.id) && ringSet.has(otherId)) {
-            lactoneCarbonIds.add(carbon.id);
-            if (process.env.VERBOSE) console.log('[LACTONE_TO_KETONE] Detected lactone carbonyl at', carbon.id);
+        // Pattern 1: Check if ester oxygen is directly bonded to carbonyl carbon (simple lactones)
+        for (const b of mol.bonds) {
+          if (b.type !== 'single') continue;
+          const oxId = b.atom1 === carbonylCarbon.id ? b.atom2 : (b.atom2 === carbonylCarbon.id ? b.atom1 : -1);
+          if (oxId === -1) continue;
+          const oxAtom = mol.atoms[oxId];
+          
+          if (oxAtom?.symbol === 'O' && ringSet.has(oxId)) {
+            // Count how many carbons this oxygen is bonded to
+            let carbonCount = 0;
+            for (const b2 of mol.bonds) {
+              if (b2.atom1 === oxId || b2.atom2 === oxId) {
+                const neighborId = b2.atom1 === oxId ? b2.atom2 : b2.atom1;
+                if (mol.atoms[neighborId]?.symbol === 'C') carbonCount++;
+              }
+            }
+            
+            // If oxygen is bonded to exactly 2 carbons, it's an ester oxygen forming a simple lactone
+            if (carbonCount === 2) {
+              lactoneCarbonIds.add(carbonylCarbon.id);
+              if (process.env.VERBOSE) console.log('[LACTONE_TO_KETONE] Detected simple lactone carbonyl at', carbonylCarbon.id, ', ester O at', oxId);
+            }
+          }
+        }
+
+        // Pattern 2: Check if ester oxygen is bonded to an alpha carbon (bicyclic lactones)
+        // Find all carbons bonded to the carbonyl carbon (alpha carbons)
+        const alphaAtomIds: number[] = [];
+        for (const b of mol.bonds) {
+          if (b.type !== 'single') continue;
+          const otherId = b.atom1 === carbonylCarbon.id ? b.atom2 : (b.atom2 === carbonylCarbon.id ? b.atom1 : -1);
+          if (otherId === -1) continue;
+          const otherAtom = mol.atoms[otherId];
+          if (otherAtom?.symbol === 'C' && ringSet.has(otherId)) {
+            alphaAtomIds.push(otherId);
+          }
+        }
+
+        // For each alpha carbon, check if it's bonded to an ester oxygen in the same ring
+        for (const alphaId of alphaAtomIds) {
+          for (const b of mol.bonds) {
+            if (b.type !== 'single') continue;
+            const oxId = b.atom1 === alphaId ? b.atom2 : (b.atom2 === alphaId ? b.atom1 : -1);
+            if (oxId === -1) continue;
+            const oxAtom = mol.atoms[oxId];
+
+            // Check if this is an ester oxygen (O bonded to two carbons, one of which is the alpha carbon)
+            if (oxAtom?.symbol === 'O' && ringSet.has(oxId)) {
+              // Count how many carbons this oxygen is bonded to
+              let carbonCount = 0;
+              for (const b2 of mol.bonds) {
+                if (b2.atom1 === oxId || b2.atom2 === oxId) {
+                  const neighborId = b2.atom1 === oxId ? b2.atom2 : b2.atom1;
+                  if (mol.atoms[neighborId]?.symbol === 'C') carbonCount++;
+                }
+              }
+
+              // If oxygen is bonded to exactly 2 carbons, it's an ester oxygen forming a bicyclic lactone
+              if (carbonCount === 2) {
+                lactoneCarbonIds.add(carbonylCarbon.id);
+                if (process.env.VERBOSE) console.log('[LACTONE_TO_KETONE] Detected bicyclic lactone carbonyl at', carbonylCarbon.id, ', alpha C at', alphaId, ', ester O at', oxId);
+              }
+            }
           }
         }
       }
@@ -1221,16 +1339,42 @@ export const LACTONE_TO_KETONE_RULE: IUPACRule = {
       console.log('[LACTONE_TO_KETONE] After conversion/update, functionalGroups:', updatedFunctionalGroups.map((fg: any) => ({ type: fg.type, suffix: fg.suffix, atoms: fg.atoms?.map((a: any) => a.id || a) })));
     }
 
+    // Re-select principal group after lactone-to-ketone conversion
+    // The ketone from the lactone should now be the principal group
+    // Special case: if we detected lactones, the ketone MUST be principal
+    // (lactones are cyclic esters that should be named as ketones in heterocycles)
+    const newPrincipalGroup = lactoneCarbonIds.size > 0
+      ? updatedFunctionalGroups.find((fg: any) => 
+          fg.type === 'ketone' && 
+          (fg.atoms || []).some((a: any) => lactoneCarbonIds.has(a?.id || a))
+        ) || selectPrincipalGroup(updatedFunctionalGroups)
+      : selectPrincipalGroup(updatedFunctionalGroups);
+    
+    if (process.env.VERBOSE) {
+      console.log('[LACTONE_TO_KETONE] Re-selected principal group:', newPrincipalGroup ? { type: newPrincipalGroup.type, priority: newPrincipalGroup.priority } : null);
+    }
+    
+    // Mark all functional groups of the principal type as principal
+    const finalFunctionalGroups = newPrincipalGroup
+      ? updatedFunctionalGroups.map(g => {
+          if (g.type === newPrincipalGroup.type && g.priority === newPrincipalGroup.priority) {
+            return { ...g, isPrincipal: true };
+          }
+          return { ...g, isPrincipal: false };
+        })
+      : updatedFunctionalGroups;
+
     return context.withStateUpdate(
       (state) => ({
         ...state,
-        functionalGroups: updatedFunctionalGroups
+        functionalGroups: finalFunctionalGroups,
+        principalGroup: newPrincipalGroup || state.principalGroup
       }),
       'lactone-to-ketone',
       'Lactone to Ketone Conversion',
       'P-66.1.1.4',
       ExecutionPhase.FUNCTIONAL_GROUP,
-      'Converted cyclic esters (lactones) to ketones for heterocycle naming'
+      'Converted cyclic esters (lactones) to ketones for heterocycle naming and re-selected principal group'
     );
   }
 };
@@ -1419,12 +1563,17 @@ const opsinDetector = new OPSINFunctionalGroupDetector();
  * uses larger static values (roughly 80..100). To compare fairly, rescale
  * small detector priorities into the static range. If a priority already
  * appears to be on the engine scale (>20) leave it unchanged.
+ * 
+ * IMPORTANT: OPSIN uses inverted scale (1=highest, 12=lowest) while engine
+ * uses normal scale (100=highest, 0=lowest). We must invert during normalization.
  */
 function normalizePriority(p: number): number {
   if (typeof p !== 'number' || Number.isNaN(p)) return 0;
   if (p > 20) return p; // assume already in engine scale
   const detectorMax = 12; // conservative assumed max for detector scale
-  return Math.round((p / detectorMax) * 100);
+  // Invert OPSIN scale: (detectorMax + 1 - p) makes 1→12, 12→1
+  // Then scale to engine range: /detectorMax * 100
+  return Math.round(((detectorMax + 1 - p) / detectorMax) * 100);
 }
 
 /**
@@ -1498,12 +1647,13 @@ function selectPrincipalGroup(functionalGroups: any[]): any | null {
     }
   }
 
-  // Sort by the assigned priority on the FunctionalGroup object first (higher numeric value = higher priority)
+  // Sort by the assigned priority on the FunctionalGroup object first.
+  // After normalization, priorities use the engine scale (HIGHER numeric value = HIGHER priority).
   // Fall back to the static FUNCTIONAL_GROUP_PRIORITIES table or 0 when missing.
   const sortedGroups = functionalGroups.sort((a, b) => {
     const priorityA = (typeof a.priority === 'number') ? a.priority : (opsinDetector.getFunctionalGroupPriority(a.type) || FUNCTIONAL_GROUP_PRIORITIES[a.type as keyof typeof FUNCTIONAL_GROUP_PRIORITIES] || 0);
     const priorityB = (typeof b.priority === 'number') ? b.priority : (opsinDetector.getFunctionalGroupPriority(b.type) || FUNCTIONAL_GROUP_PRIORITIES[b.type as keyof typeof FUNCTIONAL_GROUP_PRIORITIES] || 0);
-    return priorityB - priorityA;
+    return priorityB - priorityA;  // Higher priority number = higher priority (engine convention after normalization)
   });
 
   return sortedGroups[0];

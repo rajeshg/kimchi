@@ -15,6 +15,7 @@ describe('Comprehensive P-44.1 Functional Group Coverage', () => {
     const detector = new OPSINFunctionalGroupDetector();
     
     // Test molecules covering different priority levels
+    // Priorities follow IUPAC Blue Book P-44.1 (lower number = higher priority)
     const testCases = [
       {
         smiles: 'CC(=O)O', // Carboxylic acid - Priority 1
@@ -22,39 +23,44 @@ describe('Comprehensive P-44.1 Functional Group Coverage', () => {
         expectedName: 'carboxylic acid'
       },
       {
-        smiles: 'CC=O', // Aldehyde - Priority 2  
-        expectedPriority: 2,
-        expectedName: 'aldehyde'
-      },
-      {
-        smiles: 'CC(=O)C', // Ketone - Priority 3
+        smiles: 'CC(=O)OC', // Ester - Priority 3 (higher than amide per P-44.1)
         expectedPriority: 3,
-        expectedName: 'ketone'
+        expectedName: 'ester'
       },
       {
-        smiles: 'CCO', // Alcohol - Priority 4
-        expectedPriority: 4,
-        expectedName: 'alcohol'
-      },
-      {
-        smiles: 'CCN', // Amine - Priority 5
+        smiles: 'CC(=O)NC', // Amide - Priority 5
         expectedPriority: 5,
-        expectedName: 'amine'
-      },
-      {
-        smiles: 'CCOC', // Ether - Priority 6
-        expectedPriority: 6,
-        expectedName: 'ether'
-      },
-      {
-        smiles: 'CC(=O)NC', // Amide - Priority 7
-        expectedPriority: 7,
         expectedName: 'amide'
       },
       {
-        smiles: 'CC(=O)OC', // Ester - Priority 8
+        smiles: 'CC#N', // Nitrile - Priority 7
+        expectedPriority: 7,
+        expectedName: 'nitrile'
+      },
+      {
+        smiles: 'CC=O', // Aldehyde - Priority 8  
         expectedPriority: 8,
-        expectedName: 'ester'
+        expectedName: 'aldehyde'
+      },
+      {
+        smiles: 'CC(=O)C', // Ketone - Priority 9
+        expectedPriority: 9,
+        expectedName: 'ketone'
+      },
+      {
+        smiles: 'CCO', // Alcohol - Priority 10
+        expectedPriority: 10,
+        expectedName: 'alcohol'
+      },
+      {
+        smiles: 'CCN', // Amine - Priority 11
+        expectedPriority: 11,
+        expectedName: 'amine'
+      },
+      {
+        smiles: 'CCOC', // Ether - Priority 12 (lowest priority per P-44.1)
+        expectedPriority: 12,
+        expectedName: 'ether'
       }
     ];
     

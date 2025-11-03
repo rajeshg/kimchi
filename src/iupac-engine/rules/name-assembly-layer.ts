@@ -1178,11 +1178,16 @@ function buildSubstitutiveName(parentStructure: any, functionalGroups: any[]): s
         const fixPart = (p: string) => {
           let s = p.toString();
           // Ensure leading locant has a hyphen: "6hydroxy" -> "6-hydroxy"
-          s = s.replace(/^(\d+)(?!-)/, '$1-');
+          // Match: digit(s) followed by a letter (not another digit or hyphen)
+          s = s.replace(/^(\d+)(?=[A-Za-z])/, '$1-');
           return s;
         };
 
         const fixedParts = missingParts.map(fixPart);
+
+        if (process.env.VERBOSE) {
+          console.log('[buildSubstitutiveName] fixedParts:', JSON.stringify(fixedParts));
+        }
 
         if (fixedParts.length === 1) {
           name += fixedParts[0];
@@ -1190,8 +1195,16 @@ function buildSubstitutiveName(parentStructure: any, functionalGroups: any[]): s
           if (isHeteroatomParent) {
             name += fixedParts.join('');
           } else {
-            name += fixedParts.join('-');
+            const joined = fixedParts.join('-');
+            if (process.env.VERBOSE) {
+              console.log('[buildSubstitutiveName] joining with hyphen:', joined);
+            }
+            name += joined;
           }
+        }
+        
+        if (process.env.VERBOSE) {
+          console.log('[buildSubstitutiveName] name after adding substituents:', name);
         }
       }
     }
@@ -1243,12 +1256,28 @@ function buildSubstitutiveName(parentStructure: any, functionalGroups: any[]): s
     } else {
       // Single functional group - replace terminal 'e' if suffix starts with vowel
       // Replace ending with "an" for saturated systems, "en" for unsaturated
+      // This applies to both carbocycles (alkane, alkene) and heterocycles (oxolane, thiolane, etc.)
       if (/ane$/.test(name)) {
         name = name.replace(/ane$/, 'an');
       } else if (/ene$/.test(name)) {
         name = name.replace(/ene$/, 'en');
       } else if (/yne$/.test(name)) {
         name = name.replace(/yne$/, 'yn');
+      } else if (/olane$/.test(name)) {
+        // Heterocycles ending in "olane" (oxolane, thiolane, etc.) → "olan"
+        name = name.replace(/olane$/, 'olan');
+      } else if (/etane$/.test(name)) {
+        // 4-membered heterocycles (oxetane, thietane) → "etan"
+        name = name.replace(/etane$/, 'etan');
+      } else if (/irane$/.test(name)) {
+        // 3-membered heterocycles (oxirane, azirane, thiirane) → "iran"
+        name = name.replace(/irane$/, 'iran');
+      } else if (/idine$/.test(name)) {
+        // N-heterocycles (pyrrolidine, azetidine, piperidine) → "idin"
+        name = name.replace(/idine$/, 'idin');
+      } else if (/ane$/.test(name)) {
+        // 6-membered O/S heterocycles (oxane, thiane) → "an"
+        name = name.replace(/ane$/, 'an');
       }
       
       // Get locant for the principal functional group
@@ -1343,9 +1372,17 @@ function applyFinalFormatting(name: string): string {
   // Apply final formatting rules
   let formatted = name.trim();
   
+  if (process.env.VERBOSE) {
+    console.log('[applyFinalFormatting] input:', formatted);
+  }
+  
   // Ensure there's a hyphen between a locant digit and the following text when missing
   // e.g., convert "6hydroxy7methyl" -> "6-hydroxy7-methyl" (further hyphenation follows)
   formatted = formatted.replace(/(\d)(?=[A-Za-z])/g, '$1-');
+  
+  if (process.env.VERBOSE) {
+    console.log('[applyFinalFormatting] after digit-letter hyphenation:', formatted);
+  }
 
   // Ensure hyphen between letters and following locant digit when missing,
   // but do not insert a hyphen if the digit is already followed by a hyphen

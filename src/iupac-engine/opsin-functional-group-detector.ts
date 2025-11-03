@@ -27,17 +27,22 @@ export class OPSINFunctionalGroupDetector {
       this.functionalGroups = new Map();
       if (this.rules.functionalGroups) {
         // Map OPSIN functional group entries into a normalized structure
+        // Priority follows IUPAC Blue Book P-44.1 (lower number = higher priority)
         const priorityMap: Record<string, number> = {
           'carboxylic acid': 1,
-          'aldehyde': 2,
-          'ketone': 3,
-          'alcohol': 4,
-          'amine': 5,
-          'ether': 6,
-          'amide': 7,
-          'ester': 8,
-          'nitrile': 9,
-          'cyanohydrin': 9  // OPSIN alias for nitrile (C#N)
+          'sulfonic acid': 2,
+          'ester': 3,
+          'acid halide': 4,
+          'amide': 5,
+          'hydrazide': 6,
+          'nitrile': 7,
+          'cyanohydrin': 7,  // OPSIN alias for nitrile (C#N)
+          'aldehyde': 8,
+          'ketone': 9,
+          'alcohol': 10,
+          'phenol': 10,
+          'amine': 11,
+          'ether': 12
         };
 
         for (const [pattern, data] of Object.entries(this.rules.functionalGroups)) {
@@ -82,13 +87,53 @@ export class OPSINFunctionalGroupDetector {
         const cwdPath = `${process.cwd()}/opsin-rules.json`;
         const rulesData = fs.readFileSync(cwdPath, 'utf8');
         this.rules = JSON.parse(rulesData);
-        // build maps as above
+        // build maps as above with priority mapping
         this.functionalGroups = new Map();
         if (this.rules.functionalGroups) {
+          // Priority follows IUPAC Blue Book P-44.1 (lower number = higher priority)
+          const priorityMap: Record<string, number> = {
+            'carboxylic acid': 1,
+            'sulfonic acid': 2,
+            'ester': 3,
+            'acid halide': 4,
+            'amide': 5,
+            'hydrazide': 6,
+            'nitrile': 7,
+            'cyanohydrin': 7,  // OPSIN alias for nitrile (C#N)
+            'aldehyde': 8,
+            'ketone': 9,
+            'alcohol': 10,
+            'phenol': 10,
+            'amine': 11,
+            'ether': 12
+          };
+
           for (const [pattern, data] of Object.entries(this.rules.functionalGroups)) {
-            this.functionalGroups.set(pattern, data);
+            const entry: any = data || {};
+            
+            // Skip halogens - they are substituents, not functional groups
+            if (pattern === 'F' || pattern === 'Cl' || pattern === 'Br' || pattern === 'I') {
+              continue;
+            }
+            
+            // Skip 'S' pattern - we handle thioethers (RSR) in builtin checks
+            if (pattern === 'S') {
+              continue;
+            }
+            
+            const name = Array.isArray(entry.aliases) && entry.aliases.length > 0 ? entry.aliases[0] : (entry.name || pattern);
+            const priority = priorityMap[name.toLowerCase()] || (entry.priority as number) || 999;
+            const suffix = entry.suffix || '';
+            this.functionalGroups.set(pattern, { name, priority, suffix });
           }
         }
+        
+        // Override OPSIN names for certain patterns to use standard IUPAC names
+        if (this.functionalGroups.has('C#N')) {
+          const entry = this.functionalGroups.get('C#N');
+          this.functionalGroups.set('C#N', { ...entry, name: 'nitrile', suffix: 'nitrile' });
+        }
+        
         this.suffixes = new Map();
         if (this.rules.suffixes) {
           for (const [name, pattern] of Object.entries(this.rules.suffixes)) {
@@ -108,17 +153,18 @@ export class OPSINFunctionalGroupDetector {
 
     // Populate a minimal set of functional group patterns with priorities so tests
     // that rely on common functional groups succeed even without full OPSIN data.
+    // Priority follows IUPAC Blue Book P-44.1 (lower number = higher priority)
     this.functionalGroups = new Map();
     const fgList = [
       { pattern: 'C(=O)[OX2H1]', name: 'carboxylic acid', suffix: 'oic acid', priority: 1 },
-      { pattern: 'C=O', name: 'aldehyde', suffix: 'al', priority: 2 },
-      { pattern: '[CX3](=O)[CX4]', name: 'ketone', suffix: 'one', priority: 3 },
-      { pattern: '[OX2H]', name: 'alcohol', suffix: 'ol', priority: 4 },
-      { pattern: '[NX3][CX4]', name: 'amine', suffix: 'amine', priority: 5 },
-      { pattern: 'ROR', name: 'ether', suffix: 'ether', priority: 6 },
-      { pattern: 'C(=O)N', name: 'amide', suffix: 'amide', priority: 7 },
-      { pattern: 'C(=O)O', name: 'ester', suffix: 'oate', priority: 8 },
-      { pattern: 'C#N', name: 'nitrile', suffix: 'nitrile', priority: 9 }
+      { pattern: 'C(=O)O', name: 'ester', suffix: 'oate', priority: 3 },
+      { pattern: 'C(=O)N', name: 'amide', suffix: 'amide', priority: 5 },
+      { pattern: 'C#N', name: 'nitrile', suffix: 'nitrile', priority: 7 },
+      { pattern: 'C=O', name: 'aldehyde', suffix: 'al', priority: 8 },
+      { pattern: '[CX3](=O)[CX4]', name: 'ketone', suffix: 'one', priority: 9 },
+      { pattern: '[OX2H]', name: 'alcohol', suffix: 'ol', priority: 10 },
+      { pattern: '[NX3][CX4]', name: 'amine', suffix: 'amine', priority: 11 },
+      { pattern: 'ROR', name: 'ether', suffix: 'ether', priority: 12 }
     ];
 
     for (const fg of fgList) {
@@ -158,22 +204,23 @@ export class OPSINFunctionalGroupDetector {
     const claimedAtoms = new Set<number>();
     
     // First, run a set of built-in high-priority detectors to ensure common groups
-    // (carboxylic acid, aldehyde, ketone, alcohol, amine, ester, amide, nitrile)
+    // Priority follows IUPAC Blue Book P-44.1 (lower number = higher priority)
+    // NOTE: Order matters for pattern matching! More specific patterns (e.g., SC#N) must come before more general patterns (e.g., C#N)
     const builtinChecks: Array<{ pattern: string; name: string; priority: number; finder: (a:any,b:any,r?:any)=>number[] }> = [
       { pattern: 'C(=O)[OX2H1]', name: 'carboxylic acid', priority: 1, finder: this.findCarboxylicAcidPattern.bind(this) },
-      { pattern: 'C=O', name: 'aldehyde', priority: 2, finder: this.findAldehydePattern.bind(this) },
-      { pattern: '[CX3](=O)[CX4]', name: 'ketone', priority: 3, finder: this.findKetonePattern.bind(this) },
-      { pattern: '[OX2H]', name: 'alcohol', priority: 4, finder: this.findAlcoholPattern.bind(this) },
-  { pattern: '[NX3][CX4]', name: 'amine', priority: 5, finder: this.findAminePattern.bind(this) },
-  { pattern: 'ROR', name: 'ether', priority: 6, finder: this.findEtherPattern.bind(this) },
-  { pattern: 'C(=O)N', name: 'amide', priority: 7, finder: this.findAmidePattern.bind(this) },
-      { pattern: 'C(=O)O', name: 'ester', priority: 8, finder: this.findEsterPattern.bind(this) },
-      { pattern: 'C(=O)S', name: 'thioester', priority: 8.5, finder: this.findThioesterPattern.bind(this) },
-      { pattern: 'SC#N', name: 'thiocyanate', priority: 9, finder: this.findThiocyanatePattern.bind(this) },
-      { pattern: 'C#N', name: 'nitrile', priority: 10, finder: this.findNitrilePattern.bind(this) },
-      { pattern: 'RSR', name: 'thioether', priority: 11, finder: this.findThioetherPattern.bind(this) },
-      { pattern: 'S(=O)(=O)', name: 'sulfonyl', priority: 11.5, finder: this.findSulfonylPattern.bind(this) },
-      { pattern: 'S(=O)', name: 'sulfinyl', priority: 11.6, finder: this.findSulfinylPattern.bind(this) }
+      { pattern: 'C(=O)O', name: 'ester', priority: 3, finder: this.findEsterPattern.bind(this) },
+      { pattern: 'C(=O)N', name: 'amide', priority: 5, finder: this.findAmidePattern.bind(this) },
+      { pattern: 'SC#N', name: 'thiocyanate', priority: 6.5, finder: this.findThiocyanatePattern.bind(this) },
+      { pattern: 'C#N', name: 'nitrile', priority: 7, finder: this.findNitrilePattern.bind(this) },
+      { pattern: 'C=O', name: 'aldehyde', priority: 8, finder: this.findAldehydePattern.bind(this) },
+      { pattern: '[CX3](=O)[CX4]', name: 'ketone', priority: 9, finder: this.findKetonePattern.bind(this) },
+      { pattern: 'C(=O)S', name: 'thioester', priority: 9.5, finder: this.findThioesterPattern.bind(this) },
+      { pattern: '[OX2H]', name: 'alcohol', priority: 10, finder: this.findAlcoholPattern.bind(this) },
+      { pattern: '[NX3][CX4]', name: 'amine', priority: 11, finder: this.findAminePattern.bind(this) },
+      { pattern: 'RSR', name: 'thioether', priority: 11.5, finder: this.findThioetherPattern.bind(this) },
+      { pattern: 'S(=O)(=O)', name: 'sulfonyl', priority: 11.6, finder: this.findSulfonylPattern.bind(this) },
+      { pattern: 'S(=O)', name: 'sulfinyl', priority: 11.7, finder: this.findSulfinylPattern.bind(this) },
+      { pattern: 'ROR', name: 'ether', priority: 12, finder: this.findEtherPattern.bind(this) }
     ];
 
     for (const check of builtinChecks) {
@@ -315,6 +362,13 @@ export class OPSINFunctionalGroupDetector {
               claimedAtoms.add(sulfurId);
             }
           } else {
+            if (process.env.DEBUG_ALDEHYDE && check.name === 'aldehyde') {
+              console.log(`[DEBUG] Aldehyde detection:`);
+              console.log(`  check.pattern: ${check.pattern}`);
+              console.log(`  check.priority: ${check.priority}`);
+              console.log(`  fgEntry:`, fgEntry);
+              console.log(`  final priority: ${fgEntry?.priority || check.priority}`);
+            }
             detectedGroups.push({
               type: check.pattern,
               name: fgEntry?.name || check.name,
@@ -389,14 +443,14 @@ export class OPSINFunctionalGroupDetector {
 
           if (nonOxygenNeighbors.length === 1) {
             // Likely an aldehyde (terminal carbonyl). Promote to aldehyde priority.
-            g.priority = 2;
+            g.priority = 8;  // IUPAC P-44.1: aldehyde priority is 8
             g.name = 'aldehyde';
             if (!this.functionalGroups.has('C=O')) {
-              this.functionalGroups.set('C=O', { name: 'aldehyde', suffix: 'al', priority: 2 });
+              this.functionalGroups.set('C=O', { name: 'aldehyde', suffix: 'al', priority: 8 });
             } else {
               const existing = this.functionalGroups.get('C=O') as any;
               existing.name = 'aldehyde';
-              existing.priority = 2;
+              existing.priority = 8;
               existing.suffix = existing.suffix || 'al';
               this.functionalGroups.set('C=O', existing);
             }
@@ -643,6 +697,12 @@ export class OPSINFunctionalGroupDetector {
       const atom = atoms[i];
       if (atom.symbol !== 'O') continue;
 
+      // Exclude oxygens that are part of heterocyclic rings
+      // These are already named as part of the ring (e.g., "oxolane", "oxane")
+      if (atom.isInRing) {
+        continue;
+      }
+
       const carbonBonds = bonds.filter(bond =>
         (bond.atom1 === atom.id || bond.atom2 === atom.id) && bond.type === 'single' &&
         this.getBondedAtom(bond, atom.id, atoms)?.symbol === 'C'
@@ -675,6 +735,12 @@ export class OPSINFunctionalGroupDetector {
     for (let i = 0; i < atoms.length; i++) {
       const atom = atoms[i];
       if (atom.symbol !== 'S') continue;
+
+      // Exclude sulfurs that are part of heterocyclic rings
+      // These are already named as part of the ring (e.g., "thiolane", "thiane")
+      if (atom.isInRing) {
+        continue;
+      }
 
       const carbonBonds = bonds.filter(bond =>
         (bond.atom1 === atom.id || bond.atom2 === atom.id) && bond.type === 'single' &&
