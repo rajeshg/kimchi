@@ -9,11 +9,10 @@ import { RuleEngine } from '../../../src/iupac-engine/engine';
 //    - Issue: Chain selection doesn't prioritize double bond placement in main chain
 //    - This is a known chain selection limitation documented in the codebase
 
-const engine = new RuleEngine();
-
 describe('SMILES to IUPAC Name Realistic Test (New Engine)', () => {
   describe('Simple molecules that should work', () => {
      it('should generate and compare IUPAC names for realistic SMILES', () => {
+       const engine = new RuleEngine();
        const mismatches: Array<{smiles: string; generated: string; reference: string}> = [];
        let matchCount = 0;
         realisticDataset.forEach((entry: { smiles: string; iupac: string }) => {

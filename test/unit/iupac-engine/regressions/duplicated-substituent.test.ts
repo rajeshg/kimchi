@@ -2,8 +2,6 @@ import { describe, it, expect } from 'bun:test';
 import { parseSMILES } from 'index';
 import { RuleEngine } from '../../../../src/iupac-engine/engine';
 
-const engine = new RuleEngine();
-
 describe('Regression: duplicated/garbled substituent assembly', () => {
   const cases: Array<{ smiles: string; expected: string }> = [
     { smiles: 'CC1(CCCCC1(Cl)Cl)O', expected: '2,2-dichloro-1-methylcyclohexan-1-ol' },
@@ -13,6 +11,7 @@ describe('Regression: duplicated/garbled substituent assembly', () => {
 
   for (const c of cases) {
     it(`generates correct name for ${c.smiles}`, () => {
+      const engine = new RuleEngine();
       const res = parseSMILES(c.smiles);
       expect(res.errors).toHaveLength(0);
       expect(res.molecules).toHaveLength(1);

@@ -2,10 +2,9 @@ import { describe, it, expect } from 'bun:test';
 import { parseSMILES } from 'index';
 import { RuleEngine } from '../../../../src/iupac-engine/engine';
 
-const engine = new RuleEngine();
-
 describe('Regression: complex ester handling', () => {
   it('handles a substituted anilino butanoate', () => {
+    const engine = new RuleEngine();
     const smiles = 'CCCC(=O)OC(C)(C)C(=O)NC1=CC(=C(C=C1)[N+](=O)[O-])C(F)(F)F';
     const expected = '[2-methyl-1-[4-nitro-3-(trifluoromethyl)anilino]-1-oxopropan-2-yl]butanoate';
 
@@ -20,6 +19,7 @@ describe('Regression: complex ester handling', () => {
   });
 
   it('handles dimethyl propoxy butanedioate', () => {
+    const engine = new RuleEngine();
     const smiles = 'CCCOC(CC(=O)OC)C(=O)OC';
     const expected = 'dimethyl2-propoxybutanedioate';
 
@@ -31,6 +31,7 @@ describe('Regression: complex ester handling', () => {
   });
 
   it('handles silyloxy-substituted ester (trimethylsilyloxy case)', () => {
+    const engine = new RuleEngine();
     const smiles = 'CC(C)C(=O)OCC(CO[Si](C)(C)C)O[Si](C)(C)C';
     const expected = '2,3-bis(trimethylsilyloxy)propyl2-methylpropanoate';
 

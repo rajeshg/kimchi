@@ -10,6 +10,7 @@ import {
   buildDiesterName,
   getAlkoxyGroupName
 } from '../utils/ester-naming';
+import { buildAmideName } from '../utils/amide-naming';
 
 /**
  * Name Assembly Layer Rules
@@ -589,7 +590,7 @@ function buildFunctionalClassName(parentStructure: any, functionalGroups: any[],
     case 'ester':
       return buildEsterName(parentStructure, functionalGroup, molecule, functionalGroups);
     case 'amide':
-      return `${functionalGroup.assembledName || 'amide'}`;
+      return buildAmideName(parentStructure, functionalGroup, molecule, functionalGroups);
     case 'thiocyanate':
       return buildThiocyanateName(parentStructure, functionalGroups);
     default:
@@ -1304,12 +1305,16 @@ function buildSubstitutiveName(parentStructure: any, functionalGroups: any[]): s
         }
       }
       
-      // Add locant if present and not position 1 on a chain/ring
-      // For alcohols and other functional groups, we typically need the locant
-      // unless it's unambiguous (like methanol)
+      // Add locant if present and not position 1 on a chain
+      // For chain structures: amide, carboxylic acid, nitrile at position 1 never need locant (e.g., "butanamide" not "butan-1-amide")
+      // For ring structures: functional groups may need locant even at position 1 (e.g., "cyclohexan-1-ol")
+      // For alcohols on chains: position 1 typically doesn't need locant for short chains (ethanol, propan-2-ol)
       const parentName = parentStructure.assembledName || parentStructure.name || '';
       const chainLength = parentStructure.chain?.length || parentStructure.size || 0;
-      const needsLocant = fgLocant && (fgLocant !== 1 || parentStructure.type === 'ring' || chainLength > 2);
+      const needsLocant = fgLocant && (
+        (fgLocant !== 1) || // Always add locant if not position 1
+        (parentStructure.type === 'ring') // For rings, may need locant even at position 1
+      );
       
       if (process.env.VERBOSE) {
         console.log(`[needsLocant calc] fgLocant=${fgLocant}, type=${parentStructure.type}, chainLength=${chainLength}, needsLocant=${needsLocant}`);

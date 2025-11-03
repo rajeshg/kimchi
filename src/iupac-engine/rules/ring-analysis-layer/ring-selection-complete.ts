@@ -1,5 +1,5 @@
 import type { IUPACRule } from '../../types';
-import { RulePriority } from '../../types';
+import { RulePriority, RingSystemType } from '../../types';
 import { ExecutionPhase } from '../../immutable-context';
 import { analyzeRings } from '../../../utils/ring-analysis';
 import { generateBaseCyclicName } from '../../naming/iupac-rings/index';
@@ -78,10 +78,102 @@ export const RING_SELECTION_COMPLETE_RULE: IUPACRule = {
       );
     }
     
-    // Select the final ring system
-    const parentRing = candidateRings[0];
     const molecule = context.getState().molecule;
     const ringInfo = analyzeRings(molecule);
+    
+    // Check if multiple rings are connected (forming a polycyclic system)
+    if (candidateRings.length > 1) {
+      // Check if any two rings are connected by bonds
+      const areRingsConnected = (ring1: any, ring2: any): boolean => {
+        const ring1AtomIds = new Set(ring1.atoms.map((a: any) => a.id));
+        const ring2AtomIds = new Set(ring2.atoms.map((a: any) => a.id));
+        
+        for (const bond of molecule.bonds) {
+          const a1InRing1 = ring1AtomIds.has(bond.atom1);
+          const a2InRing1 = ring1AtomIds.has(bond.atom2);
+          const a1InRing2 = ring2AtomIds.has(bond.atom1);
+          const a2InRing2 = ring2AtomIds.has(bond.atom2);
+          
+          if ((a1InRing1 && a2InRing2) || (a1InRing2 && a2InRing1)) {
+            return true;
+          }
+        }
+        return false;
+      };
+      
+      let hasConnectedRings = false;
+      for (let i = 0; i < candidateRings.length && !hasConnectedRings; i++) {
+        for (let j = i + 1; j < candidateRings.length && !hasConnectedRings; j++) {
+          if (areRingsConnected(candidateRings[i], candidateRings[j])) {
+            hasConnectedRings = true;
+          }
+        }
+      }
+      
+      if (hasConnectedRings) {
+        if (process.env.VERBOSE) {
+          console.log('[ring-selection-complete] Multiple connected rings detected - treating as polycyclic system');
+        }
+        
+        // Create a merged parent structure that includes all connected rings
+        const allAtoms = new Set<any>();
+        const allBonds = new Set<any>();
+        
+        for (const ring of candidateRings) {
+          for (const atom of ring.atoms) {
+            allAtoms.add(atom);
+          }
+          if (ring.bonds) {
+            for (const bond of ring.bonds) {
+              allBonds.add(bond);
+            }
+          }
+        }
+        
+        const atomsArray = Array.from(allAtoms);
+        const bondsArray = Array.from(allBonds);
+        
+        // Collect heteroatoms with proper structure
+        const heteroatoms = atomsArray
+          .filter((a: any) => a.symbol !== 'C' && a.symbol !== 'H')
+          .map((a: any, idx: number) => ({ 
+            atom: a, 
+            type: a.symbol, 
+            locant: idx + 1 
+          }));
+        
+        const parentRing = {
+          atoms: atomsArray,
+          bonds: bondsArray,
+          rings: candidateRings.flatMap((r: any) => r.rings || []),
+          size: allAtoms.size,
+          heteroatoms: heteroatoms,
+          type: RingSystemType.AROMATIC, // Will be determined properly by naming logic
+          fused: false,
+          bridged: false,
+          spiro: false
+        };
+        
+        const parentStructure = {
+          type: 'ring' as const,
+          ring: parentRing,
+          name: generateBaseCyclicName(molecule, ringInfo),
+          locants: generateRingLocants(parentRing)
+        };
+        
+        return context.withParentStructure(
+          parentStructure,
+          'ring-selection-complete',
+          'Ring Selection Complete',
+          'P-44.2',
+          ExecutionPhase.PARENT_STRUCTURE,
+          'Finalized polycyclic ring system selection'
+        );
+      }
+    }
+    
+    // Single ring or multiple disconnected rings - select first one
+    const parentRing = candidateRings[0];
     
     const parentStructure = {
       type: 'ring' as const,

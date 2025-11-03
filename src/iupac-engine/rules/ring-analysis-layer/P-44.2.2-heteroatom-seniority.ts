@@ -20,7 +20,50 @@ export const P44_2_2_HETEROATOM_SENIORITY_RULE: IUPACRule = {
   },
   action: (context) => {
     const candidateRings = context.getState().candidateRings;
+    const molecule = context.getState().molecule;
+    
+    if (process.env.VERBOSE) {
+      console.log(`[P-44.2.2] Starting heteroatom seniority with ${candidateRings?.length} rings`);
+    }
+    
     if (!candidateRings || candidateRings.length <= 1) {
+      return context;
+    }
+    
+    // Check if rings are connected (bonded to each other but not sharing atoms)
+    // If rings are connected, they form a polycyclic parent and should NOT be filtered by heteroatom seniority
+    const areRingsConnected = (ring1: any, ring2: any): boolean => {
+      const ring1AtomIds = new Set(ring1.atoms.map((a: any) => a.id));
+      const ring2AtomIds = new Set(ring2.atoms.map((a: any) => a.id));
+      
+      // Check if any atom in ring1 is bonded to any atom in ring2
+      for (const bond of molecule.bonds) {
+        const a1InRing1 = ring1AtomIds.has(bond.atom1);
+        const a2InRing1 = ring1AtomIds.has(bond.atom2);
+        const a1InRing2 = ring2AtomIds.has(bond.atom1);
+        const a2InRing2 = ring2AtomIds.has(bond.atom2);
+        
+        if ((a1InRing1 && a2InRing2) || (a1InRing2 && a2InRing1)) {
+          return true;
+        }
+      }
+      return false;
+    };
+    
+    // If any two rings are connected, keep all rings (they form a polycyclic parent)
+    let hasConnectedRings = false;
+    for (let i = 0; i < candidateRings.length && !hasConnectedRings; i++) {
+      for (let j = i + 1; j < candidateRings.length && !hasConnectedRings; j++) {
+        if (areRingsConnected(candidateRings[i], candidateRings[j])) {
+          hasConnectedRings = true;
+        }
+      }
+    }
+    
+    if (hasConnectedRings) {
+      if (process.env.VERBOSE) {
+        console.log(`[P-44.2.2] Rings are connected - keeping all ${candidateRings.length} rings as polycyclic parent`);
+      }
       return context;
     }
     
@@ -42,6 +85,11 @@ export const P44_2_2_HETEROATOM_SENIORITY_RULE: IUPACRule = {
         }
       }
       
+      if (process.env.VERBOSE) {
+        const atomSymbols = ring.atoms?.map((a: any) => a.symbol).join('');
+        console.log(`[P-44.2.2]   Ring (${atomSymbols}): heteroatom score=${score}`);
+      }
+      
       return score;
     });
     
@@ -49,6 +97,10 @@ export const P44_2_2_HETEROATOM_SENIORITY_RULE: IUPACRule = {
     const bestRings = candidateRings.filter((_ring: any, index: number) => 
       ringScores[index] === maxScore
     );
+    
+    if (process.env.VERBOSE) {
+      console.log(`[P-44.2.2] Selected ${bestRings.length} ring(s) with max score ${maxScore}`);
+    }
     
     return context.withUpdatedRings(
       bestRings,

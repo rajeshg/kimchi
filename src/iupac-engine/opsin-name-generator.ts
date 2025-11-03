@@ -1,6 +1,7 @@
 import type { Molecule } from '../../types';
 import fs from 'fs';
 import { OPSINFunctionalGroupDetector } from './opsin-functional-group-detector';
+import type { ImmutableNamingContext } from './immutable-context';
 
 /**
  * OPSIN-based Name Generator for IUPAC Engine
@@ -46,20 +47,30 @@ export class OPSINNameGenerator {
   }
   
   /**
-   * Generate IUPAC name for a molecule
+   * Generate IUPAC name for a molecule or context
    */
-  generateName(molecule: Molecule): string {
+  generateName(input: Molecule | ImmutableNamingContext): string {
+    const molecule = this.getMolecule(input);
+    const context = input instanceof Object && 'getState' in input ? input as ImmutableNamingContext : null;
+    
     // Detect functional groups using comprehensive OPSIN detector
     const functionalGroups = this.fgDetector.detectFunctionalGroups(molecule);
     
     if (functionalGroups.length > 0) {
       // Primary functional group determines the name
       const primaryGroup = this.selectPrimaryFunctionalGroup(functionalGroups);
-      return this.buildFunctionalGroupName(molecule, primaryGroup);
+      return this.buildFunctionalGroupName(molecule, primaryGroup, context);
     }
     
     // No functional groups - build alkane name
-    return this.buildAlkaneName(molecule);
+    return this.buildAlkaneName(molecule, context);
+  }
+  
+  private getMolecule(input: Molecule | ImmutableNamingContext): Molecule {
+    if (input instanceof Object && 'getState' in input) {
+      return (input as ImmutableNamingContext).getState().molecule;
+    }
+    return input as Molecule;
   }
   
   /**
@@ -81,8 +92,9 @@ export class OPSINNameGenerator {
   /**
    * Build name based on functional group
    */
-  private buildFunctionalGroupName(molecule: Molecule, group: {type: string, name: string, suffix: string, priority: number}): string {
-    const carbonCount = molecule.atoms.filter(a => a.symbol === 'C').length;
+  private buildFunctionalGroupName(molecule: Molecule, group: {type: string, name: string, suffix: string, priority: number}, context: ImmutableNamingContext | null): string {
+    // Get chain length from context if available
+    const carbonCount = this.getChainCarbonCount(molecule, context);
     
     switch (group.type) {
       case 'C(=O)[OX2H1]': // Carboxylic acid
@@ -101,13 +113,27 @@ export class OPSINNameGenerator {
         return this.buildNitrileName(carbonCount);
         
       default:
-        return this.buildAlkaneName(molecule) + (group.suffix || '');
+        return this.buildAlkaneName(molecule, context) + (group.suffix || '');
     }
+  }
+  
+  private getChainCarbonCount(molecule: Molecule, context: ImmutableNamingContext | null): number {
+    if (context) {
+      const state = context.getState();
+      if (state.candidateChains && state.candidateChains.length > 0) {
+        const mainChain = state.candidateChains[0];
+        if (mainChain && mainChain.atoms) {
+          return mainChain.atoms.filter(a => a.symbol === 'C').length;
+        }
+      }
+    }
+    // Fallback to counting all carbons
+    return molecule.atoms.filter(a => a.symbol === 'C').length;
   }
   
   private buildCarboxylicAcidName(carbonCount: number): string {
     if (carbonCount === 1) return 'methanoic acid';
-    if (carbonCount === 2) return 'ethanoic acid';
+    if (carbonCount === 2) return 'acetic acid';
     if (carbonCount === 3) return 'propanoic acid';
     if (carbonCount === 4) return 'butanoic acid';
     if (carbonCount === 5) return 'pentanoic acid';
@@ -158,8 +184,8 @@ export class OPSINNameGenerator {
     return `${stem}enitrile`;
   }
   
-  private buildAlkaneName(molecule: Molecule): string {
-    const carbonCount = molecule.atoms.filter(a => a.symbol === 'C').length;
+  private buildAlkaneName(molecule: Molecule, context: ImmutableNamingContext | null): string {
+    const carbonCount = this.getChainCarbonCount(molecule, context);
     
     if (carbonCount === 1) return 'methane';
     if (carbonCount === 2) return 'ethane';

@@ -217,33 +217,43 @@ export function identifyAdvancedFusedPattern(rings: number[][], molecule: Molecu
   const heteroAtoms = findHeteroatomsInRing(Array.from(allRingAtoms), molecule);
   const ringCount = rings.length;
   const ringSizes = rings.map(r => r.length).sort((a, b) => a - b);
+  
+  // Check if rings are truly fused (share atoms) vs just connected
+  const areRingsFused = rings.length >= 2 && rings.some((r1, i) => 
+    rings.slice(i + 1).some(r2 => r1.some(atom => r2.includes(atom)))
+  );
+  
   // Heuristic: try to reconstruct a 5-membered cycle around an N atom even if
   // decomposition produced noisy ring sizes. This helps detect indole when
   // ring finder returned 6+4 or other artifacts.
-  for (let atomIdx = 0; atomIdx < molecule.atoms.length; atomIdx++) {
-    const atom = molecule.atoms[atomIdx];
-    if (!atom || atom.symbol !== 'N') continue;
-    const neighbors = molecule.bonds.reduce((acc: number[], b) => {
-      if (b.atom1 === atomIdx) acc.push(b.atom2);
-      else if (b.atom2 === atomIdx) acc.push(b.atom1);
-      return acc;
-    }, []).filter(n => molecule.atoms[n]?.symbol === 'C');
-    if (neighbors.length !== 2) continue;
-    const a = neighbors[0]!, b = neighbors[1]!;
-    // BFS shortest path excluding the N atom
-    const q: number[][] = [[a]];
-    const seen = new Set<number>([a, atomIdx]);
-    while (q.length) {
-      const p = q.shift()!;
-      const node = p[p.length-1]!;
-      if (node === b && p.length === 4) return 'indole';
-      for (const bo of molecule.bonds) {
-        const nbr = bo.atom1 === node ? bo.atom2 : (bo.atom2 === node ? bo.atom1 : -1);
-        if (nbr >= 0 && !seen.has(nbr)) { seen.add(nbr); q.push(p.concat([nbr])); }
+  // ONLY apply this heuristic if rings are actually fused (not just connected)
+  if (areRingsFused) {
+    for (let atomIdx = 0; atomIdx < molecule.atoms.length; atomIdx++) {
+      const atom = molecule.atoms[atomIdx];
+      if (!atom || atom.symbol !== 'N') continue;
+      const neighbors = molecule.bonds.reduce((acc: number[], b) => {
+        if (b.atom1 === atomIdx) acc.push(b.atom2);
+        else if (b.atom2 === atomIdx) acc.push(b.atom1);
+        return acc;
+      }, []).filter(n => molecule.atoms[n]?.symbol === 'C');
+      if (neighbors.length !== 2) continue;
+      const a = neighbors[0]!, b = neighbors[1]!;
+      // BFS shortest path excluding the N atom
+      const q: number[][] = [[a]];
+      const seen = new Set<number>([a, atomIdx]);
+      while (q.length) {
+        const p = q.shift()!;
+        const node = p[p.length-1]!;
+        if (node === b && p.length === 4) return 'indole';
+        for (const bo of molecule.bonds) {
+          const nbr = bo.atom1 === node ? bo.atom2 : (bo.atom2 === node ? bo.atom1 : -1);
+          if (nbr >= 0 && !seen.has(nbr)) { seen.add(nbr); q.push(p.concat([nbr])); }
+        }
       }
     }
   }
-  if (ringCount === 2 && ringSizes.includes(5) && ringSizes.includes(6)) {
+  // Only apply these heuristics if rings are actually fused (share atoms)
+  if (areRingsFused && ringCount === 2 && ringSizes.includes(5) && ringSizes.includes(6)) {
     // More deterministic detection: locate 5- and 6-member rings explicitly
     const fiveRing = rings.find((r: number[]) => r.length === 5);
     const sixRing = rings.find((r: number[]) => r.length === 6);

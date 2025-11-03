@@ -63,7 +63,7 @@
   {"smiles": "CCC(C)(C)C(=O)NC1=CC(=CC(=C1)C(=O)OC)CCC(C)C", "iupac": "methyl3-(2,2-dimethylbutanoylamino)-5-(3-methylbutyl)benzoate"},
   {"smiles": "CC(C)C(=O)OCC(CO[Si](C)(C)C)O[Si](C)(C)C", "iupac": "2,3-bis(trimethylsilyloxy)propyl2-methylpropanoate"},
   {"smiles": "CC#CSC(=O)OC", "iupac": "methylprop-1-ynylsulfanylformate"},
-  {"smiles": "C1=CC(=C(C=C1C2=NC(=CS2)CC(=O)O)Cl)O", "iupac": "2-[2-(3-chloro-4-hydroxyphenyl)-1,3-thiazol-4-yl]aceticacid"},
+  {"smiles": "C1=CC(=C(C=C1C2=NC(=CS2)CC(=O)O)Cl)O", "iupac": "2-[2-(3-chloro-4-hydroxyphenyl)-1,3-thiazol-5-yl]aceticacid"},
   {"smiles": "COC1CCCC(=O)CC1", "iupac": "4-methoxycycloheptan-1-one"},
   {"smiles": "CC(C)C(=O)OCC(C)C(C(C)(C)C)O", "iupac": "(3-hydroxy-2,4,4-trimethylpentyl)2-methylpropanoate"},
   {"smiles": "CC1(CC(=O)C2C3C(C2O1)OC(CC3=O)(C)C)C", "iupac": "4,4,11,11-tetramethyl-3,12-dioxatricyclo[6.4.0.02,7]dodecane-6,9-dione"},

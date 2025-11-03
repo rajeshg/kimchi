@@ -1448,7 +1448,11 @@ export function buildEsterName(parentStructure: any, esterGroup: any, molecule: 
       acylName = (acylLength < acylNames.length && acylNames[acylLength]) ? acylNames[acylLength] : `C${acylLength}-anoate`;
   }
   
-  const result = alkoxySubstituents.length > 0 ? `${alkylName}${acylName}` : `${alkylName} ${acylName}`;
+  // Don't add space if alkyl name is complex (surrounded by brackets)
+  const isComplexAlkyl = alkylName.startsWith('[') && alkylName.endsWith(']');
+  const result = alkoxySubstituents.length > 0 || isComplexAlkyl 
+    ? `${alkylName}${acylName}` 
+    : `${alkylName} ${acylName}`;
   
   if (process.env.VERBOSE) {
     console.log('[buildEsterName] result:', result);

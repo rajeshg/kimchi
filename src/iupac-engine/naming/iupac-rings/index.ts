@@ -68,7 +68,10 @@ export function generateCyclicName(
       try {
         const aromaticA = isRingAromatic(ringA, molecule);
         const aromaticB = isRingAromatic(ringB, molecule);
-        if (aromaticA && aromaticB) {
+        // For biphenyl, both rings must be 6-membered benzene rings (no heteroatoms)
+        const isBenzeneA = ringA.length === 6 && ringA.every(idx => molecule.atoms[idx]?.symbol === 'C');
+        const isBenzeneB = ringB.length === 6 && ringB.every(idx => molecule.atoms[idx]?.symbol === 'C');
+        if (aromaticA && aromaticB && isBenzeneA && isBenzeneB) {
           // Count inter-ring bonds
           let interBonds = 0;
           for (const b of molecule.bonds) {
@@ -201,7 +204,10 @@ export function generateBaseCyclicName(
       try {
         const aromaticA = isRingAromatic(ringA, molecule);
         const aromaticB = isRingAromatic(ringB, molecule);
-        if (aromaticA && aromaticB) {
+        // For biphenyl, both rings must be 6-membered benzene rings (no heteroatoms)
+        const isBenzeneA = ringA.length === 6 && ringA.every(idx => molecule.atoms[idx]?.symbol === 'C');
+        const isBenzeneB = ringB.length === 6 && ringB.every(idx => molecule.atoms[idx]?.symbol === 'C');
+        if (aromaticA && aromaticB && isBenzeneA && isBenzeneB) {
           let interBonds = 0;
           for (const b of molecule.bonds) {
             const a1InA = ringA.includes(b.atom1);

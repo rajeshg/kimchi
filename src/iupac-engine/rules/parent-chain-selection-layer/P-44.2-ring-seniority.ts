@@ -27,13 +27,69 @@ export const P44_2_RING_SENIORITY_RULE: IUPACRule = {
     return rings && rings.length > 0;
   },
   action: (context) => {
-    const rings = context.getState().candidateRings;
+    const state = context.getState();
+    const rings = state.candidateRings;
     if (!rings || rings.length === 0) return context;
-    // Prefer largest ring system (by atom count)
-    const maxSize = Math.max(...rings.map(r => r.atoms.length));
-    const largestRings = rings.filter(r => r.atoms.length === maxSize);
-    // Choose the first largest ring and set as parentStructure (preserve ring semantics)
-    const ring = largestRings[0];
+    
+    const molecule = (state as any).molecule;
+    const functionalGroups = state.functionalGroups || [];
+    
+    // Get principal functional groups (highest priority groups like carboxylic acids, ketones, etc.)
+    const principalFGs = functionalGroups.filter((fg: any) => fg.isPrincipal);
+    
+    // For each ring, count how many principal functional groups are attached
+    const ringFGScores = rings.map(ring => {
+      const ringAtomIds = new Set(ring.atoms.map((a: any) => a.id));
+      
+      let fgCount = 0;
+      let highestPriority = Infinity;
+      
+      for (const fg of principalFGs) {
+        // Check if any FG atom is in the ring
+        const fgInRing = (fg.atoms || []).some((atom: any) => ringAtomIds.has(atom.id));
+        
+        // Check if any FG atom is bonded to a ring atom
+        let fgAttachedToRing = false;
+        if (!fgInRing && molecule) {
+          for (const fgAtom of (fg.atoms || [])) {
+            const bonds = molecule.bonds.filter((b: any) => 
+              b.atom1 === fgAtom.id || b.atom2 === fgAtom.id
+            );
+            
+            for (const bond of bonds) {
+              const neighborId = bond.atom1 === fgAtom.id ? bond.atom2 : bond.atom1;
+              if (ringAtomIds.has(neighborId)) {
+                fgAttachedToRing = true;
+                break;
+              }
+            }
+            if (fgAttachedToRing) break;
+          }
+        }
+        
+        if (fgInRing || fgAttachedToRing) {
+          fgCount++;
+          // Track highest priority (lowest number = highest priority)
+          if (fg.priority < highestPriority) {
+            highestPriority = fg.priority;
+          }
+        }
+      }
+      
+      return { ring, fgCount, highestPriority, size: ring.atoms.length };
+    });
+    
+    // Sort rings by:
+    // 1. Number of functional groups (descending)
+    // 2. Priority of highest functional group (ascending - lower number = higher priority)
+    // 3. Ring size (descending)
+    ringFGScores.sort((a, b) => {
+      if (a.fgCount !== b.fgCount) return b.fgCount - a.fgCount;
+      if (a.highestPriority !== b.highestPriority) return a.highestPriority - b.highestPriority;
+      return b.size - a.size;
+    });
+    
+    const ring = ringFGScores[0]?.ring;
     if (!ring) return context;
     const size = ring.atoms ? ring.atoms.length : (ring.size || 0);
     const type = ring.type || (ring.atoms && ring.atoms.some((a:any) => a.aromatic) ? 'aromatic' : 'aliphatic');

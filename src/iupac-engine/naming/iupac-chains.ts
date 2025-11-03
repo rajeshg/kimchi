@@ -4,8 +4,10 @@ import { getAlkaneName, getGreekNumeral, getAlkaneBaseName, getAlkylName } from 
 import type { Substituent, SubstituentInfo } from './iupac-types';
 import { OPSINFunctionalGroupDetector } from '../opsin-functional-group-detector';
 
-// Singleton detector for functional group detection
-const opsinDetector = new OPSINFunctionalGroupDetector();
+// Factory function to create fresh detector instances (prevents state pollution)
+function getOpsinDetector(): OPSINFunctionalGroupDetector {
+  return new OPSINFunctionalGroupDetector();
+}
 
 /**
  * Determines if an atom should be excluded from the parent chain based on functional group type
@@ -70,15 +72,61 @@ function shouldExcludeAtomFromChain(atom: any, fgName: string, fgType: string): 
   return symbol !== 'C';
 }
 
+/**
+ * Count the number of functional groups directly attached to chain atoms.
+ * This helps prefer chains where functional groups are directly accessible,
+ * rather than buried in alkyl substituents.
+ */
+function countDirectFunctionalGroupAttachments(
+  chain: number[],
+  molecule: Molecule,
+  functionalGroups: Array<{name: string, type: string, atoms?: number[]}>
+): number {
+  let count = 0;
+  const chainSet = new Set(chain);
+  
+  // Look for sulfonyl/sulfinyl groups that are directly bonded to chain atoms
+  for (const fg of functionalGroups) {
+    if ((fg.name === 'sulfonyl' || fg.name === 'sulfinyl') && fg.atoms && fg.atoms.length > 0) {
+      // Check if the sulfur atom is directly bonded to any chain atom
+      const sulfurIdx = fg.atoms[0]; // Sulfur is the first atom in the functional group
+      if (sulfurIdx === undefined) continue;
+      
+      const sulfurAtom = molecule.atoms[sulfurIdx];
+      if (!sulfurAtom) continue;
+      
+      // Check bonds from sulfur to see if any connect to chain atoms
+      for (const bond of molecule.bonds) {
+        const otherAtomIdx = bond.atom1 === sulfurIdx ? bond.atom2 : 
+                             bond.atom2 === sulfurIdx ? bond.atom1 : null;
+        
+        if (otherAtomIdx !== null && chainSet.has(otherAtomIdx)) {
+          // Sulfur is directly bonded to a chain atom
+          count++;
+          break; // Count this FG once
+        }
+      }
+    }
+  }
+  
+  return count;
+}
+
 export function findMainChain(molecule: Molecule): number[] {
   // Detect functional groups first to exclude their atoms from the parent chain
-  const functionalGroups = opsinDetector.detectFunctionalGroups(molecule);
+  const functionalGroups = getOpsinDetector().detectFunctionalGroups(molecule);
   const excludedAtomIds = new Set<number>();
   
   // Collect atom IDs that should be excluded from the parent chain
   // For most functional groups, only heteroatoms (O, N, S, etc.) are excluded
   // The carbon atoms bearing the functional groups should remain in the parent chain
+  if (process.env.VERBOSE) {
+    console.log(`[findMainChain] Detected ${functionalGroups.length} functional groups`);
+  }
   for (const fg of functionalGroups) {
+    if (process.env.VERBOSE) {
+      console.log(`[findMainChain] FG: name="${fg.name}", type="${fg.type}", atoms=${fg.atoms}`);
+    }
     if (fg.atoms && Array.isArray(fg.atoms)) {
       for (const atomId of fg.atoms) {
         if (typeof atomId === 'number') {
@@ -87,12 +135,18 @@ export function findMainChain(molecule: Molecule): number[] {
           
           // Apply selective exclusion based on functional group type
           const shouldExclude = shouldExcludeAtomFromChain(atom, fg.name, fg.type);
+          if (process.env.VERBOSE) {
+            console.log(`[findMainChain]   Atom ${atomId} (${atom.symbol}): shouldExclude=${shouldExclude}`);
+          }
           if (shouldExclude) {
             excludedAtomIds.add(atomId);
           }
         }
       }
     }
+  }
+  if (process.env.VERBOSE) {
+    console.log(`[findMainChain] Excluded FG atoms: ${Array.from(excludedAtomIds).join(',')}`);
   }
   
   // Exclude all ring atoms from the main chain
@@ -197,6 +251,32 @@ export function findMainChain(molecule: Molecule): number[] {
     // else continue with mixed candidates if no hydrocarbon-only candidate isolated
   }
 
+  // NEW TIE-BREAKER: Prefer chains with more direct functional group attachments
+  // This helps when sulfonyl/sulfinyl groups are present - we want chains where
+  // the functional groups are directly attached to chain atoms, not buried in substituents
+  if (candidates.length > 1) {
+    const fgAttachmentCounts = candidates.map(c => countDirectFunctionalGroupAttachments(c, molecule, functionalGroups));
+    const maxAttachments = Math.max(...fgAttachmentCounts);
+    
+    if (process.env.VERBOSE) {
+      console.log('[findMainChain] Direct FG attachment counts:');
+      candidates.forEach((c, i) => {
+        console.log(`  Chain ${i} [${c.join(',')}]: ${fgAttachmentCounts[i]} direct FG attachments`);
+      });
+    }
+    
+    if (maxAttachments > 0) {
+      const filteredByFG = candidates.filter((_, i) => fgAttachmentCounts[i] === maxAttachments);
+      if (filteredByFG.length > 0) {
+        candidates.length = 0;
+        candidates.push(...filteredByFG);
+        if (process.env.VERBOSE) {
+          console.log(`[findMainChain] Filtered to ${filteredByFG.length} chains with max FG attachments (${maxAttachments})`);
+        }
+      }
+    }
+  }
+
   // Now apply existing priority-locant logic and heuristics among remaining candidates
   let bestChain = candidates[0]!;
   let bestPositions: number[] = [];
@@ -204,15 +284,26 @@ export function findMainChain(molecule: Molecule): number[] {
   let bestPriorityLocants: [number[], number[], number[]] | null = null;
 
   for (const chain of candidates) {
-    const substituents = findSubstituents(molecule, chain);
+    // Check for functional groups and orient chain to give them lowest numbers
+    const fgPositions = getFunctionalGroupPositions(chain, molecule);
+    const fgPositionsReversed = getFunctionalGroupPositions([...chain].reverse(), molecule);
+    
+    let shouldReverse = false;
+    if (fgPositions.length > 0 && fgPositionsReversed.length > 0) {
+      shouldReverse = isBetterLocants(fgPositionsReversed, fgPositions);
+    } else {
+      let priority = getPriorityLocants(molecule, chain);
+      const renum = renumberPriorityLocants(priority, chain.length);
+      shouldReverse = isBetterPriorityLocants(renum, priority);
+    }
+    
+    const chosenChain = shouldReverse ? [...chain].reverse() : chain;
+    const chosenPriority = getPriorityLocants(molecule, chosenChain);
+    
+    // Calculate positions AFTER orienting the chain
+    const substituents = findSubstituents(molecule, chosenChain);
     const positions = substituents.map(s => parseInt(s.position)).sort((a, b) => a - b);
     const count = substituents.length;
-
-    let priority = getPriorityLocants(molecule, chain);
-    const renum = renumberPriorityLocants(priority, chain.length);
-    const shouldReverse = isBetterPriorityLocants(renum, priority);
-    const chosenPriority = shouldReverse ? renum : priority;
-    const chosenChain = shouldReverse ? [...chain].reverse() : chain;
 
     if (bestPriorityLocants === null) {
       bestChain = chosenChain;
@@ -223,17 +314,32 @@ export function findMainChain(molecule: Molecule): number[] {
     }
 
     if (isBetterPriorityLocants(chosenPriority, bestPriorityLocants)) {
+      if (process.env.VERBOSE) {
+        console.log(`[findMainChain] Chain [${chosenChain}] has better priority locants than [${bestChain}]`);
+      }
       bestChain = chosenChain;
       bestPositions = positions;
       bestCount = count;
       bestPriorityLocants = chosenPriority;
     } else if (JSON.stringify(chosenPriority) === JSON.stringify(bestPriorityLocants)) {
+      if (process.env.VERBOSE) {
+        console.log(`[findMainChain] Chain [${chosenChain}] has equal priority locants to [${bestChain}]`);
+      }
       if (isBetterByOpsinHeuristics(molecule, chosenChain, bestChain)) {
+        if (process.env.VERBOSE) {
+          console.log(`[findMainChain] Chain [${chosenChain}] is better by OPSIN heuristics`);
+        }
         bestChain = chosenChain;
         bestPositions = positions;
         bestCount = count;
       } else {
+        if (process.env.VERBOSE) {
+          console.log(`[findMainChain] Comparing chains using compareChains(): [${chosenChain}] vs [${bestChain}]`);
+        }
         const isBetter = compareChains(positions, count, chosenChain, bestPositions, bestCount, bestChain);
+        if (process.env.VERBOSE) {
+          console.log(`[findMainChain] compareChains result: ${isBetter}`);
+        }
         if (isBetter) {
           bestChain = chosenChain;
           bestPositions = positions;
@@ -549,26 +655,42 @@ function compareChains(
   bestCount: number,
   bestChain: number[]
 ): boolean {
+  if (process.env.VERBOSE) {
+    console.log(`[compareChains] newChain=[${newChain}] newPositions=[${newPositions}] bestChain=[${bestChain}] bestPositions=[${bestPositions}]`);
+  }
+  
   // Compare substituent positions (lowest first)
   const minLength = Math.min(newPositions.length, bestPositions.length);
   for (let i = 0; i < minLength; i++) {
     if (newPositions[i]! !== bestPositions[i]!) {
+      if (process.env.VERBOSE) {
+        console.log(`[compareChains] Position comparison: newPositions[${i}]=${newPositions[i]} vs bestPositions[${i}]=${bestPositions[i]} => ${newPositions[i]! < bestPositions[i]!}`);
+      }
       return newPositions[i]! < bestPositions[i]!;
     }
   }
 
   // If positions are equal, prefer more substituents
   if (newPositions.length !== bestPositions.length) {
+    if (process.env.VERBOSE) {
+      console.log(`[compareChains] Length comparison: newPositions.length=${newPositions.length} vs bestPositions.length=${bestPositions.length} => ${newPositions.length > bestPositions.length}`);
+    }
     return newPositions.length > bestPositions.length;
   }
 
   // If everything is equal, prefer the chain with lowest atom indices
   for (let i = 0; i < newChain.length; i++) {
     if (newChain[i] !== bestChain[i]) {
+      if (process.env.VERBOSE) {
+        console.log(`[compareChains] Atom ID comparison: newChain[${i}]=${newChain[i]} vs bestChain[${i}]=${bestChain[i]} => ${newChain[i]! < bestChain[i]!}`);
+      }
       return newChain[i]! < bestChain[i]!;
     }
   }
 
+  if (process.env.VERBOSE) {
+    console.log(`[compareChains] Chains are identical => false`);
+  }
   return false;
 }
 
@@ -583,6 +705,44 @@ function getPriorityLocants(molecule: Molecule, chain: number[]): [number[], num
   const substituentLocants = findSubstituents(molecule, chain).map(s => parseInt(s.position)).sort((a, b) => a - b);
   const heteroLocants = getHeteroPositions(chain, molecule).sort((a, b) => a - b);
   return [unsaturationLocants, substituentLocants, heteroLocants];
+}
+
+function getFunctionalGroupPositions(chain: number[], molecule: Molecule): number[] {
+  const positions: number[] = [];
+  for (let i = 0; i < chain.length; i++) {
+    const atomIdx = chain[i]!;
+    const atom = molecule.atoms[atomIdx];
+    if (!atom || atom.symbol !== 'C') continue;
+    
+    let hasDoubleO = false;
+    let hasSingleOwithH = false;
+    let hasSingleO = false;
+    let hasNitrogen = false;
+    
+    for (const b of molecule.bonds) {
+      if (b.atom1 !== atomIdx && b.atom2 !== atomIdx) continue;
+      const neigh = b.atom1 === atomIdx ? b.atom2 : b.atom1;
+      const nat = molecule.atoms[neigh];
+      if (!nat) continue;
+      if (nat.symbol === 'O') {
+        if (b.type === BondType.DOUBLE) hasDoubleO = true;
+        if (b.type === BondType.SINGLE) {
+          hasSingleO = true;
+          const oHydrogens = (nat as any).hydrogens || 0;
+          if (oHydrogens > 0) hasSingleOwithH = true;
+        }
+      }
+      if (nat.symbol === 'N') {
+        hasNitrogen = true;
+      }
+    }
+    
+    // Detect carboxylic acids (C=O with -OH or -O) and amides (C=O with -N)
+    if (hasDoubleO && (hasSingleOwithH || hasSingleO || hasNitrogen)) {
+      positions.push(i + 1);
+    }
+  }
+  return positions;
 }
 
 function getHeteroPositions(chain: number[], molecule: Molecule): number[] {
@@ -770,7 +930,27 @@ function isBetterByOpsinHeuristics(molecule: Molecule, aChain: number[], bChain:
 
   const aSubs = findSubstituents(molecule, aChain);
   const bSubs = findSubstituents(molecule, bChain);
+  
+  if (process.env.VERBOSE) {
+    console.log(`[isBetterByOpsinHeuristics] Comparing chains:`);
+    console.log(`  Chain A [${aChain.join(',')}]: ${aSubs.length} substituents`);
+    aSubs.forEach(s => console.log(`    pos=${s.position}, name=${s.name}, size=${s.size}`));
+    console.log(`  Chain B [${bChain.join(',')}]: ${bSubs.length} substituents`);
+    bSubs.forEach(s => console.log(`    pos=${s.position}, name=${s.name}, size=${s.size}`));
+  }
+  
   if (aSubs.length !== bSubs.length) return aSubs.length < bSubs.length;
+
+  // NEW: Prefer chains where complex substituents (large size) are at lower positions
+  // This handles cases like sulfonyl-sulfinyl where we want the complex group at position 1
+  const aComplexAtLowPos = aSubs.filter(s => s.size >= 5 && parseInt(s.position) === 1).length;
+  const bComplexAtLowPos = bSubs.filter(s => s.size >= 5 && parseInt(s.position) === 1).length;
+  if (aComplexAtLowPos !== bComplexAtLowPos) {
+    if (process.env.VERBOSE) {
+      console.log(`  Complex subs at pos 1: A=${aComplexAtLowPos}, B=${bComplexAtLowPos}`);
+    }
+    return aComplexAtLowPos > bComplexAtLowPos;
+  }
 
   // Tie-break by sum of substituent positions (lower is better)
   const sumA = aSubs.reduce((s, p) => s + parseInt(p.position), 0);
@@ -957,7 +1137,19 @@ export function generateChainBaseName(mainChain: number[], molecule: Molecule): 
 export function findSubstituents(molecule: Molecule, mainChain: number[]): Substituent[] {
   const substituents: Substituent[] = [];
   const chainSet = new Set(mainChain);
-  if (process.env.VERBOSE) console.log(`[findSubstituents] mainChain: ${mainChain.join(',')}`);
+  
+  // Detect functional groups to exclude their atoms from being classified as substituents
+  const functionalGroups = getOpsinDetector().detectFunctionalGroups(molecule);
+  const fgAtomIds = new Set<number>();
+  for (const fg of functionalGroups) {
+    if (fg.atoms && Array.isArray(fg.atoms)) {
+      for (const atomId of fg.atoms) {
+        fgAtomIds.add(atomId);
+      }
+    }
+  }
+  
+  if (process.env.VERBOSE) console.log(`[findSubstituents] mainChain: ${mainChain.join(',')}, fgAtoms: ${Array.from(fgAtomIds).join(',')}`);
   for (let i = 0; i < mainChain.length; i++) {
     const chainAtomIdx = mainChain[i]!;
     for (const bond of molecule.bonds) {
@@ -968,7 +1160,7 @@ export function findSubstituents(molecule: Molecule, mainChain: number[]): Subst
         substituentAtomIdx = bond.atom1;
       }
       if (substituentAtomIdx >= 0) {
-        const substituent = classifySubstituent(molecule, substituentAtomIdx, chainSet);
+        const substituent = classifySubstituent(molecule, substituentAtomIdx, chainSet, fgAtomIds);
         if (substituent) {
           const position = (i + 1).toString();
           if (process.env.VERBOSE) console.log(`[findSubstituents] i=${i}, chainAtomIdx=${chainAtomIdx}, substituentAtomIdx=${substituentAtomIdx}, position=${position}, type=${substituent.name}`);
@@ -982,6 +1174,391 @@ export function findSubstituents(molecule: Molecule, mainChain: number[]): Subst
       }
     }
   }
+  // Special handling for ether functional groups
+  // After regular substituents are found, check for ether oxygens that connect to carbon chains
+  const etherGroups = functionalGroups.filter(fg => fg.name === 'ether' && fg.atoms && fg.atoms.length === 1);
+  for (const etherGroup of etherGroups) {
+    const oxygenIdx = etherGroup.atoms![0]!;
+    
+    // Check if this oxygen is attached to the main chain
+    let attachedToChainAt = -1;
+    let chainSideCarbon = -1;
+    let substituentSideCarbon = -1;
+    
+    for (const bond of molecule.bonds) {
+      if (bond.atom1 === oxygenIdx || bond.atom2 === oxygenIdx) {
+        const otherAtom = bond.atom1 === oxygenIdx ? bond.atom2 : bond.atom1;
+        const otherAtomObj = molecule.atoms[otherAtom];
+        
+        if (otherAtomObj && otherAtomObj.symbol === 'C') {
+          if (chainSet.has(otherAtom)) {
+            chainSideCarbon = otherAtom;
+            attachedToChainAt = mainChain.indexOf(otherAtom);
+          } else {
+            substituentSideCarbon = otherAtom;
+          }
+        }
+      }
+    }
+    
+    // If oxygen is attached to main chain and has a carbon substituent
+    if (attachedToChainAt >= 0 && substituentSideCarbon >= 0) {
+      if (process.env.VERBOSE) {
+        console.log(`[findSubstituents] Found ether at O${oxygenIdx}, chain side: C${chainSideCarbon}, substituent side: C${substituentSideCarbon}`);
+      }
+      
+      // Traverse the substituent side to collect all atoms
+      const substituentAtoms = new Set<number>();
+      substituentAtoms.add(oxygenIdx);
+      const visited = new Set<number>(chainSet);
+      visited.add(oxygenIdx);
+      const stack = [substituentSideCarbon];
+      
+      while (stack.length > 0) {
+        const current = stack.pop()!;
+        if (visited.has(current)) continue;
+        visited.add(current);
+        substituentAtoms.add(current);
+        
+        for (const bond of molecule.bonds) {
+          let neighbor = -1;
+          if (bond.atom1 === current && !visited.has(bond.atom2)) {
+            neighbor = bond.atom2;
+          } else if (bond.atom2 === current && !visited.has(bond.atom1)) {
+            neighbor = bond.atom1;
+          }
+          if (neighbor >= 0) {
+            stack.push(neighbor);
+          }
+        }
+      }
+      
+      // Name the alkoxy substituent
+      const alkoxyName = nameAlkoxySubstituent(molecule, substituentAtoms, oxygenIdx);
+      const position = (attachedToChainAt + 1).toString();
+      
+      if (process.env.VERBOSE) {
+        console.log(`[findSubstituents] Ether substituent: position=${position}, name=${alkoxyName}`);
+      }
+      
+      substituents.push({
+        position: position,
+        type: 'functional',
+        size: substituentAtoms.size,
+        name: alkoxyName,
+      });
+    }
+  }
+  
+  // Special handling for sulfonyl and sulfinyl functional groups
+  // These can form bridges like R-S(=O)-S(=O)(=O)-R' where we need to detect the full substituent
+  const sulfurGroups = functionalGroups.filter(fg => 
+    (fg.name === 'sulfonyl' || fg.name === 'sulfinyl') && fg.atoms && fg.atoms.length > 0
+  );
+  
+  for (const sulfurGroup of sulfurGroups) {
+    const sulfurIdx = sulfurGroup.atoms![0]!;
+    const sulfurAtom = molecule.atoms[sulfurIdx];
+    if (!sulfurAtom) continue;
+    
+    // Check if this sulfur is directly attached to the main chain
+    let attachedToChainAt = -1;
+    let chainSideAtom = -1;
+    
+    for (const bond of molecule.bonds) {
+      if (bond.atom1 === sulfurIdx || bond.atom2 === sulfurIdx) {
+        const otherAtom = bond.atom1 === sulfurIdx ? bond.atom2 : bond.atom1;
+        
+        if (chainSet.has(otherAtom)) {
+          chainSideAtom = otherAtom;
+          attachedToChainAt = mainChain.indexOf(otherAtom);
+          break;
+        }
+      }
+    }
+    
+    if (attachedToChainAt < 0) continue; // Not attached to chain
+    
+    // Traverse through FG atoms to find non-FG, non-chain atoms beyond the sulfur bridge
+    const visited = new Set<number>(chainSet);
+    const sulfurBridge: number[] = []; // Track FG atoms in the bridge
+    const substituentStarts: number[] = []; // Track where substituents start
+    const queue: number[] = [sulfurIdx];
+    visited.add(sulfurIdx);
+    sulfurBridge.push(sulfurIdx);
+    
+    // BFS through FG atoms
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+      
+      for (const bond of molecule.bonds) {
+        let neighbor = -1;
+        if (bond.atom1 === current && !visited.has(bond.atom2)) {
+          neighbor = bond.atom2;
+        } else if (bond.atom2 === current && !visited.has(bond.atom1)) {
+          neighbor = bond.atom1;
+        }
+        
+        if (neighbor >= 0) {
+          visited.add(neighbor);
+          
+          // If neighbor is FG atom, continue traversing
+          if (fgAtomIds.has(neighbor)) {
+            const neighborAtom = molecule.atoms[neighbor];
+            // Only traverse through S atoms in the bridge (not O atoms)
+            if (neighborAtom && neighborAtom.symbol === 'S') {
+              queue.push(neighbor);
+              sulfurBridge.push(neighbor);
+            }
+          } else {
+            // Found a non-FG, non-chain atom - this is the start of a substituent
+            substituentStarts.push(neighbor);
+          }
+        }
+      }
+    }
+    
+    if (substituentStarts.length === 0) continue; // No substituent found
+    
+    // Normalize sulfur bridge order: put chain-attached sulfur first
+    // This ensures consistent naming regardless of BFS traversal order
+    if (sulfurBridge.length === 2) {
+      const s0AttachedToChain = molecule.bonds.some(b => 
+        (b.atom1 === sulfurBridge[0]! || b.atom2 === sulfurBridge[0]!) && 
+        chainSet.has(b.atom1 === sulfurBridge[0]! ? b.atom2 : b.atom1)
+      );
+      const s1AttachedToChain = molecule.bonds.some(b => 
+        (b.atom1 === sulfurBridge[1]! || b.atom2 === sulfurBridge[1]!) && 
+        chainSet.has(b.atom1 === sulfurBridge[1]! ? b.atom2 : b.atom1)
+      );
+      
+      // Swap if needed so that sulfurBridge[0] is always the one attached to chain
+      if (!s0AttachedToChain && s1AttachedToChain) {
+        [sulfurBridge[0], sulfurBridge[1]] = [sulfurBridge[1]!, sulfurBridge[0]!];
+      }
+    }
+    
+    // Collect all atoms in the substituent(s) beyond the sulfur bridge
+    const substituentAtoms = new Set<number>();
+    const substVisited = new Set<number>([...chainSet, ...sulfurBridge]);
+    
+    // Also mark all FG oxygen atoms as visited to avoid including them
+    for (const fgAtom of fgAtomIds) {
+      if (molecule.atoms[fgAtom]?.symbol === 'O') {
+        substVisited.add(fgAtom);
+      }
+    }
+    
+    for (const startAtom of substituentStarts) {
+      const stack = [startAtom];
+      
+      while (stack.length > 0) {
+        const current = stack.pop()!;
+        if (substVisited.has(current)) continue;
+        substVisited.add(current);
+        substituentAtoms.add(current);
+        
+        for (const bond of molecule.bonds) {
+          let neighbor = -1;
+          if (bond.atom1 === current && !substVisited.has(bond.atom2)) {
+            neighbor = bond.atom2;
+          } else if (bond.atom2 === current && !substVisited.has(bond.atom1)) {
+            neighbor = bond.atom1;
+          }
+          if (neighbor >= 0) {
+            stack.push(neighbor);
+          }
+        }
+      }
+    }
+    
+    if (substituentAtoms.size === 0) continue;
+    
+    // Build the substituent name: (alkyl)(functional groups)
+    // First, name the alkyl group
+    const alkylCarbons = Array.from(substituentAtoms).filter(idx => molecule.atoms[idx]?.symbol === 'C');
+    let alkylName = 'methyl';
+    
+    if (alkylCarbons.length === 0) {
+      alkylName = ''; // No alkyl group
+    } else if (alkylCarbons.length === 1) {
+      alkylName = 'methyl';
+    } else if (alkylCarbons.length === 2) {
+      alkylName = 'ethyl';
+    } else if (alkylCarbons.length === 3) {
+      alkylName = 'propyl';
+    } else if (alkylCarbons.length === 4) {
+      // Check for tert-butyl or isobutyl patterns
+      let foundTertButyl = false;
+      for (const cIdx of alkylCarbons) {
+        const cNeighbors = molecule.bonds.filter(
+          b => (b.atom1 === cIdx || b.atom2 === cIdx) && 
+               substituentAtoms.has(b.atom1) && substituentAtoms.has(b.atom2) &&
+               molecule.atoms[b.atom1 === cIdx ? b.atom2 : b.atom1]?.symbol === 'C'
+        );
+        if (cNeighbors.length === 3) {
+          foundTertButyl = true;
+          alkylName = 'tert-butyl';
+          break;
+        }
+      }
+      if (!foundTertButyl) alkylName = 'butyl';
+    } else {
+      // Check for 2,2-dimethylpropyl pattern (5 carbons in specific configuration)
+      // Structure: (CH3)2C-CH2-
+      if (alkylCarbons.length === 5) {
+        // Find the carbon attached to the sulfur bridge
+        let attachedCarbon = -1;
+        for (const sIdx of sulfurBridge) {
+          for (const bond of molecule.bonds) {
+            const neighbor = bond.atom1 === sIdx ? bond.atom2 : bond.atom2 === sIdx ? bond.atom1 : -1;
+            if (neighbor >= 0 && substituentAtoms.has(neighbor) && molecule.atoms[neighbor]?.symbol === 'C') {
+              attachedCarbon = neighbor;
+              break;
+            }
+          }
+          if (attachedCarbon >= 0) break;
+        }
+        
+        if (attachedCarbon >= 0) {
+          // Check if this carbon is CH2 bonded to a quaternary carbon
+          const attachedNeighbors = molecule.bonds
+            .filter(b => (b.atom1 === attachedCarbon || b.atom2 === attachedCarbon) && substituentAtoms.has(b.atom1) && substituentAtoms.has(b.atom2))
+            .map(b => b.atom1 === attachedCarbon ? b.atom2 : b.atom1)
+            .filter(n => molecule.atoms[n]?.symbol === 'C');
+          
+          if (attachedNeighbors.length === 1) {
+            const quaternaryC = attachedNeighbors[0]!;
+            const quaternaryNeighbors = molecule.bonds
+              .filter(b => (b.atom1 === quaternaryC || b.atom2 === quaternaryC) && substituentAtoms.has(b.atom1) && substituentAtoms.has(b.atom2))
+              .map(b => b.atom1 === quaternaryC ? b.atom2 : b.atom1)
+              .filter(n => molecule.atoms[n]?.symbol === 'C');
+            
+            // For 2,2-dimethylpropyl: (CH3)3C-CH2- structure
+            // The quaternary carbon has 4 carbon neighbors: 1 CH2 + 3 CH3
+            if (quaternaryNeighbors.length === 4) {
+              alkylName = '2,2-dimethylpropyl';
+            } else {
+              alkylName = 'pentyl';
+            }
+          } else {
+            alkylName = 'pentyl';
+          }
+        } else {
+          alkylName = 'pentyl';
+        }
+      } else {
+        alkylName = getAlkylName(alkylCarbons.length);
+      }
+    }
+    
+    // Now identify the functional group names from the sulfur bridge
+    const fgNames: string[] = [];
+    const sulfonylAtoms = sulfurBridge.filter(idx => {
+      const fg = functionalGroups.find(g => g.atoms && g.atoms.includes(idx));
+      return fg?.name === 'sulfonyl';
+    });
+    const sulfinylAtoms = sulfurBridge.filter(idx => {
+      const fg = functionalGroups.find(g => g.atoms && g.atoms.includes(idx));
+      return fg?.name === 'sulfinyl';
+    });
+    
+    // Build name in order: furthest from chain first
+    // For S5-S7 bridge where S7 is attached to chain: name is "alkyl-sulfinyl-sulfonyl"
+    // We need to determine which sulfur is which
+    if (sulfurBridge.length === 2) {
+      const s0 = sulfurBridge[0]!;
+      const s1 = sulfurBridge[1]!;
+      
+      if (process.env.VERBOSE) {
+        console.log('[DEBUG] Sulfur bridge:', sulfurBridge, 's0=', s0, 's1=', s1);
+      }
+      
+      // Determine which is attached to chain
+      const s0AttachedToChain = molecule.bonds.some(b => 
+        (b.atom1 === s0 || b.atom2 === s0) && chainSet.has(b.atom1 === s0 ? b.atom2 : b.atom1)
+      );
+      
+      // Also determine which is attached to substituent
+      const s0AttachedToSubst = molecule.bonds.some(b => 
+        (b.atom1 === s0 || b.atom2 === s0) && substituentAtoms.has(b.atom1 === s0 ? b.atom2 : b.atom1)
+      );
+      const s1AttachedToSubst = molecule.bonds.some(b => 
+        (b.atom1 === s1 || b.atom2 === s1) && substituentAtoms.has(b.atom1 === s1 ? b.atom2 : b.atom1)
+      );
+      
+      if (process.env.VERBOSE) {
+        console.log('[DEBUG] s0 attached to chain:', s0AttachedToChain);
+        console.log('[DEBUG] s0 attached to subst:', s0AttachedToSubst, 's1 attached to subst:', s1AttachedToSubst);
+      }
+      
+      // Determine the functional group types
+      const s0Type = functionalGroups.find(g => g.atoms && g.atoms.includes(s0))?.name || 'sulfur';
+      const s1Type = functionalGroups.find(g => g.atoms && g.atoms.includes(s1))?.name || 'sulfur';
+      
+      if (process.env.VERBOSE) {
+        console.log('[DEBUG] s0Type:', s0Type, 's1Type:', s1Type);
+      }
+      
+      // Order: substituent-side FG first, then chain-side FG
+      // If s0 is attached to substituent, name is: s0Type-s1Type
+      // If s1 is attached to substituent, name is: s1Type-s0Type
+      if (s0AttachedToSubst) {
+        if (process.env.VERBOSE) {
+          console.log('[DEBUG] Pushing order: s0Type, s1Type (s0 attached to substituent)');
+        }
+        fgNames.push(s0Type, s1Type);
+      } else if (s1AttachedToSubst) {
+        if (process.env.VERBOSE) {
+          console.log('[DEBUG] Pushing order: s1Type, s0Type (s1 attached to substituent)');
+        }
+        fgNames.push(s1Type, s0Type);
+      } else {
+        // Fallback: use original chain attachment logic
+        if (s0AttachedToChain) {
+          if (process.env.VERBOSE) {
+            console.log('[DEBUG] Pushing order: s1Type, s0Type (fallback: s0 attached to chain)');
+          }
+          fgNames.push(s1Type, s0Type);
+        } else {
+          if (process.env.VERBOSE) {
+            console.log('[DEBUG] Pushing order: s0Type, s1Type (fallback: s1 attached to chain)');
+          }
+          fgNames.push(s0Type, s1Type);
+        }
+      }
+    } else if (sulfurBridge.length === 1) {
+      const sType = functionalGroups.find(g => g.atoms && g.atoms.includes(sulfurBridge[0]!))?.name || 'sulfur';
+      fgNames.push(sType);
+    }
+    
+    // Construct full substituent name: (alkyl)(fg1)(fg2)
+    let fullName = '';
+    if (alkylName) {
+      fullName = alkylName;
+    }
+    if (fgNames.length > 0) {
+      if (fullName) {
+        fullName = `${fullName}${fgNames.join('')}`;
+      } else {
+        fullName = fgNames.join('');
+      }
+    }
+    
+    if (process.env.VERBOSE) {
+      console.log(`[findSubstituents] Sulfur bridge substituent at position ${attachedToChainAt + 1}: ${fullName}`);
+      console.log(`  Bridge: ${sulfurBridge.join(',')}, Substituent atoms: ${Array.from(substituentAtoms).join(',')}`);
+    }
+    
+    const position = (attachedToChainAt + 1).toString();
+    substituents.push({
+      position: position,
+      type: 'functional',
+      size: substituentAtoms.size + sulfurBridge.length,
+      name: fullName,
+    });
+  }
+  
   if (process.env.VERBOSE) console.log(`[findSubstituents] result: ${JSON.stringify(substituents)}`);
   return substituents;
 }
@@ -1986,7 +2563,536 @@ function nameAlkoxySubstituent(
   return baseName;
 }
 
-export function classifySubstituent(molecule: Molecule, startAtomIdx: number, chainAtoms: Set<number>): SubstituentInfo | null {
+/**
+ * Finds substituents attached to a ring (excluding the attachment point to parent chain).
+ */
+function findRingSubstituents(
+  molecule: Molecule,
+  ring: readonly number[],
+  excludeAtom: number
+): Array<{ atomIdx: number; ringPosition: number }> {
+  const ringSet = new Set(ring);
+  const substituents: Array<{ atomIdx: number; ringPosition: number }> = [];
+  
+  for (let i = 0; i < ring.length; i++) {
+    const ringAtomIdx = ring[i]!;
+    
+    // Check all bonds from this ring atom
+    for (const bond of molecule.bonds) {
+      let attachedAtomIdx = -1;
+      if (bond.atom1 === ringAtomIdx && !ringSet.has(bond.atom2)) {
+        attachedAtomIdx = bond.atom2;
+      } else if (bond.atom2 === ringAtomIdx && !ringSet.has(bond.atom1)) {
+        attachedAtomIdx = bond.atom1;
+      }
+      
+      // Skip if this is the attachment point to parent chain
+      if (attachedAtomIdx >= 0 && attachedAtomIdx !== excludeAtom) {
+        const attachedAtom = molecule.atoms[attachedAtomIdx];
+        // Skip hydrogen atoms
+        if (attachedAtom && attachedAtom.symbol !== 'H') {
+          substituents.push({
+            atomIdx: attachedAtomIdx,
+            ringPosition: i
+          });
+        }
+      }
+    }
+  }
+  
+  return substituents;
+}
+
+/**
+ * Names a ring system as a substituent attached to the main chain.
+ * Determines the ring type, the attachment position, and converts to substituent form (e.g., "thiazol-4-yl").
+ * Recursively analyzes and names any substituents attached to the ring.
+ */
+function nameRingSubstituent(molecule: Molecule, startAtomIdx: number, chainAtoms: Set<number>): SubstituentInfo | null {
+  if (!molecule.rings) return null;
+  
+  // Import aromatic naming function dynamically to avoid circular dependencies
+  const { generateAromaticRingName, isRingAromatic } = require('./iupac-rings/aromatic-naming');
+  
+  // Find which ring(s) contain the starting atom
+  const containingRings = molecule.rings.filter(ring => ring.includes(startAtomIdx));
+  if (containingRings.length === 0) return null;
+  
+  // For now, handle simple case: single ring attached to chain
+  // TODO: Handle fused ring systems
+  const ring = containingRings[0];
+  if (!ring) return null;
+  
+  // Check if this ring is aromatic
+  const aromatic = isRingAromatic(ring, molecule);
+  
+  if (process.env.VERBOSE) {
+    console.log(`[nameRingSubstituent] Ring:`, ring, `aromatic:`, aromatic);
+  }
+  
+  // Get the base ring name (e.g., "thiazole", "benzene")
+  let ringName: string;
+  if (aromatic) {
+    ringName = generateAromaticRingName(ring, molecule);
+  } else {
+    // For non-aromatic rings, use "cycloalkane" naming
+    const ringSize = ring.length;
+    const { getAlkaneBaseName } = require('./iupac-helpers');
+    ringName = `cyclo${getAlkaneBaseName(ringSize)}`;
+  }
+  
+  if (process.env.VERBOSE) {
+    console.log(`[nameRingSubstituent] Base ring name: ${ringName}`);
+  }
+  
+  // Determine the attachment position in the ring
+  // For heterocycles, we need IUPAC numbering starting from the most senior heteroatom
+  const attachmentPosition = determineRingAttachmentPosition(ring, startAtomIdx, molecule, ringName);
+  
+  if (process.env.VERBOSE) {
+    console.log(`[nameRingSubstituent] Attachment atom: ${startAtomIdx}, position in ring: ${attachmentPosition}`);
+  }
+  
+  // Find any substituents attached to this ring (excluding the attachment point to main chain)
+  // We need to find the atom in chainAtoms that connects to this ring
+  let parentAtom = -1;
+  for (const bond of molecule.bonds) {
+    if ((bond.atom1 === startAtomIdx && chainAtoms.has(bond.atom2)) ||
+        (bond.atom2 === startAtomIdx && chainAtoms.has(bond.atom1))) {
+      parentAtom = bond.atom1 === startAtomIdx ? bond.atom2 : bond.atom1;
+      break;
+    }
+  }
+  
+  const ringSubstituents = findRingSubstituents(molecule, ring, parentAtom);
+  
+  if (process.env.VERBOSE) {
+    console.log(`[nameRingSubstituent] Found ${ringSubstituents.length} substituents on ring`);
+  }
+  
+  // Recursively name each substituent attached to the ring
+  const namedSubstituents: Array<{ locant: number; name: string }> = [];
+  const ringSet = new Set(ring);
+  
+  for (const sub of ringSubstituents) {
+    // Recursively classify this substituent
+    const subInfo = classifySubstituent(molecule, sub.atomIdx, ringSet, new Set());
+    
+    if (subInfo) {
+      // Determine the IUPAC position number for this substituent on the ring
+      const ringAtomIdx = ring[sub.ringPosition]!;
+      const locant = determineRingAttachmentPosition(ring, ringAtomIdx, molecule, ringName);
+      
+      if (process.env.VERBOSE) {
+        console.log(`[nameRingSubstituent] Substituent at ring position ${sub.ringPosition} (IUPAC locant ${locant}): ${subInfo.name}`);
+      }
+      
+      namedSubstituents.push({ locant, name: subInfo.name });
+    }
+  }
+  
+  // Build the complete substituent name with nested substituents
+  let fullName: string;
+  
+  if (namedSubstituents.length > 0) {
+    // Sort substituents by locant
+    namedSubstituents.sort((a, b) => a.locant - b.locant);
+    
+    // Separate ring substituents from simple substituents
+    const ringSubsts = namedSubstituents.filter(s => s.name.includes('yl'));
+    const simpleSubsts = namedSubstituents.filter(s => !s.name.includes('yl'));
+    
+    // Build substituent prefix
+    // For ring substituents, use format: "locant-(substituent)"
+    // For simple substituents, use format: "locant-substituent"
+    const substParts: string[] = [];
+    
+    for (const sub of namedSubstituents) {
+      if (sub.name.includes('yl')) {
+        // Ring substituent - add parentheses
+        substParts.push(`${sub.locant}-(${sub.name})`);
+      } else {
+        // Simple substituent
+        substParts.push(`${sub.locant}-${sub.name}`);
+      }
+    }
+    
+    const subPrefix = substParts.join('-');
+    
+    // Build ring stem with proper numbering for heterocycles
+    let ringStem = ringName;
+    if (ringName.endsWith('ole')) {
+      ringStem = ringName.slice(0, -1);
+    } else if (ringName.endsWith('ine')) {
+      ringStem = ringName.slice(0, -1);
+    } else if (ringName.endsWith('ane')) {
+      ringStem = ringName.slice(0, -1);
+    } else if (ringName === 'benzene') {
+      ringStem = 'phenyl';
+    }
+    
+    // For heterocycles, we need to include heteroatom locants
+    if (ringName === 'thiazole') {
+      // Format: "locant-(substituents)-1,3-thiazol-position-yl"
+      // Find positions of N and S
+      let nPos = -1, sPos = -1;
+      for (let i = 0; i < ring.length; i++) {
+        const atom = molecule.atoms[ring[i]!];
+        if (atom?.symbol === 'N') nPos = i;
+        if (atom?.symbol === 'S') sPos = i;
+      }
+      
+      // Calculate their IUPAC positions
+      const nIupacPos = nPos >= 0 ? determineRingAttachmentPosition(ring, ring[nPos]!, molecule, ringName) : 1;
+      const sIupacPos = sPos >= 0 ? determineRingAttachmentPosition(ring, ring[sPos]!, molecule, ringName) : 3;
+      
+      // Build heteroatom locants: "1,3-" for N=1, S=3
+      const heteroLocants = [nIupacPos, sIupacPos].sort((a, b) => a - b).join(',');
+      
+      fullName = `${subPrefix}-${heteroLocants}-${ringStem}-${attachmentPosition}-yl`;
+    } else if (ringName === 'benzene') {
+      // Format: "locant-(substituents)phenyl"
+      fullName = `${subPrefix}phenyl`;
+    } else {
+      // Generic format
+      fullName = `${subPrefix}${ringStem}-${attachmentPosition}-yl`;
+    }
+  } else {
+    // No substituents, use simple conversion
+    fullName = convertRingNameToSubstituent(ringName, attachmentPosition);
+  }
+  
+  if (process.env.VERBOSE) {
+    console.log(`[nameRingSubstituent] Final substituent name: ${fullName}`);
+  }
+  
+  return {
+    type: 'ring',
+    size: ring.length,
+    name: fullName
+  };
+}
+
+/**
+ * Gets IUPAC numbering for a ring based on heteroatom positions.
+ */
+function getRingNumbering(ring: readonly number[], molecule: Molecule, ringName: string): Map<number, number> {
+  const numbering = new Map<number, number>();
+  
+  if (ringName === 'thiazole') {
+    // Find N and S positions
+    let nPos = -1, sPos = -1;
+    for (let i = 0; i < ring.length; i++) {
+      const atom = molecule.atoms[ring[i]!];
+      if (atom?.symbol === 'N') nPos = i;
+      if (atom?.symbol === 'S') sPos = i;
+    }
+    
+    if (nPos !== -1 && sPos !== -1) {
+      // Standard thiazole numbering: N=1, S=3
+      // From N, go in the direction of S
+      const direction = (sPos - nPos + ring.length) % ring.length <= ring.length / 2 ? 1 : -1;
+      
+      for (let i = 0; i < ring.length; i++) {
+        const offset = (i * direction + ring.length) % ring.length;
+        const actualIdx = (nPos + offset + ring.length) % ring.length;
+        const atomIdx = ring[actualIdx]!;
+        
+        // Assign IUPAC numbers: N=1, first C=2, S=3, second C=4, third C=5
+        if (actualIdx === nPos) {
+          numbering.set(atomIdx, 1);
+        } else if (actualIdx === sPos) {
+          numbering.set(atomIdx, 3);
+        } else {
+          // Carbons get 2, 4, 5
+          const relPos = (actualIdx - nPos + ring.length) % ring.length;
+          if (relPos === 1) numbering.set(atomIdx, 2);
+          else if (relPos === 3) numbering.set(atomIdx, 4);
+          else if (relPos === 4) numbering.set(atomIdx, 5);
+        }
+      }
+    }
+  }
+  
+  return numbering;
+}
+
+/**
+ * Determines the IUPAC position number for the attachment point in a ring.
+ * For heterocycles, numbering starts from the most senior heteroatom.
+ */
+function determineRingAttachmentPosition(ring: readonly number[], attachmentAtom: number, molecule: Molecule, ringName: string): number {
+  const posInRing = ring.indexOf(attachmentAtom);
+  if (posInRing === -1) return 1; // fallback
+  
+  if (process.env.VERBOSE) {
+    console.log(`[determineRingAttachmentPosition] Ring: [${ring.join(', ')}]`);
+    console.log(`[determineRingAttachmentPosition] Attachment atom: ${attachmentAtom}, posInRing: ${posInRing}`);
+  }
+  
+  // For thiazole: N=1, C=2, S=3, C=4, C=5
+  // Ring array is in traversal order, need to renumber based on heteroatom priority
+  
+  if (ringName === 'thiazole') {
+    // Find positions of N and S in the ring
+    let nPos = -1, sPos = -1;
+    for (let i = 0; i < ring.length; i++) {
+      const atom = molecule.atoms[ring[i]!];
+      if (atom?.symbol === 'N') nPos = i;
+      if (atom?.symbol === 'S') sPos = i;
+    }
+    
+    if (process.env.VERBOSE) {
+      console.log(`[determineRingAttachmentPosition] N at ring index ${nPos}, S at ring index ${sPos}`);
+      for (let i = 0; i < ring.length; i++) {
+        const atom = molecule.atoms[ring[i]!];
+        console.log(`[determineRingAttachmentPosition]   Ring[${i}] = atom ${ring[i]} (${atom?.symbol})`);
+      }
+    }
+    
+    if (nPos === -1 || sPos === -1) return posInRing + 1; // fallback
+    
+    // Calculate relative position from N
+    const relativePos = (posInRing - nPos + ring.length) % ring.length;
+    
+    if (process.env.VERBOSE) {
+      console.log(`[determineRingAttachmentPosition] relativePos from N: ${relativePos}`);
+    }
+    
+    // Map relative position to IUPAC number
+    // Relative [0,1,2,3,4] = [N, next-C, next-next-C, next-next-next-C, S]
+    // IUPAC    [1,4,2,5,3] based on heteroatom priority
+    const thiazoleMapping: { [key: number]: number } = {
+      0: 1,  // N
+      1: 4,  // C after N (attachment point in our case)
+      2: 2,  // C between N and S
+      3: 5,  // C after S
+      4: 3   // S
+    };
+    
+    // Actually, let me recalculate: the ring is traversed as [C-6, N-7, C-8, C-9, S-10]
+    // With N at position 1, we go clockwise: N(1) → C(2) → S(3) → C(4) → C(5)
+    // So from N: offset 0 = N = pos 1
+    //           offset 1 = next C = pos 2
+    //           offset 2 = next C = ?
+    //           offset 3 = next C = ?
+    //           offset 4 = S = pos 3
+    
+    // Let me check the bond structure to determine direction
+    // For standard thiazole: N-C-S-C-C-N (cycle)
+    // Numbering: N=1, C=2, S=3, C=4, C=5
+    
+    // From our ring [C-6, N-7, C-8, C-9, S-10]:
+    // If we start from N(7) and go forward: N→C(8)→C(9)→S(10)→C(6)→back to N
+    // So: N(7)=1, C(8)=2, C(9)=3?, S(10)=3, C(6)=5
+    // Wait, S must be at position 3...
+    
+    // Let me recalculate based on proper thiazole numbering
+    // Standard thiazole: N at 1, S at 3, two carbons between them
+    // From N(index 1): forward to C(8) at index 2, then C(9) at index 3, then S(10) at index 4
+    // This means: N→C→C→S→C
+    // But standard thiazole is: N→C→S, not N→C→C→S
+    
+    // I need to check if we traverse N→C(8)→S or N→C(6)→S
+    // Looking at bonds: N(7)-C(8), C(8)-C(9), C(9)-S(10), S(10)-C(6), C(6)-N(7)
+    // So the ring is: C(6)-N(7)-C(8)-C(9)-S(10)-back to C(6)
+    // Wait, that's 5 atoms, so it must be: C-N-C-C-S
+    // For thiazole, between N and S we have either 1 or 2 carbons
+    // With 2 carbons between N and S: N-C-C-S-C
+    // IUPAC: N(1)-C(2)-S(3)-C(4)-C(5)
+    
+    // So mapping from ring index (relative to N):
+    // Offset 0 (N) → 1
+    // Offset 1 (C after N) → 2
+    // Offset 2 (next C) → must be between N and S, checking bonds...
+    
+    // Actually, let me check bonds between N and S to count carbons
+    // If relativePos=1 is C(8) and relativePos=3 is C(9), and relativePos=4 is S
+    // Then N→C(8) is direct, but C(8)→S is not direct
+    // So: N(1) → C(2)=pos1 → ? → S(3)=pos4
+    // That means C(8) is the carbon at position 2
+    // And between C(8) and S we have C(9)
+    
+    // Thiazole with 2 carbons between N and S... that's not standard
+    // Standard thiazole has only 1 carbon between N and S
+    // Let me verify the bonds...
+    
+    // For 5-membered thiazole ring: must be N-C-S-C-C (1,2,3,4,5)
+    // Let's check which direction from N leads to S
+    
+    // Check if there's a C between N and S, or two Cs
+    const nAtomIdx = ring[nPos]!;
+    const sAtomIdx = ring[sPos]!;
+    
+    // Find carbon count between N and S in forward direction
+    let carbonsForward = 0;
+    for (let i = 1; i < ring.length - 1; i++) {
+      const idx = (nPos + i) % ring.length;
+      if (idx === sPos) break;
+      const atom = molecule.atoms[ring[idx]!];
+      if (atom?.symbol === 'C') carbonsForward++;
+    }
+    
+    if (process.env.VERBOSE) {
+      console.log(`[determineRingAttachmentPosition] carbonsForward (N to S): ${carbonsForward}`);
+    }
+    
+    // For standard thiazole: N-C-S-C-C, so carbonsForward should be 1
+    if (carbonsForward === 1) {
+      // N(1) → C(2) → S(3) → C(4) → C(5) → back to N
+      const mapping: { [key: number]: number } = {
+        0: 1,  // N
+        1: 2,  // C after N
+        2: 4,  // C after S (continuing around)
+        3: 5,  // next C
+        4: 3   // S
+      };
+      if (process.env.VERBOSE) {
+        console.log(`[determineRingAttachmentPosition] Using standard thiazole mapping (1 C between N and S)`);
+      }
+      return mapping[relativePos] || (relativePos + 1);
+    }
+    
+    // If carbonsForward === 2, we have 2 carbons between N and S in one direction
+    // This means the shorter path from N to S goes the other way with only 1 carbon
+    // For ring [C-6, N-7, C-8, C-9, S-10]:
+    //   Path 1: N(7) → C(8) → C(9) → S(10) = 2 carbons
+    //   Path 2: N(7) → C(6) → S(10) = 1 carbon ← use this path
+    // IUPAC numbering: N(7)[1] → C(6)[2] → S(10)[3] → C(9)[4] → C(8)[5]
+    
+    if (carbonsForward === 2) {
+      // Mapping from relativePos (position in ring array relative to N) to IUPAC position
+      // Ring array: [C-6, N-7, C-8, C-9, S-10] with N at index 1
+      // IUPAC numbering via shorter path: N(7)=1 → C(6)=2 → S(10)=3 → C(9)=4 → C(8)=5
+      // relativePos 0: N(7) at index 1 → IUPAC position 1
+      // relativePos 1: C(8) at index 2 → IUPAC position 5
+      // relativePos 2: C(9) at index 3 → IUPAC position 4
+      // relativePos 3: S(10) at index 4 → IUPAC position 3
+      // relativePos 4: C(6) at index 0 (wrapping) → IUPAC position 2
+      const mapping: { [key: number]: number } = {
+        0: 1,  // N(7) → position 1
+        1: 5,  // C(8) → position 5
+        2: 4,  // C(9) → position 4
+        3: 3,  // S(10) → position 3
+        4: 2   // C(6) → position 2
+      };
+      if (process.env.VERBOSE) {
+        console.log(`[determineRingAttachmentPosition] Using 2-carbon thiazole mapping (1 C in shorter path)`);
+        console.log(`[determineRingAttachmentPosition] Mapped position: ${mapping[relativePos]}`);
+      }
+      return mapping[relativePos] || (relativePos + 1);
+    }
+    
+    // Fallback
+    return relativePos + 1;
+  }
+  
+  if (ringName === 'benzene' || ringName === 'phenyl') {
+    // For benzene, we need to find the TRUE attachment point (where benzene connects to parent)
+    // and number all positions relative to that point
+    
+    // Find the attachment point: the atom bonded to a ring system (not simple substituents)
+    let attachmentIdx = -1;
+    const ringSet = new Set(ring);
+    
+    // Look for atom bonded to another ring or to the main chain
+    for (let i = 0; i < ring.length; i++) {
+      const ringAtomIdx = ring[i]!;
+      
+      // Check if this atom has bonds outside the ring
+      for (const bond of molecule.bonds) {
+        const otherAtom = bond.atom1 === ringAtomIdx ? bond.atom2 : bond.atom2 === ringAtomIdx ? bond.atom1 : -1;
+        if (otherAtom >= 0 && !ringSet.has(otherAtom)) {
+          const otherAtomObj = molecule.atoms[otherAtom];
+          // Ignore hydrogen atoms
+          if (otherAtomObj && otherAtomObj.symbol !== 'H') {
+            // Check if this is the main attachment (bonded to another ring/chain, not a simple substituent)
+            // Simple substituents are typically: OH, Cl, Br, F, etc.
+            const isSimpleSubstituent = otherAtomObj.symbol === 'O' || otherAtomObj.symbol === 'Cl' || 
+                                       otherAtomObj.symbol === 'Br' || otherAtomObj.symbol === 'F' ||
+                                       otherAtomObj.symbol === 'I';
+            
+            if (!isSimpleSubstituent) {
+              // This is likely the main attachment point
+              attachmentIdx = i;
+              
+              if (process.env.VERBOSE) {
+                console.log(`[determineRingAttachmentPosition] Found main attachment at ring index ${i} (atom ${ringAtomIdx}) bonded to atom ${otherAtom} (${otherAtomObj.symbol})`);
+              }
+              break;
+            }
+          }
+        }
+      }
+      if (attachmentIdx >= 0) break;
+    }
+    
+    if (attachmentIdx === -1) {
+      if (process.env.VERBOSE) {
+        console.log(`[determineRingAttachmentPosition] No main attachment found, using fallback`);
+      }
+      // Fallback if we can't find attachment point
+      return posInRing + 1;
+    }
+    
+    // Calculate position relative to attachment point
+    // Attachment point is numbered 1, then we continue around the ring
+    // Going in the direction that gives lowest substituent locants
+    // For benzene, we go backwards through array indices: [5,4,3,2,1,0] if attachment is at 5
+    
+    const relativePos = (attachmentIdx - posInRing + ring.length) % ring.length;
+    
+    if (process.env.VERBOSE) {
+      console.log(`[determineRingAttachmentPosition] attachmentIdx=${attachmentIdx}, posInRing=${posInRing}, relativePos=${relativePos}, IUPAC position=${relativePos + 1}`);
+    }
+    
+    return relativePos + 1;
+  }
+  
+  // For other rings, use simple sequential numbering (1-indexed)
+  return posInRing + 1;
+}
+
+/**
+ * Converts a ring name to substituent form with position.
+ * Examples: "thiazole" + position 4 -> "thiazol-4-yl"
+ *           "benzene" -> "phenyl"
+ */
+function convertRingNameToSubstituent(ringName: string, position: number): string {
+  // Special case: benzene becomes phenyl (no position needed for monosubstituted)
+  if (ringName === 'benzene') {
+    return 'phenyl';
+  }
+  
+  // For heterocycles ending in -ole, -ine, -ane, etc., convert to -yl form
+  // thiazole -> thiazol-4-yl
+  // pyridine -> pyridin-3-yl
+  // furan -> furan-2-yl
+  
+  let stem = ringName;
+  
+  // Remove common ring suffixes
+  if (ringName.endsWith('ole')) {
+    stem = ringName.slice(0, -1); // "thiazole" -> "thiazol"
+  } else if (ringName.endsWith('ine')) {
+    stem = ringName.slice(0, -1); // "pyridine" -> "pyridin"
+  } else if (ringName.endsWith('ane')) {
+    stem = ringName.slice(0, -1); // "cyclohexane" -> "cyclohexan"
+  } else if (ringName.endsWith('ene')) {
+    stem = ringName.slice(0, -1); // "benzene" -> "benzen" (but benzene is handled above)
+  }
+  
+  // Add position and -yl suffix
+  return `${stem}-${position}-yl`;
+}
+
+export function classifySubstituent(molecule: Molecule, startAtomIdx: number, chainAtoms: Set<number>, fgAtomIds: Set<number> = new Set()): SubstituentInfo | null {
+  // First check: if the starting atom is part of a functional group, skip it
+  if (fgAtomIds.has(startAtomIdx)) {
+    if (process.env.VERBOSE) console.log(`[classifySubstituent] Skipping atom ${startAtomIdx} - part of functional group`);
+    return null;
+  }
+  
   const visited = new Set<number>(chainAtoms);
   const substituentAtoms = new Set<number>();
   const stack = [startAtomIdx];
@@ -2014,6 +3120,24 @@ export function classifySubstituent(molecule: Molecule, startAtomIdx: number, ch
     .filter((atom): atom is typeof molecule.atoms[0] => atom !== undefined);
   const carbonCount = atoms.filter(atom => atom.symbol === 'C').length;
   
+  // Check if this substituent contains ring atoms - if so, it might be a ring system substituent
+  const hasRingAtoms = Array.from(substituentAtoms).some(atomId => {
+    if (!molecule.rings) return false;
+    return molecule.rings.some(ring => ring.includes(atomId));
+  });
+  
+  if (hasRingAtoms && process.env.VERBOSE) {
+    console.log(`[classifySubstituent] Substituent starting at ${startAtomIdx} contains ring atoms`);
+  }
+  
+  // If this substituent contains ring atoms, it's likely a complex ring system
+  // For now, return null to skip it (will be handled by ring system naming later)
+  if (hasRingAtoms) {
+    if (process.env.VERBOSE) console.log(`[classifySubstituent] Detected ring system substituent starting at ${startAtomIdx}`);
+    // Name the ring system as a substituent
+    return nameRingSubstituent(molecule, startAtomIdx, chainAtoms);
+  }
+  
   // Check if this is an ether substituent FIRST (before checking for phenyl)
   // This ensures O-Aryl patterns are detected as "aryloxy" not "phenyl"
   const startAtom = molecule.atoms[startAtomIdx];
@@ -2026,6 +3150,100 @@ export function classifySubstituent(molecule: Molecule, startAtomIdx: number, ch
     // If oxygen has a double bond, it's part of a functional group (C=O), not an ether
     if (hasDoubleBond) {
       return null; // Skip this - it's part of a carbonyl group
+    }
+    
+    // Check for aminooxy pattern: -O-N-R (e.g., tert-butylaminooxy)
+    // Find nitrogen bonded to this oxygen
+    const nitrogenBond = molecule.bonds.find(
+      bond => (bond.atom1 === startAtomIdx || bond.atom2 === startAtomIdx) &&
+              bond.type === 'single' &&
+              ((bond.atom1 === startAtomIdx && molecule.atoms[bond.atom2]?.symbol === 'N') ||
+               (bond.atom2 === startAtomIdx && molecule.atoms[bond.atom1]?.symbol === 'N'))
+    );
+    
+    if (nitrogenBond) {
+      const nitrogenIdx = nitrogenBond.atom1 === startAtomIdx ? nitrogenBond.atom2 : nitrogenBond.atom1;
+      
+      // Find carbon chain attached to nitrogen (excluding chain atoms)
+      const carbonBonds = molecule.bonds.filter(
+        bond => (bond.atom1 === nitrogenIdx || bond.atom2 === nitrogenIdx) &&
+                bond.atom1 !== startAtomIdx && bond.atom2 !== startAtomIdx &&
+                ((bond.atom1 === nitrogenIdx && molecule.atoms[bond.atom2]?.symbol === 'C' && substituentAtoms.has(bond.atom2)) ||
+                 (bond.atom2 === nitrogenIdx && molecule.atoms[bond.atom1]?.symbol === 'C' && substituentAtoms.has(bond.atom1)))
+      );
+      
+      if (carbonBonds.length > 0) {
+        // Get the alkyl group name attached to nitrogen
+        const carbonIdx = carbonBonds[0]!.atom1 === nitrogenIdx ? carbonBonds[0]!.atom2 : carbonBonds[0]!.atom1;
+        
+        // Collect all atoms in the N-C chain (excluding oxygen)
+        const ncChainAtoms = new Set<number>();
+        ncChainAtoms.add(nitrogenIdx);
+        const ncVisited = new Set<number>([...chainAtoms, startAtomIdx]);
+        const ncStack = [carbonIdx];
+        
+        while (ncStack.length > 0) {
+          const current = ncStack.pop()!;
+          if (ncVisited.has(current)) continue;
+          ncVisited.add(current);
+          ncChainAtoms.add(current);
+          
+          for (const bond of molecule.bonds) {
+            let neighbor = -1;
+            if (bond.atom1 === current && !ncVisited.has(bond.atom2)) {
+              neighbor = bond.atom2;
+            } else if (bond.atom2 === current && !ncVisited.has(bond.atom1)) {
+              neighbor = bond.atom1;
+            }
+            if (neighbor >= 0) {
+              ncStack.push(neighbor);
+            }
+          }
+        }
+        
+        // Name the alkyl group attached to nitrogen
+        // Count carbons and check for branching patterns
+        const ncCarbons = Array.from(ncChainAtoms).filter(idx => molecule.atoms[idx]?.symbol === 'C');
+        let alkylGroupName = 'alkyl';
+        
+        if (ncCarbons.length === 1) {
+          alkylGroupName = 'methyl';
+        } else if (ncCarbons.length === 2) {
+          alkylGroupName = 'ethyl';
+        } else if (ncCarbons.length === 3) {
+          alkylGroupName = 'propyl';
+        } else if (ncCarbons.length === 4) {
+          // Check for tert-butyl pattern: central carbon bonded to N + 3 methyl carbons
+          let foundTertButyl = false;
+          for (const cIdx of ncCarbons) {
+            const cBonds = molecule.bonds.filter(
+              b => (b.atom1 === cIdx || b.atom2 === cIdx) && 
+                   ncChainAtoms.has(b.atom1) && ncChainAtoms.has(b.atom2)
+            );
+            const cNeighbors = cBonds.map(b => b.atom1 === cIdx ? b.atom2 : b.atom1)
+              .filter(n => molecule.atoms[n]?.symbol === 'C');
+            
+            // If this carbon has 3 carbon neighbors within the group, it's the central carbon
+            if (cNeighbors.length === 3) {
+              foundTertButyl = true;
+              break;
+            }
+          }
+          
+          alkylGroupName = foundTertButyl ? 'tert-butyl' : 'butyl';
+        } else {
+          alkylGroupName = getAlkylName(ncCarbons.length);
+        }
+        
+        // The full name is: (alkyl)amino-oxy  (e.g., tert-butylaminooxy)
+        const fullName = `(${alkylGroupName}amino)oxy`;
+        
+        if (process.env.VERBOSE) {
+          console.log(`[classifySubstituent] Detected aminooxy: O=${startAtomIdx}, N=${nitrogenIdx}, name=${fullName}`);
+        }
+        
+        return { type: 'functional', size: substituentAtoms.size, name: fullName };
+      }
     }
     
     // This is an ether substituent: -O-R

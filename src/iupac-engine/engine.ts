@@ -297,7 +297,7 @@ private handleConflicts(context: ImmutableNamingContext): void {
     }
 
     // Fallback to OPSIN name generator
-    return this.nameGenerator.generateName(context.getState().molecule);
+    return this.nameGenerator.generateName(context);
   }
   
   /**

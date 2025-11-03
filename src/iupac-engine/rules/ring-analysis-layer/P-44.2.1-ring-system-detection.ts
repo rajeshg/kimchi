@@ -22,6 +22,14 @@ export const P44_2_1_RING_SYSTEM_DETECTION_RULE: IUPACRule = {
     const molecule = context.getState().molecule;
     const ringSystems = detectRingSystems(molecule);
     
+    if (process.env.VERBOSE) {
+      console.log(`[P-44.2.1] Detected ${ringSystems.length} ring systems`);
+      ringSystems.forEach((ring: any, idx: number) => {
+        const atomSymbols = ring.atoms?.map((a: any) => a.symbol).join('') || 'unknown';
+        console.log(`[P-44.2.1]   Ring ${idx}: size=${ring.size}, atoms=${atomSymbols}`);
+      });
+    }
+    
     // Update state with detected ring systems
     return context.withStateUpdate(
       (state: any) => ({ ...state, candidateRings: ringSystems }),

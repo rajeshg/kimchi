@@ -10,6 +10,57 @@ import type { Molecule } from '../../../../types';
  * the maximum number of principal characteristic groups (alcohols, ketones, etc.).
  * This rule must run BEFORE ring parent selection rules (P-2.3, P-2.4, P-2.5).
  */
+
+/**
+ * Helper function to check if a functional group is attached to a ring system
+ * either directly or through a short carbon chain.
+ */
+function isFunctionalGroupAttachedToRing(
+  fgAtomIndices: number[],
+  ringAtomIndices: Set<number>,
+  molecule: Molecule,
+  visited: Set<number> = new Set(),
+  depth: number = 0,
+  maxDepth: number = 2
+): boolean {
+  // Stop if we've gone too deep (prevent infinite recursion)
+  if (depth > maxDepth) return false;
+  
+  // Check if any FG atom is in the ring
+  if (fgAtomIndices.some(atomIdx => ringAtomIndices.has(atomIdx))) {
+    return true;
+  }
+  
+  // Check if any FG atom is directly bonded to a ring atom
+  for (const fgAtomIdx of fgAtomIndices) {
+    if (visited.has(fgAtomIdx)) continue;
+    visited.add(fgAtomIdx);
+    
+    for (const bond of molecule.bonds) {
+      const bondedTo = bond.atom1 === fgAtomIdx ? bond.atom2 : 
+                      bond.atom2 === fgAtomIdx ? bond.atom1 : -1;
+      
+      if (bondedTo !== -1) {
+        // Direct connection to ring
+        if (ringAtomIndices.has(bondedTo)) {
+          return true;
+        }
+        
+        // Indirect connection through carbon chain (e.g., -CH2-COOH attached to ring)
+        const bondedAtom = molecule.atoms[bondedTo];
+        if (bondedAtom && bondedAtom.symbol === 'C' && !visited.has(bondedTo)) {
+          // Recursively check if this carbon is connected to the ring
+          if (isFunctionalGroupAttachedToRing([bondedTo], ringAtomIndices, molecule, visited, depth + 1, maxDepth)) {
+            return true;
+          }
+        }
+      }
+    }
+  }
+  
+  return false;
+}
+
 export const P44_1_1_PRINCIPAL_CHARACTERISTIC_GROUPS_RULE: IUPACRule = {
   id: 'P-44.1.1',
   name: 'Maximum Number of Principal Characteristic Groups',
@@ -48,6 +99,9 @@ export const P44_1_1_PRINCIPAL_CHARACTERISTIC_GROUPS_RULE: IUPACRule = {
       console.log(`[P-44.1.1] principal FGs full:`, JSON.stringify(principalFGs, null, 2));
     }
     
+    // Track which functional groups are part of chains
+    const fgsOnChains = new Set<any>();
+    
     // Count how many principal functional groups are on each chain
     const chainFGCounts = chains.map(chain => {
       // Build a set of atom indices in this chain for fast lookup
@@ -70,24 +124,14 @@ export const P44_1_1_PRINCIPAL_CHARACTERISTIC_GROUPS_RULE: IUPACRule = {
         // Check if FG atom is in chain
         const hasAtomInChain = fgAtomIndices.some(atomIdx => chainAtomIndices.has(atomIdx));
         
-        // Check if FG atom is bonded to a chain atom
-        let isAttachedToChain = false;
-        if (!hasAtomInChain) {
-          for (const fgAtomIdx of fgAtomIndices) {
-            for (const bond of molecule.bonds) {
-              const bondedTo = bond.atom1 === fgAtomIdx ? bond.atom2 : 
-                              bond.atom2 === fgAtomIdx ? bond.atom1 : -1;
-              if (bondedTo !== -1 && chainAtomIndices.has(bondedTo)) {
-                isAttachedToChain = true;
-                break;
-              }
-            }
-            if (isAttachedToChain) break;
-          }
-        }
+        // Check if FG atom is attached to chain (directly or through short carbon bridge)
+        const isAttachedToChain = !hasAtomInChain && isFunctionalGroupAttachedToRing(
+          fgAtomIndices, chainAtomIndices, molecule
+        );
         
         if (hasAtomInChain || isAttachedToChain) {
           fgCount++;
+          fgsOnChains.add(fg); // Track that this FG is on a chain
         }
       }
       
@@ -115,33 +159,32 @@ export const P44_1_1_PRINCIPAL_CHARACTERISTIC_GROUPS_RULE: IUPACRule = {
       }
       
       // Count how many principal functional groups have atoms in rings OR attached to rings
+      // IMPORTANT: Skip FGs already counted as part of chains to avoid double-counting
       for (const fg of principalFGs) {
+        // Skip if this FG was already counted as part of a chain
+        if (fgsOnChains.has(fg)) {
+          if (process.env.VERBOSE) {
+            console.log(`[P-44.1.1] Skipping FG ${fg.type} - already counted as chain FG`);
+          }
+          continue;
+        }
+        
         // Convert fg.atoms (Atom objects) to atom indices
         const fgAtomIndices = (fg.atoms || []).map(atom => 
           molecule.atoms.findIndex(a => a === atom)
         ).filter(idx => idx !== -1);
         
-        // Check if FG atom is in ring
+        // Check if FG is in ring or attached to ring (directly or through short carbon bridge)
         const hasAtomInRing = fgAtomIndices.some(atomIdx => ringAtomIndices.has(atomIdx));
-        
-        // Check if FG atom is bonded to a ring atom
-        let isAttachedToRing = false;
-        if (!hasAtomInRing) {
-          for (const fgAtomIdx of fgAtomIndices) {
-            for (const bond of molecule.bonds) {
-              const bondedTo = bond.atom1 === fgAtomIdx ? bond.atom2 : 
-                              bond.atom2 === fgAtomIdx ? bond.atom1 : -1;
-              if (bondedTo !== -1 && ringAtomIndices.has(bondedTo)) {
-                isAttachedToRing = true;
-                break;
-              }
-            }
-            if (isAttachedToRing) break;
-          }
-        }
+        const isAttachedToRing = !hasAtomInRing && isFunctionalGroupAttachedToRing(
+          fgAtomIndices, ringAtomIndices, molecule
+        );
         
         if (hasAtomInRing || isAttachedToRing) {
           ringFGCount++;
+          if (process.env.VERBOSE) {
+            console.log(`[P-44.1.1] Counted ring FG: ${fg.type}`);
+          }
         }
       }
       
@@ -192,6 +235,7 @@ export const P44_1_1_PRINCIPAL_CHARACTERISTIC_GROUPS_RULE: IUPACRule = {
     // (rings may win via P-44.2 ring seniority)
     if (process.env.VERBOSE) {
       console.log('[P-44.1.1] Rings have equal or more functional groups, letting other rules proceed');
+      console.log('[P-44.1.1] Returning context with candidateRings.length =', context.getState().candidateRings?.length);
     }
     return context;
   }
