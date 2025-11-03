@@ -8,11 +8,11 @@
 import { describe, test, expect } from 'bun:test';
 import { IUPACNamer } from '../../../src/iupac-engine';
 import { parseSMILES } from '../../../src/parsers/smiles-parser';
-import { OPSINFunctionalGroupDetector } from '../../../src/iupac-engine/opsin-functional-group-detector';
+import { getSharedDetector } from '../../../src/iupac-engine/opsin-functional-group-detector';
 
 describe('Comprehensive P-44.1 Functional Group Coverage', () => {
   test('should detect all priority levels from OPSIN rules', () => {
-    const detector = new OPSINFunctionalGroupDetector();
+    const detector = getSharedDetector();
     
     // Test molecules covering different priority levels
     // Priorities follow IUPAC Blue Book P-44.1 (lower number = higher priority)
@@ -86,7 +86,7 @@ describe('Comprehensive P-44.1 Functional Group Coverage', () => {
   });
   
   test('should handle complex molecules with multiple functional groups', () => {
-    const detector = new OPSINFunctionalGroupDetector();
+    const detector = getSharedDetector();
     
     // Test 4-aminobenzoic acid - has both carboxylic acid and amine
     const parseResult = parseSMILES('N=C1C=CC=C1C(=O)O');
@@ -108,7 +108,7 @@ describe('Comprehensive P-44.1 Functional Group Coverage', () => {
   });
   
   test('should use comprehensive OPSIN patterns', () => {
-    const detector = new OPSINFunctionalGroupDetector();
+    const detector = getSharedDetector();
     
     // Test nitrile detection
     const parseResult = parseSMILES('CC#N');
@@ -147,7 +147,7 @@ describe('Comprehensive P-44.1 Functional Group Coverage', () => {
   });
   
   test('should demonstrate P-44.1 priority hierarchy', () => {
-    const detector = new OPSINFunctionalGroupDetector();
+    const detector = getSharedDetector();
     
     // Create a molecule with multiple functional groups to test priority
     // This would be a hypothetical molecule with carboxylic acid and alcohol
@@ -237,7 +237,7 @@ describe('P-44.1 Implementation Summary', () => {
     console.log('✓ Support for complex multi-functional molecules');
     
     // Verify the detector can access OPSIN rules
-    const detector = new OPSINFunctionalGroupDetector();
+    const detector = getSharedDetector();
     
     // Test that we can detect various functional group types
     const testMolecules = ['CCO', 'CC(=O)O', 'CC(=O)C', 'CC#N'];

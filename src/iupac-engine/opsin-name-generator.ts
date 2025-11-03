@@ -1,6 +1,6 @@
 import type { Molecule } from '../../types';
 import fs from 'fs';
-import { OPSINFunctionalGroupDetector } from './opsin-functional-group-detector';
+import { getSharedDetector } from './opsin-functional-group-detector';
 import type { ImmutableNamingContext } from './immutable-context';
 
 /**
@@ -11,10 +11,8 @@ import type { ImmutableNamingContext } from './immutable-context';
  */
 export class OPSINNameGenerator {
   private rules: any;
-  private fgDetector: OPSINFunctionalGroupDetector;
   
   constructor() {
-    this.fgDetector = new OPSINFunctionalGroupDetector();
     this.loadOPSINRules();
   }
   
@@ -54,7 +52,7 @@ export class OPSINNameGenerator {
     const context = input instanceof Object && 'getState' in input ? input as ImmutableNamingContext : null;
     
     // Detect functional groups using comprehensive OPSIN detector
-    const functionalGroups = this.fgDetector.detectFunctionalGroups(molecule);
+    const functionalGroups = getSharedDetector().detectFunctionalGroups(molecule);
     
     if (functionalGroups.length > 0) {
       // Primary functional group determines the name
@@ -77,7 +75,7 @@ export class OPSINNameGenerator {
    * Get detected functional groups for external use
    */
   getFunctionalGroups(molecule: Molecule): Array<{type: string, name: string, suffix: string, priority: number, atoms: number[], pattern: string}> {
-    return this.fgDetector.detectFunctionalGroups(molecule);
+    return getSharedDetector().detectFunctionalGroups(molecule);
   }
   
   /**
@@ -236,4 +234,14 @@ export class OPSINNameGenerator {
     
     return `C${carbonCount}`;
   }
+}
+
+// Singleton instance
+let _sharedNameGenerator: OPSINNameGenerator | null = null;
+
+export function getSharedNameGenerator(): OPSINNameGenerator {
+  if (!_sharedNameGenerator) {
+    _sharedNameGenerator = new OPSINNameGenerator();
+  }
+  return _sharedNameGenerator;
 }

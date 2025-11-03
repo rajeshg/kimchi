@@ -7,7 +7,7 @@ import type {
 } from './types';
 import { ImmutableNamingContext, ExecutionPhase } from './immutable-context';
 import { LAYER_ORDER, LAYER_DEFINITIONS } from './layer-config';
-import { OPSINNameGenerator } from './opsin-name-generator';
+import { OPSINNameGenerator, getSharedNameGenerator } from './opsin-name-generator';
 import { analyzeRings } from 'src/utils/ring-analysis';
 
 /**
@@ -16,10 +16,8 @@ import { analyzeRings } from 'src/utils/ring-analysis';
 export class RuleEngine {
   private rules = new Map<string, IUPACRule>();
   private layers = new Map<string, Layer>();
-  private nameGenerator: OPSINNameGenerator;
   
   constructor() {
-    this.nameGenerator = new OPSINNameGenerator();
     this.initializeEngine();
   }
   
@@ -297,7 +295,7 @@ private handleConflicts(context: ImmutableNamingContext): void {
     }
 
     // Fallback to OPSIN name generator
-    return this.nameGenerator.generateName(context);
+    return getSharedNameGenerator().generateName(context);
   }
   
   /**

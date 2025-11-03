@@ -2,12 +2,7 @@ import type { Molecule } from 'types';
 import { BondType } from 'types';
 import { getAlkaneName, getGreekNumeral, getAlkaneBaseName, getAlkylName } from './iupac-helpers';
 import type { Substituent, SubstituentInfo } from './iupac-types';
-import { OPSINFunctionalGroupDetector } from '../opsin-functional-group-detector';
-
-// Factory function to create fresh detector instances (prevents state pollution)
-function getOpsinDetector(): OPSINFunctionalGroupDetector {
-  return new OPSINFunctionalGroupDetector();
-}
+import { getSharedDetector } from '../opsin-functional-group-detector';
 
 /**
  * Determines if an atom should be excluded from the parent chain based on functional group type
@@ -114,7 +109,7 @@ function countDirectFunctionalGroupAttachments(
 
 export function findMainChain(molecule: Molecule): number[] {
   // Detect functional groups first to exclude their atoms from the parent chain
-  const functionalGroups = getOpsinDetector().detectFunctionalGroups(molecule);
+  const functionalGroups = getSharedDetector().detectFunctionalGroups(molecule);
   const excludedAtomIds = new Set<number>();
   
   // Collect atom IDs that should be excluded from the parent chain
@@ -1139,7 +1134,7 @@ export function findSubstituents(molecule: Molecule, mainChain: number[]): Subst
   const chainSet = new Set(mainChain);
   
   // Detect functional groups to exclude their atoms from being classified as substituents
-  const functionalGroups = getOpsinDetector().detectFunctionalGroups(molecule);
+  const functionalGroups = getSharedDetector().detectFunctionalGroups(molecule);
   const fgAtomIds = new Set<number>();
   for (const fg of functionalGroups) {
     if (fg.atoms && Array.isArray(fg.atoms)) {

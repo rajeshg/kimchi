@@ -674,7 +674,7 @@ export class OPSINFunctionalGroupDetector {
       if (atom.symbol !== 'N') continue;
       
       // Skip nitrogen that is part of a ring structure (heterocycle like azirane, pyridine, etc.)
-      if (rings && rings.some(ring => ring.atoms.includes(atom.id))) {
+      if (rings && rings.some(ring => ring.includes(atom.id))) {
         continue;
       }
       
@@ -1372,4 +1372,17 @@ export class OPSINFunctionalGroupDetector {
     const group = this.functionalGroups.get(type);
     return (group as any)?.suffix || '';
   }
+}
+
+// Singleton instance - safe to share because:
+// 1. rules, functionalGroups, suffixes are read-only after initialization
+// 2. matchPatternCache uses WeakMap which is per-molecule and garbage-collected
+// 3. All methods are stateless and don't mutate shared state
+let _sharedDetector: OPSINFunctionalGroupDetector | null = null;
+
+export function getSharedDetector(): OPSINFunctionalGroupDetector {
+  if (!_sharedDetector) {
+    _sharedDetector = new OPSINFunctionalGroupDetector();
+  }
+  return _sharedDetector;
 }
