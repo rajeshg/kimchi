@@ -1448,9 +1448,10 @@ export function buildEsterName(parentStructure: any, esterGroup: any, molecule: 
       acylName = (acylLength < acylNames.length && acylNames[acylLength]) ? acylNames[acylLength] : `C${acylLength}-anoate`;
   }
   
-  // Don't add space if alkyl name is complex (surrounded by brackets)
+  // Don't add space if alkyl name is complex (surrounded by brackets) or ring-based (contains parentheses with ring names)
   const isComplexAlkyl = alkylName.startsWith('[') && alkylName.endsWith(']');
-  const result = alkoxySubstituents.length > 0 || isComplexAlkyl 
+  const isRingBasedAlkyl = alkylName.includes('(') && alkylName.includes(')') && /\d+/.test(alkylName);
+  const result = alkoxySubstituents.length > 0 || isComplexAlkyl || isRingBasedAlkyl
     ? `${alkylName}${acylName}` 
     : `${alkylName} ${acylName}`;
   

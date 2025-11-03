@@ -103,9 +103,13 @@ export const FUNCTIONAL_GROUP_PRIORITY_RULE: IUPACRule = {
   const mol = context.getState().molecule;
   const detected = getSharedDetector().detectFunctionalGroups(mol);
   
+  // Get previously detected functional groups (from ALCOHOL_DETECTION_RULE, etc.)
+  const previousFunctionalGroups = context.getState().functionalGroups || [];
+  
   if (process.env.VERBOSE) {
     console.log('[FUNCTIONAL_GROUP_PRIORITY_RULE] Molecule has rings?', mol.rings?.length || 0);
     console.log('[FUNCTIONAL_GROUP_PRIORITY_RULE] Detected functional groups (raw):', detected.map((d: any) => ({ pattern: d.pattern, type: d.type, name: d.name, priority: d.priority })));
+    console.log('[FUNCTIONAL_GROUP_PRIORITY_RULE] Previous functional groups:', previousFunctionalGroups.map((fg: any) => ({ type: fg.type, bonds: fg.bonds?.length || 0 })));
   }
 
     // Build normalized functional groups and a parallel trace metadata array
@@ -129,10 +133,27 @@ export const FUNCTIONAL_GROUP_PRIORITY_RULE: IUPACRule = {
       const isKetoneOrAldehyde = type === 'ketone' || type === 'aldehyde';
       const locantAtoms = isKetoneOrAldehyde ? atoms.slice(0, 1) : atoms;
       
+      // Try to preserve bonds from previously detected functional groups
+      // Match by atom IDs to find the corresponding previous detection
+      let preservedBonds = bonds;
+      if ((!bonds || bonds.length === 0) && previousFunctionalGroups.length > 0) {
+        const atomIdSet = new Set(atomIndices);
+        const matchingPrevious = previousFunctionalGroups.find((prev: any) => {
+          const prevAtomIds = prev.atoms?.map((a: any) => typeof a === 'number' ? a : a.id) || [];
+          return prevAtomIds.some((id: number) => atomIdSet.has(id));
+        });
+        if (matchingPrevious && matchingPrevious.bonds && matchingPrevious.bonds.length > 0) {
+          preservedBonds = matchingPrevious.bonds;
+          if (process.env.VERBOSE) {
+            console.log(`[FUNCTIONAL_GROUP_PRIORITY_RULE] Preserved bonds for ${type} from previous detection:`, preservedBonds.length);
+          }
+        }
+      }
+      
       return {
         type,
         atoms,
-        bonds,
+        bonds: preservedBonds,
         suffix: d.suffix || getSharedDetector().getFunctionalGroupSuffix(d.pattern || d.type) || undefined,
         prefix: d.prefix || undefined,
         priority,
@@ -1734,7 +1755,7 @@ function isFunctionalClassPreferred(principalGroup: any): boolean {
  */
 function detectCarboxylicAcids(context: any): any[] {
   const carboxylicAcids = [];
-  const molecules = context.molecule;
+  const molecules = context.getState().molecule;
   
   // Look for C=O bonds followed by O-H
   for (const bond of molecules.bonds) {
@@ -1769,7 +1790,7 @@ function detectCarboxylicAcids(context: any): any[] {
  */
 function detectAlcohols(context: any): any[] {
   const alcohols = [];
-  const molecules = context.molecule;
+  const molecules = context.getState().molecule;
   
   for (const atom of molecules.atoms) {
     if (atom.symbol === 'O') {
@@ -1777,7 +1798,7 @@ function detectAlcohols(context: any): any[] {
         (b.atom1 === atom.id || b.atom2 === atom.id) && b.type === 'single'
       );
       
-      // Check if oxygen is bonded to carbon and has one hydrogen
+      // Check if oxygen is bonded to carbon and has one hydrogen (implicit or explicit)
       const carbonBonds = bonds.filter((b: any) => {
         const otherAtom = b.atom1 === atom.id ? molecules.atoms[b.atom2] : molecules.atoms[b.atom1];
         return otherAtom.symbol === 'C';
@@ -1788,11 +1809,14 @@ function detectAlcohols(context: any): any[] {
         return otherAtom.symbol === 'H';
       });
       
-      if (carbonBonds.length === 1 && hydrogenBonds.length === 1) {
+      // Check for implicit hydrogens if no explicit H bonds found
+      const totalHydrogens = hydrogenBonds.length + (atom.hydrogens || 0);
+      
+      if (carbonBonds.length === 1 && totalHydrogens === 1) {
         alcohols.push({
           type: 'alcohol',
           atoms: [atom],
-          bonds: bonds,
+          bonds: carbonBonds,  // Only include the C-O bond
           suffix: 'ol',
           prefix: 'hydroxy',
           priority: FUNCTIONAL_GROUP_PRIORITIES.alcohol,
@@ -1810,7 +1834,7 @@ function detectAlcohols(context: any): any[] {
  */
 function detectAmines(context: any): any[] {
   const amines = [];
-  const molecules = context.molecule;
+  const molecules = context.getState().molecule;
   
   for (const atom of molecules.atoms) {
     if (atom.symbol === 'N') {
@@ -1850,7 +1874,7 @@ function detectAmines(context: any): any[] {
  */
 function detectKetones(context: any): any[] {
   const ketones = [];
-  const molecules = context.molecule;
+  const molecules = context.getState().molecule;
   
   for (const bond of molecules.bonds) {
     if (bond.type === 'double') {
@@ -1894,7 +1918,7 @@ function detectKetones(context: any): any[] {
  */
 function detectEsters(context: any): any[] {
   const esters = [];
-  const molecules = context.molecule;
+  const molecules = context.getState().molecule;
   
   // Look for carboxylic acid oxygen bonded to carbon (R-O-C=O)
   const carboxylicAcids = detectCarboxylicAcids(context);

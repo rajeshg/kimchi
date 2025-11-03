@@ -1301,21 +1301,25 @@ export class OPSINFunctionalGroupDetector {
         matches.push(...atoms.filter(atom => atom.symbol === 'I').map(atom => atom.id));
         break;
       case 'O':
-        // Filter out oxygen atoms that are part of aromatic rings (heterocycles like furan)
+        // Filter out oxygen atoms that are part of rings (heterocycles like oxirane, furan)
+        // Ring heteroatoms are already named as part of the ring structure
         matches.push(...atoms.filter(atom => {
           if (atom.symbol !== 'O') return false;
-          if (atom.aromatic && molecule.rings) {
-            return !molecule.rings.some(ring => ring.includes(atom.id));
+          // Exclude oxygen atoms that are part of ANY ring (aliphatic or aromatic)
+          if (atom.isInRing) {
+            return false;
           }
           return true;
         }).map(atom => atom.id));
         break;
       case 'S':
-        // Filter out sulfur atoms that are part of aromatic rings (heterocycles like thiophene)
+        // Filter out sulfur atoms that are part of rings (heterocycles like thiirane, thiophene)
+        // Ring heteroatoms are already named as part of the ring structure
         matches.push(...atoms.filter(atom => {
           if (atom.symbol !== 'S') return false;
-          if (atom.aromatic && molecule.rings) {
-            return !molecule.rings.some(ring => ring.includes(atom.id));
+          // Exclude sulfur atoms that are part of ANY ring (aliphatic or aromatic)
+          if (atom.isInRing) {
+            return false;
           }
           return true;
         }).map(atom => atom.id));

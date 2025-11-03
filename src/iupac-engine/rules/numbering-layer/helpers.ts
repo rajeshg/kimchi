@@ -91,7 +91,27 @@ export function getPrincipalGroupLocant(parentStructure: ParentStructure, princi
     const atomId = typeof functionalGroupAtom === 'number' ? functionalGroupAtom : functionalGroupAtom.id;
     
     // Find where this atom appears in the chain
-    const positionInChain = chain.atoms.findIndex((atom: Atom) => atom.id === atomId);
+    let positionInChain = chain.atoms.findIndex((atom: Atom) => atom.id === atomId);
+    
+    // If the functional group atom is not in the chain (e.g., alcohol O, ether O),
+    // find which chain atom it's bonded to
+    if (positionInChain === -1 && principalGroup.bonds && principalGroup.bonds.length > 0) {
+      if (process.env.VERBOSE) {
+        console.log('[getPrincipalGroupLocant] Functional group atom not in chain, checking bonds');
+      }
+      // Look through the bonds to find the chain atom
+      for (const bond of principalGroup.bonds) {
+        const otherAtomId = bond.atom1 === atomId ? bond.atom2 : bond.atom1;
+        const foundPosition = chain.atoms.findIndex((atom: Atom) => atom.id === otherAtomId);
+        if (foundPosition !== -1) {
+          positionInChain = foundPosition;
+          if (process.env.VERBOSE) {
+            console.log('[getPrincipalGroupLocant] Found chain atom', otherAtomId, 'at position', foundPosition);
+          }
+          break;
+        }
+      }
+    }
     
     if (process.env.VERBOSE) {
       console.log('[getPrincipalGroupLocant] atomId:', atomId);
@@ -127,15 +147,52 @@ export function getPrincipalGroupLocantFromSet(parentStructure: ParentStructure,
     // Check if functionalGroupAtom is an Atom object or just an ID
     const atomId = typeof functionalGroupAtom === 'number' ? functionalGroupAtom : functionalGroupAtom.id;
     
+    if (process.env.VERBOSE) {
+      console.log('[getPrincipalGroupLocantFromSet] atomId:', atomId);
+      console.log('[getPrincipalGroupLocantFromSet] chain atoms:', chain.atoms.map((a: Atom) => a.id));
+      console.log('[getPrincipalGroupLocantFromSet] locantSet:', locantSet);
+    }
+    
     // Find where this atom appears in the chain
-    const positionInChain = chain.atoms.findIndex((atom: Atom) => atom.id === atomId);
+    let positionInChain = chain.atoms.findIndex((atom: Atom) => atom.id === atomId);
+    
+    if (process.env.VERBOSE) {
+      console.log('[getPrincipalGroupLocantFromSet] initial positionInChain:', positionInChain);
+    }
+    
+    // If the functional group atom is not in the chain (e.g., alcohol O, ether O),
+    // find which chain atom it's bonded to
+    if (positionInChain === -1 && principalGroup.bonds && principalGroup.bonds.length > 0) {
+      if (process.env.VERBOSE) {
+        console.log('[getPrincipalGroupLocantFromSet] Atom not in chain, checking bonds:', principalGroup.bonds);
+      }
+      // Look through the bonds to find the chain atom
+      for (const bond of principalGroup.bonds) {
+        const otherAtomId = bond.atom1 === atomId ? bond.atom2 : bond.atom1;
+        const foundPosition = chain.atoms.findIndex((atom: Atom) => atom.id === otherAtomId);
+        if (process.env.VERBOSE) {
+          console.log('[getPrincipalGroupLocantFromSet] Checking bond to atom', otherAtomId, 'foundPosition:', foundPosition);
+        }
+        if (foundPosition !== -1) {
+          positionInChain = foundPosition;
+          if (process.env.VERBOSE) {
+            console.log('[getPrincipalGroupLocantFromSet] Found chain atom at position', foundPosition);
+          }
+          break;
+        }
+      }
+    }
     
     if (positionInChain === -1) {
       return 1; // Fallback if atom not found
     }
     
     // Return the locant at that position from the given locant set
-    return locantSet[positionInChain] || 1;
+    const result = locantSet[positionInChain] || 1;
+    if (process.env.VERBOSE) {
+      console.log('[getPrincipalGroupLocantFromSet] final positionInChain:', positionInChain, 'result:', result);
+    }
+    return result;
   } else {
     // For rings, find the position of the functional group atom in the ring
     // This is important for lactones where the carbonyl must be at position 2
@@ -193,7 +250,21 @@ export function calculateLocantScore(parentStructure: ParentStructure, locants: 
   const atomId = typeof functionalGroupAtom === 'number' ? functionalGroupAtom : (functionalGroupAtom as Atom).id;
   
   // Find where this atom appears in the chain
-  const positionInChain = parentStructure.chain.atoms.findIndex((atom: Atom) => atom.id === atomId);
+  let positionInChain = parentStructure.chain.atoms.findIndex((atom: Atom) => atom.id === atomId);
+  
+  // If the functional group atom is not in the chain (e.g., alcohol O, ether O),
+  // find which chain atom it's bonded to
+  if (positionInChain === -1 && principalGroup.bonds && principalGroup.bonds.length > 0) {
+    // Look through the bonds to find the chain atom
+    for (const bond of principalGroup.bonds) {
+      const otherAtomId = bond.atom1 === atomId ? bond.atom2 : bond.atom1;
+      const foundPosition = parentStructure.chain.atoms.findIndex((atom: Atom) => atom.id === otherAtomId);
+      if (foundPosition !== -1) {
+        positionInChain = foundPosition;
+        break;
+      }
+    }
+  }
   
   if (positionInChain === -1) {
     return 999; // High penalty if atom not found

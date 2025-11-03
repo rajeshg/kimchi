@@ -306,9 +306,16 @@ export function findMainChain(molecule: Molecule): number[] {
     const fgPositions = getFunctionalGroupPositions(chain, molecule);
     const fgPositionsReversed = getFunctionalGroupPositions([...chain].reverse(), molecule);
     
+    if (process.env.VERBOSE) {
+      console.log(`[findMainChain] Chain [${chain}]: fgPositions=${JSON.stringify(fgPositions)}, reversed fgPositions=${JSON.stringify(fgPositionsReversed)}`);
+    }
+    
     let shouldReverse = false;
     if (fgPositions.length > 0 && fgPositionsReversed.length > 0) {
       shouldReverse = isBetterLocants(fgPositionsReversed, fgPositions);
+      if (process.env.VERBOSE) {
+        console.log(`[findMainChain] Comparing FG locants: reversed ${JSON.stringify(fgPositionsReversed)} vs original ${JSON.stringify(fgPositions)}, shouldReverse=${shouldReverse}`);
+      }
     } else {
       let priority = getPriorityLocants(molecule, chain);
       const renum = renumberPriorityLocants(priority, chain.length);
@@ -755,8 +762,19 @@ function getFunctionalGroupPositions(chain: number[], molecule: Molecule): numbe
       }
     }
     
-    // Detect carboxylic acids (C=O with -OH or -O) and amides (C=O with -N)
+    // Detect functional groups in priority order:
+    // 1. Carboxylic acids (C=O with -OH or -O)
+    // 2. Amides (C=O with -N)
+    // 3. Ketones (C=O without -OH, -O, or -N)
+    // 4. Alcohols (C-OH without C=O)
     if (hasDoubleO && (hasSingleOwithH || hasSingleO || hasNitrogen)) {
+      // Carboxylic acid or amide - highest priority
+      positions.push(i + 1);
+    } else if (hasDoubleO) {
+      // Ketone - second priority
+      positions.push(i + 1);
+    } else if (hasSingleOwithH) {
+      // Alcohol - third priority
       positions.push(i + 1);
     }
   }
@@ -2648,15 +2666,29 @@ function nameRingSubstituent(molecule: Molecule, startAtomIdx: number, chainAtom
     console.log(`[nameRingSubstituent] Ring:`, ring, `aromatic:`, aromatic);
   }
   
-  // Get the base ring name (e.g., "thiazole", "benzene")
+  // Get the base ring name (e.g., "thiazole", "benzene", "oxirane")
   let ringName: string;
   if (aromatic) {
     ringName = generateAromaticRingName(ring, molecule);
   } else {
-    // For non-aromatic rings, use "cycloalkane" naming
-    const ringSize = ring.length;
-    const { getAlkaneBaseName } = require('./iupac-helpers');
-    ringName = `cyclo${getAlkaneBaseName(ringSize)}`;
+    // For non-aromatic rings, use generateRingName to handle heterocycles properly
+    const { generateRingName } = require('../rules/ring-analysis-layer/helpers');
+    
+    // Build ring system object with atoms and bonds
+    const ringAtoms = ring.map((idx: number) => molecule.atoms[idx]);
+    const ringBonds = molecule.bonds.filter((bond: any) => 
+      ring.includes(bond.atom1) && ring.includes(bond.atom2)
+    );
+    
+    const ringSystem = {
+      atoms: ringAtoms,
+      bonds: ringBonds,
+      size: ring.length,
+      type: 'aliphatic',
+      rings: [ring]
+    };
+    
+    ringName = generateRingName(ringSystem, molecule);
   }
   
   if (process.env.VERBOSE) {

@@ -38,6 +38,7 @@ export const P14_3_PRINCIPAL_GROUP_NUMBERING_RULE: IUPACRule = {
       console.log('[P-14.3] Principal group:', firstPrincipal?.type);
       console.log('[P-14.3] Number of principal groups:', principalGroups.length);
       console.log('[P-14.3] Principal group atoms:', principalGroups.map(g => g.atoms));
+      console.log('[P-14.3] Principal group bonds:', principalGroups.map(g => g.bonds));
       console.log('[P-14.3] Parent chain atoms:', parentStructure.chain?.atoms.map((a: Atom) => a.id));
       console.log('[P-14.3] Parent chain locants:', parentStructure.locants);
     }
