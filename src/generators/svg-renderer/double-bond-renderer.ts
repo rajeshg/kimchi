@@ -1,13 +1,18 @@
-import type { Molecule, Bond } from 'types';
-import type { AtomCoordinates } from './types';
-import { svgLine } from './svg-primitives';
+import type { Molecule, Bond } from "types";
+import type { AtomCoordinates } from "./types";
+import { svgLine } from "./svg-primitives";
 
 export function svgDoubleBond(
-  x1: number, y1: number, x2: number, y2: number,
-  color: string, width: number,
-  bond: Bond, molecule: Molecule,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  color: string,
+  width: number,
+  bond: Bond,
+  molecule: Molecule,
   atomIdToCoords: Map<number, AtomCoordinates>,
-  bondClass?: string
+  bondClass?: string,
 ): string {
   const dx = x2 - x1;
   const dy = y2 - y1;
@@ -18,20 +23,23 @@ export function svgDoubleBond(
   let outerOffset = offset;
   let innerOffset = offset;
 
-  function isRegularPolygon(ringAtoms: number[], coords: Map<number, AtomCoordinates>): boolean {
+  function isRegularPolygon(
+    ringAtoms: number[],
+    coords: Map<number, AtomCoordinates>,
+  ): boolean {
     if (ringAtoms.length < 5 || ringAtoms.length > 7) return false;
     const dists: number[] = [];
     for (let i = 0; i < ringAtoms.length; ++i) {
       const idxA = ringAtoms[i];
       const idxB = ringAtoms[(i + 1) % ringAtoms.length];
-      if (typeof idxA !== 'number' || typeof idxB !== 'number') return false;
+      if (typeof idxA !== "number" || typeof idxB !== "number") return false;
       const a = coords.get(idxA);
       const b = coords.get(idxB);
       if (!a || !b) return false;
       dists.push(Math.hypot(a.x - b.x, a.y - b.y));
     }
     const avg = dists.reduce((a, b) => a + b, 0) / dists.length;
-    return dists.every(d => Math.abs(d - avg) < avg * 0.12);
+    return dists.every((d) => Math.abs(d - avg) < avg * 0.12);
   }
 
   let usePolygonParallel = false;
@@ -40,7 +48,12 @@ export function svgDoubleBond(
   // for the special parallel rendering path. For fused rings prefer any
   // regular polygon ring; otherwise we'll compute a combined ring center
   // from all rings the bond participates in so orientation is stable.
-  if (bond.isInRing && molecule.ringInfo && bond.ringIds && bond.ringIds.length > 0) {
+  if (
+    bond.isInRing &&
+    molecule.ringInfo &&
+    bond.ringIds &&
+    bond.ringIds.length > 0
+  ) {
     for (const rid of bond.ringIds) {
       const ringArr = molecule.ringInfo.rings[rid];
       if (!ringArr) continue;
@@ -59,10 +72,14 @@ export function svgDoubleBond(
     const a1 = atomIdToCoords.get(bond.atom1);
     const a2 = atomIdToCoords.get(bond.atom2);
     if (a1 && a2 && ringAtoms && ringAtoms.length > 0) {
-      let cx = 0, cy = 0;
+      let cx = 0,
+        cy = 0;
       for (const atomId of ringAtoms) {
         const c = atomIdToCoords.get(atomId);
-        if (c) { cx += c.x; cy += c.y; }
+        if (c) {
+          cx += c.x;
+          cy += c.y;
+        }
       }
       cx /= ringAtoms.length;
       cy /= ringAtoms.length;
@@ -71,12 +88,15 @@ export function svgDoubleBond(
       let vx = cx - mx;
       let vy = cy - my;
       const vlen = Math.sqrt(vx * vx + vy * vy);
-      if (vlen > 0) { vx /= vlen; vy /= vlen; }
-  let line1X1 = x1;
-  let line1Y1 = y1;
-  let line1X2 = x2;
-  let line1Y2 = y2;
-  const innerOffset = offset * 0.9;
+      if (vlen > 0) {
+        vx /= vlen;
+        vy /= vlen;
+      }
+      let line1X1 = x1;
+      let line1Y1 = y1;
+      let line1X2 = x2;
+      let line1Y2 = y2;
+      const innerOffset = offset * 0.9;
       let line2X1 = x1 + vx * innerOffset;
       let line2Y1 = y1 + vy * innerOffset;
       let line2X2 = x2 + vx * innerOffset;
@@ -85,12 +105,14 @@ export function svgDoubleBond(
       const innerDy = line2Y2 - line2Y1;
       const innerLen = Math.sqrt(innerDx * innerDx + innerDy * innerDy);
       const shortenAmount = innerLen * 0.11;
-      line2X1 += innerDx / innerLen * shortenAmount;
-      line2Y1 += innerDy / innerLen * shortenAmount;
-      line2X2 -= innerDx / innerLen * shortenAmount;
-      line2Y2 -= innerDy / innerLen * shortenAmount;
-      return svgLine(line1X1, line1Y1, line1X2, line1Y2, color, width, bondClass) +
-             svgLine(line2X1, line2Y1, line2X2, line2Y2, color, width, bondClass);
+      line2X1 += (innerDx / innerLen) * shortenAmount;
+      line2Y1 += (innerDy / innerLen) * shortenAmount;
+      line2X2 -= (innerDx / innerLen) * shortenAmount;
+      line2Y2 -= (innerDy / innerLen) * shortenAmount;
+      return (
+        svgLine(line1X1, line1Y1, line1X2, line1Y2, color, width, bondClass) +
+        svgLine(line2X1, line2Y1, line2X2, line2Y2, color, width, bondClass)
+      );
     }
   } else if (bond.isInRing && molecule.ringInfo) {
     outerOffset = offset * 1.0;
@@ -120,52 +142,65 @@ export function svgDoubleBond(
       for (const rid of participatingRingIds) {
         const ringAtoms = molecule.ringInfo.rings[rid];
         if (!ringAtoms) continue;
-        let cx = 0, cy = 0, count = 0;
+        let cx = 0,
+          cy = 0,
+          count = 0;
         for (const atomId of ringAtoms) {
           const coord = atomIdToCoords.get(atomId);
-          if (coord) { cx += coord.x; cy += coord.y; count++; }
+          if (coord) {
+            cx += coord.x;
+            cy += coord.y;
+            count++;
+          }
         }
         if (count === 0) continue;
         ringCenterX += cx / count;
         ringCenterY += cy / count;
         centerCount++;
       }
-      if (centerCount === 0) return '';
+      if (centerCount === 0) return "";
       ringCenterX /= centerCount;
       ringCenterY /= centerCount;
 
       const a1Coord = atomIdToCoords.get(bond.atom1);
       const a2Coord = atomIdToCoords.get(bond.atom2);
 
-      if (!a1Coord || !a2Coord) return '';
+      if (!a1Coord || !a2Coord) return "";
 
       const rcx = ringCenterX - a1Coord.x;
       const rcy = ringCenterY - a1Coord.y;
       const crossProduct = dx * rcy - dy * rcx;
-        if (crossProduct > 0) {
-          [line1X1, line2X1] = [line2X1, line1X1];
-          [line1Y1, line2Y1] = [line2Y1, line1Y1];
-          [line1X2, line2X2] = [line2X2, line1X2];
-          [line1Y2, line2Y2] = [line2Y2, line1Y2];
-        }
-        const innerDx = line2X2 - line2X1;
-        const innerDy = line2Y2 - line2Y1;
-        const innerLen = Math.sqrt(innerDx * innerDx + innerDy * innerDy);
-        const shortenAmount = innerLen * 0.075;
-        line2X1 += innerDx / innerLen * shortenAmount;
-        line2Y1 += innerDy / innerLen * shortenAmount;
-        line2X2 -= innerDx / innerLen * shortenAmount;
-        line2Y2 -= innerDy / innerLen * shortenAmount;
+      if (crossProduct > 0) {
+        [line1X1, line2X1] = [line2X1, line1X1];
+        [line1Y1, line2Y1] = [line2Y1, line1Y1];
+        [line1X2, line2X2] = [line2X2, line1X2];
+        [line1Y2, line2Y2] = [line2Y2, line1Y2];
       }
+      const innerDx = line2X2 - line2X1;
+      const innerDy = line2Y2 - line2Y1;
+      const innerLen = Math.sqrt(innerDx * innerDx + innerDy * innerDy);
+      const shortenAmount = innerLen * 0.075;
+      line2X1 += (innerDx / innerLen) * shortenAmount;
+      line2Y1 += (innerDy / innerLen) * shortenAmount;
+      line2X2 -= (innerDx / innerLen) * shortenAmount;
+      line2Y2 -= (innerDy / innerLen) * shortenAmount;
     }
+  }
 
-  return svgLine(line1X1, line1Y1, line1X2, line1Y2, color, width, bondClass) +
-         svgLine(line2X1, line2Y1, line2X2, line2Y2, color, width, bondClass);
+  return (
+    svgLine(line1X1, line1Y1, line1X2, line1Y2, color, width, bondClass) +
+    svgLine(line2X1, line2Y1, line2X2, line2Y2, color, width, bondClass)
+  );
 }
 
 export function svgTripleBond(
-  x1: number, y1: number, x2: number, y2: number,
-  color: string, width: number, bondClass?: string
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  color: string,
+  width: number,
+  bondClass?: string,
 ): string {
   const dx = x2 - x1;
   const dy = y2 - y1;
@@ -173,18 +208,20 @@ export function svgTripleBond(
   const perpX = -dy / len;
   const perpY = dx / len;
   const offset = width * 2;
-  
+
   const line1X1 = x1 + perpX * offset;
   const line1Y1 = y1 + perpY * offset;
   const line1X2 = x2 + perpX * offset;
   const line1Y2 = y2 + perpY * offset;
-  
+
   const line2X1 = x1 - perpX * offset;
   const line2Y1 = y1 - perpY * offset;
   const line2X2 = x2 - perpX * offset;
   const line2Y2 = y2 - perpY * offset;
-  
-  return svgLine(line1X1, line1Y1, line1X2, line1Y2, color, width, bondClass) +
-         svgLine(x1, y1, x2, y2, color, width, bondClass) +
-         svgLine(line2X1, line2Y1, line2X2, line2Y2, color, width, bondClass);
+
+  return (
+    svgLine(line1X1, line1Y1, line1X2, line1Y2, color, width, bondClass) +
+    svgLine(x1, y1, x2, y2, color, width, bondClass) +
+    svgLine(line2X1, line2Y1, line2X2, line2Y2, color, width, bondClass)
+  );
 }

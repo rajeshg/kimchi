@@ -1,9 +1,9 @@
-import { describe, it, expect } from 'bun:test';
-import { parseSMILES } from 'index';
-import { renderSVG } from 'src/generators/svg-renderer';
-import { generateCoordinates } from 'src/utils/coordinate-generator';
-import fs from 'fs';
-import path from 'path';
+import { describe, it, expect } from "bun:test";
+import { parseSMILES } from "index";
+import { renderSVG } from "src/generators/svg-renderer";
+import { generateCoordinates } from "src/utils/coordinate-generator";
+import fs from "fs";
+import path from "path";
 
 function findChainAttachedToRing(molecule: any, minLen = 4) {
   // find a ring atom that has a neighbor chain
@@ -28,7 +28,9 @@ function findChainAttachedToRing(molecule: any, minLen = 4) {
       let current = nb;
       while (true) {
         chain.push(current);
-        const deg = molecule.bonds.filter((b: any) => b.atom1 === current || b.atom2 === current).length;
+        const deg = molecule.bonds.filter(
+          (b: any) => b.atom1 === current || b.atom2 === current,
+        ).length;
         if (deg !== 2) break;
         if (ringAtoms.has(current)) break;
         const nexts = molecule.bonds
@@ -47,9 +49,9 @@ function findChainAttachedToRing(molecule: any, minLen = 4) {
   return null;
 }
 
-describe('deterministic chain placement', () => {
-  it('should place long chain attached to ring with zigzag when enabled and write SVGs', () => {
-    const smiles = 'CCCCCCCCCCc1ccccc1';
+describe("deterministic chain placement", () => {
+  it("should place long chain attached to ring with zigzag when enabled and write SVGs", () => {
+    const smiles = "CCCCCCCCCCc1ccccc1";
     const parsed = parseSMILES(smiles);
     expect(parsed.molecules.length).toBeGreaterThan(0);
     const molecule = parsed.molecules[0]!;
@@ -59,7 +61,9 @@ describe('deterministic chain placement', () => {
     expect(coordsDefault.length).toBe(molecule.atoms.length);
 
     // deterministic coords
-    const coordsDet = generateCoordinates(molecule, { deterministicChainPlacement: true });
+    const coordsDet = generateCoordinates(molecule, {
+      deterministicChainPlacement: true,
+    });
     expect(coordsDet.length).toBe(molecule.atoms.length);
 
     // find chain
@@ -91,18 +95,29 @@ describe('deterministic chain placement', () => {
     // Expect alternating signs (zigzag) for deterministic coords
     let alternation = true;
     for (let i = 1; i < crossSigns.length; i++) {
-      if (crossSigns[i] === crossSigns[i - 1]) { alternation = false; break; }
+      if (crossSigns[i] === crossSigns[i - 1]) {
+        alternation = false;
+        break;
+      }
     }
     expect(alternation).toBe(true);
 
     // Write both SVGs for visual inspection
-    const outDir = path.join(process.cwd(), 'test', 'output');
-    try { fs.mkdirSync(outDir, { recursive: true }); } catch (e) {}
+    const outDir = path.join(process.cwd(), "test", "output");
+    try {
+      fs.mkdirSync(outDir, { recursive: true });
+    } catch (e) {}
 
     const svgDefault = renderSVG(molecule, { atomCoordinates: coordsDefault });
     const svgDet = renderSVG(molecule, { atomCoordinates: coordsDet });
 
-    fs.writeFileSync(path.join(outDir, 'deterministic-default.svg'), svgDefault.svg);
-    fs.writeFileSync(path.join(outDir, 'deterministic-deterministic.svg'), svgDet.svg);
+    fs.writeFileSync(
+      path.join(outDir, "deterministic-default.svg"),
+      svgDefault.svg,
+    );
+    fs.writeFileSync(
+      path.join(outDir, "deterministic-deterministic.svg"),
+      svgDet.svg,
+    );
   });
 });

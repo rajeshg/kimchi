@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'bun:test';
-import { parseSMILES } from 'index';
-import { RuleEngine } from '../../../../src/iupac-engine/engine';
+import { describe, it, expect } from "bun:test";
+import { parseSMILES } from "index";
+import { RuleEngine } from "../../../../src/iupac-engine/engine";
 
 // ============================================================================
 // REGRESSION TEST SUITE: Heteroatom-Containing Molecules
@@ -36,7 +36,7 @@ import { RuleEngine } from '../../../../src/iupac-engine/engine';
 //   5. Run with VERBOSE=1 to see detailed filtering logs
 // ============================================================================
 
-describe('Regression: heteroatom-containing molecules', () => {
+describe("Regression: heteroatom-containing molecules", () => {
   // ============================================================================
   // TEST: Diaziridin-one
   // ============================================================================
@@ -59,10 +59,10 @@ describe('Regression: heteroatom-containing molecules', () => {
   //   - If Atom structure changes (e.g., .id becomes ._id), this will break
   //   - If ring.atoms becomes plain ID array, comparison logic needs update
   // ============================================================================
-  it('handles diaziridin-one example', () => {
+  it("handles diaziridin-one example", () => {
     const engine = new RuleEngine();
-    const smiles = 'CCC(C)(C)N1C(=O)N1C(C)(C)CC';
-    const expected = '1,2-bis(2-methylbutan-2-yl)diaziridin-3-one';
+    const smiles = "CCC(C)(C)N1C(=O)N1C(C)(C)CC";
+    const expected = "1,2-bis(2-methylbutan-2-yl)diaziridin-3-one";
 
     const parsed = parseSMILES(smiles);
     expect(parsed.errors).toHaveLength(0);
@@ -84,10 +84,10 @@ describe('Regression: heteroatom-containing molecules', () => {
   // EXPECTED OUTPUT:
   //   - 2-(tert-butylamino)oxy-3,3-dimethyl-N-phenylbutanamide
   // ============================================================================
-  it('handles tert-butylamino-oxy N-phenylbutanamide', () => {
+  it("handles tert-butylamino-oxy N-phenylbutanamide", () => {
     const engine = new RuleEngine();
-    const smiles = 'CC(C)(C)C(C(=O)NC1=CC=CC=C1)ONC(C)(C)C';
-    const expected = '2-(tert-butylamino)oxy-3,3-dimethyl-N-phenylbutanamide';
+    const smiles = "CC(C)(C)C(C(=O)NC1=CC=CC=C1)ONC(C)(C)C";
+    const expected = "2-(tert-butylamino)oxy-3,3-dimethyl-N-phenylbutanamide";
 
     const parsed = parseSMILES(smiles);
     expect(parsed.errors).toHaveLength(0);
@@ -122,10 +122,11 @@ describe('Regression: heteroatom-containing molecules', () => {
   //   - If too high, may miss complex substituent matches
   //   - Relies on string matching (fgType/fgPrefix in substituent name)
   // ============================================================================
-  it('handles sulfonyl-sulfinyl example', () => {
+  it("handles sulfonyl-sulfinyl example", () => {
     const engine = new RuleEngine();
-    const smiles = 'CC(C)(C)CS(=O)S(=O)(=O)CC(C)(C)C';
-    const expected = '1-(2,2-dimethylpropylsulfonylsulfinyl)-2,2-dimethylpropane';
+    const smiles = "CC(C)(C)CS(=O)S(=O)(=O)CC(C)(C)C";
+    const expected =
+      "1-(2,2-dimethylpropylsulfonylsulfinyl)-2,2-dimethylpropane";
 
     const parsed = parseSMILES(smiles);
     expect(parsed.errors).toHaveLength(0);

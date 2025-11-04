@@ -1,16 +1,22 @@
-export { computeMorganFingerprint, tanimotoSimilarity } from 'src/utils/morgan-fingerprint';
-export { parseSMILES } from 'src/parsers/smiles-parser';
-export { generateSMILES } from 'src/generators/smiles-generator';
-export { generateMolfile } from 'src/generators/mol-generator';
-export { parseMolfile } from 'src/parsers/molfile-parser';
-export { parseSDF } from 'src/parsers/sdf-parser';
-export { writeSDF } from 'src/generators/sdf-writer';
-export { parseSMARTS } from 'src/parsers/smarts-parser';
-export { matchSMARTS } from 'src/matchers/smarts-matcher';
-export { renderSVG } from 'src/generators/svg-renderer';
-export type { SVGRendererOptions, SVGRenderResult } from 'src/generators/svg-renderer';
-export { kekulize } from 'src/utils/kekulize';
-export { computeLogP, logP, crippenLogP } from 'src/utils/logp';
+export {
+  computeMorganFingerprint,
+  tanimotoSimilarity,
+} from "src/utils/morgan-fingerprint";
+export { parseSMILES } from "src/parsers/smiles-parser";
+export { generateSMILES } from "src/generators/smiles-generator";
+export { generateMolfile } from "src/generators/mol-generator";
+export { parseMolfile } from "src/parsers/molfile-parser";
+export { parseSDF } from "src/parsers/sdf-parser";
+export { writeSDF } from "src/generators/sdf-writer";
+export { parseSMARTS } from "src/parsers/smarts-parser";
+export { matchSMARTS } from "src/matchers/smarts-matcher";
+export { renderSVG } from "src/generators/svg-renderer";
+export type {
+  SVGRendererOptions,
+  SVGRenderResult,
+} from "src/generators/svg-renderer";
+export { kekulize } from "src/utils/kekulize";
+export { computeLogP, logP, crippenLogP } from "src/utils/logp";
 export {
   getMolecularFormula,
   getMolecularMass,
@@ -27,15 +33,18 @@ export {
   checkLipinskiRuleOfFive,
   checkVeberRules,
   checkBBBPenetration,
-} from 'src/utils/molecular-properties';
-export { getRingInfo } from 'src/utils/ring-information';
-export type { RingInformation } from 'src/utils/ring-information';
-export { generateInChI, generateInChIKey } from 'src/generators/inchi-generator';
+} from "src/utils/molecular-properties";
+export { getRingInfo } from "src/utils/ring-information";
+export type { RingInformation } from "src/utils/ring-information";
+export {
+  generateInChI,
+  generateInChIKey,
+} from "src/generators/inchi-generator";
 // IUPAC naming using the new rule engine
-import { IUPACNamer } from 'src/iupac-engine';
-import { parseMolfile } from 'src/parsers/molfile-parser';
-import type { Molecule } from 'types';
-import type { NamingResult } from 'src/iupac-engine/types';
+import { IUPACNamer } from "src/iupac-engine";
+import { parseMolfile } from "src/parsers/molfile-parser";
+import type { Molecule } from "types";
+import type { NamingResult } from "src/iupac-engine/types";
 
 // Export IUPACNamer class for advanced usage
 export { IUPACNamer };
@@ -53,7 +62,10 @@ function getIUPACNamer(): IUPACNamer {
 /**
  * Generate IUPAC name for a molecule
  */
-export function generateIUPACName(molecule: Molecule, options?: IUPACGeneratorOptions): IUPACGenerationResult {
+export function generateIUPACName(
+  molecule: Molecule,
+  options?: IUPACGeneratorOptions,
+): IUPACGenerationResult {
   try {
     const result = getIUPACNamer().generateName(molecule);
     return {
@@ -61,15 +73,15 @@ export function generateIUPACName(molecule: Molecule, options?: IUPACGeneratorOp
       errors: [],
       warnings: [],
       confidence: result.confidence,
-      rules: result.rules
+      rules: result.rules,
     };
   } catch (error) {
     return {
-      name: '',
-      errors: [error instanceof Error ? error.message : 'Unknown error'],
+      name: "",
+      errors: [error instanceof Error ? error.message : "Unknown error"],
       warnings: [],
       confidence: 0,
-      rules: []
+      rules: [],
     };
   }
 }
@@ -77,7 +89,9 @@ export function generateIUPACName(molecule: Molecule, options?: IUPACGeneratorOp
 /**
  * Generate IUPAC name from SMILES string
  */
-export function generateIUPACNameFromSMILES(smiles: string): IUPACGenerationResult {
+export function generateIUPACNameFromSMILES(
+  smiles: string,
+): IUPACGenerationResult {
   try {
     const result = getIUPACNamer().generateNameFromSMILES(smiles);
     return {
@@ -85,15 +99,15 @@ export function generateIUPACNameFromSMILES(smiles: string): IUPACGenerationResu
       errors: [],
       warnings: [],
       confidence: result.confidence,
-      rules: result.rules
+      rules: result.rules,
     };
   } catch (error) {
     return {
-      name: '',
-      errors: [error instanceof Error ? error.message : 'Unknown error'],
+      name: "",
+      errors: [error instanceof Error ? error.message : "Unknown error"],
       warnings: [],
       confidence: 0,
-      rules: []
+      rules: [],
     };
   }
 }
@@ -101,26 +115,28 @@ export function generateIUPACNameFromSMILES(smiles: string): IUPACGenerationResu
 /**
  * Generate IUPAC name from MOL file content
  */
-export function generateIUPACNameFromMolfile(molfile: string): IUPACGenerationResult {
+export function generateIUPACNameFromMolfile(
+  molfile: string,
+): IUPACGenerationResult {
   try {
     const parseResult = parseMolfile(molfile);
     if (!parseResult.molecule) {
       return {
-        name: '',
-        errors: ['Failed to parse MOL file'],
+        name: "",
+        errors: ["Failed to parse MOL file"],
         warnings: [],
         confidence: 0,
-        rules: []
+        rules: [],
       };
     }
     return generateIUPACName(parseResult.molecule);
   } catch (error) {
     return {
-      name: '',
-      errors: [error instanceof Error ? error.message : 'Unknown error'],
+      name: "",
+      errors: [error instanceof Error ? error.message : "Unknown error"],
       warnings: [],
       confidence: 0,
-      rules: []
+      rules: [],
     };
   }
 }
@@ -140,4 +156,4 @@ export interface IUPACGeneratorOptions {
   useSystematicNaming?: boolean;
   includeCommonNames?: boolean;
 }
-export { enumerateTautomers, canonicalTautomer } from 'src/utils/tautomer';
+export { enumerateTautomers, canonicalTautomer } from "src/utils/tautomer";

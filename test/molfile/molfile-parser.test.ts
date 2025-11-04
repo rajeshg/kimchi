@@ -1,9 +1,9 @@
-import { describe, expect, it } from 'bun:test';
-import { parseMolfile } from 'src/parsers/molfile-parser';
-import { StereoType, BondType } from 'types';
+import { describe, expect, it } from "bun:test";
+import { parseMolfile } from "src/parsers/molfile-parser";
+import { StereoType, BondType } from "types";
 
-describe('molfile-parser V2000', () => {
-  it('parses simple methane V2000', () => {
+describe("molfile-parser V2000", () => {
+  it("parses simple methane V2000", () => {
     const molfile = `
   Mrv0541 02231512212D          
 
@@ -24,7 +24,7 @@ M  END
     expect(result.molecule?.bonds[0]?.stereo).toBe(StereoType.NONE);
   });
 
-  it('parses bond stereo wedge down', () => {
+  it("parses bond stereo wedge down", () => {
     const molfile = `
   Mrv0541 02231512212D          
 
@@ -39,7 +39,7 @@ M  END
     expect(result.molecule?.bonds[0]?.stereo).toBe(StereoType.DOWN);
   });
 
-  it('parses V2000 with multiple charges', () => {
+  it("parses V2000 with multiple charges", () => {
     const molfile = `
   Mrv0541 02231512212D          
 
@@ -55,7 +55,7 @@ M  END
     expect(result.molecule?.atoms[1]?.charge).toBe(-1);
   });
 
-  it('handles unusual whitespace in counts line', () => {
+  it("handles unusual whitespace in counts line", () => {
     const molfile = `
   Mrv0541 02231512212D          
 
@@ -68,7 +68,7 @@ M  END
     expect(result.molecule?.atoms.length).toBe(1);
   });
 
-  it('parses aromatic bond type 4', () => {
+  it("parses aromatic bond type 4", () => {
     const molfile = `
   Mrv0541 02231512212D          
 
@@ -84,8 +84,8 @@ M  END
   });
 });
 
-describe('molfile-parser V3000', () => {
-  it('parses simple methane V3000', () => {
+describe("molfile-parser V3000", () => {
+  it("parses simple methane V3000", () => {
     const molfile = `
   Mrv0541 02231512212D          
 
@@ -113,10 +113,10 @@ M  END
     expect(result.molecule).not.toBeNull();
     expect(result.molecule?.atoms.length).toBe(5);
     expect(result.molecule?.bonds.length).toBe(4);
-    expect(result.molecule?.atoms[0]?.symbol).toBe('C');
+    expect(result.molecule?.atoms[0]?.symbol).toBe("C");
   });
 
-  it('parses V3000 with inline charge', () => {
+  it("parses V3000 with inline charge", () => {
     const molfile = `
   Mrv0541 02231512212D          
 
@@ -134,7 +134,7 @@ M  END
     expect(result.molecule?.atoms[0]?.charge).toBe(1);
   });
 
-  it('parses V3000 with inline isotope', () => {
+  it("parses V3000 with inline isotope", () => {
     const molfile = `
   Mrv0541 02231512212D          
 
@@ -152,7 +152,7 @@ M  END
     expect(result.molecule?.atoms[0]?.isotope).toBe(13);
   });
 
-  it('parses V3000 bond stereo', () => {
+  it("parses V3000 bond stereo", () => {
     const molfile = `
   Mrv0541 02231512212D          
 
@@ -174,7 +174,7 @@ M  END
     expect(result.molecule?.bonds[0]?.stereo).toBe(StereoType.UP);
   });
 
-  it('parses V3000 with both CHG and MASS', () => {
+  it("parses V3000 with both CHG and MASS", () => {
     const molfile = `
   Mrv0541 02231512212D          
 
@@ -194,8 +194,8 @@ M  END
   });
 });
 
-describe('molfile-parser edge cases', () => {
-  it('handles missing M END gracefully', () => {
+describe("molfile-parser edge cases", () => {
+  it("handles missing M END gracefully", () => {
     const molfile = `
   Mrv0541 02231512212D          
 
@@ -207,7 +207,7 @@ describe('molfile-parser edge cases', () => {
     expect(result.molecule?.atoms.length).toBe(1);
   });
 
-  it('handles malformed counts line with negative numbers', () => {
+  it("handles malformed counts line with negative numbers", () => {
     const molfile = `
   Mrv0541 02231512212D          
 
@@ -219,7 +219,7 @@ M  END
     expect(result.errors.length).toBeGreaterThan(0);
   });
 
-  it('handles counts line with fewer atoms than declared', () => {
+  it("handles counts line with fewer atoms than declared", () => {
     const molfile = `
   Mrv0541 02231512212D          
 
@@ -231,7 +231,7 @@ M  END
     expect(result.errors.length).toBeGreaterThan(0);
   });
 
-  it('handles bond referencing non-existent atom', () => {
+  it("handles bond referencing non-existent atom", () => {
     const molfile = `
   Mrv0541 02231512212D          
 
@@ -244,7 +244,7 @@ M  END
     expect(result.errors.length).toBeGreaterThan(0);
   });
 
-  it('handles property block with invalid atom index', () => {
+  it("handles property block with invalid atom index", () => {
     const molfile = `
   Mrv0541 02231512212D          
 
@@ -257,7 +257,7 @@ M  END
     expect(result.molecule?.atoms[0]?.charge).toBe(0);
   });
 
-  it('handles multiple property blocks of same type', () => {
+  it("handles multiple property blocks of same type", () => {
     const molfile = `
   Mrv0541 02231512212D          
 
@@ -274,7 +274,7 @@ M  END
     expect(result.molecule?.atoms[1]?.charge).toBe(-1);
   });
 
-  it('handles V3000 with missing END CTAB', () => {
+  it("handles V3000 with missing END CTAB", () => {
     const molfile = `
   Mrv0541 02231512212D          
 
@@ -290,7 +290,7 @@ M  END
     expect(result.molecule?.atoms.length).toBe(1);
   });
 
-  it('handles V3000 with malformed COUNTS line', () => {
+  it("handles V3000 with malformed COUNTS line", () => {
     const molfile = `
   Mrv0541 02231512212D          
 
@@ -307,7 +307,7 @@ M  END
     expect(result.errors.length).toBeGreaterThan(0);
   });
 
-  it('handles V3000 bond with invalid atom reference', () => {
+  it("handles V3000 bond with invalid atom reference", () => {
     const molfile = `
   Mrv0541 02231512212D          
 
@@ -327,7 +327,7 @@ M  END
     expect(result.errors.length).toBeGreaterThan(0);
   });
 
-  it('handles extra leading/trailing whitespace in atom lines', () => {
+  it("handles extra leading/trailing whitespace in atom lines", () => {
     const molfile = `
   Mrv0541 02231512212D          
 
@@ -340,7 +340,7 @@ M  END
     expect(result.molecule?.atoms.length).toBe(1);
   });
 
-  it('handles very large charge values', () => {
+  it("handles very large charge values", () => {
     const molfile = `
   Mrv0541 02231512212D          
 
@@ -354,7 +354,7 @@ M  END
     expect(result.molecule?.atoms[0]?.charge).toBe(99);
   });
 
-  it('handles V2000 with only header (no atoms/bonds)', () => {
+  it("handles V2000 with only header (no atoms/bonds)", () => {
     const molfile = `
   Mrv0541 02231512212D          
 
@@ -367,7 +367,7 @@ M  END
     expect(result.molecule?.bonds.length).toBe(0);
   });
 
-  it('handles V3000 with only header (no atoms/bonds)', () => {
+  it("handles V3000 with only header (no atoms/bonds)", () => {
     const molfile = `
   Mrv0541 02231512212D          
 
@@ -382,7 +382,7 @@ M  END
     expect(result.molecule?.atoms.length).toBe(0);
   });
 
-  it('rejects file with insufficient header lines', () => {
+  it("rejects file with insufficient header lines", () => {
     const molfile = `
   Mrv0541 02231512212D          
   1  0  0  0  0  0            999 V2000
@@ -391,7 +391,7 @@ M  END
     expect(result.errors.length).toBeGreaterThan(0);
   });
 
-  it('handles malformed atom coordinate (non-numeric)', () => {
+  it("handles malformed atom coordinate (non-numeric)", () => {
     const molfile = `
   Mrv0541 02231512212D          
 
@@ -403,7 +403,7 @@ M  END
     expect(result.errors.length).toBeGreaterThan(0);
   });
 
-  it('handles bond with invalid bond type', () => {
+  it("handles bond with invalid bond type", () => {
     const molfile = `
   Mrv0541 02231512212D          
 

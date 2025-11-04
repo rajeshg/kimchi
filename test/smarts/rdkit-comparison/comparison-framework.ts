@@ -5,7 +5,7 @@ export interface MatchComparisonResult {
 
 export function normalizeMatches(matches: number[][]): number[][] {
   return matches
-    .map(match => [...match].sort((a, b) => a - b))
+    .map((match) => [...match].sort((a, b) => a - b))
     .sort((a, b) => {
       for (let i = 0; i < Math.min(a.length, b.length); i++) {
         if (a[i]! !== b[i]!) return a[i]! - b[i]!;
@@ -16,7 +16,7 @@ export function normalizeMatches(matches: number[][]): number[][] {
 
 export function compareMatches(
   openchemMatches: number[][],
-  rdkitMatches: number[][]
+  rdkitMatches: number[][],
 ): MatchComparisonResult {
   const ckNorm = normalizeMatches(openchemMatches);
   const rdNorm = normalizeMatches(rdkitMatches);
@@ -54,25 +54,34 @@ export function formatMatchDiff(
   openchem: number[][],
   rdkit: number[][],
   pattern: string,
-  smiles: string
+  smiles: string,
 ): string {
   const lines: string[] = [];
   lines.push(`Pattern: ${pattern}`);
   lines.push(`Molecule: ${smiles}`);
-  lines.push(`openchem matches (${openchem.length}): ${JSON.stringify(normalizeMatches(openchem))}`);
-  lines.push(`RDKit matches (${rdkit.length}): ${JSON.stringify(normalizeMatches(rdkit))}`);
-  return lines.join('\n');
+  lines.push(
+    `openchem matches (${openchem.length}): ${JSON.stringify(normalizeMatches(openchem))}`,
+  );
+  lines.push(
+    `RDKit matches (${rdkit.length}): ${JSON.stringify(normalizeMatches(rdkit))}`,
+  );
+  return lines.join("\n");
 }
 
 export function assertMatchesEqual(
   openchemMatches: number[][],
   rdkitMatches: number[][],
   pattern: string,
-  smiles: string
+  smiles: string,
 ): void {
   const result = compareMatches(openchemMatches, rdkitMatches);
   if (!result.equal) {
-    const diff = formatMatchDiff(openchemMatches, rdkitMatches, pattern, smiles);
+    const diff = formatMatchDiff(
+      openchemMatches,
+      rdkitMatches,
+      pattern,
+      smiles,
+    );
     throw new Error(`${result.message}\n${diff}`);
   }
 }

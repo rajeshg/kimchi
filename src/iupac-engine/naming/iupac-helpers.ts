@@ -1,5 +1,5 @@
-import type { Molecule } from 'types';
-import { ruleEngine } from './iupac-rule-engine';
+import type { Molecule } from "types";
+import { ruleEngine } from "./iupac-rule-engine";
 
 export function getAlkaneName(carbonCount: number): string {
   // Use declarative rule engine for alkane names (handles C1-C11 direct lookup, C12+ construction)
@@ -14,7 +14,7 @@ export function getAlkaneBaseName(carbonCount: number): string {
   // Use rule engine for complete alkane name, then remove 'e' suffix for base name
   const fullName = ruleEngine.getAlkaneName(carbonCount);
   if (fullName) {
-    return fullName.replace(/e$/, '');
+    return fullName.replace(/e$/, "");
   }
 
   // Fallback for unmapped carbon counts - consistent with getAlkaneName fallback
@@ -25,7 +25,7 @@ export function getAlkylName(carbonCount: number): string {
   // Use rule engine for alkane name, then convert 'ane' to 'yl'
   const alkaneName = ruleEngine.getAlkaneName(carbonCount);
   if (alkaneName) {
-    return alkaneName.replace(/ane$/, 'yl');
+    return alkaneName.replace(/ane$/, "yl");
   }
 
   // Fallback for unmapped carbon counts
@@ -39,30 +39,30 @@ export function combineName(baseName: string, functionalGroup: string): string {
 
 export function getGreekNumeral(n: number): string {
   const numerals: Record<number, string> = {
-    1: 'mono',
-    2: 'di',
-    3: 'tri',
-    4: 'tetra',
-    5: 'penta',
-    6: 'hexa',
-    7: 'hepta',
-    8: 'octa',
-    9: 'nona',
-    10: 'deca',
-    11: 'undeca',
-    12: 'dodeca',
+    1: "mono",
+    2: "di",
+    3: "tri",
+    4: "tetra",
+    5: "penta",
+    6: "hexa",
+    7: "hepta",
+    8: "octa",
+    9: "nona",
+    10: "deca",
+    11: "undeca",
+    12: "dodeca",
   };
   return numerals[n] || `${n}`;
 }
 
 export function generateSimpleNameFromFormula(
-  elementCounts: Record<string, number>
+  elementCounts: Record<string, number>,
 ): string {
   const elements = Object.keys(elementCounts).sort((a, b) => {
-    if (a === 'C') return -1;
-    if (b === 'C') return 1;
-    if (a === 'H') return -1;
-    if (b === 'H') return 1;
+    if (a === "C") return -1;
+    if (b === "C") return 1;
+    if (a === "H") return -1;
+    if (b === "H") return 1;
     return a.localeCompare(b);
   });
 
@@ -77,12 +77,12 @@ export function generateSimpleNameFromFormula(
     }
   }
 
-  return parts.join('');
+  return parts.join("");
 }
 
 export function identifyPrincipalFunctionalGroup(
   molecule: Molecule,
-  _options?: any
+  _options?: any,
 ): string | null {
   // Use rule engine to find principal functional group
   const fgRule = ruleEngine.findPrincipalFunctionalGroup(molecule);

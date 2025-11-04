@@ -1,25 +1,36 @@
-import type { Atom, Bond } from 'types';
+import type { Atom, Bond } from "types";
 
-export function getBondsForAtom(bonds: readonly Bond[], atomId: number): Bond[] {
-  return bonds.filter(b => b.atom1 === atomId || b.atom2 === atomId);
+export function getBondsForAtom(
+  bonds: readonly Bond[],
+  atomId: number,
+): Bond[] {
+  return bonds.filter((b) => b.atom1 === atomId || b.atom2 === atomId);
 }
 
 export function getOtherAtomId(bond: Bond, atomId: number): number {
   return bond.atom1 === atomId ? bond.atom2 : bond.atom1;
 }
 
-export function getOtherAtom(bond: Bond, atomId: number, atoms: readonly Atom[]): Atom | undefined {
+export function getOtherAtom(
+  bond: Bond,
+  atomId: number,
+  atoms: readonly Atom[],
+): Atom | undefined {
   const otherId = getOtherAtomId(bond, atomId);
-  return atoms.find(a => a.id === otherId);
+  return atoms.find((a) => a.id === otherId);
 }
 
 export function isHeavyAtom(atom: Atom | undefined): boolean {
   if (!atom) return false;
-  return atom.symbol !== 'H' || !!atom.isotope;
+  return atom.symbol !== "H" || !!atom.isotope;
 }
 
-export function getHeavyNeighborCount(bonds: readonly Bond[], atomId: number, atoms: readonly Atom[]): number {
-  return getBondsForAtom(bonds, atomId).filter(b => {
+export function getHeavyNeighborCount(
+  bonds: readonly Bond[],
+  atomId: number,
+  atoms: readonly Atom[],
+): number {
+  return getBondsForAtom(bonds, atomId).filter((b) => {
     const other = getOtherAtom(b, atomId, atoms);
     return isHeavyAtom(other);
   }).length;
@@ -33,34 +44,43 @@ export interface BondsByType {
 }
 
 export function partitionBondsByType(bonds: readonly Bond[]): BondsByType {
-  const single = bonds.filter(b => b.type === 'single');
-  const double = bonds.filter(b => b.type === 'double');
-  const triple = bonds.filter(b => b.type === 'triple');
-  const aromatic = bonds.filter(b => b.type === 'aromatic');
-  
+  const single = bonds.filter((b) => b.type === "single");
+  const double = bonds.filter((b) => b.type === "double");
+  const triple = bonds.filter((b) => b.type === "triple");
+  const aromatic = bonds.filter((b) => b.type === "aromatic");
+
   return { single, double, triple, aromatic };
 }
 
 export function hasDoubleBond(bonds: readonly Bond[], atomId: number): boolean {
-  return getBondsForAtom(bonds, atomId).some(b => b.type === 'double');
+  return getBondsForAtom(bonds, atomId).some((b) => b.type === "double");
 }
 
 export function hasTripleBond(bonds: readonly Bond[], atomId: number): boolean {
-  return getBondsForAtom(bonds, atomId).some(b => b.type === 'triple');
+  return getBondsForAtom(bonds, atomId).some((b) => b.type === "triple");
 }
 
-export function hasMultipleBond(bonds: readonly Bond[], atomId: number): boolean {
-  return getBondsForAtom(bonds, atomId).some(b => b.type === 'double' || b.type === 'triple');
+export function hasMultipleBond(
+  bonds: readonly Bond[],
+  atomId: number,
+): boolean {
+  return getBondsForAtom(bonds, atomId).some(
+    (b) => b.type === "double" || b.type === "triple",
+  );
 }
 
-export function hasCarbonylBond(bonds: readonly Bond[], atomId: number, atoms: readonly Atom[]): boolean {
-  const atom = atoms.find(a => a.id === atomId);
-  if (!atom || atom.aromatic || atom.symbol !== 'C') return false;
-  
-  return getBondsForAtom(bonds, atomId).some(b => {
-    if (b.type !== 'double') return false;
+export function hasCarbonylBond(
+  bonds: readonly Bond[],
+  atomId: number,
+  atoms: readonly Atom[],
+): boolean {
+  const atom = atoms.find((a) => a.id === atomId);
+  if (!atom || atom.aromatic || atom.symbol !== "C") return false;
+
+  return getBondsForAtom(bonds, atomId).some((b) => {
+    if (b.type !== "double") return false;
     const other = getOtherAtom(b, atomId, atoms);
-    return other?.symbol === 'O';
+    return other?.symbol === "O";
   });
 }
 

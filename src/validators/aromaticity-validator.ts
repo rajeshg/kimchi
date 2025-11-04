@@ -1,41 +1,45 @@
-import type { Atom, Bond, ParseError, Molecule } from 'types';
-import { BondType } from 'types';
-import { getRingAtoms, getRingBonds, isPartOfFusedSystem } from 'src/utils/ring-analysis';
- import { getBondsForAtom } from 'src/utils/bond-utils';
- import { MoleculeGraph } from 'src/utils/molecular-graph';
+import type { Atom, Bond, ParseError, Molecule } from "types";
+import { BondType } from "types";
+import {
+  getRingAtoms,
+  getRingBonds,
+  isPartOfFusedSystem,
+} from "src/utils/ring-analysis";
+import { getBondsForAtom } from "src/utils/bond-utils";
+import { MoleculeGraph } from "src/utils/molecular-graph";
 
 function countPiElectrons(atom: Atom, bonds: readonly Bond[]): number {
   const atomBonds = getBondsForAtom(bonds, atom.id);
   const bondCount = atomBonds.length;
-  const hasDouble = atomBonds.some(b => b.type === BondType.DOUBLE);
+  const hasDouble = atomBonds.some((b) => b.type === BondType.DOUBLE);
 
   switch (atom.symbol) {
-    case 'C':
+    case "C":
       return 1;
-    case 'N':
+    case "N":
       if (atom.charge > 0) return 1;
       if (hasDouble) return 1;
       if (atom.hydrogens > 0) return 2;
       return 1;
-    case 'O':
-    case 'S':
+    case "O":
+    case "S":
       if (atom.charge !== 0) return 0;
       if (hasDouble) return 0;
       if (bondCount === 2) return 2;
       return 0;
-    case 'B':
+    case "B":
       if (atom.charge === -1 || atom.aromatic) {
         return 2;
       }
       return 0;
-    case 'P':
+    case "P":
       if (atom.charge > 0) return 0;
       if (hasDouble) return 1;
       if (atom.hydrogens > 0) return 2;
       return 1;
-    case 'As':
+    case "As":
       return atom.hydrogens > 0 ? 2 : 1;
-    case 'Se':
+    case "Se":
       if (atom.charge !== 0) return 0;
       if (hasDouble) return 0;
       if (bondCount === 2) return 2;
@@ -45,12 +49,22 @@ function countPiElectrons(atom: Atom, bonds: readonly Bond[]): number {
   }
 }
 
-function isHuckelAromatic(ringAtoms: readonly Atom[], ringBonds: readonly Bond[]): boolean {
-  const totalPiElectrons = ringAtoms.reduce((sum, atom) => sum + countPiElectrons(atom, ringBonds), 0);
+function isHuckelAromatic(
+  ringAtoms: readonly Atom[],
+  ringBonds: readonly Bond[],
+): boolean {
+  const totalPiElectrons = ringAtoms.reduce(
+    (sum, atom) => sum + countPiElectrons(atom, ringBonds),
+    0,
+  );
   return totalPiElectrons >= 2 && (totalPiElectrons - 2) % 4 === 0;
 }
 
-function detectAromaticRings(atoms: readonly Atom[], bonds: readonly Bond[], rings: readonly (readonly number[])[]): Bond[] {
+function detectAromaticRings(
+  atoms: readonly Atom[],
+  bonds: readonly Bond[],
+  rings: readonly (readonly number[])[],
+): Bond[] {
   const bondsToUpdate: Array<{ atom1: number; atom2: number }> = [];
 
   for (const ring of rings) {
@@ -59,24 +73,29 @@ function detectAromaticRings(atoms: readonly Atom[], bonds: readonly Bond[], rin
     const ringAtoms = getRingAtoms(ring, atoms);
     const ringBonds = getRingBonds(ring, bonds);
 
-    const hasAlternatingBonds = ringBonds.every(bond => {
-      const atom1Bonds = ringBonds.filter(b => b.atom1 === bond.atom1 || b.atom2 === bond.atom1);
-      const atom2Bonds = ringBonds.filter(b => b.atom1 === bond.atom2 || b.atom2 === bond.atom2);
+    const hasAlternatingBonds = ringBonds.every((bond) => {
+      const atom1Bonds = ringBonds.filter(
+        (b) => b.atom1 === bond.atom1 || b.atom2 === bond.atom1,
+      );
+      const atom2Bonds = ringBonds.filter(
+        (b) => b.atom1 === bond.atom2 || b.atom2 === bond.atom2,
+      );
       return atom1Bonds.length <= 2 && atom2Bonds.length <= 2;
     });
 
-    const allAromatic = ringAtoms.every(atom => atom.aromatic);
+    const allAromatic = ringAtoms.every((atom) => atom.aromatic);
     if (allAromatic && hasAlternatingBonds) {
-      ringBonds.forEach(bond => {
+      ringBonds.forEach((bond) => {
         bondsToUpdate.push({ atom1: bond.atom1, atom2: bond.atom2 });
       });
     }
   }
 
-  return bonds.map(bond => {
+  return bonds.map((bond) => {
     const shouldUpdate = bondsToUpdate.some(
-      b => (b.atom1 === bond.atom1 && b.atom2 === bond.atom2) ||
-           (b.atom1 === bond.atom2 && b.atom2 === bond.atom1)
+      (b) =>
+        (b.atom1 === bond.atom1 && b.atom2 === bond.atom2) ||
+        (b.atom1 === bond.atom2 && b.atom2 === bond.atom1),
     );
     if (shouldUpdate) {
       return { ...bond, type: BondType.AROMATIC };
@@ -90,9 +109,9 @@ export function validateAromaticity(
   bonds: readonly Bond[],
   errors: ParseError[],
   explicitBonds?: Set<string>,
-  mg?: MoleculeGraph
+  mg?: MoleculeGraph,
 ): { atoms: Atom[]; bonds: Bond[] } {
-  const aromaticAtoms = atoms.filter(a => a.aromatic);
+  const aromaticAtoms = atoms.filter((a) => a.aromatic);
   if (aromaticAtoms.length === 0) {
     return { atoms: [...atoms], bonds: [...bonds] };
   }
@@ -106,12 +125,12 @@ export function validateAromaticity(
   const atomsToMarkNonAromatic = new Set<number>();
 
   for (const atom of aromaticAtoms) {
-    const atomInRing = rings.some(ring => ring.includes(atom.id));
+    const atomInRing = rings.some((ring) => ring.includes(atom.id));
 
     if (!atomInRing) {
       errors.push({
         message: `Aromatic atom ${atom.symbol} (id: ${atom.id}) is not in a ring`,
-        position: -1
+        position: -1,
       });
       atomsToMarkNonAromatic.add(atom.id);
     }
@@ -136,7 +155,7 @@ export function validateAromaticity(
 
       if (!isHuckelAromatic(ringAtoms, ringBonds)) {
         const hasExplicitBondTypes = explicitBonds
-          ? ringBonds.some(b => explicitBonds.has(bondKey(b.atom1, b.atom2)))
+          ? ringBonds.some((b) => explicitBonds.has(bondKey(b.atom1, b.atom2)))
           : false;
 
         if (hasExplicitBondTypes) {
@@ -151,14 +170,14 @@ export function validateAromaticity(
     }
   }
 
-  const updatedAtoms = atoms.map(atom => {
+  const updatedAtoms = atoms.map((atom) => {
     if (atomsToMarkNonAromatic.has(atom.id)) {
       return { ...atom, aromatic: false };
     }
     return atom;
   });
 
-  updatedBonds = updatedBonds.map(bond => {
+  updatedBonds = updatedBonds.map((bond) => {
     const key = bondKey(bond.atom1, bond.atom2);
     const newType = bondsToUpdate.get(key);
     if (newType !== undefined) {
@@ -174,14 +193,23 @@ export function validateAromaticity(
     if (allAromatic) {
       const ringBonds = getRingBonds(ring, updatedBonds);
 
-      const aromaticBondCount = ringBonds.filter(b => b.type === BondType.AROMATIC).length;
-      const singleBondCount = ringBonds.filter(b => b.type === BondType.SINGLE).length;
-      const doubleBondCount = ringBonds.filter(b => b.type === BondType.DOUBLE).length;
+      const aromaticBondCount = ringBonds.filter(
+        (b) => b.type === BondType.AROMATIC,
+      ).length;
+      const singleBondCount = ringBonds.filter(
+        (b) => b.type === BondType.SINGLE,
+      ).length;
+      const doubleBondCount = ringBonds.filter(
+        (b) => b.type === BondType.DOUBLE,
+      ).length;
 
-      if (aromaticBondCount !== ring.length && singleBondCount + doubleBondCount !== ring.length) {
+      if (
+        aromaticBondCount !== ring.length &&
+        singleBondCount + doubleBondCount !== ring.length
+      ) {
         errors.push({
-          message: `Aromatic ring ${ring.join(',')} has inconsistent bond types`,
-          position: -1
+          message: `Aromatic ring ${ring.join(",")} has inconsistent bond types`,
+          position: -1,
         });
       }
     }

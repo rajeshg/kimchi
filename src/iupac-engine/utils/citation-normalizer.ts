@@ -1,5 +1,5 @@
-import { readFileSync } from 'fs';
-import * as path from 'path';
+import { readFileSync } from "fs";
+import * as path from "path";
 
 type OpsinRules = any;
 
@@ -8,10 +8,10 @@ let aliasMap: Map<string, string> | null = null;
 
 function loadRules(): OpsinRules {
   if (cachedRules) return cachedRules;
-  const rulesPath = path.resolve(__dirname, '../../../opsin-rules.json');
+  const rulesPath = path.resolve(__dirname, "../../../opsin-rules.json");
   let json: OpsinRules = {} as OpsinRules;
   try {
-    json = JSON.parse(readFileSync(rulesPath, 'utf8'));
+    json = JSON.parse(readFileSync(rulesPath, "utf8"));
   } catch (e) {
     // If OPSIN rules file is not present (e.g., in certain test environments),
     // fall back to empty rules — alias map will still include builtin tokens.
@@ -40,7 +40,19 @@ function buildAliasMap(): Map<string, string> {
   }
 
   // Also include a small built-in map for very common prefixes if opsin data missing
-  const builtin = ['methyl','ethyl','propyl','butyl','hydroxy','oxo','amino','chloro','bromo','fluoro','nitro'];
+  const builtin = [
+    "methyl",
+    "ethyl",
+    "propyl",
+    "butyl",
+    "hydroxy",
+    "oxo",
+    "amino",
+    "chloro",
+    "bromo",
+    "fluoro",
+    "nitro",
+  ];
   for (const b of builtin) {
     const t = normalizeToken(b);
     if (!map.has(t)) map.set(t, t);
@@ -51,20 +63,20 @@ function buildAliasMap(): Map<string, string> {
 }
 
 function normalizeToken(input: string | undefined): string {
-  if (!input) return '';
+  if (!input) return "";
   let s = input.toLowerCase();
   // Remove digits, commas and parentheses but keep hyphens for qualifier detection
-  s = s.replace(/[0-9,()]/g, '');
+  s = s.replace(/[0-9,()]/g, "");
   // Trim surrounding whitespace
-  s = s.replace(/^\s+|\s+$/g, '');
+  s = s.replace(/^\s+|\s+$/g, "");
   // Remove leading hyphens left after digit/comma removal
-  s = s.replace(/^[\-\s]+/, '');
+  s = s.replace(/^[-\s]+/, "");
   // Remove known citation qualifiers only when followed by hyphen/space
-  s = s.replace(/^(sec|tert|iso|neo|exo|endo|n|t)[\-\s]+/i, '');
+  s = s.replace(/^(sec|tert|iso|neo|exo|endo|n|t)[-\s]+/i, "");
   // Remove multiplicative prefixes at start (allow optional hyphen)
-  s = s.replace(/^(di|tri|tetra|penta|hexa|hepta|octa|nona|deca)[\-\s]*/i, '');
+  s = s.replace(/^(di|tri|tetra|penta|hexa|hepta|octa|nona|deca)[-\s]*/i, "");
   // Finally strip any remaining non-letter characters (including hyphens)
-  s = s.replace(/[^a-z]/g, '');
+  s = s.replace(/[^a-z]/g, "");
   return s;
 }
 
@@ -74,7 +86,7 @@ function normalizeToken(input: string | undefined): string {
  */
 export function normalizeCitationName(raw: string | undefined): string {
   const token = normalizeToken(raw);
-  if (!token) return '';
+  if (!token) return "";
   const map = buildAliasMap();
   return map.get(token) || token;
 }
@@ -83,8 +95,10 @@ export function normalizeCitationName(raw: string | undefined): string {
  * Given an array of raw citation names (possibly with multiplicative prefixes/locants),
  * return the canonical tokens in order.
  */
-export function canonicalizeCitationList(raws: (string | undefined)[]): string[] {
-  return raws.map(r => normalizeCitationName(r)).filter(Boolean);
+export function canonicalizeCitationList(
+  raws: (string | undefined)[],
+): string[] {
+  return raws.map((r) => normalizeCitationName(r)).filter(Boolean);
 }
 
 /**
@@ -93,8 +107,8 @@ export function canonicalizeCitationList(raws: (string | undefined)[]): string[]
 export function compareCitationArrays(a: string[], b: string[]): number {
   const n = Math.min(a.length, b.length);
   for (let i = 0; i < n; i++) {
-    const ai = a[i] || '';
-    const bi = b[i] || '';
+    const ai = a[i] || "";
+    const bi = b[i] || "";
     const cmp = ai.localeCompare(bi);
     if (cmp !== 0) return cmp;
   }

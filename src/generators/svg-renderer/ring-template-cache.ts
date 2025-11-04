@@ -7,10 +7,13 @@ export function polygonRadius(n: number, sideLength: number): number {
   return sideLength / (2 * Math.sin(Math.PI / n));
 }
 
-export function regularPolygonVertices(n: number, sideLength: number): { x: number; y: number }[] {
+export function regularPolygonVertices(
+  n: number,
+  sideLength: number,
+): { x: number; y: number }[] {
   const key = `${n}:${sideLength.toFixed(8)}`;
   const cached = cache.get(key);
-  if (cached) return cached.map(p => ({ x: p.x, y: p.y }));
+  if (cached) return cached.map((p) => ({ x: p.x, y: p.y }));
 
   const R = polygonRadius(n, sideLength);
   const verts: { x: number; y: number }[] = [];
@@ -20,7 +23,10 @@ export function regularPolygonVertices(n: number, sideLength: number): { x: numb
     verts.push({ x: Math.cos(theta) * R, y: Math.sin(theta) * R });
   }
 
-  cache.set(key, verts.map(p => ({ x: p.x, y: p.y })));
+  cache.set(
+    key,
+    verts.map((p) => ({ x: p.x, y: p.y })),
+  );
   return verts;
 }
 

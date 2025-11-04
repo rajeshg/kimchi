@@ -1,9 +1,9 @@
-import { describe, expect, it } from 'bun:test';
-import { calculateValence } from 'src/utils/valence-calculator';
-import { BondType } from 'types';
+import { describe, expect, it } from "bun:test";
+import { calculateValence } from "src/utils/valence-calculator";
+import { BondType } from "types";
 
-describe('Valence calculator', () => {
-  it('counts single, double, triple and aromatic correctly with hydrogens', () => {
+describe("Valence calculator", () => {
+  it("counts single, double, triple and aromatic correctly with hydrogens", () => {
     const atom = { id: 1, hydrogens: 1 } as any;
     const bonds = [
       { atom1: 1, atom2: 2, type: BondType.SINGLE },
@@ -18,7 +18,7 @@ describe('Valence calculator', () => {
     expect(val).toBe(8.5);
   });
 
-  it('returns 0 if no bonds and no hydrogens', () => {
+  it("returns 0 if no bonds and no hydrogens", () => {
     const atom = { id: 10, hydrogens: 0 } as any;
     const val = calculateValence(atom, [] as any);
     expect(val).toBe(0);

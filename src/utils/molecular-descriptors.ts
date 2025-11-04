@@ -1,10 +1,13 @@
-import type { Molecule, DescriptorOptions, DescriptorResult } from 'types';
-import { getHeavyAtomCount } from './molecular-properties';
+import type { Molecule, DescriptorOptions, DescriptorResult } from "types";
+import { getHeavyAtomCount } from "./molecular-properties";
 
 /**
  * Compute basic molecular descriptors
  */
-export function computeDescriptors(mol: Molecule, opts: DescriptorOptions = {}): DescriptorResult {
+export function computeDescriptors(
+  mol: Molecule,
+  opts: DescriptorOptions = {},
+): DescriptorResult {
   const atomCount = getAtomCount(mol);
   const bondCount = getBondCount(mol);
   const formalCharge = getFormalCharge(mol);
@@ -44,19 +47,22 @@ export function getFormalCharge(mol: Molecule): number {
 /**
  * Get counts of each element in molecule
  */
-export function getElementCounts(mol: Molecule, opts: DescriptorOptions = {}): Record<string, number> {
+export function getElementCounts(
+  mol: Molecule,
+  opts: DescriptorOptions = {},
+): Record<string, number> {
   const includeImplicitH = opts.includeImplicitH ?? true;
   const includeIsotopes = opts.includeIsotopes ?? false;
   const counts: Record<string, number> = Object.create(null);
 
   function addElement(sym: string, n = 1) {
-    if (!sym || sym === '*') return;
+    if (!sym || sym === "*") return;
     counts[sym] = (counts[sym] || 0) + n;
   }
 
   for (const atom of mol.atoms) {
     const sym = atom.symbol;
-    if (!sym || sym === '*') continue;
+    if (!sym || sym === "*") continue;
 
     if (includeIsotopes && atom.isotope) {
       addElement(`${atom.isotope}${sym}`, 1);
@@ -65,7 +71,7 @@ export function getElementCounts(mol: Molecule, opts: DescriptorOptions = {}): R
     }
 
     if (includeImplicitH && (atom.hydrogens ?? 0) > 0) {
-      addElement('H', atom.hydrogens ?? 0);
+      addElement("H", atom.hydrogens ?? 0);
     }
   }
 
@@ -80,7 +86,10 @@ export function getHeavyAtomFraction(mol: Molecule): number {
   if (heavyAtoms === 0) return 0;
 
   // Total atoms = explicit atoms + implicit hydrogens
-  const implicitHydrogens = mol.atoms.reduce((sum, atom) => sum + (atom.hydrogens ?? 0), 0);
+  const implicitHydrogens = mol.atoms.reduce(
+    (sum, atom) => sum + (atom.hydrogens ?? 0),
+    0,
+  );
   const totalAtoms = mol.atoms.length + implicitHydrogens;
 
   return heavyAtoms / totalAtoms;

@@ -14,12 +14,12 @@ const ethanolMol = `ethanol
 M  END
 `;
 
-console.log('\n--- Stick diagram from MOL file (ethanol) ---\n');
+console.log("\n--- Stick diagram from MOL file (ethanol) ---\n");
 // console.log(renderStickDiagramFromMolfile(ethanolMol, { width: 60, height: 12, labelMode: 'symbol' })); // TODO: stick-diagram generator missing
 
 // SMILES fallback example (benzene)
-const benzeneSmiles = 'c1ccccc1';
-console.log('\n--- Stick diagram from SMILES (fallback schematic) ---\n');
+const benzeneSmiles = "c1ccccc1";
+console.log("\n--- Stick diagram from SMILES (fallback schematic) ---\n");
 // console.log(renderStickDiagramFromSMILES(benzeneSmiles)); // TODO: stick-diagram generator missing
 
-console.log('\nExample complete.');
+console.log("\nExample complete.");

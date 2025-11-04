@@ -1,11 +1,11 @@
-import { describe, it, expect } from 'bun:test';
-import { parseSMILES } from 'index';
-import { addExplicitHydrogensWithMapping } from 'src/utils/hydrogen-utils';
-import { BondType } from 'types';
+import { describe, it, expect } from "bun:test";
+import { parseSMILES } from "index";
+import { addExplicitHydrogensWithMapping } from "src/utils/hydrogen-utils";
+import { BondType } from "types";
 
-describe('Hydrogen utils - addExplicitHydrogensWithMapping', () => {
-  it('adds no H to molecule with none', () => {
-    const r = parseSMILES('C');
+describe("Hydrogen utils - addExplicitHydrogensWithMapping", () => {
+  it("adds no H to molecule with none", () => {
+    const r = parseSMILES("C");
     expect(r.errors).toHaveLength(0);
     const mol = r.molecules[0]!;
     // Carbon has implicit Hs in the parser; total implicit hydrogens should be available
@@ -21,8 +21,8 @@ describe('Hydrogen utils - addExplicitHydrogensWithMapping', () => {
     }
   });
 
-  it('correctly maps hydrogens for ammonia NH3', () => {
-    const r = parseSMILES('N');
+  it("correctly maps hydrogens for ammonia NH3", () => {
+    const r = parseSMILES("N");
     expect(r.errors).toHaveLength(0);
     const mol = r.molecules[0]!;
     const res = addExplicitHydrogensWithMapping(mol);
@@ -32,23 +32,25 @@ describe('Hydrogen utils - addExplicitHydrogensWithMapping', () => {
 
     // Check that hydrogens added map back to the nitrogen atom (index 0)
     for (let i = res.originalAtomCount; i < res.molecule.atoms.length; i++) {
-      expect(res.molecule.atoms[i]!.symbol).toBe('H');
+      expect(res.molecule.atoms[i]!.symbol).toBe("H");
       expect(res.augmentedToOriginal[i]).toBe(0);
       // bond connecting H should reference nitrogen id
       const hId = res.molecule.atoms[i]!.id;
-      const bond = res.molecule.bonds.find(b => b.atom1 === hId || b.atom2 === hId);
+      const bond = res.molecule.bonds.find(
+        (b) => b.atom1 === hId || b.atom2 === hId,
+      );
       expect(bond).toBeTruthy();
       const heavyId = bond!.atom1 === hId ? bond!.atom2 : bond!.atom1;
       // heavy atom should be the nitrogen and present in original atoms
-      const heavyIndex = res.molecule.atoms.findIndex(a => a.id === heavyId);
+      const heavyIndex = res.molecule.atoms.findIndex((a) => a.id === heavyId);
       expect(heavyIndex).toBeGreaterThanOrEqual(0);
       expect(heavyIndex).toBeLessThan(res.originalAtomCount);
       expect(res.augmentedToOriginal[heavyIndex]).toBe(heavyIndex);
     }
   });
 
-  it('handles multi-atom molecules with mixed H counts (ethanol)', () => {
-    const r = parseSMILES('CCO');
+  it("handles multi-atom molecules with mixed H counts (ethanol)", () => {
+    const r = parseSMILES("CCO");
     expect(r.errors).toHaveLength(0);
     const mol = r.molecules[0]!;
     const res = addExplicitHydrogensWithMapping(mol);
@@ -61,23 +63,24 @@ describe('Hydrogen utils - addExplicitHydrogensWithMapping', () => {
     const counts = new Array(res.originalAtomCount).fill(0);
     for (let i = 0; i < res.molecule.atoms.length; i++) {
       const orig = res.augmentedToOriginal[i] ?? -1;
-      if (orig >= 0 && orig < res.originalAtomCount) counts[orig] += (res.molecule.atoms[i]!.symbol === 'H' ? 1 : 0);
+      if (orig >= 0 && orig < res.originalAtomCount)
+        counts[orig] += res.molecule.atoms[i]!.symbol === "H" ? 1 : 0;
     }
 
     // For ethanol: atoms are C,C,O with implicit H counts typically 3,2,1 (or similar depending on parser)
     expect(counts.length).toBe(res.originalAtomCount);
     // Ensure at least one heavy atom has added Hs
-    expect(counts.some(c => c > 0)).toBe(true);
+    expect(counts.some((c) => c > 0)).toBe(true);
   });
 
-  it('returns mapping that allows mapping match indices back to heavy atoms', () => {
-    const r = parseSMILES('CC(=O)O');
+  it("returns mapping that allows mapping match indices back to heavy atoms", () => {
+    const r = parseSMILES("CC(=O)O");
     expect(r.errors).toHaveLength(0);
     const mol = r.molecules[0]!;
     const res = addExplicitHydrogensWithMapping(mol);
     // Simulate a SMARTS match that hits an H atom (we can't run SMARTS here reliably),
     // so just pick an H index and ensure augmentedToOriginal points to heavy atom index.
-    const firstHIndex = res.molecule.atoms.findIndex(a => a.symbol === 'H');
+    const firstHIndex = res.molecule.atoms.findIndex((a) => a.symbol === "H");
     if (firstHIndex === -1) return; // no explicit Hs added in this parser variant
     const mapped = res.augmentedToOriginal[firstHIndex]!;
     expect(mapped).toBeGreaterThanOrEqual(0);
@@ -86,12 +89,16 @@ describe('Hydrogen utils - addExplicitHydrogensWithMapping', () => {
     const heavyId = res.molecule.atoms[mapped]!.id;
     // there should be a bond between heavyId and h atom id
     const hId = res.molecule.atoms[firstHIndex]!.id;
-    const bond = res.molecule.bonds.find(b => (b.atom1 === hId && b.atom2 === heavyId) || (b.atom2 === hId && b.atom1 === heavyId));
+    const bond = res.molecule.bonds.find(
+      (b) =>
+        (b.atom1 === hId && b.atom2 === heavyId) ||
+        (b.atom2 === hId && b.atom1 === heavyId),
+    );
     expect(bond).toBeTruthy();
   });
 
-  it('does not modify the original molecule', () => {
-    const r = parseSMILES('CCO');
+  it("does not modify the original molecule", () => {
+    const r = parseSMILES("CCO");
     expect(r.errors).toHaveLength(0);
     const originalMol = r.molecules[0]!;
     const originalAtoms = originalMol.atoms.length;
@@ -101,8 +108,8 @@ describe('Hydrogen utils - addExplicitHydrogensWithMapping', () => {
     expect(originalMol.bonds.length).toBe(originalBonds);
   });
 
-  it('handles charged molecules like ammonium [NH4+]', () => {
-    const r = parseSMILES('[NH4+]');
+  it("handles charged molecules like ammonium [NH4+]", () => {
+    const r = parseSMILES("[NH4+]");
     expect(r.errors).toHaveLength(0);
     const mol = r.molecules[0]!;
     const res = addExplicitHydrogensWithMapping(mol);
@@ -112,8 +119,8 @@ describe('Hydrogen utils - addExplicitHydrogensWithMapping', () => {
     expect(res.molecule.atoms.length).toBe(res.originalAtomCount + 4);
   });
 
-  it('handles molecules with isotopes', () => {
-    const r = parseSMILES('[2H]C');
+  it("handles molecules with isotopes", () => {
+    const r = parseSMILES("[2H]C");
     expect(r.errors).toHaveLength(0);
     const mol = r.molecules[0]!;
     const res = addExplicitHydrogensWithMapping(mol);
@@ -121,11 +128,11 @@ describe('Hydrogen utils - addExplicitHydrogensWithMapping', () => {
     // [2H]C: C has 3 implicit H, [2H] has 0.
     expect(res.molecule.atoms.length).toBeGreaterThan(res.originalAtomCount);
     // Check mapping for H atoms added to C
-    const cIndex = mol.atoms.findIndex(a => a.symbol === 'C');
+    const cIndex = mol.atoms.findIndex((a) => a.symbol === "C");
     expect(cIndex).toBeGreaterThanOrEqual(0);
     const hIndices = [];
     for (let i = res.originalAtomCount; i < res.molecule.atoms.length; i++) {
-      if (res.molecule.atoms[i]!.symbol === 'H') {
+      if (res.molecule.atoms[i]!.symbol === "H") {
         hIndices.push(i);
         expect(res.augmentedToOriginal[i]).toBe(cIndex);
       }
@@ -133,8 +140,8 @@ describe('Hydrogen utils - addExplicitHydrogensWithMapping', () => {
     expect(hIndices.length).toBe(3); // C has 3 implicit H
   });
 
-  it('handles aromatic molecules like benzene', () => {
-    const r = parseSMILES('c1ccccc1');
+  it("handles aromatic molecules like benzene", () => {
+    const r = parseSMILES("c1ccccc1");
     expect(r.errors).toHaveLength(0);
     const mol = r.molecules[0]!;
     const res = addExplicitHydrogensWithMapping(mol);
@@ -144,21 +151,21 @@ describe('Hydrogen utils - addExplicitHydrogensWithMapping', () => {
     expect(res.molecule.atoms.length - res.originalAtomCount).toBe(6); // 6 H added
   });
 
-  it('handles molecules with stereochemistry', () => {
-    const r = parseSMILES('C[C@H](O)Cl');
+  it("handles molecules with stereochemistry", () => {
+    const r = parseSMILES("C[C@H](O)Cl");
     expect(r.errors).toHaveLength(0);
     const mol = r.molecules[0]!;
     const res = addExplicitHydrogensWithMapping(mol);
     expect(res.originalAtomCount).toBe(mol.atoms.length);
     expect(res.molecule.atoms.length).toBeGreaterThan(res.originalAtomCount);
     // Check that chiral atom mapping is preserved
-    const chiralIndex = mol.atoms.findIndex(a => a.chiral != null);
+    const chiralIndex = mol.atoms.findIndex((a) => a.chiral != null);
     expect(chiralIndex).toBeGreaterThanOrEqual(0);
     expect(res.augmentedToOriginal[chiralIndex]).toBe(chiralIndex);
   });
 
-  it('adds correct single bonds for H atoms', () => {
-    const r = parseSMILES('O');
+  it("adds correct single bonds for H atoms", () => {
+    const r = parseSMILES("O");
     expect(r.errors).toHaveLength(0);
     const mol = r.molecules[0]!;
     const res = addExplicitHydrogensWithMapping(mol);
@@ -166,14 +173,16 @@ describe('Hydrogen utils - addExplicitHydrogensWithMapping', () => {
     expect(res.molecule.atoms.length).toBe(res.originalAtomCount + 2);
     for (let i = res.originalAtomCount; i < res.molecule.atoms.length; i++) {
       const hId = res.molecule.atoms[i]!.id;
-      const bond = res.molecule.bonds.find(b => b.atom1 === hId || b.atom2 === hId);
+      const bond = res.molecule.bonds.find(
+        (b) => b.atom1 === hId || b.atom2 === hId,
+      );
       expect(bond).toBeTruthy();
       expect(bond!.type).toBe(BondType.SINGLE);
     }
   });
 
-  it('handles larger molecules like aspirin', () => {
-    const r = parseSMILES('CC(=O)OC1=CC=CC=C1C(=O)O');
+  it("handles larger molecules like aspirin", () => {
+    const r = parseSMILES("CC(=O)OC1=CC=CC=C1C(=O)O");
     expect(r.errors).toHaveLength(0);
     const mol = r.molecules[0]!;
     const res = addExplicitHydrogensWithMapping(mol);
@@ -184,7 +193,7 @@ describe('Hydrogen utils - addExplicitHydrogensWithMapping', () => {
     // Verify mapping for a few H
     const hIndices = [];
     for (let i = res.originalAtomCount; i < res.molecule.atoms.length; i++) {
-      if (res.molecule.atoms[i]!.symbol === 'H') {
+      if (res.molecule.atoms[i]!.symbol === "H") {
         hIndices.push(i);
         expect(res.augmentedToOriginal[i]).toBeGreaterThanOrEqual(0);
         expect(res.augmentedToOriginal[i]).toBeLessThan(res.originalAtomCount);
@@ -193,23 +202,25 @@ describe('Hydrogen utils - addExplicitHydrogensWithMapping', () => {
     expect(hIndices.length).toBeGreaterThan(0);
   });
 
-  it('handles complex stereochemistry with multiple chiral centers', () => {
-    const r = parseSMILES('C[C@H](O)[C@@H](N)C(=O)O');
+  it("handles complex stereochemistry with multiple chiral centers", () => {
+    const r = parseSMILES("C[C@H](O)[C@@H](N)C(=O)O");
     expect(r.errors).toHaveLength(0);
     const mol = r.molecules[0]!;
     const res = addExplicitHydrogensWithMapping(mol);
     expect(res.originalAtomCount).toBe(mol.atoms.length);
     expect(res.molecule.atoms.length).toBeGreaterThan(res.originalAtomCount);
     // Check that chiral atoms map correctly
-    const chiralIndices = mol.atoms.map((a, i) => a.chiral != null ? i : -1).filter(i => i !== -1);
+    const chiralIndices = mol.atoms
+      .map((a, i) => (a.chiral != null ? i : -1))
+      .filter((i) => i !== -1);
     expect(chiralIndices.length).toBeGreaterThan(0);
-    chiralIndices.forEach(idx => {
+    chiralIndices.forEach((idx) => {
       expect(res.augmentedToOriginal[idx]).toBe(idx);
     });
   });
 
-  it('handles fused aromatic systems like naphthalene', () => {
-    const r = parseSMILES('C1=CC=C2C=CC=CC2=C1');
+  it("handles fused aromatic systems like naphthalene", () => {
+    const r = parseSMILES("C1=CC=C2C=CC=CC2=C1");
     expect(r.errors).toHaveLength(0);
     const mol = r.molecules[0]!;
     const res = addExplicitHydrogensWithMapping(mol);
@@ -219,8 +230,8 @@ describe('Hydrogen utils - addExplicitHydrogensWithMapping', () => {
     expect(res.molecule.atoms.length - res.originalAtomCount).toBe(8);
   });
 
-  it('handles aliphatic rings like cyclohexane', () => {
-    const r = parseSMILES('C1CCCCC1');
+  it("handles aliphatic rings like cyclohexane", () => {
+    const r = parseSMILES("C1CCCCC1");
     expect(r.errors).toHaveLength(0);
     const mol = r.molecules[0]!;
     const res = addExplicitHydrogensWithMapping(mol);
@@ -230,8 +241,8 @@ describe('Hydrogen utils - addExplicitHydrogensWithMapping', () => {
     expect(res.molecule.atoms.length - res.originalAtomCount).toBe(12);
   });
 
-  it('handles mixed aromatic and aliphatic like toluene', () => {
-    const r = parseSMILES('CC1=CC=CC=C1');
+  it("handles mixed aromatic and aliphatic like toluene", () => {
+    const r = parseSMILES("CC1=CC=CC=C1");
     expect(r.errors).toHaveLength(0);
     const mol = r.molecules[0]!;
     const res = addExplicitHydrogensWithMapping(mol);
@@ -241,8 +252,8 @@ describe('Hydrogen utils - addExplicitHydrogensWithMapping', () => {
     expect(res.molecule.atoms.length - res.originalAtomCount).toBe(8);
   });
 
-  it('handles heteroaromatic like pyridine', () => {
-    const r = parseSMILES('C1=CC=NC=C1');
+  it("handles heteroaromatic like pyridine", () => {
+    const r = parseSMILES("C1=CC=NC=C1");
     expect(r.errors).toHaveLength(0);
     const mol = r.molecules[0]!;
     const res = addExplicitHydrogensWithMapping(mol);
@@ -252,12 +263,12 @@ describe('Hydrogen utils - addExplicitHydrogensWithMapping', () => {
     expect(res.molecule.atoms.length - res.originalAtomCount).toBe(5);
   });
 
-  it('handles molecules with no implicit hydrogens (all explicit)', () => {
+  it("handles molecules with no implicit hydrogens (all explicit)", () => {
     // For example, a molecule where all H are already explicit, but in SMILES, hard to have.
     // Use a small one like [H][H], but parser may not support.
     // Use C with explicit H, but SMILES C has implicit.
     // Perhaps skip or use a molecule with 0 implicit.
-    const r = parseSMILES('[CH4]');
+    const r = parseSMILES("[CH4]");
     expect(r.errors).toHaveLength(0);
     const mol = r.molecules[0]!;
     const res = addExplicitHydrogensWithMapping(mol);

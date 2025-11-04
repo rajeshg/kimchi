@@ -1,5 +1,5 @@
-import type { Molecule, ParseError } from 'types';
-import { parseMolfile, type MolfileData } from './molfile-parser';
+import type { Molecule, ParseError } from "types";
+import { parseMolfile, type MolfileData } from "./molfile-parser";
 
 export interface SDFRecord {
   molecule: Molecule | null;
@@ -24,7 +24,7 @@ export function parseSDF(input: string): SDFParseResult {
     if (!recordText || !recordText.trim()) continue;
 
     if (i > 0) {
-      recordText = recordText.replace(/^\n+/, '');
+      recordText = recordText.replace(/^\n+/, "");
     }
 
     const record = parseSDFRecord(recordText, i);
@@ -39,10 +39,10 @@ export function parseSDF(input: string): SDFParseResult {
 
 function parseSDFRecord(recordText: string, recordIndex: number): SDFRecord {
   const lines = recordText.split(/\r?\n/);
-  
+
   let molBlockEnd = -1;
   for (let i = 0; i < lines.length; i++) {
-    if (lines[i]?.trim() === 'M  END') {
+    if (lines[i]?.trim() === "M  END") {
       molBlockEnd = i;
       break;
     }
@@ -53,12 +53,17 @@ function parseSDFRecord(recordText: string, recordIndex: number): SDFRecord {
       molecule: null,
       molfile: null,
       properties: {},
-      errors: [{ message: `Record ${recordIndex}: No M  END found in MOL block`, position: recordIndex }],
+      errors: [
+        {
+          message: `Record ${recordIndex}: No M  END found in MOL block`,
+          position: recordIndex,
+        },
+      ],
     };
   }
 
   const molBlockLines = lines.slice(0, molBlockEnd + 1);
-  const molBlockText = molBlockLines.join('\n');
+  const molBlockText = molBlockLines.join("\n");
   const molResult = parseMolfile(molBlockText);
 
   const propertyLines = lines.slice(molBlockEnd + 1);
@@ -79,24 +84,27 @@ function parsePropertyBlock(lines: string[]): Record<string, string> {
 
   const saveProperty = () => {
     if (currentKey === null) return;
-    
-    while (valueLines.length > 0 && valueLines[valueLines.length - 1]!.trim() === '') {
+
+    while (
+      valueLines.length > 0 &&
+      valueLines[valueLines.length - 1]!.trim() === ""
+    ) {
       valueLines.pop();
     }
-    
+
     if (valueLines.length === 0) {
-      properties[currentKey] = '';
+      properties[currentKey] = "";
     } else if (valueLines.length === 1) {
       properties[currentKey] = valueLines[0]!.trim();
     } else {
-      properties[currentKey] = valueLines.join('\n');
+      properties[currentKey] = valueLines.join("\n");
     }
   };
 
   for (const line of lines) {
     const trimmed = line.trim();
 
-    if (trimmed.startsWith('>')) {
+    if (trimmed.startsWith(">")) {
       saveProperty();
 
       const match = trimmed.match(/^>\s*<([^>]*)>/);

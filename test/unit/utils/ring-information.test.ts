@@ -1,11 +1,11 @@
-import { describe, it, expect } from 'bun:test';
-import { parseSMILES } from 'src/parsers/smiles-parser';
-import { getRingInfo } from 'src/utils/ring-information';
+import { describe, it, expect } from "bun:test";
+import { parseSMILES } from "src/parsers/smiles-parser";
+import { getRingInfo } from "src/utils/ring-information";
 
-describe('Ring Information API', () => {
-  describe('getRingInfo', () => {
-    it('should provide comprehensive ring information for benzene', () => {
-      const result = parseSMILES('c1ccccc1');
+describe("Ring Information API", () => {
+  describe("getRingInfo", () => {
+    it("should provide comprehensive ring information for benzene", () => {
+      const result = parseSMILES("c1ccccc1");
       const mol = result.molecules[0]!;
       const ringInfo = getRingInfo(mol);
 
@@ -22,12 +22,12 @@ describe('Ring Information API', () => {
         { atom1: 2, atom2: 3 },
         { atom1: 3, atom2: 4 },
         { atom1: 4, atom2: 5 },
-        { atom1: 5, atom2: 0 }
+        { atom1: 5, atom2: 0 },
       ]);
     });
 
-    it('should handle naphthalene (fused rings)', () => {
-      const result = parseSMILES('c1ccc2ccccc2c1');
+    it("should handle naphthalene (fused rings)", () => {
+      const result = parseSMILES("c1ccc2ccccc2c1");
       const mol = result.molecules[0]!;
       const ringInfo = getRingInfo(mol);
 
@@ -37,8 +37,8 @@ describe('Ring Information API', () => {
       expect(ringInfo.isBondInRing(0, 1)).toBe(true);
     });
 
-    it('should handle molecules with no rings', () => {
-      const result = parseSMILES('CCO');
+    it("should handle molecules with no rings", () => {
+      const result = parseSMILES("CCO");
       const mol = result.molecules[0]!;
       const ringInfo = getRingInfo(mol);
 
@@ -48,8 +48,8 @@ describe('Ring Information API', () => {
       expect(ringInfo.isBondInRing(0, 1)).toBe(false);
     });
 
-    it('should handle adamantane (complex polycyclic)', () => {
-      const result = parseSMILES('C1C2CC3CC1CC(C2)C3');
+    it("should handle adamantane (complex polycyclic)", () => {
+      const result = parseSMILES("C1C2CC3CC1CC(C2)C3");
       const mol = result.molecules[0]!;
       const ringInfo = getRingInfo(mol);
 
@@ -62,13 +62,9 @@ describe('Ring Information API', () => {
     });
   });
 
-
-
-
-
-  describe('Ring membership queries', () => {
-    it('should handle ring size queries', () => {
-      const result = parseSMILES('c1ccccc1');
+  describe("Ring membership queries", () => {
+    it("should handle ring size queries", () => {
+      const result = parseSMILES("c1ccccc1");
       const mol = result.molecules[0]!;
       const ringInfo = getRingInfo(mol);
 
@@ -78,8 +74,8 @@ describe('Ring Information API', () => {
       expect(ringInfo.isBondInRingOfSize(0, 1, 5)).toBe(false);
     });
 
-    it('should handle bond ring queries', () => {
-      const result = parseSMILES('c1ccccc1');
+    it("should handle bond ring queries", () => {
+      const result = parseSMILES("c1ccccc1");
       const mol = result.molecules[0]!;
       const ringInfo = getRingInfo(mol);
 

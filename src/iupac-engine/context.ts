@@ -1,4 +1,4 @@
-import type { Molecule, Atom, Bond } from '../../types';
+import type { Molecule, Atom, Bond } from "../../types";
 import type {
   NamingContext,
   IUPACRule,
@@ -10,8 +10,8 @@ import type {
   ParentStructure,
   RuleConflict,
   NomenclatureMethod,
-  MultipleBond
-} from './types';
+  MultipleBond,
+} from "./types";
 
 /**
  * Core implementation of the IUPAC naming context
@@ -26,9 +26,9 @@ export class NamingContextImpl implements NamingContext {
   public executedRules = new Set<string>();
   public conflicts: RuleConflict[] = [];
   public state = new Map<string, any>();
-  
+
   private _parentStructure?: ParentStructure;
-  
+
   constructor(molecule: Molecule) {
     this.molecule = molecule;
     // Keep context initialization minimal. Heavy analysis (chain/ring seeding)
@@ -37,35 +37,35 @@ export class NamingContextImpl implements NamingContext {
     // to keep the mutable context lightweight and side-effect free.
     this.initializeContext();
   }
-  
+
   get parentStructure(): ParentStructure | undefined {
     return this._parentStructure;
   }
-  
+
   isAcyclic(): boolean {
     // Use the existing ring detection from the molecule
     // This is simplified - will be enhanced with proper ring analysis
-    return !this.molecule.atoms.some(atom => atom.isInRing ?? false);
+    return !this.molecule.atoms.some((atom) => atom.isInRing ?? false);
   }
-  
+
   hasFunctionalGroups(): boolean {
     return this.functionalGroups.length > 0;
   }
-  
+
   getCandidateChains(): Chain[] {
     return [...this.candidateChains];
   }
-  
+
   getCandidateRings(): RingSystem[] {
     return [...this.candidateRings];
   }
-  
+
   getFunctionalGroups(): FunctionalGroup[] {
     return [...this.functionalGroups];
   }
-  
+
   updateCandidates(candidates: Chain[] | RingSystem[]): void {
-    if (candidates.length > 0 && candidates[0] && 'length' in candidates[0]) {
+    if (candidates.length > 0 && candidates[0] && "length" in candidates[0]) {
       // It's Chain[]
       this.candidateChains = candidates as Chain[];
     } else {
@@ -73,27 +73,27 @@ export class NamingContextImpl implements NamingContext {
       this.candidateRings = candidates as RingSystem[];
     }
   }
-  
+
   setParentStructure(structure: ParentStructure): void {
     this._parentStructure = structure;
   }
-  
+
   addFunctionalGroup(group: FunctionalGroup): void {
     this.functionalGroups.push(group);
   }
-  
+
   setState(key: string, value: any): void {
     this.state.set(key, value);
   }
-  
+
   getState(key: string): any {
     return this.state.get(key);
   }
-  
+
   addConflict(conflict: RuleConflict): void {
     this.conflicts.push(conflict);
   }
-  
+
   /**
    * Initialize the naming context with basic molecular analysis
    */
@@ -104,6 +104,4 @@ export class NamingContextImpl implements NamingContext {
     this.candidateChains = [];
     this.candidateRings = [];
   }
-  
-
 }

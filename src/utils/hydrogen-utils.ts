@@ -1,15 +1,19 @@
-import type { Molecule, Atom, Bond } from 'types';
-import { BondType, StereoType } from 'types';
+import type { Molecule, Atom, Bond } from "types";
+import { BondType, StereoType } from "types";
 
-export function addExplicitHydrogensWithMapping(mol: Molecule): { molecule: Molecule; originalAtomCount: number; augmentedToOriginal: number[] } {
+export function addExplicitHydrogensWithMapping(mol: Molecule): {
+  molecule: Molecule;
+  originalAtomCount: number;
+  augmentedToOriginal: number[];
+} {
   const originalAtoms = Array.from(mol.atoms);
   const originalBonds = Array.from(mol.bonds);
   const originalCount = originalAtoms.length;
 
   let maxId = originalAtoms.reduce((m, a) => Math.max(m, a.id), 0);
 
-  const newAtoms: Atom[] = originalAtoms.map(a => ({ ...a } as Atom));
-  const newBonds: Bond[] = originalBonds.map(b => ({ ...b } as Bond));
+  const newAtoms: Atom[] = originalAtoms.map((a) => ({ ...a }) as Atom);
+  const newBonds: Bond[] = originalBonds.map((b) => ({ ...b }) as Bond);
 
   const augmentedToOriginal: number[] = [];
   for (let i = 0; i < originalCount; i++) augmentedToOriginal.push(i);
@@ -24,7 +28,7 @@ export function addExplicitHydrogensWithMapping(mol: Molecule): { molecule: Mole
       maxId += 1;
       const hAtom: Atom = {
         id: maxId,
-        symbol: 'H',
+        symbol: "H",
         atomicNumber: 1,
         charge: 0,
         hydrogens: 0,
@@ -33,7 +37,7 @@ export function addExplicitHydrogensWithMapping(mol: Molecule): { molecule: Mole
         chiral: null,
         isBracket: false,
         atomClass: 0,
-        degree: 1
+        degree: 1,
       } as Atom;
       newAtoms.push(hAtom);
       augmentedToOriginal.push(i);
@@ -41,7 +45,7 @@ export function addExplicitHydrogensWithMapping(mol: Molecule): { molecule: Mole
         atom1: a.id,
         atom2: hAtom.id,
         type: BondType.SINGLE,
-        stereo: StereoType.NONE
+        stereo: StereoType.NONE,
       } as Bond;
       newBonds.push(bond);
     }
@@ -51,8 +55,12 @@ export function addExplicitHydrogensWithMapping(mol: Molecule): { molecule: Mole
     atoms: newAtoms,
     bonds: newBonds,
     rings: mol.rings,
-    ringInfo: mol.ringInfo
+    ringInfo: mol.ringInfo,
   };
 
-  return { molecule: newMolecule, originalAtomCount: originalCount, augmentedToOriginal };
+  return {
+    molecule: newMolecule,
+    originalAtomCount: originalCount,
+    augmentedToOriginal,
+  };
 }

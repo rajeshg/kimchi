@@ -129,7 +129,7 @@ export class Graph<TNode = any, TEdge = any> {
    * @returns Array of edge pairs
    */
   getEdges(): [number, number][] {
-    return Array.from(this.edges.values()).map(edge => [edge.from, edge.to]);
+    return Array.from(this.edges.values()).map((edge) => [edge.from, edge.to]);
   }
 
   /**
@@ -226,7 +226,7 @@ export function dfs<TNode, TEdge>(
   graph: Graph<TNode, TEdge>,
   startNode: number,
   visitCallback?: (nodeId: number, data: TNode | undefined) => void,
-  visited: Set<number> = new Set()
+  visited: Set<number> = new Set(),
 ): Set<number> {
   if (visited.has(startNode)) return visited;
 
@@ -253,7 +253,7 @@ export function dfs<TNode, TEdge>(
 export function bfs<TNode, TEdge>(
   graph: Graph<TNode, TEdge>,
   startNode: number,
-  visitCallback?: (nodeId: number, data: TNode | undefined) => void
+  visitCallback?: (nodeId: number, data: TNode | undefined) => void,
 ): Set<number> {
   const visited = new Set<number>();
   const queue: number[] = [startNode];
@@ -285,7 +285,7 @@ export function bfs<TNode, TEdge>(
  * @returns Array of arrays, where each subarray contains node IDs in one component
  */
 export function findConnectedComponents<TNode, TEdge>(
-  graph: Graph<TNode, TEdge>
+  graph: Graph<TNode, TEdge>,
 ): number[][] {
   const visited = new Set<number>();
   const components: number[][] = [];
@@ -311,12 +311,14 @@ export function findConnectedComponents<TNode, TEdge>(
 export function findShortestPath<TNode, TEdge>(
   graph: Graph<TNode, TEdge>,
   startNode: number,
-  endNode: number
+  endNode: number,
 ): number[] {
   if (startNode === endNode) return [startNode];
 
   const visited = new Set<number>();
-  const queue: { node: number; path: number[] }[] = [{ node: startNode, path: [startNode] }];
+  const queue: { node: number; path: number[] }[] = [
+    { node: startNode, path: [startNode] },
+  ];
   visited.add(startNode);
 
   while (queue.length > 0) {
@@ -347,12 +349,14 @@ export function findShortestPath<TNode, TEdge>(
 export function getDistance<TNode, TEdge>(
   graph: Graph<TNode, TEdge>,
   startNode: number,
-  endNode: number
+  endNode: number,
 ): number {
   if (startNode === endNode) return 0;
 
   const visited = new Set<number>();
-  const queue: { node: number; distance: number }[] = [{ node: startNode, distance: 0 }];
+  const queue: { node: number; distance: number }[] = [
+    { node: startNode, distance: 0 },
+  ];
   visited.add(startNode);
 
   while (queue.length > 0) {
@@ -379,9 +383,7 @@ export function getDistance<TNode, TEdge>(
  * @param graph The graph to analyze
  * @returns Array of rings, where each ring is an array of node IDs
  */
-export function findSSSR<TNode, TEdge>(
-  graph: Graph<TNode, TEdge>
-): number[][] {
+export function findSSSR<TNode, TEdge>(graph: Graph<TNode, TEdge>): number[][] {
   const components = findConnectedComponents(graph);
   const numNodes = graph.nodeCount();
   const numEdges = graph.edgeCount();
@@ -393,21 +395,21 @@ export function findSSSR<TNode, TEdge>(
   const allCycles: number[][] = [];
   const nodes = graph.getNodes();
   const visited = new Set<string>();
-  
-   // Find cycles from all nodes
-   for (const startNode of nodes) {
-     if (graph.getDegree(startNode) < 2) continue;
-     
-     const cycles = findSmallCycles(graph, startNode, 100, -1);
-     for (const cycle of cycles) {
-       const normalized = normalizeCycle(cycle);
-       const key = normalized.join(',');
-       if (!visited.has(key)) {
-         visited.add(key);
-         allCycles.push(normalized);
-       }
-     }
-   }
+
+  // Find cycles from all nodes
+  for (const startNode of nodes) {
+    if (graph.getDegree(startNode) < 2) continue;
+
+    const cycles = findSmallCycles(graph, startNode, 100, -1);
+    for (const cycle of cycles) {
+      const normalized = normalizeCycle(cycle);
+      const key = normalized.join(",");
+      if (!visited.has(key)) {
+        visited.add(key);
+        allCycles.push(normalized);
+      }
+    }
+  }
 
   // Sort by cycle length (prefer smaller rings)
   allCycles.sort((a, b) => a.length - b.length);
@@ -437,7 +439,7 @@ export function findSSSR<TNode, TEdge>(
 
     if (hasNewEdge || sssr.length === 0) {
       sssr.push(cycle);
-      cycleEdges.forEach(edge => usedEdges.add(edge));
+      cycleEdges.forEach((edge) => usedEdges.add(edge));
     }
   }
 
@@ -450,7 +452,7 @@ export function findSSSR<TNode, TEdge>(
  * @returns Array of cycles, where each cycle is an array of node IDs
  */
 export function findCycles<TNode, TEdge>(
-  graph: Graph<TNode, TEdge>
+  graph: Graph<TNode, TEdge>,
 ): number[][] {
   const cycles: number[][] = [];
   const nodes = graph.getNodes();
@@ -470,7 +472,7 @@ export function findCycles<TNode, TEdge>(
 function findCyclesFromNode<TNode, TEdge>(
   graph: Graph<TNode, TEdge>,
   startNode: number,
-  cycles: number[][]
+  cycles: number[][],
 ): void {
   const path: number[] = [];
   const pathSet = new Set<number>();
@@ -517,7 +519,7 @@ function removeDuplicateCycles(cycles: number[][]): number[][] {
 
   for (const cycle of cycles) {
     const normalized = normalizeCycle(cycle);
-    const key = normalized.join(',');
+    const key = normalized.join(",");
     if (!seen.has(key)) {
       seen.add(key);
       uniqueCycles.push(normalized);
@@ -547,8 +549,9 @@ function normalizeCycle(cycle: number[]): number[] {
   if (cycle.length === 0) return cycle;
 
   // Check if cycle has closing duplicate
-  const hasClosingDuplicate = cycle.length > 1 && cycle[0]! === cycle[cycle.length - 1]!;
-  
+  const hasClosingDuplicate =
+    cycle.length > 1 && cycle[0]! === cycle[cycle.length - 1]!;
+
   // Remove the closing duplicate if present
   const uniqueCycle = hasClosingDuplicate ? cycle.slice(0, -1) : cycle;
 
@@ -561,14 +564,11 @@ function normalizeCycle(cycle: number[]): number[] {
       }
     }
 
-    const rotated = [
-      ...seq.slice(minIndex),
-      ...seq.slice(0, minIndex)
-    ];
+    const rotated = [...seq.slice(minIndex), ...seq.slice(0, minIndex)];
 
     const reversed = [...rotated].reverse();
-    const reversedKey = reversed.slice(0, 2).join(',');
-    const forwardKey = rotated.slice(0, 2).join(',');
+    const reversedKey = reversed.slice(0, 2).join(",");
+    const forwardKey = rotated.slice(0, 2).join(",");
 
     return reversedKey < forwardKey ? reversed : rotated;
   };
@@ -579,8 +579,6 @@ function normalizeCycle(cycle: number[]): number[] {
   return compareCycles(canonical1, canonical2) <= 0 ? canonical1 : canonical2;
 }
 
-
-
 /**
  * Find small cycles from a given node using DFS with maximum cycle size limit.
  * Returns cycles in order of increasing length (prioritizes smaller rings).
@@ -590,24 +588,24 @@ function findSmallCycles<TNode, TEdge>(
   graph: Graph<TNode, TEdge>,
   startNode: number,
   maxCycleSize: number,
-  maxCyclesToFind: number
+  maxCyclesToFind: number,
 ): number[][] {
   const cycles: number[][] = [];
   const path: number[] = [];
   const pathSet = new Set<number>();
-  
+
   function dfs(current: number, parentNode: number | null): void {
     if (maxCyclesToFind > 0 && cycles.length >= maxCyclesToFind) return;
     if (path.length > maxCycleSize) return;
-    
+
     path.push(current);
     pathSet.add(current);
-    
+
     const neighbors = graph.getNeighbors(current);
     for (const neighbor of neighbors) {
       // Skip the parent to avoid immediate backtrack
       if (neighbor === parentNode) continue;
-      
+
       if (pathSet.has(neighbor)) {
         // Found a cycle
         const cycleStartIdx = path.indexOf(neighbor);
@@ -616,18 +614,20 @@ function findSmallCycles<TNode, TEdge>(
           if (cycle.length >= 3 && cycle.length <= maxCycleSize) {
             // Normalize and add
             const normalized = normalizeCycle(cycle);
-            const key = normalized.join(',');
-            
+            const key = normalized.join(",");
+
             // Check for duplicates
             let isDuplicate = false;
             for (const existing of cycles) {
-              if (existing.length === normalized.length && 
-                  existing.join(',') === key) {
+              if (
+                existing.length === normalized.length &&
+                existing.join(",") === key
+              ) {
                 isDuplicate = true;
                 break;
               }
             }
-            
+
             if (!isDuplicate) {
               cycles.push(normalized);
             }
@@ -638,13 +638,13 @@ function findSmallCycles<TNode, TEdge>(
         dfs(neighbor, current);
       }
     }
-    
+
     path.pop();
     pathSet.delete(current);
   }
 
   dfs(startNode, null);
-  
+
   // Sort by cycle length (smaller rings first)
   cycles.sort((a, b) => a.length - b.length);
   return cycles;
@@ -659,7 +659,7 @@ function getEdgeKey(a: number, b: number): string {
 }
 
 export function findBiconnectedComponents<TNode, TEdge>(
-  graph: Graph<TNode, TEdge>
+  graph: Graph<TNode, TEdge>,
 ): { components: number[][][]; articulationPoints: number[] } {
   const nodes = graph.getNodes();
   if (nodes.length === 0) {
@@ -688,7 +688,7 @@ export function findBiconnectedComponents<TNode, TEdge>(
         children++;
         parent.set(v, u);
         edgeStack.push([u, v]);
-        
+
         dfsArticulation(v);
 
         const uLow = low.get(u)!;
@@ -698,8 +698,10 @@ export function findBiconnectedComponents<TNode, TEdge>(
         const parentU = parent.get(u);
         const vLow2 = low.get(v)!;
         const uDisc = disc.get(u)!;
-        if ((parentU === undefined && children > 1) ||
-            (parentU !== undefined && vLow2 >= uDisc)) {
+        if (
+          (parentU === undefined && children > 1) ||
+          (parentU !== undefined && vLow2 >= uDisc)
+        ) {
           articulationPoints.add(u);
 
           const component: [number, number][] = [];
@@ -710,7 +712,7 @@ export function findBiconnectedComponents<TNode, TEdge>(
               component.push(edge);
             }
           } while (edge && !(edge[0] === u && edge[1] === v));
-          
+
           if (component.length > 0) {
             components.push(component);
           }
@@ -732,7 +734,7 @@ export function findBiconnectedComponents<TNode, TEdge>(
   for (const node of nodes) {
     if (!visited.has(node)) {
       dfsArticulation(node);
-      
+
       if (edgeStack.length > 0) {
         components.push([...edgeStack]);
         edgeStack.length = 0;
@@ -742,12 +744,12 @@ export function findBiconnectedComponents<TNode, TEdge>(
 
   return {
     components,
-    articulationPoints: Array.from(articulationPoints)
+    articulationPoints: Array.from(articulationPoints),
   };
 }
 
 export function findBridges<TNode, TEdge>(
-  graph: Graph<TNode, TEdge>
+  graph: Graph<TNode, TEdge>,
 ): [number, number][] {
   const nodes = graph.getNodes();
   if (nodes.length === 0) {
@@ -801,7 +803,7 @@ export function findBridges<TNode, TEdge>(
 
 export function getInducedSubgraph<TNode, TEdge>(
   graph: Graph<TNode, TEdge>,
-  nodeIds: number[]
+  nodeIds: number[],
 ): Graph<TNode, TEdge> {
   const subgraph = new Graph<TNode, TEdge>();
   const nodeSet = new Set(nodeIds);
@@ -827,7 +829,7 @@ export function findAllSimplePaths<TNode, TEdge>(
   graph: Graph<TNode, TEdge>,
   startNode: number,
   endNode: number,
-  maxLength?: number
+  maxLength?: number,
 ): number[][] {
   const paths: number[][] = [];
   const currentPath: number[] = [];

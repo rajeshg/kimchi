@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'bun:test';
-import { parseSMILES, generateSMILES } from 'index';
+import { describe, it, expect } from "bun:test";
+import { parseSMILES, generateSMILES } from "index";
 
 const failingBondSMILES = [
   "CC(C)(C)OC(=O)CCC(CO)NC(=O)C1=CC=CC(=C1)CNC(=O)C23CC4C5C(C2ON(C3C(=O)O4)CC6=CC=C(C=C6)C=CC7CCC8C(C7)O8)OC9(O5)CC1=CC=CC=C1C9",
@@ -11,24 +11,29 @@ const failingBondSMILES = [
   "CC1C(C(C(C(O1)OC2C(C(COC2OC(=O)C34CCC(CC3C5=CCC6C7(CCC(C(C7CCC6(C5(CC4)C)C)(C)C)OC8C(C(C(C(O8)CO)O)O)OC9C(C(C(C(O9)CO)O)O)O)C)(C)C)O)O)O)O)OC1C(C(C(CO1)O)OC1C(C(C(CO1)O)O)O)O",
   "CC1(CC2C1CCC3(C(O3)CCC2=CC4=CC=C(C=C4)CN5C6C(=O)OC7CC6(C(O5)C8C7OC9(O8)CC1=CC=CC=C1C9)C(=O)NCCC(=O)NC(CCC(=O)OC(C)(C)C)CO)C)C",
   "C1CCC(CC1)C23CC(C2)(C3)C4=CC(=CC(=C4)C56CC(C5)(C6)C7CCCCC7)C89CC(C8)(C9)C1CCCCC1",
-  "C1C=C2C(CC3C(=O)C(=CC(=O)C3(C2C4=C(C=CC5=CC=CC=C54)O)C6=CC=CC=C6)C7=CC=CC=C7)C8C1C(=O)N(C8=O)C9=CC=C(C=C9)NC1=CC=CC=C1"
+  "C1C=C2C(CC3C(=O)C(=CC(=O)C3(C2C4=C(C=CC5=CC=CC=C54)O)C6=CC=CC=C6)C7=CC=CC=C7)C8C1C(=O)N(C8=O)C9=CC=C(C=C9)NC1=CC=CC=C1",
 ];
 
 const failingRoundTrip = [
-  "C1=CC2=C3C(=C1)C4=C(C=CC5=C4C6=C(C=CC(=C36)C=C2)C=C5)[N+](=O)[O-]"
+  "C1=CC2=C3C(=C1)C4=C(C=CC5=C4C6=C(C=CC(=C36)C=C2)C=C5)[N+](=O)[O-]",
 ];
 
-describe('Focused failing cases', () => {
-  it('reproduces bond mismatches', () => {
+describe("Focused failing cases", () => {
+  it("reproduces bond mismatches", () => {
     for (const s of failingBondSMILES) {
       const parsed = parseSMILES(s);
-      const openchemAtoms = parsed.molecules.reduce((sum, mol) => sum + mol.atoms.length, 0);
-      const openchemBonds = parsed.molecules.reduce((sum, mol) => sum + mol.bonds.length, 0);
+      const openchemAtoms = parsed.molecules.reduce(
+        (sum, mol) => sum + mol.atoms.length,
+        0,
+      );
+      const openchemBonds = parsed.molecules.reduce(
+        (sum, mol) => sum + mol.bonds.length,
+        0,
+      );
       // we expect these to currently mismatch RDKit per previous run
       // just assert parsed succeeded
       expect(parsed.errors && parsed.errors.length).toBe(0);
       expect(openchemBonds).toBeGreaterThan(0);
     }
   }, 20000);
-
 });

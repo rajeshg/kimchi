@@ -1,10 +1,10 @@
-import { describe, expect, it } from 'bun:test';
-import { parseMolfile } from 'src/parsers/molfile-parser';
-import { generateSMILES } from 'src/generators/smiles-generator';
-import { parseSMILES } from 'index';
+import { describe, expect, it } from "bun:test";
+import { parseMolfile } from "src/parsers/molfile-parser";
+import { generateSMILES } from "src/generators/smiles-generator";
+import { parseSMILES } from "index";
 
-describe('molfile round-trip tests', () => {
-  it('round-trips benzene V2000 → SMILES → internal model', () => {
+describe("molfile round-trip tests", () => {
+  it("round-trips benzene V2000 → SMILES → internal model", () => {
     const molfile = `
   Mrv0541 02231512212D          
 
@@ -35,7 +35,7 @@ M  END
     expect(reparsed.molecules[0]?.atoms.length).toBe(6);
   });
 
-  it('round-trips ethanol V2000 → SMILES', () => {
+  it("round-trips ethanol V2000 → SMILES", () => {
     const molfile = `
   Mrv0541 02231512212D          
 
@@ -54,7 +54,7 @@ M  END
     expect(smiles).toMatch(/CCO|OCC/);
   });
 
-  it('round-trips charged nitrogen V2000 → SMILES', () => {
+  it("round-trips charged nitrogen V2000 → SMILES", () => {
     const molfile = `
   Mrv0541 02231512212D          
 
@@ -68,10 +68,10 @@ M  END
     expect(result.molecule?.atoms[0]?.charge).toBe(1);
 
     const smiles = generateSMILES(result.molecule!);
-    expect(smiles).toContain('[N+]');
+    expect(smiles).toContain("[N+]");
   });
 
-  it('round-trips isotope carbon V2000 → SMILES', () => {
+  it("round-trips isotope carbon V2000 → SMILES", () => {
     const molfile = `
   Mrv0541 02231512212D          
 
@@ -85,6 +85,6 @@ M  END
     expect(result.molecule?.atoms[0]?.isotope).toBe(13);
 
     const smiles = generateSMILES(result.molecule!);
-    expect(smiles).toContain('[13C');
+    expect(smiles).toContain("[13C");
   });
 });

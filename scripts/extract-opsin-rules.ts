@@ -1,5 +1,5 @@
-import * as fs from 'fs';
-import * as path from 'path';
+import * as fs from "fs";
+import * as path from "path";
 
 /**
  * Extract OPSIN XML rules into structured JSON format
@@ -45,9 +45,7 @@ interface ExtractedRules {
  */
 function parseToken(tokenLine: string): Token | null {
   // Match: <token value="X" ...>content|aliases</token>
-  const match = tokenLine.match(
-    /<token\s+([^>]*)>(.*?)<\/token>/
-  );
+  const match = tokenLine.match(/<token\s+([^>]*)>(.*?)<\/token>/);
   if (!match) return null;
 
   const attrs = match[1];
@@ -61,20 +59,23 @@ function parseToken(tokenLine: string): Token | null {
 
   const value = valueMatch[1];
 
-   // Extract other metadata attributes
-   const metadata: Record<string, string> = {};
-   const attrRegex = /(\w+)="([^"]*)"/g;
-   let attrMatch;
-   while ((attrMatch = attrRegex.exec(attrs)) !== null) {
-     const attrName = attrMatch[1];
-     const attrValue = attrMatch[2];
-     if (attrName && attrValue && attrName !== 'value') {
-       metadata[attrName] = attrValue;
-     }
-   }
+  // Extract other metadata attributes
+  const metadata: Record<string, string> = {};
+  const attrRegex = /(\w+)="([^"]*)"/g;
+  let attrMatch;
+  while ((attrMatch = attrRegex.exec(attrs)) !== null) {
+    const attrName = attrMatch[1];
+    const attrValue = attrMatch[2];
+    if (attrName && attrValue && attrName !== "value") {
+      metadata[attrName] = attrValue;
+    }
+  }
 
   // Parse aliases from content (pipe-separated)
-  const aliases = content.split('|').map(s => s.trim()).filter(Boolean);
+  const aliases = content
+    .split("|")
+    .map((s) => s.trim())
+    .filter(Boolean);
 
   return {
     value,
@@ -146,32 +147,37 @@ function processAlkanes(xmlContent: string): Partial<ExtractedRules> {
 
   const lists = extractTokenLists(xmlContent);
 
-   for (const list of lists) {
-     if (list.tagname === 'group' && list.subType === 'alkaneStem') {
-       // Build alkanes map: C -> meth, CC -> eth, etc.
-       for (const token of list.tokens) {
-         const alias = token.aliases[0];
-         if (alias) {
-           result.alkanes![token.value] = alias;
-         }
-       }
-     } else if (list.tagname === 'alkaneStemComponent') {
-       // Categorize by symbol
-       const category =
-         list.symbol === 'Ï' ? 'units' : 
-         list.symbol === 'Ð' ? 'tens' : 
-         list.symbol === 'Õ' ? 'hundreds' : 
-         null;
+  for (const list of lists) {
+    if (list.tagname === "group" && list.subType === "alkaneStem") {
+      // Build alkanes map: C -> meth, CC -> eth, etc.
+      for (const token of list.tokens) {
+        const alias = token.aliases[0];
+        if (alias) {
+          result.alkanes![token.value] = alias;
+        }
+      }
+    } else if (list.tagname === "alkaneStemComponent") {
+      // Categorize by symbol
+      const category =
+        list.symbol === "Ï"
+          ? "units"
+          : list.symbol === "Ð"
+            ? "tens"
+            : list.symbol === "Õ"
+              ? "hundreds"
+              : null;
 
-       if (category && result.alkaneStemComponents) {
-    for (const token of list.tokens) {
-            if (token.aliases.length > 0) {
-              result.alkaneStemComponents[category as 'units' | 'tens' | 'hundreds'][token.value] = token.aliases.join('|');
-            }
+      if (category && result.alkaneStemComponents) {
+        for (const token of list.tokens) {
+          if (token.aliases.length > 0) {
+            result.alkaneStemComponents[
+              category as "units" | "tens" | "hundreds"
+            ][token.value] = token.aliases.join("|");
           }
-       }
-     }
-   }
+        }
+      }
+    }
+  }
 
   return result;
 }
@@ -193,30 +199,36 @@ function processMultipliers(xmlContent: string): Partial<ExtractedRules> {
   const lists = extractTokenLists(xmlContent);
 
   for (const list of lists) {
-    let category: 'basic' | 'group' | 'vonBaeyer' | 'ringAssembly' | 'fractional' | null = null;
+    let category:
+      | "basic"
+      | "group"
+      | "vonBaeyer"
+      | "ringAssembly"
+      | "fractional"
+      | null = null;
 
-    if (list.tagname === 'multiplier') {
-      if (list.type === 'basic') {
-        category = 'basic';
-      } else if (list.type === 'group') {
-        category = 'group';
-      } else if (list.type === 'VonBaeyer') {
-        category = 'vonBaeyer';
+    if (list.tagname === "multiplier") {
+      if (list.type === "basic") {
+        category = "basic";
+      } else if (list.type === "group") {
+        category = "group";
+      } else if (list.type === "VonBaeyer") {
+        category = "vonBaeyer";
       }
-    } else if (list.tagname === 'ringAssemblyMultiplier') {
-      category = 'ringAssembly';
-    } else if (list.tagname === 'fractionalMultiplier') {
-      category = 'fractional';
+    } else if (list.tagname === "ringAssemblyMultiplier") {
+      category = "ringAssembly";
+    } else if (list.tagname === "fractionalMultiplier") {
+      category = "fractional";
     }
 
-     if (category && result.multipliers) {
-       for (const token of list.tokens) {
-         const alias = token.aliases[0];
-         if (alias) {
-           result.multipliers[category][token.value] = alias;
-         }
-       }
-     }
+    if (category && result.multipliers) {
+      for (const token of list.tokens) {
+        const alias = token.aliases[0];
+        if (alias) {
+          result.multipliers[category][token.value] = alias;
+        }
+      }
+    }
   }
 
   return result;
@@ -233,7 +245,7 @@ function processSuffixes(xmlContent: string): Partial<ExtractedRules> {
   const lists = extractTokenLists(xmlContent);
 
   for (const list of lists) {
-    if (list.tagname === 'suffix') {
+    if (list.tagname === "suffix") {
       for (const token of list.tokens) {
         result.suffixes![token.value] = {
           aliases: token.aliases,
@@ -257,7 +269,7 @@ function processSubstituents(xmlContent: string): Partial<ExtractedRules> {
   const lists = extractTokenLists(xmlContent);
 
   for (const list of lists) {
-    if (list.tagname === 'group' || list.tagname === 'token') {
+    if (list.tagname === "group" || list.tagname === "token") {
       for (const token of list.tokens) {
         result.substituents![token.value] = {
           aliases: token.aliases,
@@ -296,11 +308,17 @@ function processFunctionalTerms(xmlContent: string): Partial<ExtractedRules> {
  * Main extraction function
  */
 function extractAllRules(): ExtractedRules {
-  const dataDir = path.join(__dirname, '../opsin-iupac-data');
+  const dataDir = path.join(__dirname, "../opsin-iupac-data");
   const rules: ExtractedRules = {
     alkanes: {},
     alkaneStemComponents: { units: {}, tens: {}, hundreds: {} },
-    multipliers: { basic: {}, group: {}, vonBaeyer: {}, ringAssembly: {}, fractional: {} },
+    multipliers: {
+      basic: {},
+      group: {},
+      vonBaeyer: {},
+      ringAssembly: {},
+      fractional: {},
+    },
     suffixes: {},
     substituents: {},
     functionalGroups: {},
@@ -308,19 +326,19 @@ function extractAllRules(): ExtractedRules {
 
   // Process key files
   const filesToProcess = [
-    { file: 'alkanes.xml', processor: processAlkanes },
-    { file: 'multipliers.xml', processor: processMultipliers },
-    { file: 'suffixes.xml', processor: processSuffixes },
-    { file: 'functionalTerms.xml', processor: processFunctionalTerms },
-    { file: 'substituents.xml', processor: processSubstituents },
-    { file: 'simpleSubstituents.xml', processor: processSubstituents },
+    { file: "alkanes.xml", processor: processAlkanes },
+    { file: "multipliers.xml", processor: processMultipliers },
+    { file: "suffixes.xml", processor: processSuffixes },
+    { file: "functionalTerms.xml", processor: processFunctionalTerms },
+    { file: "substituents.xml", processor: processSubstituents },
+    { file: "simpleSubstituents.xml", processor: processSubstituents },
   ];
 
   for (const { file, processor } of filesToProcess) {
     const filePath = path.join(dataDir, file);
     if (fs.existsSync(filePath)) {
       try {
-        const content = fs.readFileSync(filePath, 'utf-8');
+        const content = fs.readFileSync(filePath, "utf-8");
         const extracted = processor(content);
         Object.assign(rules, extracted);
         console.log(`✓ Processed ${file}`);
@@ -337,22 +355,30 @@ function extractAllRules(): ExtractedRules {
  * Main execution
  */
 function main() {
-  console.log('Extracting OPSIN rules...\n');
+  console.log("Extracting OPSIN rules...\n");
 
   const rules = extractAllRules();
 
   // Write output
-  const outputPath = path.join(__dirname, '../opsin-rules.json');
-  fs.writeFileSync(outputPath, JSON.stringify(rules, null, 2), 'utf-8');
+  const outputPath = path.join(__dirname, "../opsin-rules.json");
+  fs.writeFileSync(outputPath, JSON.stringify(rules, null, 2), "utf-8");
 
   console.log(`\n✓ Successfully extracted rules to ${outputPath}`);
-  console.log('\nExtracted data:');
+  console.log("\nExtracted data:");
   console.log(`  Alkanes: ${Object.keys(rules.alkanes).length} entries`);
-  console.log(`  Multipliers (basic): ${Object.keys(rules.multipliers.basic).length} entries`);
-  console.log(`  Multipliers (group): ${Object.keys(rules.multipliers.group).length} entries`);
+  console.log(
+    `  Multipliers (basic): ${Object.keys(rules.multipliers.basic).length} entries`,
+  );
+  console.log(
+    `  Multipliers (group): ${Object.keys(rules.multipliers.group).length} entries`,
+  );
   console.log(`  Suffixes: ${Object.keys(rules.suffixes).length} entries`);
-  console.log(`  Substituents: ${Object.keys(rules.substituents).length} entries`);
-  console.log(`  Functional groups: ${Object.keys(rules.functionalGroups).length} entries`);
+  console.log(
+    `  Substituents: ${Object.keys(rules.substituents).length} entries`,
+  );
+  console.log(
+    `  Functional groups: ${Object.keys(rules.functionalGroups).length} entries`,
+  );
 }
 
 main();

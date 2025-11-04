@@ -1,9 +1,12 @@
-import type { Molecule, Atom, Bond } from 'types';
-import { parseSMARTS } from 'src/parsers/smarts-parser';
-import { matchSMARTS } from 'src/matchers/smarts-matcher';
-import { addExplicitHydrogensWithMapping } from 'src/utils/hydrogen-utils';
+import type { Molecule, Atom, Bond } from "types";
+import { parseSMARTS } from "src/parsers/smarts-parser";
+import { matchSMARTS } from "src/matchers/smarts-matcher";
+import { addExplicitHydrogensWithMapping } from "src/utils/hydrogen-utils";
 
-const augmentedCache = new WeakMap<Molecule, { molecule: Molecule; augmentedToOriginal: number[] }>();
+const augmentedCache = new WeakMap<
+  Molecule,
+  { molecule: Molecule; augmentedToOriginal: number[] }
+>();
 
 interface LogPCache {
   logp: number;
@@ -134,21 +137,24 @@ Me2	[#39,#40,#41,#42,#43,#44,#45,#46,#47,#48]	-0.0025
 Me2	[#72,#73,#74,#75,#76,#77,#78,#79,#80]	-0.0025		
 `;
 
-function parseParamData(paramData: string): { order: string[]; patts: Record<string, CrippenParam[]> } {
+function parseParamData(paramData: string): {
+  order: string[];
+  patts: Record<string, CrippenParam[]>;
+} {
   const lines = paramData.split(/\r?\n/);
   const patts: Record<string, CrippenParam[]> = {};
   const order: string[] = [];
   for (const line of lines) {
-    if (!line || line.startsWith('#')) continue;
-    const parts = line.split('\t');
+    if (!line || line.startsWith("#")) continue;
+    const parts = line.split("\t");
     if (parts.length < 3) continue;
-    const label = (parts[0] ?? '').trim();
-    const smarts = (parts[1] ?? '').trim();
-    if (!smarts || smarts.toUpperCase() === 'SMARTS') continue;
+    const label = (parts[0] ?? "").trim();
+    const smarts = (parts[1] ?? "").trim();
+    if (!smarts || smarts.toUpperCase() === "SMARTS") continue;
     const logp = parts[2] ? parseFloat(parts[2]) : 0;
     const mr = parts[3] ? parseFloat(parts[3]) : 0;
     let cha: string;
-    if (label.length > 1 && label[1] && !'S0123456789'.includes(label[1])) {
+    if (label.length > 1 && label[1] && !"S0123456789".includes(label[1])) {
       cha = label.slice(0, 2);
     } else {
       cha = label[0]!;
@@ -157,33 +163,44 @@ function parseParamData(paramData: string): { order: string[]; patts: Record<str
       order.push(cha);
     }
     const l = patts[cha] || [];
-    l.push({ label, smarts, logp: isNaN(logp) ? 0 : logp, mr: isNaN(mr) ? 0 : mr });
+    l.push({
+      label,
+      smarts,
+      logp: isNaN(logp) ? 0 : logp,
+      mr: isNaN(mr) ? 0 : mr,
+    });
     patts[cha] = l;
   }
   return { order, patts };
 }
 
-const { order: _patternOrder, patts: _smartsPatterns } = parseParamData(defaultParamData);
+const { order: _patternOrder, patts: _smartsPatterns } =
+  parseParamData(defaultParamData);
 
 const cachedParams = Object.fromEntries(
   Object.entries(_smartsPatterns).map(([cha, params]) => [
     cha,
-    params.map(p => {
+    params.map((p) => {
       const res: CrippenParam = { ...p };
       const parsed = parseSMARTS(p.smarts);
-      if (parsed && parsed.pattern != null && (Array.isArray(parsed.errors) ? (parsed.errors.length === 0) : true)) {
+      if (
+        parsed &&
+        parsed.pattern != null &&
+        (Array.isArray(parsed.errors) ? parsed.errors.length === 0 : true)
+      ) {
         res.pattern = parsed.pattern;
       } else {
         res.pattern = null;
       }
       return res;
-    })
-  ])
+    }),
+  ]),
 );
 
-
-
-export function getCrippenAtomContribs(mol: Molecule, includeHs = true): { logpContribs: number[]; mrContribs: number[] } {
+export function getCrippenAtomContribs(
+  mol: Molecule,
+  includeHs = true,
+): { logpContribs: number[]; mrContribs: number[] } {
   const originalCount = mol.atoms.length;
   let molToMatch: Molecule = mol;
   if (includeHs) {
@@ -206,7 +223,9 @@ export function getCrippenAtomContribs(mol: Molecule, includeHs = true): { logpC
     if (!pattVect) continue;
     for (const param of pattVect) {
       if (!param.pattern) continue;
-      const matchRes = matchSMARTS(param.pattern, molToMatch, { maxMatches: Infinity });
+      const matchRes = matchSMARTS(param.pattern, molToMatch, {
+        maxMatches: Infinity,
+      });
       if (!matchRes.success) continue;
       for (const m of matchRes.matches) {
         const firstIdx = m.atoms[0]?.moleculeIndex;
@@ -235,8 +254,10 @@ export function getCrippenAtomContribs(mol: Molecule, includeHs = true): { logpC
         const mrVal = mrContribs[i];
         const currentLogp = originalLogp[origIdx];
         const currentMr = originalMr[origIdx];
-        if (logpVal != null && currentLogp != null) originalLogp[origIdx] = currentLogp + logpVal;
-        if (mrVal != null && currentMr != null) originalMr[origIdx] = currentMr + mrVal;
+        if (logpVal != null && currentLogp != null)
+          originalLogp[origIdx] = currentLogp + logpVal;
+        if (mrVal != null && currentMr != null)
+          originalMr[origIdx] = currentMr + mrVal;
       }
     }
     return { logpContribs: originalLogp, mrContribs: originalMr };
@@ -245,7 +266,10 @@ export function getCrippenAtomContribs(mol: Molecule, includeHs = true): { logpC
   }
 }
 
-export function calcCrippenDescriptors(mol: Molecule, includeHs = true): { logp: number; mr: number } {
+export function calcCrippenDescriptors(
+  mol: Molecule,
+  includeHs = true,
+): { logp: number; mr: number } {
   const cached = logpDescriptorCache.get(mol);
   if (cached !== undefined) {
     return { logp: cached.logp, mr: cached.mr };
@@ -254,7 +278,7 @@ export function calcCrippenDescriptors(mol: Molecule, includeHs = true): { logp:
   const { logpContribs, mrContribs } = getCrippenAtomContribs(mol, includeHs);
   const logp = logpContribs.reduce((s, v) => s + (v || 0), 0);
   const mr = mrContribs.reduce((s, v) => s + (v || 0), 0);
-  
+
   logpDescriptorCache.set(mol, { logp, mr, timestamp: Date.now() });
   return { logp, mr };
 }
@@ -262,7 +286,9 @@ export function calcCrippenDescriptors(mol: Molecule, includeHs = true): { logp:
 export function computeLogP(mol: Molecule, includeHs = true): number {
   // For very large molecules, LogP calculation can be slow
   // Skip calculation if molecule has more than 30 heavy atoms
-  const heavyAtomCount = mol.atoms.filter(a => a.symbol !== 'H' && a.symbol !== '*').length;
+  const heavyAtomCount = mol.atoms.filter(
+    (a) => a.symbol !== "H" && a.symbol !== "*",
+  ).length;
   if (heavyAtomCount > 30) {
     return 10; // Return a high value that will fail Lipinski
   }

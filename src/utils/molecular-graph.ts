@@ -1,7 +1,16 @@
-import type { Molecule, Atom, Bond } from 'types';
-import { Graph, findCycles, findBiconnectedComponents, findBridges, findConnectedComponents, getInducedSubgraph, findShortestPath, findAllSimplePaths } from 'src/utils/graph';
-import { findSSSR_Kekule } from './sssr-kekule';
-import { findSSSR as findSSSRGraph } from './graph';
+import type { Molecule, Atom, Bond } from "types";
+import {
+  Graph,
+  findCycles,
+  findBiconnectedComponents,
+  findBridges,
+  findConnectedComponents,
+  getInducedSubgraph,
+  findShortestPath,
+  findAllSimplePaths,
+} from "src/utils/graph";
+import { findSSSR_Kekule } from "./sssr-kekule";
+import { findSSSR as findSSSRGraph } from "./graph";
 
 export type EdgeData = {
   bond: Bond;
@@ -19,7 +28,9 @@ export interface MoleculeGraphInfo {
 
 let graphCache = new WeakMap<object, MoleculeGraphInfo>();
 
-export function buildGraphFromMolecule(mol: Molecule): Graph<Atom | undefined, EdgeData> {
+export function buildGraphFromMolecule(
+  mol: Molecule,
+): Graph<Atom | undefined, EdgeData> {
   const g = new Graph<Atom | undefined, EdgeData>();
 
   for (const atom of mol.atoms) {
@@ -34,17 +45,17 @@ export function buildGraphFromMolecule(mol: Molecule): Graph<Atom | undefined, E
 }
 
 export function computeMoleculeGraphInfo(mol: Molecule): MoleculeGraphInfo {
-  return computeMoleculeGraphInfoWithOptions(mol, { sssr: 'kekule' });
+  return computeMoleculeGraphInfoWithOptions(mol, { sssr: "kekule" });
 }
 
-export type SSSRAlgorithm = 'kekule';
+export type SSSRAlgorithm = "kekule";
 
 export function computeMoleculeGraphInfoWithOptions(
   mol: Molecule,
-  opts?: { sssr?: SSSRAlgorithm }
+  opts?: { sssr?: SSSRAlgorithm },
 ): MoleculeGraphInfo {
   const cached = graphCache.get(mol as unknown as object);
-  if (cached && (!opts || opts.sssr === 'kekule')) return cached;
+  if (cached && (!opts || opts.sssr === "kekule")) return cached;
 
   const graph = buildGraphFromMolecule(mol);
   const components = findConnectedComponents(graph);
@@ -72,7 +83,7 @@ export function computeMoleculeGraphInfoWithOptions(
     nodeRings,
   };
 
-  if (!opts || opts.sssr === 'kekule') {
+  if (!opts || opts.sssr === "kekule") {
     graphCache.set(mol as unknown as object, info);
   }
   return info;
@@ -89,13 +100,16 @@ export class MoleculeGraph {
   private _components?: number[][];
   private _cycles?: number[][];
   private _sssr?: number[][];
-  private _biconnected?: { components: number[][][]; articulationPoints: number[] };
+  private _biconnected?: {
+    components: number[][][];
+    articulationPoints: number[];
+  };
   private _bridges?: [number, number][];
   private _nodeRings?: Map<number, number[]>;
 
   constructor(mol: Molecule, opts?: { sssr?: SSSRAlgorithm }) {
     this.mol = mol;
-    this.sssrAlgorithm = opts?.sssr || 'kekule';
+    this.sssrAlgorithm = opts?.sssr || "kekule";
   }
 
   get graph(): Graph<Atom | undefined, EdgeData> {
@@ -121,12 +135,18 @@ export class MoleculeGraph {
 
   get sssr(): number[][] {
     if (!this._sssr) {
-      this._sssr = findSSSR_Kekule(Array.from(this.mol.atoms), Array.from(this.mol.bonds));
+      this._sssr = findSSSR_Kekule(
+        Array.from(this.mol.atoms),
+        Array.from(this.mol.bonds),
+      );
     }
     return this._sssr;
   }
 
-  get biconnected(): { components: number[][][]; articulationPoints: number[] } {
+  get biconnected(): {
+    components: number[][][];
+    articulationPoints: number[];
+  } {
     if (!this._biconnected) {
       this._biconnected = findBiconnectedComponents(this.graph);
     }
@@ -159,7 +179,7 @@ export class MoleculeGraph {
   }
 
   getFragmentGraphs(): Graph<Atom | undefined, EdgeData>[] {
-    return this.components.map(comp => getInducedSubgraph(this.graph, comp));
+    return this.components.map((comp) => getInducedSubgraph(this.graph, comp));
   }
 
   getFragmentGraph(componentIndex: number): Graph<Atom | undefined, EdgeData> {
@@ -172,7 +192,11 @@ export class MoleculeGraph {
     return findShortestPath(this.graph, startNode, endNode);
   }
 
-  findAllSimplePaths(startNode: number, endNode: number, maxLength?: number): number[][] {
+  findAllSimplePaths(
+    startNode: number,
+    endNode: number,
+    maxLength?: number,
+  ): number[][] {
     return findAllSimplePaths(this.graph, startNode, endNode, maxLength);
   }
 
@@ -187,7 +211,9 @@ export class MoleculeGraph {
   }
 }
 
-export function getFragmentGraphs(mol: Molecule): Graph<Atom | undefined, EdgeData>[] {
+export function getFragmentGraphs(
+  mol: Molecule,
+): Graph<Atom | undefined, EdgeData>[] {
   const info = computeMoleculeGraphInfo(mol);
   const graphs: Graph<Atom | undefined, EdgeData>[] = [];
 
@@ -198,6 +224,9 @@ export function getFragmentGraphs(mol: Molecule): Graph<Atom | undefined, EdgeDa
   return graphs;
 }
 
-function getInducedSubgraphFromGraph(graph: Graph<Atom | undefined, EdgeData>, nodeIds: number[]) {
+function getInducedSubgraphFromGraph(
+  graph: Graph<Atom | undefined, EdgeData>,
+  nodeIds: number[],
+) {
   return getInducedSubgraph(graph, nodeIds);
 }

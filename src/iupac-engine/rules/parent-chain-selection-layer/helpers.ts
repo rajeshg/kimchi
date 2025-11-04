@@ -2,10 +2,12 @@
  * Find lexicographically smallest array among a list of number arrays.
  * Shorter array wins if equal up to min length.
  */
-export function lexicographicallySmallest(sets: (number | undefined)[][]): number[] | null {
+export function lexicographicallySmallest(
+  sets: (number | undefined)[][],
+): number[] | null {
   if (!sets || sets.length === 0) return null;
   // Normalize undefined entries to 0 and ensure arrays of numbers
-  const normalized: number[][] = sets.map(s => (s || []).map(v => (v ?? 0)));
+  const normalized: number[][] = sets.map((s) => (s || []).map((v) => v ?? 0));
   let lowest = normalized[0] as number[];
   for (let i = 1; i < normalized.length; i++) {
     const current = normalized[i]!;
@@ -14,8 +16,15 @@ export function lexicographicallySmallest(sets: (number | undefined)[][]): numbe
     for (let j = 0; j < n; j++) {
       const cv = current[j] ?? 0;
       const lv = lowest[j] ?? 0;
-      if (cv < lv) { lowest = current; decided = true; break; }
-      if (cv > lv) { decided = true; break; }
+      if (cv < lv) {
+        lowest = current;
+        decided = true;
+        break;
+      }
+      if (cv > lv) {
+        decided = true;
+        break;
+      }
     }
     if (!decided && current.length < lowest.length) {
       lowest = current;
@@ -27,7 +36,9 @@ export function lexicographicallySmallest(sets: (number | undefined)[][]): numbe
 /**
  * Convert a RingSystem to a minimal Chain object for parent selection.
  */
-export function ringSystemToChain(ring: import('../../types').RingSystem): import('../../types').Chain {
+export function ringSystemToChain(
+  ring: import("../../types").RingSystem,
+): import("../../types").Chain {
   return {
     atoms: ring.atoms,
     bonds: ring.bonds,

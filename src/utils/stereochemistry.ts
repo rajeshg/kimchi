@@ -1,4 +1,4 @@
-import type { Atom, Bond, Molecule } from 'types';
+import type { Atom, Bond, Molecule } from "types";
 
 /**
  * Stereochemistry utilities for R/S and E/Z configuration assignment
@@ -7,41 +7,43 @@ import type { Atom, Bond, Molecule } from 'types';
 export interface StereochemistryResult {
   chiralCenters: Array<{
     atomId: number;
-    configuration: 'R' | 'S' | undefined;
+    configuration: "R" | "S" | undefined;
   }>;
   doubleBonds: Array<{
     bondIndices: [number, number];
-    configuration: 'E' | 'Z' | undefined;
+    configuration: "E" | "Z" | undefined;
   }>;
 }
 
 /**
  * Assign stereochemistry (R/S for chiral centers, E/Z for double bonds)
  */
-export function assignStereochemistry(molecule: Molecule): StereochemistryResult {
+export function assignStereochemistry(
+  molecule: Molecule,
+): StereochemistryResult {
   const result: StereochemistryResult = {
     chiralCenters: [],
-    doubleBonds: []
+    doubleBonds: [],
   };
 
   // Find chiral centers
   for (const atom of molecule.atoms) {
-    if (atom.chiral && (atom.chiral === '@' || atom.chiral === '@@')) {
+    if (atom.chiral && (atom.chiral === "@" || atom.chiral === "@@")) {
       const config = determineRSConfiguration(molecule, atom.id);
       result.chiralCenters.push({
         atomId: atom.id,
-        configuration: config
+        configuration: config,
       });
     }
   }
 
   // Find double bonds with stereochemistry
   for (const bond of molecule.bonds) {
-    if (bond.type === 'double' && bond.stereo) {
+    if (bond.type === "double" && bond.stereo) {
       const config = determineEZConfiguration(molecule, bond);
       result.doubleBonds.push({
         bondIndices: [bond.atom1, bond.atom2],
-        configuration: config
+        configuration: config,
       });
     }
   }
@@ -52,8 +54,11 @@ export function assignStereochemistry(molecule: Molecule): StereochemistryResult
 /**
  * Determine R/S configuration for a chiral center using CIP rules
  */
-function determineRSConfiguration(molecule: Molecule, atomId: number): 'R' | 'S' | undefined {
-  const atom = molecule.atoms.find(a => a.id === atomId);
+function determineRSConfiguration(
+  molecule: Molecule,
+  atomId: number,
+): "R" | "S" | undefined {
+  const atom = molecule.atoms.find((a) => a.id === atomId);
   if (!atom || !atom.chiral) return undefined;
 
   // Get the four substituents
@@ -61,9 +66,9 @@ function determineRSConfiguration(molecule: Molecule, atomId: number): 'R' | 'S'
   if (substituents.length !== 4) return undefined;
 
   // Assign CIP priorities
-  const priorities = substituents.map(sub => ({
+  const priorities = substituents.map((sub) => ({
     substituent: sub,
-    priority: calculateCIPPriority(molecule, atomId, sub)
+    priority: calculateCIPPriority(molecule, atomId, sub),
   }));
 
   // Sort by priority (highest first)
@@ -75,10 +80,10 @@ function determineRSConfiguration(molecule: Molecule, atomId: number): 'R' | 'S'
 
   // For now, map SMILES stereochemistry directly
   // @ typically corresponds to S, @@ to R, but this depends on the substituent order
-  if (atom.chiral === '@') {
-    return 'S';
-  } else if (atom.chiral === '@@') {
-    return 'R';
+  if (atom.chiral === "@") {
+    return "S";
+  } else if (atom.chiral === "@@") {
+    return "R";
   }
 
   return undefined;
@@ -89,7 +94,9 @@ function determineRSConfiguration(molecule: Molecule, atomId: number): 'R' | 'S'
  */
 function getChiralSubstituents(molecule: Molecule, atomId: number): number[] {
   const substituents: number[] = [];
-  const bonds = molecule.bonds.filter(b => b.atom1 === atomId || b.atom2 === atomId);
+  const bonds = molecule.bonds.filter(
+    (b) => b.atom1 === atomId || b.atom2 === atomId,
+  );
 
   for (const bond of bonds) {
     const neighborId = bond.atom1 === atomId ? bond.atom2 : bond.atom1;
@@ -97,7 +104,7 @@ function getChiralSubstituents(molecule: Molecule, atomId: number): number[] {
   }
 
   // Add implicit hydrogens
-  const atom = molecule.atoms.find(a => a.id === atomId);
+  const atom = molecule.atoms.find((a) => a.id === atomId);
   if (atom && atom.hydrogens) {
     for (let i = 0; i < atom.hydrogens; i++) {
       // Use negative IDs for implicit hydrogens
@@ -112,29 +119,33 @@ function getChiralSubstituents(molecule: Molecule, atomId: number): number[] {
  * Calculate CIP priority for a substituent using recursive atom sorting
  * This is a simplified implementation of CIP rules
  */
-function calculateCIPPriority(molecule: Molecule, fromAtomId: number, substituentId: number): number {
+function calculateCIPPriority(
+  molecule: Molecule,
+  fromAtomId: number,
+  substituentId: number,
+): number {
   // Handle implicit hydrogens
   if (substituentId < 0) {
     return 0.001; // Very low priority for hydrogens
   }
 
-  const substituentAtom = molecule.atoms.find(a => a.id === substituentId);
+  const substituentAtom = molecule.atoms.find((a) => a.id === substituentId);
   if (!substituentAtom) return 0;
 
   // Primary sort: atomic number
   let priority = substituentAtom.atomicNumber || 0;
 
   // For explicit hydrogens, use very low priority
-  if (substituentAtom.symbol === 'H' && substituentAtom.atomicNumber === 1) {
+  if (substituentAtom.symbol === "H" && substituentAtom.atomicNumber === 1) {
     return 0.001; // Very low but non-zero for hydrogens
   }
 
   // Get attached atoms, sorted by their CIP priority
   const attachedAtoms = getAttachedAtoms(molecule, substituentId)
-    .filter(id => id !== fromAtomId)
-    .map(id => ({
+    .filter((id) => id !== fromAtomId)
+    .map((id) => ({
       id,
-      priority: calculateCIPPriority(molecule, substituentId, id)
+      priority: calculateCIPPriority(molecule, substituentId, id),
     }))
     .sort((a, b) => b.priority - a.priority);
 
@@ -172,12 +183,23 @@ function getAttachedAtoms(molecule: Molecule, atomId: number): number[] {
 /**
  * Determine E/Z configuration for a double bond
  */
-function determineEZConfiguration(molecule: Molecule, bond: Bond): 'E' | 'Z' | undefined {
-  if (bond.type !== 'double') return undefined;
+function determineEZConfiguration(
+  molecule: Molecule,
+  bond: Bond,
+): "E" | "Z" | undefined {
+  if (bond.type !== "double") return undefined;
 
   // Get substituents on each side of the double bond
-  const substituents1 = getDoubleBondSubstituents(molecule, bond.atom1, bond.atom2);
-  const substituents2 = getDoubleBondSubstituents(molecule, bond.atom2, bond.atom1);
+  const substituents1 = getDoubleBondSubstituents(
+    molecule,
+    bond.atom1,
+    bond.atom2,
+  );
+  const substituents2 = getDoubleBondSubstituents(
+    molecule,
+    bond.atom2,
+    bond.atom1,
+  );
 
   if (substituents1.length < 2 || substituents2.length < 2) return undefined;
 
@@ -197,9 +219,9 @@ function determineEZConfiguration(molecule: Molecule, bond: Bond): 'E' | 'Z' | u
 
   // In SMILES, bond stereo indicates relative positions
   // This is a simplified mapping - real implementation would need geometric analysis
-  if (bond.stereo === 'up' || bond.stereo === 'down') {
+  if (bond.stereo === "up" || bond.stereo === "down") {
     // For trans-2-butene style, check if high priority groups are on opposite sides
-    return 'E'; // Placeholder - would need proper geometric determination
+    return "E"; // Placeholder - would need proper geometric determination
   }
 
   return undefined;
@@ -208,7 +230,11 @@ function determineEZConfiguration(molecule: Molecule, bond: Bond): 'E' | 'Z' | u
 /**
  * Get substituents attached to a double bond carbon (excluding the other carbon in the double bond)
  */
-function getDoubleBondSubstituents(molecule: Molecule, atomId: number, excludeId: number): number[] {
+function getDoubleBondSubstituents(
+  molecule: Molecule,
+  atomId: number,
+  excludeId: number,
+): number[] {
   const substituents: number[] = [];
   for (const bond of molecule.bonds) {
     if (bond.atom1 === atomId && bond.atom2 !== excludeId) {

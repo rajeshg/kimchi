@@ -1,28 +1,45 @@
 import { describe, it, expect } from "bun:test";
-import { ImmutableNamingContext, ExecutionPhase } from "src/iupac-engine/immutable-context";
-import { P14_2_LOWEST_LOCANT_SET_RULE, P14_3_PRINCIPAL_GROUP_NUMBERING_RULE } from "src/iupac-engine/rules/numbering-layer";
-import type { ParentStructure, FunctionalGroup, Chain } from "src/iupac-engine/types";
+import {
+  ImmutableNamingContext,
+  ExecutionPhase,
+} from "src/iupac-engine/immutable-context";
+import {
+  P14_2_LOWEST_LOCANT_SET_RULE,
+  P14_3_PRINCIPAL_GROUP_NUMBERING_RULE,
+} from "src/iupac-engine/rules/numbering-layer";
+import type {
+  ParentStructure,
+  FunctionalGroup,
+  Chain,
+} from "src/iupac-engine/types";
 import type { Atom, Bond } from "types";
 
 function makeAtoms(ids: number[]): Atom[] {
-  return ids.map((id) => ({
-    id,
-    symbol: "C",
-    atomicNumber: 6,
-    charge: 0,
-    hydrogens: 0,
-    isotope: null,
-    aromatic: false,
-    chiral: null,
-    isBracket: false,
-    atomClass: 0,
-    degree: undefined,
-    isInRing: undefined,
-    ringIds: undefined,
-    hybridization: undefined,
-  } as Atom));
+  return ids.map(
+    (id) =>
+      ({
+        id,
+        symbol: "C",
+        atomicNumber: 6,
+        charge: 0,
+        hydrogens: 0,
+        isotope: null,
+        aromatic: false,
+        chiral: null,
+        isBracket: false,
+        atomClass: 0,
+        degree: undefined,
+        isInRing: undefined,
+        ringIds: undefined,
+        hybridization: undefined,
+      }) as Atom,
+  );
 }
-function makeChain(locants: number[], multipleBonds = [], substituents = []): Chain {
+function makeChain(
+  locants: number[],
+  multipleBonds = [],
+  substituents = [],
+): Chain {
   return {
     atoms: makeAtoms(locants),
     bonds: [],
@@ -32,7 +49,12 @@ function makeChain(locants: number[], multipleBonds = [], substituents = []): Ch
     locants,
   };
 }
-function makeGroup(type: string, priority: number, locants: number[], isPrincipal: boolean): FunctionalGroup {
+function makeGroup(
+  type: string,
+  priority: number,
+  locants: number[],
+  isPrincipal: boolean,
+): FunctionalGroup {
   return {
     type,
     atoms: makeAtoms(locants),
@@ -57,7 +79,11 @@ describe("P-14 numbering rules", () => {
     let context = ImmutableNamingContext.create({ atoms: [], bonds: [] });
     context = context.withStateUpdate(
       (state) => ({ ...state, parentStructure, functionalGroups }),
-      "setup", "setup", "setup", ExecutionPhase.NUMBERING, "setup"
+      "setup",
+      "setup",
+      "setup",
+      ExecutionPhase.NUMBERING,
+      "setup",
     );
     context = P14_2_LOWEST_LOCANT_SET_RULE.action(context);
     const result = context.getState().parentStructure?.locants ?? [];
@@ -78,15 +104,19 @@ describe("P-14 numbering rules", () => {
     let context = ImmutableNamingContext.create({ atoms: [], bonds: [] });
     context = context.withStateUpdate(
       (state) => ({ ...state, parentStructure, functionalGroups }),
-      "setup", "setup", "setup", ExecutionPhase.NUMBERING, "setup"
+      "setup",
+      "setup",
+      "setup",
+      ExecutionPhase.NUMBERING,
+      "setup",
     );
     context = P14_3_PRINCIPAL_GROUP_NUMBERING_RULE.action(context);
     const updatedGroups = context.getState().functionalGroups;
-  expect(updatedGroups).toBeDefined();
-  expect((updatedGroups!).length).toBeGreaterThan(0);
-  const firstGroup = (updatedGroups![0]!);
-  // Alcohol at atom 2 (position 1) should get locant 2 with forward numbering
-  expect(firstGroup.locants).toEqual([2]);
+    expect(updatedGroups).toBeDefined();
+    expect(updatedGroups!.length).toBeGreaterThan(0);
+    const firstGroup = updatedGroups![0]!;
+    // Alcohol at atom 2 (position 1) should get locant 2 with forward numbering
+    expect(firstGroup.locants).toEqual([2]);
   });
 
   it("P-14.2: tie-break by first point of difference", () => {
@@ -104,7 +134,11 @@ describe("P-14 numbering rules", () => {
     let context = ImmutableNamingContext.create({ atoms: [], bonds: [] });
     context = context.withStateUpdate(
       (state) => ({ ...state, parentStructure, functionalGroups }),
-      "setup", "setup", "setup", ExecutionPhase.NUMBERING, "setup"
+      "setup",
+      "setup",
+      "setup",
+      ExecutionPhase.NUMBERING,
+      "setup",
     );
     context = P14_2_LOWEST_LOCANT_SET_RULE.action(context);
     const result = context.getState().parentStructure?.locants ?? [];

@@ -1,6 +1,6 @@
-import type { Molecule } from 'types';
-import rules from '../../../opsin-rules.json';
-import { matchSMARTS } from 'src/matchers/smarts-matcher';
+import type { Molecule } from "types";
+import rules from "../../../opsin-rules.json";
+import { matchSMARTS } from "src/matchers/smarts-matcher";
 
 // ============================================================================
 // Type Definitions (re-exported from old rule-engine.ts)
@@ -137,8 +137,8 @@ class IUPACRuleEngine {
         const result = matchSMARTS(rule.smarts, molecule);
         if (result.success && result.matches.length > 0) {
           if (rule.ignoreIfInRing) {
-            const nonRingMatch = result.matches.find(m =>
-              m.atoms.some(a => !molecule.atoms[a.moleculeIndex]?.isInRing)
+            const nonRingMatch = result.matches.find((m) =>
+              m.atoms.some((a) => !molecule.atoms[a.moleculeIndex]?.isInRing),
             );
             if (!nonRingMatch) continue;
           }
@@ -246,9 +246,9 @@ class IUPACRuleEngine {
     const rulesData = this.loadRules();
 
     if (carbonCount >= 1 && carbonCount <= 11) {
-      const smiles = 'C'.repeat(carbonCount);
+      const smiles = "C".repeat(carbonCount);
       const stem = rulesData.alkanes[smiles];
-      return stem ? this.applyVowelElision(stem, 'ane') : null;
+      return stem ? this.applyVowelElision(stem, "ane") : null;
     }
 
     if (carbonCount >= 12 && carbonCount < 100) {
@@ -256,8 +256,8 @@ class IUPACRuleEngine {
     }
 
     if (carbonCount === 100) {
-      const stem = rulesData.alkaneStemComponents.hundreds['100'];
-      return stem ? this.applyVowelElision(stem, 'ane') : null;
+      const stem = rulesData.alkaneStemComponents.hundreds["100"];
+      return stem ? this.applyVowelElision(stem, "ane") : null;
     }
 
     if (carbonCount > 100) {
@@ -280,21 +280,22 @@ class IUPACRuleEngine {
 
     let name: string;
     if (units > 0) {
-      const unitsStemRaw = rulesData.alkaneStemComponents.units[units.toString()];
+      const unitsStemRaw =
+        rulesData.alkaneStemComponents.units[units.toString()];
       if (!unitsStemRaw) return null;
       const tensStem = this.selectVariant(tensStemRaw, unitsStemRaw, true);
       const lastCharOfUnits = unitsStemRaw.slice(-1);
-      const firstCharOfTens = tensStem[0] ?? '';
+      const firstCharOfTens = tensStem[0] ?? "";
 
       if (this.isVowel(lastCharOfUnits) || this.isVowel(firstCharOfTens)) {
         name = this.applyVowelElision(unitsStemRaw, tensStem);
       } else {
-        name = unitsStemRaw + 'a' + tensStem;
+        name = unitsStemRaw + "a" + tensStem;
       }
-      name = this.applyVowelElision(name, 'ane');
+      name = this.applyVowelElision(name, "ane");
     } else {
-      name = this.selectVariant(tensStemRaw, '', true);
-      name = this.applyVowelElision(name, 'ane');
+      name = this.selectVariant(tensStemRaw, "", true);
+      name = this.applyVowelElision(name, "ane");
     }
 
     return name;
@@ -308,7 +309,8 @@ class IUPACRuleEngine {
     const hundreds = Math.floor(carbonCount / 100) * 100;
     const remainder = carbonCount % 100;
 
-    const hundredsStem = rulesData.alkaneStemComponents.hundreds[hundreds.toString()];
+    const hundredsStem =
+      rulesData.alkaneStemComponents.hundreds[hundreds.toString()];
     if (!hundredsStem) return null;
 
     let name = hundredsStem;
@@ -322,22 +324,24 @@ class IUPACRuleEngine {
 
       let tensStem: string;
       if (units > 0) {
-        const unitsStem = rulesData.alkaneStemComponents.units[units.toString()];
+        const unitsStem =
+          rulesData.alkaneStemComponents.units[units.toString()];
         if (!unitsStem) return null;
         tensStem = this.selectVariant(tensStemRaw, unitsStem, true);
         name = this.applyVowelElision(name, tensStem);
         name = this.applyVowelElision(name, unitsStem);
       } else {
-        tensStem = this.selectVariant(tensStemRaw, 'ane', true);
+        tensStem = this.selectVariant(tensStemRaw, "ane", true);
         name = this.applyVowelElision(name, tensStem);
       }
     } else if (remainder > 0) {
-      const unitsStem = rulesData.alkaneStemComponents.units[remainder.toString()];
+      const unitsStem =
+        rulesData.alkaneStemComponents.units[remainder.toString()];
       if (!unitsStem) return null;
       name = this.applyVowelElision(name, unitsStem);
     }
 
-    return this.applyVowelElision(name, 'ane');
+    return this.applyVowelElision(name, "ane");
   }
 
   // ========================================================================
@@ -347,11 +351,14 @@ class IUPACRuleEngine {
   /**
    * Get Greek numeral prefix for a count
    */
-  getMultiplierPrefix(count: number, isGroupMultiplier: boolean = false): string | null {
+  getMultiplierPrefix(
+    count: number,
+    isGroupMultiplier: boolean = false,
+  ): string | null {
     if (count === 1) return null;
 
     const rulesData = this.loadRules();
-    const multiplierType = isGroupMultiplier ? 'group' : 'basic';
+    const multiplierType = isGroupMultiplier ? "group" : "basic";
     const prefix = rulesData.multipliers[multiplierType][count.toString()];
     return prefix ?? null;
   }
@@ -361,7 +368,7 @@ class IUPACRuleEngine {
    */
   getMultiplier(
     count: number,
-    type: 'basic' | 'group' | 'vonBaeyer' | 'ringAssembly' | 'fractional'
+    type: "basic" | "group" | "vonBaeyer" | "ringAssembly" | "fractional",
   ): string | null {
     const rulesData = this.loadRules();
     const multiplier = rulesData.multipliers[type][count.toString()];
@@ -432,13 +439,20 @@ class IUPACRuleEngine {
     if (!firstCharOfSuffix) return name + suffix;
 
     const firstCharOfSuffixLower = firstCharOfSuffix.toLowerCase();
-    const vowels = ['a', 'e', 'i', 'o', 'u'];
+    const vowels = ["a", "e", "i", "o", "u"];
 
-    if (vowels.includes(lastCharOfName) && vowels.includes(firstCharOfSuffixLower)) {
-      if (lastCharOfName === 'a' || lastCharOfName === 'o' || lastCharOfName === 'e') {
+    if (
+      vowels.includes(lastCharOfName) &&
+      vowels.includes(firstCharOfSuffixLower)
+    ) {
+      if (
+        lastCharOfName === "a" ||
+        lastCharOfName === "o" ||
+        lastCharOfName === "e"
+      ) {
         return name.slice(0, -1) + suffix;
       }
-      if (lastCharOfName === 'i' && firstCharOfSuffixLower === 'a') {
+      if (lastCharOfName === "i" && firstCharOfSuffixLower === "a") {
         return name.slice(0, -1) + suffix;
       }
     }
@@ -450,7 +464,7 @@ class IUPACRuleEngine {
    * Check if a character is a vowel
    */
   private isVowel(char: string): boolean {
-    return ['a', 'e', 'i', 'o', 'u'].includes(char.toLowerCase());
+    return ["a", "e", "i", "o", "u"].includes(char.toLowerCase());
   }
 
   /**
@@ -459,36 +473,36 @@ class IUPACRuleEngine {
   private selectVariant(
     variants: string,
     nextPart: string,
-    isTensComponent: boolean = false
+    isTensComponent: boolean = false,
   ): string {
-    if (!variants.includes('|')) return variants;
+    if (!variants.includes("|")) return variants;
 
-    const parts = variants.split('|');
-    const nextFirstChar = nextPart[0]?.toLowerCase() ?? '';
+    const parts = variants.split("|");
+    const nextFirstChar = nextPart[0]?.toLowerCase() ?? "";
 
     if (isTensComponent) {
       if (!nextFirstChar) {
-        return parts[parts.length - 1] ?? '';
+        return parts[parts.length - 1] ?? "";
       }
-      return parts[0] ?? '';
+      return parts[0] ?? "";
     }
 
     if (!nextFirstChar) {
-      return parts[parts.length - 1] ?? '';
+      return parts[parts.length - 1] ?? "";
     }
 
     if (this.isVowel(nextFirstChar)) {
-      return parts[parts.length - 1] ?? '';
+      return parts[parts.length - 1] ?? "";
     }
 
-    return parts[0] ?? '';
+    return parts[0] ?? "";
   }
 
   /**
    * Get first character lowercased
    */
   getFirstCharLower(str: string): string {
-    return str[0]?.toLowerCase() ?? '';
+    return str[0]?.toLowerCase() ?? "";
   }
 
   /**
@@ -512,8 +526,4 @@ class IUPACRuleEngine {
 
 const ruleEngine = new IUPACRuleEngine();
 
-export {
-  ruleEngine,
-  IUPACRuleEngine,
-  type RulesData,
-};
+export { ruleEngine, IUPACRuleEngine, type RulesData };

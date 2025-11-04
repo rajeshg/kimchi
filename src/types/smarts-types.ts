@@ -1,29 +1,29 @@
 export type AtomPrimitiveType =
-  | 'wildcard'
-  | 'element'
-  | 'aromatic_element'
-  | 'aliphatic_element'
-  | 'atomic_number'
-  | 'degree'
-  | 'valence'
-  | 'connectivity'
-  | 'total_h'
-  | 'implicit_h'
-  | 'ring_membership'
-  | 'ring_size'
-  | 'ring_connectivity'
-  | 'charge'
-  | 'aromatic'
-  | 'aliphatic';
+  | "wildcard"
+  | "element"
+  | "aromatic_element"
+  | "aliphatic_element"
+  | "atomic_number"
+  | "degree"
+  | "valence"
+  | "connectivity"
+  | "total_h"
+  | "implicit_h"
+  | "ring_membership"
+  | "ring_size"
+  | "ring_connectivity"
+  | "charge"
+  | "aromatic"
+  | "aliphatic";
 
 export type BondPrimitiveType =
-  | 'single'
-  | 'double'
-  | 'triple'
-  | 'aromatic'
-  | 'any'
-  | 'ring'
-  | 'not_ring';
+  | "single"
+  | "double"
+  | "triple"
+  | "aromatic"
+  | "any"
+  | "ring"
+  | "not_ring";
 
 export interface AtomPrimitive {
   type: AtomPrimitiveType;
@@ -36,7 +36,7 @@ export interface BondPrimitive {
   negate?: boolean;
 }
 
-export type LogicalOperator = 'and' | 'or' | 'not';
+export type LogicalOperator = "and" | "or" | "not";
 
 export interface LogicalExpression {
   operator: LogicalOperator;

@@ -1,14 +1,25 @@
-import { describe, it, expect } from 'bun:test';
-import { parseSMILES } from 'index';
-import { findMainChain, getChainFunctionalGroupPriority } from 'src/iupac-engine/naming/iupac-chains';
+import { describe, it, expect } from "bun:test";
+import { parseSMILES } from "index";
+import {
+  findMainChain,
+  getChainFunctionalGroupPriority,
+} from "src/iupac-engine/naming/iupac-chains";
 
-describe('IUPAC functional-group priority (extended)', () => {
+describe("IUPAC functional-group priority (extended)", () => {
   const cases: { smiles: string; name: string; minPriority: number }[] = [
-    { smiles: 'CC(=O)OCC', name: 'ester (ethyl acetate)', minPriority: 5 },
-    { smiles: 'CCC#N', name: 'nitrile (propionitrile)', minPriority: 4 },
-    { smiles: 'CC(=O)N', name: 'amide (acetamide)', minPriority: 5 },
-    { smiles: 'CC(=O)Cl', name: 'acid chloride (acetyl chloride)', minPriority: 5 },
-    { smiles: 'CP(=O)(O)O', name: 'phosphonic acid (methylphosphonic acid)', minPriority: 6 },
+    { smiles: "CC(=O)OCC", name: "ester (ethyl acetate)", minPriority: 5 },
+    { smiles: "CCC#N", name: "nitrile (propionitrile)", minPriority: 4 },
+    { smiles: "CC(=O)N", name: "amide (acetamide)", minPriority: 5 },
+    {
+      smiles: "CC(=O)Cl",
+      name: "acid chloride (acetyl chloride)",
+      minPriority: 5,
+    },
+    {
+      smiles: "CP(=O)(O)O",
+      name: "phosphonic acid (methylphosphonic acid)",
+      minPriority: 6,
+    },
     // Note: sulfonamide and nitro groups are excluded from the parent chain,
     // so getChainFunctionalGroupPriority cannot detect them by examining chain atoms alone
   ];

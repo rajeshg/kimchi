@@ -1,4 +1,4 @@
- import type { Molecule, Atom, Bond } from 'types';
+import type { Molecule, Atom, Bond } from "types";
 
 // Adapter: openchem Atom -> IMorganAtom
 class OC_MorganAtom implements IMorganAtom {
@@ -7,51 +7,197 @@ class OC_MorganAtom implements IMorganAtom {
   private atomIdx: number;
   private atoms: Atom[];
   private bonds: Bond[];
-  constructor(atom: Atom, mol: Molecule, atomIdx: number, atoms: Atom[], bonds: Bond[]) {
+  constructor(
+    atom: Atom,
+    mol: Molecule,
+    atomIdx: number,
+    atoms: Atom[],
+    bonds: Bond[],
+  ) {
     this.atom = atom;
     this.mol = mol;
     this.atomIdx = atomIdx;
     this.atoms = atoms;
     this.bonds = bonds;
   }
-  getAtomicNum(): number { return this.atom.atomicNumber; }
+  getAtomicNum(): number {
+    return this.atom.atomicNumber;
+  }
   getDegree(): number {
-     // Return total degree: explicit bonds + implicit hydrogens
-     // Calculate explicit bonds from the bonds array
-     const explicitBonds = this.bonds.filter(b => b.atom1 === this.atom.id || b.atom2 === this.atom.id).length;
-     return explicitBonds + (this.atom.hydrogens || 0);
-   }
-  getFormalCharge(): number { return this.atom.charge; }
-  getTotalNumHs(): number { return this.atom.hydrogens; }
-  getIsAromatic(): boolean { return !!this.atom.aromatic; }
-  isInRing(): boolean { return !!this.atom.isInRing; }
+    // Return total degree: explicit bonds + implicit hydrogens
+    // Calculate explicit bonds from the bonds array
+    const explicitBonds = this.bonds.filter(
+      (b) => b.atom1 === this.atom.id || b.atom2 === this.atom.id,
+    ).length;
+    return explicitBonds + (this.atom.hydrogens || 0);
+  }
+  getFormalCharge(): number {
+    return this.atom.charge;
+  }
+  getTotalNumHs(): number {
+    return this.atom.hydrogens;
+  }
+  getIsAromatic(): boolean {
+    return !!this.atom.aromatic;
+  }
+  isInRing(): boolean {
+    return !!this.atom.isInRing;
+  }
   getValence(): number {
     const standardValences: Record<string, number> = {
-      'H': 1, 'He': 0, 'Li': 1, 'Be': 2, 'B': 3, 'C': 4, 'N': 3, 'O': 2, 'F': 1, 'Ne': 0,
-      'Na': 1, 'Mg': 2, 'Al': 3, 'Si': 4, 'P': 3, 'S': 2, 'Cl': 1, 'Ar': 0,
-      'K': 1, 'Ca': 2, 'Sc': 3, 'Ti': 4, 'V': 5, 'Cr': 6, 'Mn': 7, 'Fe': 8, 'Co': 9, 'Ni': 10, 'Cu': 11, 'Zn': 12,
-      'Ga': 3, 'Ge': 4, 'As': 3, 'Se': 2, 'Br': 1, 'Kr': 0,
-      'Rb': 1, 'Sr': 2, 'Y': 3, 'Zr': 4, 'Nb': 5, 'Mo': 6, 'Tc': 7, 'Ru': 8, 'Rh': 9, 'Pd': 10, 'Ag': 11, 'Cd': 12,
-      'In': 3, 'Sn': 4, 'Sb': 3, 'Te': 2, 'I': 1, 'Xe': 0,
-      'Cs': 1, 'Ba': 2, 'La': 3, 'Ce': 3, 'Pr': 3, 'Nd': 3, 'Pm': 3, 'Sm': 3, 'Eu': 3, 'Gd': 3, 'Tb': 3, 'Dy': 3, 'Ho': 3, 'Er': 3, 'Tm': 3, 'Yb': 3, 'Lu': 3,
-      'Hf': 4, 'Ta': 5, 'W': 6, 'Re': 7, 'Os': 8, 'Ir': 9, 'Pt': 10, 'Au': 11, 'Hg': 12, 'Tl': 3, 'Pb': 4, 'Bi': 3, 'Po': 2, 'At': 1, 'Rn': 0,
-      'Fr': 1, 'Ra': 2, 'Ac': 3, 'Th': 4, 'Pa': 5, 'U': 6, 'Np': 7, 'Pu': 8, 'Am': 9, 'Cm': 10, 'Bk': 11, 'Cf': 12, 'Es': 13, 'Fm': 14, 'Md': 15, 'No': 16, 'Lr': 17,
-      'Rf': 4, 'Db': 5, 'Sg': 6, 'Bh': 7, 'Hs': 8, 'Mt': 9, 'Ds': 10, 'Rg': 11, 'Cn': 12, 'Nh': 13, 'Fl': 14, 'Mc': 15, 'Lv': 16, 'Ts': 17, 'Og': 18,
+      H: 1,
+      He: 0,
+      Li: 1,
+      Be: 2,
+      B: 3,
+      C: 4,
+      N: 3,
+      O: 2,
+      F: 1,
+      Ne: 0,
+      Na: 1,
+      Mg: 2,
+      Al: 3,
+      Si: 4,
+      P: 3,
+      S: 2,
+      Cl: 1,
+      Ar: 0,
+      K: 1,
+      Ca: 2,
+      Sc: 3,
+      Ti: 4,
+      V: 5,
+      Cr: 6,
+      Mn: 7,
+      Fe: 8,
+      Co: 9,
+      Ni: 10,
+      Cu: 11,
+      Zn: 12,
+      Ga: 3,
+      Ge: 4,
+      As: 3,
+      Se: 2,
+      Br: 1,
+      Kr: 0,
+      Rb: 1,
+      Sr: 2,
+      Y: 3,
+      Zr: 4,
+      Nb: 5,
+      Mo: 6,
+      Tc: 7,
+      Ru: 8,
+      Rh: 9,
+      Pd: 10,
+      Ag: 11,
+      Cd: 12,
+      In: 3,
+      Sn: 4,
+      Sb: 3,
+      Te: 2,
+      I: 1,
+      Xe: 0,
+      Cs: 1,
+      Ba: 2,
+      La: 3,
+      Ce: 3,
+      Pr: 3,
+      Nd: 3,
+      Pm: 3,
+      Sm: 3,
+      Eu: 3,
+      Gd: 3,
+      Tb: 3,
+      Dy: 3,
+      Ho: 3,
+      Er: 3,
+      Tm: 3,
+      Yb: 3,
+      Lu: 3,
+      Hf: 4,
+      Ta: 5,
+      W: 6,
+      Re: 7,
+      Os: 8,
+      Ir: 9,
+      Pt: 10,
+      Au: 11,
+      Hg: 12,
+      Tl: 3,
+      Pb: 4,
+      Bi: 3,
+      Po: 2,
+      At: 1,
+      Rn: 0,
+      Fr: 1,
+      Ra: 2,
+      Ac: 3,
+      Th: 4,
+      Pa: 5,
+      U: 6,
+      Np: 7,
+      Pu: 8,
+      Am: 9,
+      Cm: 10,
+      Bk: 11,
+      Cf: 12,
+      Es: 13,
+      Fm: 14,
+      Md: 15,
+      No: 16,
+      Lr: 17,
+      Rf: 4,
+      Db: 5,
+      Sg: 6,
+      Bh: 7,
+      Hs: 8,
+      Mt: 9,
+      Ds: 10,
+      Rg: 11,
+      Cn: 12,
+      Nh: 13,
+      Fl: 14,
+      Mc: 15,
+      Lv: 16,
+      Ts: 17,
+      Og: 18,
     };
     return standardValences[this.atom.symbol] || 0;
   }
   getBonds(): IMorganBond[] {
-    return this.bonds.filter(b => b.atom1 === this.atom.id || b.atom2 === this.atom.id).map(b => new OC_MorganBond(b, this));
+    return this.bonds
+      .filter((b) => b.atom1 === this.atom.id || b.atom2 === this.atom.id)
+      .map((b) => new OC_MorganBond(b, this));
   }
   getNeighbors(): IMorganAtom[] {
     const neighbors: IMorganAtom[] = [];
     for (const b of this.bonds) {
       if (b.atom1 === this.atom.id) {
-        const idx = this.atoms.findIndex(a => a.id === b.atom2);
-        if (idx !== -1 && this.atoms[idx]) neighbors.push(new OC_MorganAtom(this.atoms[idx]!, this.mol, idx, this.atoms, this.bonds));
+        const idx = this.atoms.findIndex((a) => a.id === b.atom2);
+        if (idx !== -1 && this.atoms[idx])
+          neighbors.push(
+            new OC_MorganAtom(
+              this.atoms[idx]!,
+              this.mol,
+              idx,
+              this.atoms,
+              this.bonds,
+            ),
+          );
       } else if (b.atom2 === this.atom.id) {
-        const idx = this.atoms.findIndex(a => a.id === b.atom1);
-        if (idx !== -1 && this.atoms[idx]) neighbors.push(new OC_MorganAtom(this.atoms[idx]!, this.mol, idx, this.atoms, this.bonds));
+        const idx = this.atoms.findIndex((a) => a.id === b.atom1);
+        if (idx !== -1 && this.atoms[idx])
+          neighbors.push(
+            new OC_MorganAtom(
+              this.atoms[idx]!,
+              this.mol,
+              idx,
+              this.atoms,
+              this.bonds,
+            ),
+          );
       }
     }
     return neighbors;
@@ -67,20 +213,35 @@ class OC_MorganBond implements IMorganBond {
     this.atom = atom;
   }
   getOtherAtom(atom: IMorganAtom): IMorganAtom {
-    const a = this.bond.atom1 === (this.atom as any).atom.id ? this.bond.atom2 : this.bond.atom1;
+    const a =
+      this.bond.atom1 === (this.atom as any).atom.id
+        ? this.bond.atom2
+        : this.bond.atom1;
     const atoms = (this.atom as any).atoms as Atom[];
     const mol = (this.atom as any).mol as Molecule;
-    const idx = atoms.findIndex(at => at.id === a);
-  if (idx === -1 || !atoms[idx]) throw new Error('Invalid atom index in getOtherAtom');
-  return new OC_MorganAtom(atoms[idx]!, mol, idx, atoms, (this.atom as any).bonds);
+    const idx = atoms.findIndex((at) => at.id === a);
+    if (idx === -1 || !atoms[idx])
+      throw new Error("Invalid atom index in getOtherAtom");
+    return new OC_MorganAtom(
+      atoms[idx]!,
+      mol,
+      idx,
+      atoms,
+      (this.atom as any).bonds,
+    );
   }
   getBondType(): number {
     switch (this.bond.type) {
-      case 'single': return 1;
-      case 'double': return 2;
-      case 'triple': return 3;
-      case 'aromatic': return 12; // RDKit uses 12 for aromatic bonds
-      default: return 1;
+      case "single":
+        return 1;
+      case "double":
+        return 2;
+      case "triple":
+        return 3;
+      case "aromatic":
+        return 12; // RDKit uses 12 for aromatic bonds
+      default:
+        return 1;
     }
   }
 }
@@ -95,10 +256,16 @@ class OC_MorganMolecule implements IMorganMolecule {
     this.mol = mol;
     this.atoms = Array.from(mol.atoms);
     this.bonds = (mol as any).bonds ? Array.from((mol as any).bonds) : [];
-    this.ocAtoms = this.atoms.map((a, i) => new OC_MorganAtom(a, mol, i, this.atoms, this.bonds));
+    this.ocAtoms = this.atoms.map(
+      (a, i) => new OC_MorganAtom(a, mol, i, this.atoms, this.bonds),
+    );
   }
-  getAtoms(): IMorganAtom[] { return this.ocAtoms; }
-  getNumAtoms(): number { return this.atoms.length; }
+  getAtoms(): IMorganAtom[] {
+    return this.ocAtoms;
+  }
+  getNumAtoms(): number {
+    return this.atoms.length;
+  }
 }
 
 /**
@@ -108,7 +275,11 @@ class OC_MorganMolecule implements IMorganMolecule {
  * @param fpSize fingerprint bit length (default 2048)
  * @returns Uint8Array bit vector
  */
-export function computeMorganFingerprint(mol: Molecule, radius = 2, fpSize = 2048): Uint8Array {
+export function computeMorganFingerprint(
+  mol: Molecule,
+  radius = 2,
+  fpSize = 2048,
+): Uint8Array {
   const morganMol = new OC_MorganMolecule(mol);
   return getMorganFingerprint(morganMol, radius, fpSize);
 }
@@ -164,7 +335,6 @@ interface IMorganMolecule {
   getNumAtoms(): number;
 }
 
-
 /**
  * A namespace for RDKit-compatible hashing functions.
  * All operations are performed using 32-bit unsigned integer semantics,
@@ -212,7 +382,6 @@ namespace RDKitHash {
     return currentSeed;
   }
 }
-
 
 /**
  * Generates the initial (radius 0) atom invariants, equivalent to
@@ -269,7 +438,7 @@ function getAtomInvariants(mol: IMorganMolecule): Uint32Array {
 export function getMorganFingerprint(
   mol: IMorganMolecule,
   radius: number,
-  fpSize: number = 512
+  fpSize: number = 512,
 ): Uint8Array {
   const numAtoms = mol.getNumAtoms();
   if (numAtoms === 0) {
@@ -295,7 +464,7 @@ export function getMorganFingerprint(
   // Calculate and store initial invariants
   const r0Invariants = getAtomInvariants(mol);
   atomInvariants.push(r0Invariants);
-  r0Invariants.forEach(inv => features.add(inv));
+  r0Invariants.forEach((inv) => features.add(inv));
 
   // --- Radius 1 to N ---
   // Iteratively update invariants
@@ -333,10 +502,10 @@ export function getMorganFingerprint(
     atomInvariants.push(newInvariants);
   }
 
-   // --- Final Step: Fold all collected features into the fingerprint ---
-   // fpSize is the number of bits, so totalBits = fpSize
-   const totalBits = fpSize;
-   for (const featureHash of features) {
+  // --- Final Step: Fold all collected features into the fingerprint ---
+  // fpSize is the number of bits, so totalBits = fpSize
+  const totalBits = fpSize;
+  for (const featureHash of features) {
     const bitIndex = (featureHash >>> 0) % totalBits;
     const byteIndex = Math.floor(bitIndex / 8);
     const bitOffset = bitIndex % 8;
@@ -352,11 +521,11 @@ export function getMorganFingerprint(
 export function tanimotoSimilarity(fp1: Uint8Array, fp2: Uint8Array): number {
   let intersection = 0;
   let union = 0;
-  
+
   for (let i = 0; i < Math.min(fp1.length, fp2.length); i++) {
     const byte1 = fp1[i] ?? 0;
     const byte2 = fp2[i] ?? 0;
-    
+
     for (let bit = 0; bit < 8; bit++) {
       const bit1 = (byte1 >> bit) & 1;
       const bit2 = (byte2 >> bit) & 1;
@@ -364,7 +533,7 @@ export function tanimotoSimilarity(fp1: Uint8Array, fp2: Uint8Array): number {
       if (bit1 === 1 || bit2 === 1) union++;
     }
   }
-  
+
   if (union === 0) return 1.0;
   return intersection / union;
 }

@@ -1,5 +1,5 @@
-import type { Molecule } from 'types';
-import { enumerateTautomers } from './tautomer-enumerator';
+import type { Molecule } from "types";
+import { enumerateTautomers } from "./tautomer-enumerator";
 
 export { enumerateTautomers };
 

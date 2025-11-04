@@ -20,7 +20,7 @@ export interface SVGRendererOptions {
   deterministicChainPlacement?: boolean;
   deterministicChainLength?: number;
   moleculeSpacing?: number;
- }
+}
 
 export interface SVGRenderResult {
   svg: string;
@@ -30,6 +30,17 @@ export interface SVGRenderResult {
 }
 
 export const DEFAULT_COLORS: Record<string, string> = {
-  C: '#222', N: '#3050F8', O: '#FF0D0D', S: '#E6C200', F: '#50FF50', Cl: '#1FF01F', Br: '#A62929', I: '#940094',
-  P: '#FF8000', H: '#AAAAAA', B: '#FFB5B5', Si: '#F0C8A0', default: '#222'
+  C: "#222",
+  N: "#3050F8",
+  O: "#FF0D0D",
+  S: "#E6C200",
+  F: "#50FF50",
+  Cl: "#1FF01F",
+  Br: "#A62929",
+  I: "#940094",
+  P: "#FF8000",
+  H: "#AAAAAA",
+  B: "#FFB5B5",
+  Si: "#F0C8A0",
+  default: "#222",
 };

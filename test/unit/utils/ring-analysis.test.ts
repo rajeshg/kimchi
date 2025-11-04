@@ -23,26 +23,38 @@ describe("ring-analysis", () => {
   describe("findRings", () => {
     it("finds no rings in acyclic molecule", () => {
       const result = parseSMILES("CCC");
-      const rings = findRings(result.molecules[0]!.atoms, result.molecules[0]!.bonds);
+      const rings = findRings(
+        result.molecules[0]!.atoms,
+        result.molecules[0]!.bonds,
+      );
       expect(rings.length).toBe(0);
     });
 
     it("finds single ring in benzene", () => {
       const result = parseSMILES("c1ccccc1");
-      const rings = findRings(result.molecules[0]!.atoms, result.molecules[0]!.bonds);
+      const rings = findRings(
+        result.molecules[0]!.atoms,
+        result.molecules[0]!.bonds,
+      );
       expect(rings.length).toBeGreaterThan(0);
       expect(rings[0]!.length).toBe(6);
     });
 
     it("finds multiple rings in naphthalene", () => {
       const result = parseSMILES("c1ccc2ccccc2c1");
-      const rings = findRings(result.molecules[0]!.atoms, result.molecules[0]!.bonds);
+      const rings = findRings(
+        result.molecules[0]!.atoms,
+        result.molecules[0]!.bonds,
+      );
       expect(rings.length).toBeGreaterThanOrEqual(2);
     });
 
     it("finds rings in cubane", () => {
       const result = parseSMILES("C12C3C4C1C5C4C3C25");
-      const rings = findRings(result.molecules[0]!.atoms, result.molecules[0]!.bonds);
+      const rings = findRings(
+        result.molecules[0]!.atoms,
+        result.molecules[0]!.bonds,
+      );
       expect(rings.length).toBeGreaterThan(0);
     });
   });
@@ -50,7 +62,10 @@ describe("ring-analysis", () => {
   describe("findAtomRings", () => {
     it("returns empty map for acyclic molecule", () => {
       const result = parseSMILES("CCC");
-      const atomRings = findAtomRings(result.molecules[0]!.atoms, result.molecules[0]!.bonds);
+      const atomRings = findAtomRings(
+        result.molecules[0]!.atoms,
+        result.molecules[0]!.bonds,
+      );
       for (const [_, rings] of atomRings) {
         expect(rings.length).toBe(0);
       }
@@ -58,7 +73,10 @@ describe("ring-analysis", () => {
 
     it("maps atoms to their rings in benzene", () => {
       const result = parseSMILES("c1ccccc1");
-      const atomRings = findAtomRings(result.molecules[0]!.atoms, result.molecules[0]!.bonds);
+      const atomRings = findAtomRings(
+        result.molecules[0]!.atoms,
+        result.molecules[0]!.bonds,
+      );
       for (const [atomId, rings] of atomRings) {
         expect(rings.length).toBe(1);
         expect(rings[0]!.length).toBe(6);
@@ -68,7 +86,10 @@ describe("ring-analysis", () => {
 
     it("maps fusion atoms to multiple rings", () => {
       const result = parseSMILES("c1ccc2ccccc2c1");
-      const atomRings = findAtomRings(result.molecules[0]!.atoms, result.molecules[0]!.bonds);
+      const atomRings = findAtomRings(
+        result.molecules[0]!.atoms,
+        result.molecules[0]!.bonds,
+      );
       const fusionAtoms = Array.from(atomRings.entries())
         .filter(([_, rings]) => rings.length === 2)
         .map(([atomId, _]) => atomId);
@@ -99,20 +120,32 @@ describe("ring-analysis", () => {
   describe("findSSSR and findMCB", () => {
     it("finds correct SSSR size for benzene", () => {
       const result = parseSMILES("c1ccccc1");
-      const sssr = findSSSR(result.molecules[0]!.atoms, result.molecules[0]!.bonds);
+      const sssr = findSSSR(
+        result.molecules[0]!.atoms,
+        result.molecules[0]!.bonds,
+      );
       expect(sssr.length).toBe(1);
     });
 
     it("finds correct SSSR size for naphthalene", () => {
       const result = parseSMILES("c1ccc2ccccc2c1");
-      const sssr = findSSSR(result.molecules[0]!.atoms, result.molecules[0]!.bonds);
+      const sssr = findSSSR(
+        result.molecules[0]!.atoms,
+        result.molecules[0]!.bonds,
+      );
       expect(sssr.length).toBe(2);
     });
 
     it("MCB returns same as SSSR", () => {
       const result = parseSMILES("c1ccc2ccccc2c1");
-      const sssr = findSSSR(result.molecules[0]!.atoms, result.molecules[0]!.bonds);
-      const mcb = findMCB(result.molecules[0]!.atoms, result.molecules[0]!.bonds);
+      const sssr = findSSSR(
+        result.molecules[0]!.atoms,
+        result.molecules[0]!.bonds,
+      );
+      const mcb = findMCB(
+        result.molecules[0]!.atoms,
+        result.molecules[0]!.bonds,
+      );
       expect(mcb.length).toBe(sssr.length);
     });
   });
@@ -120,7 +153,10 @@ describe("ring-analysis", () => {
   describe("classifyRingSystems", () => {
     it("classifies isolated ring", () => {
       const result = parseSMILES("c1ccccc1");
-      const classification = classifyRingSystems(result.molecules[0]!.atoms, result.molecules[0]!.bonds);
+      const classification = classifyRingSystems(
+        result.molecules[0]!.atoms,
+        result.molecules[0]!.bonds,
+      );
       expect(classification.isolated.length).toBe(1);
       expect(classification.fused.length).toBe(0);
       expect(classification.spiro.length).toBe(0);
@@ -128,14 +164,22 @@ describe("ring-analysis", () => {
 
     it("classifies fused rings in naphthalene", () => {
       const result = parseSMILES("c1ccc2ccccc2c1");
-      const classification = classifyRingSystems(result.molecules[0]!.atoms, result.molecules[0]!.bonds);
+      const classification = classifyRingSystems(
+        result.molecules[0]!.atoms,
+        result.molecules[0]!.bonds,
+      );
       expect(classification.fused.length).toBeGreaterThanOrEqual(1);
-      expect(classification.isolated.length + classification.fused.length).toBe(2);
+      expect(classification.isolated.length + classification.fused.length).toBe(
+        2,
+      );
     });
 
     it("classifies spiro system", () => {
       const result = parseSMILES("C1CCC2(C1)CCCCC2");
-      const classification = classifyRingSystems(result.molecules[0]!.atoms, result.molecules[0]!.bonds);
+      const classification = classifyRingSystems(
+        result.molecules[0]!.atoms,
+        result.molecules[0]!.bonds,
+      );
       expect(classification.spiro.length).toBeGreaterThan(0);
     });
   });
@@ -219,7 +263,10 @@ describe("ring-analysis", () => {
     });
 
     it("returns false when atoms not in same ring", () => {
-      const rings = [[0, 1, 2, 3], [4, 5, 6, 7]];
+      const rings = [
+        [0, 1, 2, 3],
+        [4, 5, 6, 7],
+      ];
       expect(isBondInRing(0, 4, rings)).toBe(false);
     });
   });
@@ -231,7 +278,11 @@ describe("ring-analysis", () => {
     });
 
     it("returns rings containing atom", () => {
-      const rings = [[0, 1, 2], [2, 3, 4], [5, 6, 7]];
+      const rings = [
+        [0, 1, 2],
+        [2, 3, 4],
+        [5, 6, 7],
+      ];
       const result = getRingsContainingAtom(2, rings);
       expect(result.length).toBe(2);
     });
@@ -241,21 +292,30 @@ describe("ring-analysis", () => {
     it("returns empty for non-aromatic molecule", () => {
       const result = parseSMILES("C1CCCCC1");
       const ringInfo = analyzeRings(result.molecules[0]!);
-      const aromaticRings = getAromaticRings(ringInfo.rings, result.molecules[0]!.atoms);
+      const aromaticRings = getAromaticRings(
+        ringInfo.rings,
+        result.molecules[0]!.atoms,
+      );
       expect(aromaticRings.length).toBe(0);
     });
 
     it("returns aromatic rings for benzene", () => {
       const result = parseSMILES("c1ccccc1");
       const ringInfo = analyzeRings(result.molecules[0]!);
-      const aromaticRings = getAromaticRings(ringInfo.rings, result.molecules[0]!.atoms);
+      const aromaticRings = getAromaticRings(
+        ringInfo.rings,
+        result.molecules[0]!.atoms,
+      );
       expect(aromaticRings.length).toBe(1);
     });
 
     it("filters out non-aromatic rings", () => {
       const result = parseSMILES("c1ccccc1C1CCCCC1");
       const ringInfo = analyzeRings(result.molecules[0]!);
-      const aromaticRings = getAromaticRings(ringInfo.rings, result.molecules[0]!.atoms);
+      const aromaticRings = getAromaticRings(
+        ringInfo.rings,
+        result.molecules[0]!.atoms,
+      );
       expect(aromaticRings.length).toBeLessThan(ringInfo.rings.length);
     });
   });
@@ -266,7 +326,7 @@ describe("ring-analysis", () => {
       const ring = [0, 1, 2, 3, 4, 5];
       const atoms = getRingAtoms(ring, result.molecules[0]!.atoms);
       expect(atoms.length).toBe(6);
-      expect(atoms.every(a => a.symbol === "C")).toBe(true);
+      expect(atoms.every((a) => a.symbol === "C")).toBe(true);
     });
   });
 
@@ -289,13 +349,19 @@ describe("ring-analysis", () => {
   describe("isCompositeRing", () => {
     it("returns false for elementary ring", () => {
       const ring = [0, 1, 2, 3];
-      const smallerRings = [[0, 1, 2], [5, 6, 7]];
+      const smallerRings = [
+        [0, 1, 2],
+        [5, 6, 7],
+      ];
       expect(isCompositeRing(ring, smallerRings)).toBe(false);
     });
 
     it("returns true for composite ring", () => {
       const ring = [0, 1, 2, 3, 4];
-      const smallerRings = [[0, 1, 2], [2, 3, 4]];
+      const smallerRings = [
+        [0, 1, 2],
+        [2, 3, 4],
+      ];
       expect(isCompositeRing(ring, smallerRings)).toBe(true);
     });
   });
@@ -330,7 +396,10 @@ describe("ring-analysis", () => {
 
     it("returns true for fused ring", () => {
       const ring = [0, 1, 2, 3];
-      const allRings = [[0, 1, 2, 3], [2, 3, 4, 5]];
+      const allRings = [
+        [0, 1, 2, 3],
+        [2, 3, 4, 5],
+      ];
       expect(isPartOfFusedSystem(ring, allRings)).toBe(true);
     });
 

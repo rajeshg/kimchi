@@ -1,12 +1,12 @@
 /**
  * Numbering Phase Rules (P-14)
- * 
+ *
  * This layer implements Blue Book P-14 rules for locant assignment
  * and numbering of parent structures and substituents.
- * 
+ *
  * Reference: Blue Book P-14 - Locants and numbering
  * https://iupac.qmul.ac.uk/BlueBook/RuleP14.html
- * 
+ *
  * This file re-exports all rules from the modular numbering-layer/ directory.
  */
 
@@ -18,8 +18,8 @@ export {
   RING_NUMBERING_RULE,
   SUBSTITUENT_NUMBERING_RULE,
   NUMBERING_COMPLETE_RULE,
-  NUMBERING_LAYER_RULES
-} from './numbering-layer/index';
+  NUMBERING_LAYER_RULES,
+} from "./numbering-layer/index";
 
 // Re-export helper functions for use by other layers
-export * from './numbering-layer/helpers';
+export * from "./numbering-layer/helpers";

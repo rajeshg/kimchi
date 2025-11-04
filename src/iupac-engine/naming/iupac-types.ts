@@ -122,4 +122,3 @@ export interface NumberingResult {
   /** Score for this numbering scheme */
   score: number;
 }
-

@@ -1,4 +1,4 @@
-import type { Molecule } from '../../types';
+import type { Molecule } from "../../types";
 
 /**
  * Generate a unique ID for a molecule based on its structure
@@ -7,8 +7,11 @@ function generateMoleculeId(molecule: Molecule): string {
   // Simple hash based on atoms and bonds
   const atomCount = molecule.atoms.length;
   const bondCount = molecule.bonds.length;
-  const elementTypes = molecule.atoms.map(atom => atom.symbol).sort().join('');
-  
+  const elementTypes = molecule.atoms
+    .map((atom) => atom.symbol)
+    .sort()
+    .join("");
+
   return `mol-${atomCount}-${bondCount}-${elementTypes.slice(0, 10)}-${Date.now()}`;
 }
 import type {
@@ -16,8 +19,8 @@ import type {
   RingSystem,
   FunctionalGroup,
   ParentStructure,
-  RuleConflict
-} from './types';
+  RuleConflict,
+} from "./types";
 
 /**
  * Immutable context state interface
@@ -25,7 +28,7 @@ import type {
 export interface ContextState {
   // Core molecular data
   molecule: Molecule;
-  
+
   // Analysis results from phases
   atomicAnalysis?: AtomicAnalysis;
   functionalGroups: FunctionalGroup[];
@@ -33,43 +36,46 @@ export interface ContextState {
   candidateRings: RingSystem[];
   parentStructure?: ParentStructure;
   principalGroup?: FunctionalGroup;
-  
+
   // Nomenclature method selection
   nomenclatureMethod?: NomenclatureMethod;
-  
+
   // Naming result
   finalName?: string;
   confidence: number;
-  
+
   // Phase completion flags
   phaseCompletion: Map<ExecutionPhase, boolean>;
-  
+
   // Context metadata
   timestamp: Date;
   moleculeId: string;
   // Functional group trace metadata captured from OPSIN detector (pattern, atom ids)
-  functionalGroupTrace?: Array<{ pattern?: string; type?: string; atomIds: number[] }>;
+  functionalGroupTrace?: Array<{
+    pattern?: string;
+    type?: string;
+    atomIds: number[];
+  }>;
 
-   // Parent chain selection rule state
-   longest_chain_length?: number;
-   p44_3_1_applied?: boolean;
-   max_score?: number;
-   max_multiple_bonds?: number;
-   p44_3_2_applied?: boolean;
-   max_double_bonds?: number;
-   p44_3_3_applied?: boolean;
-   lowest_multiple_bond_locants?: number[];
-   p44_3_4_applied?: boolean;
-   lowest_double_bond_locants?: number[];
-   p44_3_5_applied?: boolean;
-   max_substituents?: number;
-   p44_3_6_applied?: boolean;
-   lowest_substituent_locants?: number[];
-   p44_3_7_applied?: boolean;
-   p44_3_8_applied?: boolean;
-   selected_chain_final?: Chain;
+  // Parent chain selection rule state
+  longest_chain_length?: number;
+  p44_3_1_applied?: boolean;
+  max_score?: number;
+  max_multiple_bonds?: number;
+  p44_3_2_applied?: boolean;
+  max_double_bonds?: number;
+  p44_3_3_applied?: boolean;
+  lowest_multiple_bond_locants?: number[];
+  p44_3_4_applied?: boolean;
+  lowest_double_bond_locants?: number[];
+  p44_3_5_applied?: boolean;
+  max_substituents?: number;
+  p44_3_6_applied?: boolean;
+  lowest_substituent_locants?: number[];
+  p44_3_7_applied?: boolean;
+  p44_3_8_applied?: boolean;
+  selected_chain_final?: Chain;
 }
-
 
 /**
  * Rule execution trace for debugging and auditing
@@ -80,17 +86,17 @@ export interface RuleExecutionTrace {
   blueBookSection: string;
   phase: ExecutionPhase;
   timestamp: Date;
-  
+
   // State before and after rule execution
   beforeState: ContextState;
   afterState: ContextState;
-  
+
   // Human-readable description of what changed
   description: string;
-  
+
   // Confidence impact
   confidenceChange?: number;
-  
+
   // Any conflicts generated
   conflicts: RuleConflict[];
 }
@@ -99,22 +105,22 @@ export interface RuleExecutionTrace {
  * Execution phases following Blue Book hierarchy
  */
 export enum ExecutionPhase {
-  NOMENCLATURE_SELECTION = 'nomenclature',
-  FUNCTIONAL_GROUP = 'functional-groups',
-  PARENT_STRUCTURE = 'parent-structure',
-  NUMBERING = 'numbering',
-  ASSEMBLY = 'assembly'
+  NOMENCLATURE_SELECTION = "nomenclature",
+  FUNCTIONAL_GROUP = "functional-groups",
+  PARENT_STRUCTURE = "parent-structure",
+  NUMBERING = "numbering",
+  ASSEMBLY = "assembly",
 }
 
 /**
  * Nomenclature methods per Blue Book P-51
  */
 export enum NomenclatureMethod {
-  SUBSTITUTIVE = 'substitutive',
-  FUNCTIONAL_CLASS = 'functional_class',
-  SKELETAL_REPLACEMENT = 'skeletal_replacement',
-  MULTIPLICATIVE = 'multiplicative',
-  CONJUNCTIVE = 'conjunctive'
+  SUBSTITUTIVE = "substitutive",
+  FUNCTIONAL_CLASS = "functional_class",
+  SKELETAL_REPLACEMENT = "skeletal_replacement",
+  MULTIPLICATIVE = "multiplicative",
+  CONJUNCTIVE = "conjunctive",
 }
 
 /**
@@ -139,12 +145,12 @@ export interface AtomicAnalysis {
 export class ImmutableNamingContext {
   private readonly state: ContextState;
   private readonly history: RuleExecutionTrace[];
-  
+
   private constructor(state: ContextState, history: RuleExecutionTrace[] = []) {
     this.state = Object.freeze({ ...state });
     this.history = [...history];
   }
-  
+
   /**
    * Create initial context from molecule
    */
@@ -157,46 +163,67 @@ export class ImmutableNamingContext {
       confidence: 1.0,
       phaseCompletion: new Map(),
       timestamp: new Date(),
-      moleculeId: generateMoleculeId(molecule)
+      moleculeId: generateMoleculeId(molecule),
     };
-    
+
     // Populate candidateChains using the IUPAC utility if available so that
     // parent chain selection rules have reasonable starting candidates.
     try {
       // Local require to avoid circular import issues
       // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const { findMainChain, findSubstituents } = require('./naming/iupac-chains');
+      const {
+        findMainChain,
+        findSubstituents,
+      } = require("./naming/iupac-chains");
       const main = findMainChain(molecule as any) as number[];
       const candidates: Chain[] = [];
       if (main && main.length >= 2) {
-        const atoms = main.map(idx => molecule.atoms[idx]) as any[];
+        const atoms = main.map((idx) => molecule.atoms[idx]) as any[];
         const bonds: any[] = [];
         const multipleBonds: any[] = [];
         for (let i = 0; i < main.length - 1; i++) {
           const a = main[i]!;
           const b = main[i + 1]!;
-          const bond = molecule.bonds.find(bb => (bb.atom1 === a && bb.atom2 === b) || (bb.atom1 === b && bb.atom2 === a));
+          const bond = molecule.bonds.find(
+            (bb) =>
+              (bb.atom1 === a && bb.atom2 === b) ||
+              (bb.atom1 === b && bb.atom2 === a),
+          );
           if (bond) {
             bonds.push(bond);
-            if (bond.type !== 'single') {
-              multipleBonds.push({ atoms: [molecule.atoms[a], molecule.atoms[b]], bond, type: bond.type === 'double' ? 'double' : 'triple', locant: i + 1 });
+            if (bond.type !== "single") {
+              multipleBonds.push({
+                atoms: [molecule.atoms[a], molecule.atoms[b]],
+                bond,
+                type: bond.type === "double" ? "double" : "triple",
+                locant: i + 1,
+              });
             }
           }
         }
         const subsRaw = findSubstituents(molecule as any, main as number[]);
         const substituents = subsRaw.map((s: any) => {
           if (process.env.VERBOSE) {
-            console.log(`[immutable-context] Creating substituent: name="${s.name}", type="${s.type}", position="${s.position}", atoms=${JSON.stringify(s.atoms)}`);
+            console.log(
+              `[immutable-context] Creating substituent: name="${s.name}", type="${s.type}", position="${s.position}", atoms=${JSON.stringify(s.atoms)}`,
+            );
           }
-          return { 
-            atoms: s.atoms || [], 
-            type: s.name, 
-            locant: parseInt(s.position, 10), 
+          return {
+            atoms: s.atoms || [],
+            type: s.name,
+            locant: parseInt(s.position, 10),
             isPrincipal: false,
-            name: s.name
+            name: s.name,
           };
         });
-        candidates.push({ atoms, bonds, length: atoms.length, multipleBonds, substituents, locants: Array.from({ length: atoms.length }, (_, i) => i + 1) });
+        candidates.push({
+          atoms,
+          bonds,
+          length: atoms.length,
+          multipleBonds,
+          substituents,
+          locants: Array.from({ length: atoms.length }, (_, i) => i + 1),
+        });
       }
       initialState.candidateChains = candidates;
     } catch (err) {
@@ -205,28 +232,28 @@ export class ImmutableNamingContext {
 
     return new ImmutableNamingContext(initialState);
   }
-  
+
   /**
    * Get current state (read-only)
    */
   getState(): Readonly<ContextState> {
     return this.state;
   }
-  
+
   /**
    * Get execution history
    */
   getHistory(): ReadonlyArray<RuleExecutionTrace> {
     return [...this.history];
   }
-  
+
   /**
    * Get phase completion status
    */
   isPhaseComplete(phase: ExecutionPhase): boolean {
     return this.state.phaseCompletion.get(phase) || false;
   }
-  
+
   /**
    * Immutable state transition with trace
    */
@@ -236,11 +263,11 @@ export class ImmutableNamingContext {
     ruleName: string,
     blueBookSection: string,
     phase: ExecutionPhase,
-    description: string
+    description: string,
   ): ImmutableNamingContext {
     const beforeState = this.state;
     const afterState = updater(beforeState);
-    
+
     const trace: RuleExecutionTrace = {
       ruleId,
       ruleName,
@@ -250,15 +277,15 @@ export class ImmutableNamingContext {
       beforeState,
       afterState,
       description,
-      conflicts: []
+      conflicts: [],
     };
-    
+
     const newState = Object.freeze({ ...afterState });
     const newHistory = [...this.history, trace];
-    
+
     return new ImmutableNamingContext(newState, newHistory);
   }
-  
+
   /**
    * Update candidate chains with trace
    */
@@ -268,7 +295,7 @@ export class ImmutableNamingContext {
     ruleName: string,
     blueBookSection: string,
     phase: ExecutionPhase,
-    description: string
+    description: string,
   ): ImmutableNamingContext {
     return this.withStateUpdate(
       (state) => ({ ...state, candidateChains: candidates }),
@@ -276,10 +303,10 @@ export class ImmutableNamingContext {
       ruleName,
       blueBookSection,
       phase,
-      description
+      description,
     );
   }
-  
+
   /**
    * Update candidate rings with trace
    */
@@ -289,7 +316,7 @@ export class ImmutableNamingContext {
     ruleName: string,
     blueBookSection: string,
     phase: ExecutionPhase,
-    description: string
+    description: string,
   ): ImmutableNamingContext {
     return this.withStateUpdate(
       (state) => ({ ...state, candidateRings: rings }),
@@ -297,10 +324,10 @@ export class ImmutableNamingContext {
       ruleName,
       blueBookSection,
       phase,
-      description
+      description,
     );
   }
-  
+
   /**
    * Set parent structure with trace
    */
@@ -310,7 +337,7 @@ export class ImmutableNamingContext {
     ruleName: string,
     blueBookSection: string,
     phase: ExecutionPhase,
-    description: string
+    description: string,
   ): ImmutableNamingContext {
     return this.withStateUpdate(
       (state) => ({ ...state, parentStructure }),
@@ -318,10 +345,10 @@ export class ImmutableNamingContext {
       ruleName,
       blueBookSection,
       phase,
-      description
+      description,
     );
   }
-  
+
   /**
    * Add functional groups with trace
    */
@@ -331,7 +358,7 @@ export class ImmutableNamingContext {
     ruleName: string,
     blueBookSection: string,
     phase: ExecutionPhase,
-    description: string
+    description: string,
   ): ImmutableNamingContext {
     return this.withStateUpdate(
       (state) => ({ ...state, functionalGroups }),
@@ -339,10 +366,10 @@ export class ImmutableNamingContext {
       ruleName,
       blueBookSection,
       phase,
-      description
+      description,
     );
   }
-  
+
   /**
    * Update nomenclature method with trace
    */
@@ -352,7 +379,7 @@ export class ImmutableNamingContext {
     ruleName: string,
     blueBookSection: string,
     phase: ExecutionPhase,
-    description: string
+    description: string,
   ): ImmutableNamingContext {
     return this.withStateUpdate(
       (state) => ({ ...state, nomenclatureMethod: method }),
@@ -360,10 +387,10 @@ export class ImmutableNamingContext {
       ruleName,
       blueBookSection,
       phase,
-      description
+      description,
     );
   }
-  
+
   /**
    * Mark phase as complete
    */
@@ -373,21 +400,21 @@ export class ImmutableNamingContext {
     ruleName: string,
     blueBookSection: string,
     phaseController: ExecutionPhase,
-    description: string
+    description: string,
   ): ImmutableNamingContext {
     const newPhaseCompletion = new Map(this.state.phaseCompletion);
     newPhaseCompletion.set(phase, true);
-    
+
     return this.withStateUpdate(
       (state) => ({ ...state, phaseCompletion: newPhaseCompletion }),
       ruleId,
       ruleName,
       blueBookSection,
       phaseController,
-      description
+      description,
     );
   }
-  
+
   /**
    * Update confidence with trace
    */
@@ -397,20 +424,23 @@ export class ImmutableNamingContext {
     ruleName: string,
     blueBookSection: string,
     phase: ExecutionPhase,
-    description: string
+    description: string,
   ): ImmutableNamingContext {
     const confidenceChange = newConfidence - this.state.confidence;
-    
+
     return this.withStateUpdate(
-      (state) => ({ ...state, confidence: Math.max(0, Math.min(1, newConfidence)) }),
+      (state) => ({
+        ...state,
+        confidence: Math.max(0, Math.min(1, newConfidence)),
+      }),
       ruleId,
       ruleName,
       blueBookSection,
       phase,
-      description
+      description,
     );
   }
-  
+
   /**
    * Add conflict with trace
    */
@@ -420,7 +450,7 @@ export class ImmutableNamingContext {
     ruleName: string,
     blueBookSection: string,
     phase: ExecutionPhase,
-    description: string
+    description: string,
   ): ImmutableNamingContext {
     // For conflicts, we'll need to track them in state
     // This is a simplified implementation
@@ -430,26 +460,29 @@ export class ImmutableNamingContext {
       ruleName,
       blueBookSection,
       phase,
-      `${description} - Conflict: ${conflict.description}`
+      `${description} - Conflict: ${conflict.description}`,
     );
   }
-  
+
   /**
    * Generate final naming result
    */
   generateResult(): NamingResult {
     return {
-      name: this.state.finalName || this.state.parentStructure?.name || this.generateFallbackName(),
+      name:
+        this.state.finalName ||
+        this.state.parentStructure?.name ||
+        this.generateFallbackName(),
       method: this.state.nomenclatureMethod || NomenclatureMethod.SUBSTITUTIVE,
       parentStructure: this.state.parentStructure!,
       functionalGroups: this.state.functionalGroups,
       confidence: this.state.confidence,
-      rules: this.history.map(trace => trace.ruleId),
-      blueBookSections: this.history.map(trace => trace.blueBookSection),
-      phaseExecution: this.getPhaseExecutionSummary()
+      rules: this.history.map((trace) => trace.ruleId),
+      blueBookSections: this.history.map((trace) => trace.blueBookSection),
+      phaseExecution: this.getPhaseExecutionSummary(),
     };
   }
-  
+
   /**
    * Get phase execution summary
    */
@@ -460,28 +493,32 @@ export class ImmutableNamingContext {
     }
     return summary;
   }
-  
+
   /**
    * Generate fallback name when errors occur
    */
   private generateFallbackName(): string {
-    if (this.state.parentStructure?.type === 'chain') {
+    if (this.state.parentStructure?.type === "chain") {
       const length = this.state.parentStructure.chain?.length || 0;
-      return length > 0 ? `Unknown ${length}-carbon compound` : 'Unknown compound';
-    } else if (this.state.parentStructure?.type === 'ring') {
+      return length > 0
+        ? `Unknown ${length}-carbon compound`
+        : "Unknown compound";
+    } else if (this.state.parentStructure?.type === "ring") {
       const size = this.state.parentStructure.ring?.size || 0;
-      return size > 0 ? `Unknown ${size}-membered ring` : 'Unknown ring compound';
+      return size > 0
+        ? `Unknown ${size}-membered ring`
+        : "Unknown ring compound";
     }
-    return 'Unable to generate IUPAC name';
+    return "Unable to generate IUPAC name";
   }
-  
+
   /**
    * Get trace for debugging (last N traces)
    */
   getRecentTraces(count: number = 10): RuleExecutionTrace[] {
     return this.history.slice(-count);
   }
-  
+
   /**
    * Check if context has required data for a phase
    */
@@ -490,7 +527,10 @@ export class ImmutableNamingContext {
       case ExecutionPhase.FUNCTIONAL_GROUP:
         return this.state.molecule.atoms.length > 0;
       case ExecutionPhase.PARENT_STRUCTURE:
-        return this.state.functionalGroups.length > 0 || this.state.molecule.atoms.length > 0;
+        return (
+          this.state.functionalGroups.length > 0 ||
+          this.state.molecule.atoms.length > 0
+        );
       case ExecutionPhase.NUMBERING:
         return this.state.parentStructure !== undefined;
       case ExecutionPhase.ASSEMBLY:

@@ -2,35 +2,35 @@
  * Core types for the IUPAC rule engine
  */
 
-import type { Molecule, Atom, Bond } from '../../types';
-import type { ImmutableNamingContext } from './immutable-context';
+import type { Molecule, Atom, Bond } from "../../types";
+import type { ImmutableNamingContext } from "./immutable-context";
 
 export interface NamingContext {
   // Core molecule data
   molecule: Molecule;
-  
+
   // Naming state
   parentStructure?: ParentStructure;
   functionalGroups: FunctionalGroup[];
   candidateChains: Chain[];
   candidateRings: RingSystem[];
   namingMethod?: NomenclatureMethod;
-  
+
   // Rule execution state
   currentLayer?: string;
   executedRules: Set<string>;
   conflicts: RuleConflict[];
-  
+
   // Context state
   state: Map<string, any>;
-  
+
   // Methods for rule access
   isAcyclic(): boolean;
   hasFunctionalGroups(): boolean;
   getCandidateChains(): Chain[];
   getCandidateRings(): RingSystem[];
   getFunctionalGroups(): FunctionalGroup[];
-  
+
   // Context manipulation
   updateCandidates(candidates: Chain[] | RingSystem[]): void;
   setParentStructure(structure: ParentStructure): void;
@@ -54,11 +54,11 @@ export interface IUPACRule {
 
 /**
  * Standard priority values for rule execution within each layer.
- * 
+ *
  * IMPORTANT: Rules execute in DESCENDING order (higher numbers run FIRST).
  * - Priority 100 executes before priority 50
  * - Priority 50 executes before priority 10
- * 
+ *
  * Priority values use increments of 10 (10, 20, 30... 100).
  * Higher priority numbers execute earlier in the layer.
  */
@@ -72,7 +72,7 @@ export enum RulePriority {
   SEVEN = 70,
   EIGHT = 80,
   NINE = 90,
-  TEN = 100
+  TEN = 100,
 }
 
 export interface Layer {
@@ -91,7 +91,7 @@ export interface FunctionalGroup {
   isPrincipal: boolean;
   suffix?: string;
   prefix?: string;
-  name?: string;  // Full name from complex substituent analysis (e.g., flattened alkoxy names)
+  name?: string; // Full name from complex substituent analysis (e.g., flattened alkoxy names)
   locants: number[];
   // Assembled metadata used during name assembly
   assembledName?: string;
@@ -122,12 +122,12 @@ export interface RingSystem {
 }
 
 export enum RingSystemType {
-  AROMATIC = 'aromatic',
-  ALIPHATIC = 'aliphatic',
-  HETEROCYCLIC = 'heterocyclic',
-  FUSED = 'fused',
-  BRIDGED = 'bridged',
-  SPIRO = 'spiro'
+  AROMATIC = "aromatic",
+  ALIPHATIC = "aliphatic",
+  HETEROCYCLIC = "heterocyclic",
+  FUSED = "fused",
+  BRIDGED = "bridged",
+  SPIRO = "spiro",
 }
 
 export interface Ring {
@@ -139,7 +139,7 @@ export interface Ring {
 }
 
 export interface ParentStructure {
-  type: 'chain' | 'ring' | 'heteroatom';
+  type: "chain" | "ring" | "heteroatom";
   chain?: Chain;
   ring?: RingSystem;
   heteroatom?: Atom;
@@ -160,7 +160,7 @@ export interface Substituent {
 export interface MultipleBond {
   atoms: Atom[];
   bond: Bond;
-  type: 'double' | 'triple';
+  type: "double" | "triple";
   locant: number;
 }
 
@@ -172,26 +172,26 @@ export interface HeteroAtom {
 
 export interface RuleConflict {
   ruleId: string;
-  conflictType: 'dependency' | 'mutual_exclusion' | 'state_inconsistency';
+  conflictType: "dependency" | "mutual_exclusion" | "state_inconsistency";
   description: string;
   context: any;
 }
 
 export enum NomenclatureMethod {
-  SUBSTITUTIVE = 'substitutive',
-  FUNCTIONAL_CLASS = 'functional_class',
-  SKELETAL_REPLACEMENT = 'skeletal_replacement',
-  MULTIPLICATIVE = 'multiplicative',
-  CONJUNCTIVE = 'conjunctive'
+  SUBSTITUTIVE = "substitutive",
+  FUNCTIONAL_CLASS = "functional_class",
+  SKELETAL_REPLACEMENT = "skeletal_replacement",
+  MULTIPLICATIVE = "multiplicative",
+  CONJUNCTIVE = "conjunctive",
 }
 
 export enum LayerType {
-  ATOMIC = 'atomic',
-  FUNCTIONAL_GROUPS = 'functional_groups',
-  NOMENCLATURE_METHOD = 'nomenclature_method',
-  PARENT_SELECTION = 'parent_selection',
-  NUMBERING = 'numbering',
-  NAME_ASSEMBLY = 'name_assembly'
+  ATOMIC = "atomic",
+  FUNCTIONAL_GROUPS = "functional_groups",
+  NOMENCLATURE_METHOD = "nomenclature_method",
+  PARENT_SELECTION = "parent_selection",
+  NUMBERING = "numbering",
+  NAME_ASSEMBLY = "name_assembly",
 }
 
 export interface NamingResult {
@@ -199,7 +199,11 @@ export interface NamingResult {
   method: NomenclatureMethod;
   parentStructure: ParentStructure;
   functionalGroups: FunctionalGroup[];
-  functionalGroupTrace?: Array<{ pattern?: string; type?: string; atomIds: number[] }>;
+  functionalGroupTrace?: Array<{
+    pattern?: string;
+    type?: string;
+    atomIds: number[];
+  }>;
   locants: number[];
   stereochemistry?: string;
   confidence: number;
@@ -210,27 +214,27 @@ export interface NamingResult {
  * Blue Book Rule References
  */
 export const BLUE_BOOK_RULES = {
-  P44_3_1: 'P-44.3.1', // Maximum length of continuous chain
-  P44_3_2: 'P-44.3.2', // Greatest number of multiple bonds
-  P44_3_3: 'P-44.3.3', // Greatest number of double bonds
-  P44_3_4: 'P-44.3.4', // Lowest locant set for multiple bonds
-  P44_3_5: 'P-44.3.5', // Lowest locant set for double bonds
-  P44_3_6: 'P-44.3.6', // Greatest number of substituents
-  P44_3_7: 'P-44.3.7', // Lowest locant set for substituents
-  P44_3_8: 'P-44.3.8', // Lowest alphabetical locant
-  
-  P51_1: 'P-51.1', // Substitutive nomenclature
-  P51_2: 'P-51.2', // Functional class nomenclature
-  P51_3: 'P-51.3', // Skeletal replacement nomenclature
-  P51_4: 'P-51.4', // Multiplicative nomenclature
-  
-   P44_1: 'P-44.1', // Principal characteristic group
-   P44_2: 'P-44.2', // Ring system seniority
-   P44_4: 'P-44.4', // Ring vs chain criteria
+  P44_3_1: "P-44.3.1", // Maximum length of continuous chain
+  P44_3_2: "P-44.3.2", // Greatest number of multiple bonds
+  P44_3_3: "P-44.3.3", // Greatest number of double bonds
+  P44_3_4: "P-44.3.4", // Lowest locant set for multiple bonds
+  P44_3_5: "P-44.3.5", // Lowest locant set for double bonds
+  P44_3_6: "P-44.3.6", // Greatest number of substituents
+  P44_3_7: "P-44.3.7", // Lowest locant set for substituents
+  P44_3_8: "P-44.3.8", // Lowest alphabetical locant
 
-   P2_3: 'P-2.3', // Ring assemblies (von Baeyer system)
-   P2_4: 'P-2.4', // Spiro compounds
-   P2_5: 'P-2.5', // Fused ring systems
+  P51_1: "P-51.1", // Substitutive nomenclature
+  P51_2: "P-51.2", // Functional class nomenclature
+  P51_3: "P-51.3", // Skeletal replacement nomenclature
+  P51_4: "P-51.4", // Multiplicative nomenclature
 
-   P14_4: 'P-14.4' // Numbering for substituents
+  P44_1: "P-44.1", // Principal characteristic group
+  P44_2: "P-44.2", // Ring system seniority
+  P44_4: "P-44.4", // Ring vs chain criteria
+
+  P2_3: "P-2.3", // Ring assemblies (von Baeyer system)
+  P2_4: "P-2.4", // Spiro compounds
+  P2_5: "P-2.5", // Fused ring systems
+
+  P14_4: "P-14.4", // Numbering for substituents
 } as const;

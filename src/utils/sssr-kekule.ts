@@ -1,4 +1,4 @@
-import type { Atom, Bond } from 'types';
+import type { Atom, Bond } from "types";
 
 function buildAdj(atoms: Atom[], bonds: Bond[]): Record<number, Set<number>> {
   const adj: Record<number, Set<number>> = {};
@@ -12,50 +12,60 @@ function buildAdj(atoms: Atom[], bonds: Bond[]): Record<number, Set<number>> {
 
 // Find all simple cycles in the molecular graph.
 // Dynamically adjusts maxLen based on graph density to prevent exponential explosion in polycyclic systems.
-export function findAllCycles(atoms: Atom[], bonds: Bond[], maxLen: number = 40): number[][] {
+export function findAllCycles(
+  atoms: Atom[],
+  bonds: Bond[],
+  maxLen: number = 40,
+): number[][] {
   // Smart adaptive limit based on graph density and size
   const n = atoms.length;
   const m = bonds.length;
-  
+
   // Estimate graph density: typical drug-like ≈ 1.0-1.2, polycyclic ≈ 1.2-1.5
   const density = m / n;
-  
+
   // Estimate expected SSSR count: sssr = m - n + 1
   const expectedSSSR = m - n + 1;
-  
-   // Adaptive limit based on density to prevent exponential explosion in polycyclic systems.
-   // Sparse trees use full maxLen; high-density systems cap at 15-25 atoms depending on molecule size.
-   if (density >= 1.15) {
-     // High density: definitely polycyclic, limit aggressively
-     if (n > 150) {
-       maxLen = Math.min(maxLen, 15);
-     } else if (n > 100) {
-       maxLen = Math.min(maxLen, 16);
-     } else if (n > 60) {
-       maxLen = Math.min(maxLen, 17);
-     }
-     // else: n ≤ 60, use maxLen=18 (small dense molecules are still manageable)
-     else {
-       maxLen = Math.min(maxLen, 18);
-     }
-   } else if (density >= 1.05) {
-     // Moderate density: polycyclic but not extremely bridged
-     if (n > 150) {
-       maxLen = Math.min(maxLen, 20);
-     } else if (n > 100) {
-       maxLen = Math.min(maxLen, 22);
-     } else if (n > 60) {
-       maxLen = Math.min(maxLen, 25);
-     }
-     // else: n ≤ 60, keep full maxLen (reasonable for small moderate-density molecules)
-   }
-   // else: density < 1.05, keep full maxLen (sparse graphs are fast, trees/chains)
+
+  // Adaptive limit based on density to prevent exponential explosion in polycyclic systems.
+  // Sparse trees use full maxLen; high-density systems cap at 15-25 atoms depending on molecule size.
+  if (density >= 1.15) {
+    // High density: definitely polycyclic, limit aggressively
+    if (n > 150) {
+      maxLen = Math.min(maxLen, 15);
+    } else if (n > 100) {
+      maxLen = Math.min(maxLen, 16);
+    } else if (n > 60) {
+      maxLen = Math.min(maxLen, 17);
+    }
+    // else: n ≤ 60, use maxLen=18 (small dense molecules are still manageable)
+    else {
+      maxLen = Math.min(maxLen, 18);
+    }
+  } else if (density >= 1.05) {
+    // Moderate density: polycyclic but not extremely bridged
+    if (n > 150) {
+      maxLen = Math.min(maxLen, 20);
+    } else if (n > 100) {
+      maxLen = Math.min(maxLen, 22);
+    } else if (n > 60) {
+      maxLen = Math.min(maxLen, 25);
+    }
+    // else: n ≤ 60, keep full maxLen (reasonable for small moderate-density molecules)
+  }
+  // else: density < 1.05, keep full maxLen (sparse graphs are fast, trees/chains)
 
   const adj = buildAdj(atoms, bonds);
   const cycles: number[][] = [];
-  const nodes = atoms.map(a => a.id);
+  const nodes = atoms.map((a) => a.id);
 
-  function dfs(path: number[], visited: Set<number>, start: number, curr: number, depth: number) {
+  function dfs(
+    path: number[],
+    visited: Set<number>,
+    start: number,
+    curr: number,
+    depth: number,
+  ) {
     if (depth > maxLen) return;
     const neighbors = adj[curr];
     if (!neighbors) return;
@@ -67,7 +77,11 @@ export function findAllCycles(atoms: Atom[], bonds: Bond[], maxLen: number = 40)
         const minIdx = cycle.indexOf(Math.min(...cycle));
         const norm = [...cycle.slice(minIdx), ...cycle.slice(0, minIdx)];
         const ring = norm.sort((a, b) => a - b);
-        if (!cycles.some(c => c.length === ring.length && c.every((v, i) => v === ring[i]))) {
+        if (
+          !cycles.some(
+            (c) => c.length === ring.length && c.every((v, i) => v === ring[i]),
+          )
+        ) {
           cycles.push(ring);
         }
       } else if (!visited.has(next)) {
@@ -84,21 +98,24 @@ export function findAllCycles(atoms: Atom[], bonds: Bond[], maxLen: number = 40)
 }
 
 // BFS-based cycle finding for large molecules (more efficient than DFS for large rings)
-function findCyclesBFS(atoms: Atom[], bonds: Bond[], maxLen: number): number[][] {
+function findCyclesBFS(
+  atoms: Atom[],
+  bonds: Bond[],
+  maxLen: number,
+): number[][] {
   const adj = buildAdj(atoms, bonds);
   const cycles: number[][] = [];
   const visited = new Set<number>();
 
-  for (const start of atoms.map(a => a.id)) {
+  for (const start of atoms.map((a) => a.id)) {
     if (visited.has(start)) continue;
 
     // BFS from start node
-    const queue: Array<{node: number, path: number[], visited: Set<number>}> = [
-      {node: start, path: [start], visited: new Set([start])}
-    ];
+    const queue: Array<{ node: number; path: number[]; visited: Set<number> }> =
+      [{ node: start, path: [start], visited: new Set([start]) }];
 
     while (queue.length > 0) {
-      const {node, path, visited: pathVisited} = queue.shift()!;
+      const { node, path, visited: pathVisited } = queue.shift()!;
       const neighbors = adj[node];
 
       if (!neighbors) continue;
@@ -112,7 +129,12 @@ function findCyclesBFS(atoms: Atom[], bonds: Bond[], maxLen: number): number[][]
           const minIdx = cycle.indexOf(Math.min(...cycle));
           const norm = [...cycle.slice(minIdx), ...cycle.slice(0, minIdx)];
           const ring = norm.sort((a, b) => a - b);
-          if (!cycles.some(c => c.length === ring.length && c.every((v, i) => v === ring[i]))) {
+          if (
+            !cycles.some(
+              (c) =>
+                c.length === ring.length && c.every((v, i) => v === ring[i]),
+            )
+          ) {
             cycles.push(ring);
           }
         } else if (!pathVisited.has(next)) {
@@ -121,7 +143,7 @@ function findCyclesBFS(atoms: Atom[], bonds: Bond[], maxLen: number): number[][]
           queue.push({
             node: next,
             path: [...path, next],
-            visited: newVisited
+            visited: newVisited,
           });
         }
       }
@@ -137,7 +159,8 @@ function findCyclesBFS(atoms: Atom[], bonds: Bond[], maxLen: number): number[][]
 function cycleEdges(cycle: number[]): Set<string> {
   const edges = new Set<string>();
   for (let i = 0; i < cycle.length; ++i) {
-    const a = cycle[i], b = cycle[(i + 1) % cycle.length];
+    const a = cycle[i],
+      b = cycle[(i + 1) % cycle.length];
     if (a === undefined || b === undefined) continue;
     edges.add(a < b ? `${a}-${b}` : `${b}-${a}`);
   }
@@ -212,7 +235,10 @@ class GF2Matrix {
     return true;
   }
 
-  private xorRows(target: Map<number, boolean>, source: Map<number, boolean>): void {
+  private xorRows(
+    target: Map<number, boolean>,
+    source: Map<number, boolean>,
+  ): void {
     for (const [col, val] of source) {
       if (target.has(col)) {
         if (val) {
@@ -225,7 +251,10 @@ class GF2Matrix {
   }
 }
 
-function isLinearlyIndependent(newEdges: Set<string>, matrix: GF2Matrix): boolean {
+function isLinearlyIndependent(
+  newEdges: Set<string>,
+  matrix: GF2Matrix,
+): boolean {
   return matrix.addRow(newEdges);
 }
 
@@ -237,7 +266,9 @@ export function findSSSR_Kekule(atoms: Atom[], bonds: Bond[]): number[][] {
   const ringCount = numEdges - numNodes + 1;
   if (ringCount <= 0) return [];
   const allCycles = findAllCycles(atoms, bonds);
-  allCycles.sort((a, b) => a.length - b.length || a.join(',').localeCompare(b.join(',')));
+  allCycles.sort(
+    (a, b) => a.length - b.length || a.join(",").localeCompare(b.join(",")),
+  );
 
   const sssr: number[][] = [];
   const matrix = new GF2Matrix();

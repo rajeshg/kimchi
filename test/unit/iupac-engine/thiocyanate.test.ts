@@ -1,65 +1,65 @@
-import { describe, test, expect } from 'bun:test';
-import { parseSMILES } from 'index';
-import { RuleEngine } from 'src/iupac-engine/engine';
+import { describe, test, expect } from "bun:test";
+import { parseSMILES } from "index";
+import { RuleEngine } from "src/iupac-engine/engine";
 
-describe('Thiocyanate Functional Class Nomenclature', () => {
-  test('CSC#N should generate methyl thiocyanate', () => {
+describe("Thiocyanate Functional Class Nomenclature", () => {
+  test("CSC#N should generate methyl thiocyanate", () => {
     const engine = new RuleEngine();
-    const result = parseSMILES('CSC#N');
+    const result = parseSMILES("CSC#N");
     const mol = result.molecules[0];
     expect(mol).toBeDefined();
-    
+
     const iupacResult = engine.generateName(mol!);
     const generated = iupacResult.name?.trim().toLowerCase();
-    
-    expect(generated).toBe('methyl thiocyanate');
+
+    expect(generated).toBe("methyl thiocyanate");
   });
 
-  test('CCSC#N should generate ethyl thiocyanate', () => {
+  test("CCSC#N should generate ethyl thiocyanate", () => {
     const engine = new RuleEngine();
-    const result = parseSMILES('CCSC#N');
+    const result = parseSMILES("CCSC#N");
     const mol = result.molecules[0];
     expect(mol).toBeDefined();
-    
+
     const iupacResult = engine.generateName(mol!);
     const generated = iupacResult.name?.trim().toLowerCase();
-    
-    expect(generated).toBe('ethyl thiocyanate');
+
+    expect(generated).toBe("ethyl thiocyanate");
   });
 
-  test('CCCSC#N should generate propyl thiocyanate', () => {
+  test("CCCSC#N should generate propyl thiocyanate", () => {
     const engine = new RuleEngine();
-    const result = parseSMILES('CCCSC#N');
+    const result = parseSMILES("CCCSC#N");
     const mol = result.molecules[0];
     expect(mol).toBeDefined();
-    
+
     const iupacResult = engine.generateName(mol!);
     const generated = iupacResult.name?.trim().toLowerCase();
-    
-    expect(generated).toBe('propyl thiocyanate');
+
+    expect(generated).toBe("propyl thiocyanate");
   });
 
-  test('CC(=O)CCSC#N should generate 3-oxobutyl thiocyanate', () => {
+  test("CC(=O)CCSC#N should generate 3-oxobutyl thiocyanate", () => {
     const engine = new RuleEngine();
-    const result = parseSMILES('CC(=O)CCSC#N');
+    const result = parseSMILES("CC(=O)CCSC#N");
     const mol = result.molecules[0];
     expect(mol).toBeDefined();
-    
+
     const iupacResult = engine.generateName(mol!);
     const generated = iupacResult.name?.trim().toLowerCase();
-    
-    expect(generated).toBe('3-oxobutyl thiocyanate');
+
+    expect(generated).toBe("3-oxobutyl thiocyanate");
   });
 
-  test('CC(C)CSC#N should generate 2-methylpropyl thiocyanate', () => {
+  test("CC(C)CSC#N should generate 2-methylpropyl thiocyanate", () => {
     const engine = new RuleEngine();
-    const result = parseSMILES('CC(C)CSC#N');
+    const result = parseSMILES("CC(C)CSC#N");
     const mol = result.molecules[0];
     expect(mol).toBeDefined();
-    
+
     const iupacResult = engine.generateName(mol!);
     const generated = iupacResult.name?.trim().toLowerCase();
-    
-    expect(generated).toBe('2-methylpropyl thiocyanate');
+
+    expect(generated).toBe("2-methylpropyl thiocyanate");
   });
 });

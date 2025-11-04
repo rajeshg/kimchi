@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'bun:test';
-import { parseSMILES } from 'index';
+import { describe, it, expect } from "bun:test";
+import { parseSMILES } from "index";
 import {
   computeDescriptors,
   getAtomCount,
@@ -7,10 +7,10 @@ import {
   getFormalCharge,
   getElementCounts,
   getHeavyAtomFraction,
-} from 'src/utils/molecular-descriptors';
+} from "src/utils/molecular-descriptors";
 
-describe('molecular-descriptors (extra cases)', () => {
-  it('handles empty molecule in computeDescriptors', () => {
+describe("molecular-descriptors (extra cases)", () => {
+  it("handles empty molecule in computeDescriptors", () => {
     const empty: any = { atoms: [], bonds: [] };
     const desc = computeDescriptors(empty);
 
@@ -21,8 +21,8 @@ describe('molecular-descriptors (extra cases)', () => {
     expect(desc.heavyAtomFraction).toBe(0);
   });
 
-  it('handles multi-fragment SMILES by returning separate molecules', () => {
-    const result = parseSMILES('C.CC');
+  it("handles multi-fragment SMILES by returning separate molecules", () => {
+    const result = parseSMILES("C.CC");
     expect(result.errors).toEqual([]);
     expect(result.molecules.length).toBe(2);
 
@@ -34,8 +34,8 @@ describe('molecular-descriptors (extra cases)', () => {
     expect(getBondCount(m2)).toBe(1);
   });
 
-  it('preserves explicit hydrogen atoms', () => {
-    const result = parseSMILES('[H]');
+  it("preserves explicit hydrogen atoms", () => {
+    const result = parseSMILES("[H]");
     expect(result.errors).toEqual([]);
     const mol = result.molecules[0]!;
     expect(getAtomCount(mol)).toBe(1);
@@ -43,16 +43,16 @@ describe('molecular-descriptors (extra cases)', () => {
     expect(getHeavyAtomFraction(mol)).toBe(0);
   });
 
-  it('includes isotopic labels when option enabled in computeDescriptors', () => {
-    const result = parseSMILES('[13CH4]');
+  it("includes isotopic labels when option enabled in computeDescriptors", () => {
+    const result = parseSMILES("[13CH4]");
     expect(result.errors).toEqual([]);
     const mol = result.molecules[0]!;
     const desc = computeDescriptors(mol, { includeIsotopes: true });
-    expect(desc.elementCounts).toEqual({ '13C': 1, H: 4 });
+    expect(desc.elementCounts).toEqual({ "13C": 1, H: 4 });
   });
 
-  it('computeDescriptors respects includeImplicitH for element counts', () => {
-    const result = parseSMILES('CCO');
+  it("computeDescriptors respects includeImplicitH for element counts", () => {
+    const result = parseSMILES("CCO");
     expect(result.errors).toEqual([]);
     const mol = result.molecules[0]!;
     const desc = computeDescriptors(mol, { includeImplicitH: false });

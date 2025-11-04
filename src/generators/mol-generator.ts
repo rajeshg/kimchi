@@ -1,5 +1,5 @@
-import type { Molecule, Atom, Bond } from 'types';
-import { BondType, StereoType } from 'types';
+import type { Molecule, Atom, Bond } from "types";
+import { BondType, StereoType } from "types";
 
 function chunk<T>(array: T[], size: number): T[][] {
   const chunks: T[][] = [];
@@ -10,10 +10,10 @@ function chunk<T>(array: T[], size: number): T[][] {
 }
 
 export interface MolGeneratorOptions {
-  title?: string;           // Molecule title (default: empty)
-  programName?: string;     // Program name (default: "openchem")
-  dimensionality?: '2D' | '3D'; // Default: '2D'
-  comment?: string;         // Comment line (default: empty)
+  title?: string; // Molecule title (default: empty)
+  programName?: string; // Program name (default: "openchem")
+  dimensionality?: "2D" | "3D"; // Default: '2D'
+  comment?: string; // Comment line (default: empty)
 }
 
 interface Coordinates {
@@ -26,12 +26,15 @@ interface Coordinates {
  * Generate a MOL file (V2000 format) from a openchem Molecule.
  * Matches RDKit output structure for compatibility.
  */
-export function generateMolfile(molecule: Molecule, options?: MolGeneratorOptions): string {
+export function generateMolfile(
+  molecule: Molecule,
+  options?: MolGeneratorOptions,
+): string {
   const opts = {
-    title: '',
-    programName: 'openchem',
-    dimensionality: '2D' as const,
-    comment: '',
+    title: "",
+    programName: "openchem",
+    dimensionality: "2D" as const,
+    comment: "",
     ...options,
   };
 
@@ -58,26 +61,26 @@ export function generateMolfile(molecule: Molecule, options?: MolGeneratorOption
 
   // Combine all sections
   // Build string directly, line by line, to avoid leading newline from empty title
-  let result = '';
-  result += (header[0] ?? '') + '\n';
-  result += (header[1] ?? '') + '\n';
-  result += (header[2] ?? '') + '\n';
-  result += counts + '\n';
-  if (atomBlock.length > 0) result += atomBlock.join('\n') + '\n';
-  if (bondBlock.length > 0) result += bondBlock.join('\n') + '\n';
-  if (propertiesBlock.length > 0) result += propertiesBlock.join('\n') + '\n';
-  result += 'M  END\n';
+  let result = "";
+  result += (header[0] ?? "") + "\n";
+  result += (header[1] ?? "") + "\n";
+  result += (header[2] ?? "") + "\n";
+  result += counts + "\n";
+  if (atomBlock.length > 0) result += atomBlock.join("\n") + "\n";
+  if (bondBlock.length > 0) result += bondBlock.join("\n") + "\n";
+  if (propertiesBlock.length > 0) result += propertiesBlock.join("\n") + "\n";
+  result += "M  END\n";
   return result;
 }
 
 function generateEmptyMolfile(options: MolGeneratorOptions): string {
   const header = formatHeader(options);
-  let result = '';
-  result += (header[0] ?? '') + '\n';
-  result += (header[1] ?? '') + '\n';
-  result += (header[2] ?? '') + '\n';
-  result += '  0  0  0  0  0  0  0  0  0  0999 V2000\n';
-  result += 'M  END\n';
+  let result = "";
+  result += (header[0] ?? "") + "\n";
+  result += (header[1] ?? "") + "\n";
+  result += (header[2] ?? "") + "\n";
+  result += "  0  0  0  0  0  0  0  0  0  0999 V2000\n";
+  result += "M  END\n";
   return result;
 }
 
@@ -107,7 +110,7 @@ function generate2DCoordinates(molecule: Molecule): Map<number, Coordinates> {
     // Place atoms in a circle
     const centerX = componentOffset;
     const centerY = 0;
-    const radius = bondLength * component.length / (2 * Math.PI); // Adjust radius based on atom count
+    const radius = (bondLength * component.length) / (2 * Math.PI); // Adjust radius based on atom count
 
     component.forEach((atomId, index) => {
       const angle = (2 * Math.PI * index) / component.length;
@@ -162,15 +165,11 @@ function findConnectedComponents(molecule: Molecule): number[][] {
  * Format the MOL file header (3 lines).
  */
 function formatHeader(options: MolGeneratorOptions): string[] {
-  const programName = options.programName || 'openchem';
-  const dimensionality = options.dimensionality || '2D';
-  const programLine = `     ${programName}${' '.repeat(Math.max(0, 10 - programName.length))}          ${dimensionality}`;
+  const programName = options.programName || "openchem";
+  const dimensionality = options.dimensionality || "2D";
+  const programLine = `     ${programName}${" ".repeat(Math.max(0, 10 - programName.length))}          ${dimensionality}`;
 
-  return [
-    options.title || '',
-    programLine,
-    options.comment || '',
-  ];
+  return [options.title || "", programLine, options.comment || ""];
 }
 
 /**
@@ -192,19 +191,19 @@ function formatHeader(options: MolGeneratorOptions): string[] {
 function formatCountsLine(molecule: Molecule): string {
   const numAtoms = molecule.atoms.length;
   const numBonds = molecule.bonds.length;
-  const chiralFlag = molecule.atoms.some(atom => atom.chiral) ? 1 : 0;
+  const chiralFlag = molecule.atoms.some((atom) => atom.chiral) ? 1 : 0;
 
   const aaa = numAtoms.toString().padStart(3);
   const bbb = numBonds.toString().padStart(3);
-  const lll = '0'.padStart(3);
-  const fff = '0'.padStart(3);
+  const lll = "0".padStart(3);
+  const fff = "0".padStart(3);
   const ccc = chiralFlag.toString().padStart(3);
-  const sss = '0'.padStart(3);
-  const xxx = '0'.padStart(3);
-  const rrr = '0'.padStart(3);
-  const ppp = '0'.padStart(3);
-  const iii = '0'.padStart(3);
-  const mmm = '0'.padStart(3);
+  const sss = "0".padStart(3);
+  const xxx = "0".padStart(3);
+  const rrr = "0".padStart(3);
+  const ppp = "0".padStart(3);
+  const iii = "0".padStart(3);
+  const mmm = "0".padStart(3);
 
   return `${aaa}${bbb}${lll}${fff}${ccc}${sss}${xxx}${rrr}${ppp}${iii}${mmm}999 V2000`;
 }
@@ -212,8 +211,11 @@ function formatCountsLine(molecule: Molecule): string {
 /**
  * Format the atom block (one line per atom).
  */
-function formatAtomBlock(atoms: readonly Atom[], coordinates: Map<number, Coordinates>): string[] {
-  return atoms.map(atom => {
+function formatAtomBlock(
+  atoms: readonly Atom[],
+  coordinates: Map<number, Coordinates>,
+): string[] {
+  return atoms.map((atom) => {
     const coord = coordinates.get(atom.id)!;
     const symbol = atom.symbol.padEnd(3);
     const massDiff = 0; // Use properties block for isotopes
@@ -230,16 +232,19 @@ function formatAtomBlock(atoms: readonly Atom[], coordinates: Map<number, Coordi
  */
 function getStereoParity(chiral: string | null): number {
   if (!chiral) return 0;
-  if (chiral === '@') return 1; // counterclockwise
-  if (chiral === '@@') return 2; // clockwise
+  if (chiral === "@") return 1; // counterclockwise
+  if (chiral === "@@") return 2; // clockwise
   return 0; // other chiral markers not supported in V2000
 }
 
 /**
  * Format the bond block (one line per bond).
  */
-function formatBondBlock(bonds: readonly Bond[], atomIndexMap: Map<number, number>): string[] {
-  return bonds.map(bond => {
+function formatBondBlock(
+  bonds: readonly Bond[],
+  atomIndexMap: Map<number, number>,
+): string[] {
+  return bonds.map((bond) => {
     const atom1Idx = atomIndexMap.get(bond.atom1)!;
     const atom2Idx = atomIndexMap.get(bond.atom2)!;
     const bondType = getMolBondType(bond.type);
@@ -255,11 +260,16 @@ function formatBondBlock(bonds: readonly Bond[], atomIndexMap: Map<number, numbe
  */
 function getMolBondType(bondType: BondType): number {
   switch (bondType) {
-    case BondType.SINGLE: return 1;
-    case BondType.DOUBLE: return 2;
-    case BondType.TRIPLE: return 3;
-    case BondType.AROMATIC: return 4;
-    default: return 1;
+    case BondType.SINGLE:
+      return 1;
+    case BondType.DOUBLE:
+      return 2;
+    case BondType.TRIPLE:
+      return 3;
+    case BondType.AROMATIC:
+      return 4;
+    default:
+      return 1;
   }
 }
 
@@ -268,47 +278,63 @@ function getMolBondType(bondType: BondType): number {
  */
 function getMolBondStereo(stereo: StereoType): number {
   switch (stereo) {
-    case StereoType.NONE: return 0;
-    case StereoType.UP: return 1;
-    case StereoType.DOWN: return 6;
-    case StereoType.EITHER: return 4;
-    default: return 0;
+    case StereoType.NONE:
+      return 0;
+    case StereoType.UP:
+      return 1;
+    case StereoType.DOWN:
+      return 6;
+    case StereoType.EITHER:
+      return 4;
+    default:
+      return 0;
   }
 }
 
 /**
  * Format the properties block (charges, isotopes, etc.).
  */
-function formatPropertiesBlock(atoms: readonly Atom[], atomIndexMap: Map<number, number>): string[] {
+function formatPropertiesBlock(
+  atoms: readonly Atom[],
+  atomIndexMap: Map<number, number>,
+): string[] {
   const lines: string[] = [];
 
   // Handle charges
-  const chargedAtoms = atoms.filter(atom => atom.charge !== 0 && atom.charge !== undefined);
+  const chargedAtoms = atoms.filter(
+    (atom) => atom.charge !== 0 && atom.charge !== undefined,
+  );
   if (chargedAtoms.length > 0) {
     const chargeEntries: string[] = [];
     for (const atom of chargedAtoms) {
       const idx = atomIndexMap.get(atom.id)!;
-      chargeEntries.push(`${idx.toString().padStart(3)} ${atom.charge!.toString().padStart(3)}`);
+      chargeEntries.push(
+        `${idx.toString().padStart(3)} ${atom.charge!.toString().padStart(3)}`,
+      );
     }
 
     // Group in chunks of 8 (MOL format limit)
     for (const chargeChunk of chunk(chargeEntries, 8)) {
-      lines.push(`M  CHG  ${chargeChunk.length} ${chargeChunk.join(' ')}`);
+      lines.push(`M  CHG  ${chargeChunk.length} ${chargeChunk.join(" ")}`);
     }
   }
 
   // Handle isotopes
-  const isotopeAtoms = atoms.filter(atom => atom.isotope !== null && atom.isotope !== undefined);
+  const isotopeAtoms = atoms.filter(
+    (atom) => atom.isotope !== null && atom.isotope !== undefined,
+  );
   if (isotopeAtoms.length > 0) {
     const isotopeEntries: string[] = [];
     for (const atom of isotopeAtoms) {
       const idx = atomIndexMap.get(atom.id)!;
-      isotopeEntries.push(`${idx.toString().padStart(3)} ${atom.isotope!.toString().padStart(3)}`);
+      isotopeEntries.push(
+        `${idx.toString().padStart(3)} ${atom.isotope!.toString().padStart(3)}`,
+      );
     }
 
     // Group in chunks of 8
     for (const isotopeChunk of chunk(isotopeEntries, 8)) {
-      lines.push(`M  ISO  ${isotopeChunk.length} ${isotopeChunk.join(' ')}`);
+      lines.push(`M  ISO  ${isotopeChunk.length} ${isotopeChunk.join(" ")}`);
     }
   }
 

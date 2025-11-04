@@ -1,31 +1,34 @@
-import type { IUPACRule, MultipleBond, Substituent } from '../../types';
-import { RulePriority } from '../../types';
-import { ExecutionPhase, ImmutableNamingContext } from '../../immutable-context';
+import type { IUPACRule, MultipleBond, Substituent } from "../../types";
+import { RulePriority } from "../../types";
+import {
+  ExecutionPhase,
+  ImmutableNamingContext,
+} from "../../immutable-context";
 
 export const P14_4_MULTIPLE_BONDS_SUBSTITUENTS_RULE: IUPACRule = {
-  id: 'P-14.4',
-  name: 'Multiple Bonds and Substituents Numbering',
-  description: 'Number multiple bonds and substituents (P-14.4)',
-  blueBookReference: 'P-14.4 - Numbering of multiple bonds and substituents',
+  id: "P-14.4",
+  name: "Multiple Bonds and Substituents Numbering",
+  description: "Number multiple bonds and substituents (P-14.4)",
+  blueBookReference: "P-14.4 - Numbering of multiple bonds and substituents",
   priority: RulePriority.SEVEN,
   conditions: (context: ImmutableNamingContext) => {
     const state = context.getState();
     const parentStructure = state.parentStructure;
-    return !!(parentStructure && parentStructure.type === 'chain');
+    return !!(parentStructure && parentStructure.type === "chain");
   },
   action: (context: ImmutableNamingContext) => {
     const state = context.getState();
     const parentStructure = state.parentStructure;
-    
-    if (!parentStructure || parentStructure.type !== 'chain') {
+
+    if (!parentStructure || parentStructure.type !== "chain") {
       return context;
     }
-    
+
     const chain = parentStructure.chain;
     if (!chain) {
       return context;
     }
-    
+
     const numberedBonds = chain.multipleBonds.map((bond: MultipleBond) => {
       const atomLocants: number[] = [];
       for (const atom of bond.atoms) {
@@ -34,18 +37,21 @@ export const P14_4_MULTIPLE_BONDS_SUBSTITUENTS_RULE: IUPACRule = {
           atomLocants.push(chain.locants[atomIndex]);
         }
       }
-      const minLocant = atomLocants.length > 0 ? Math.min(...atomLocants) : (bond.locant || 1);
+      const minLocant =
+        atomLocants.length > 0 ? Math.min(...atomLocants) : bond.locant || 1;
       return {
         ...bond,
-        locant: minLocant
+        locant: minLocant,
       };
     });
-    
-    const numberedSubstituents = chain.substituents.map((substituent: Substituent) => ({
-      ...substituent,
-      locant: typeof substituent.locant === 'number' ? substituent.locant : 1
-    }));
-    
+
+    const numberedSubstituents = chain.substituents.map(
+      (substituent: Substituent) => ({
+        ...substituent,
+        locant: typeof substituent.locant === "number" ? substituent.locant : 1,
+      }),
+    );
+
     return context.withStateUpdate(
       (state: any) => ({
         ...state,
@@ -54,15 +60,15 @@ export const P14_4_MULTIPLE_BONDS_SUBSTITUENTS_RULE: IUPACRule = {
           chain: {
             ...chain,
             multipleBonds: numberedBonds,
-            substituents: numberedSubstituents
-          }
-        }
+            substituents: numberedSubstituents,
+          },
+        },
       }),
-      'P-14.4',
-      'Multiple Bonds and Substituents Numbering',
-      'P-14.4',
+      "P-14.4",
+      "Multiple Bonds and Substituents Numbering",
+      "P-14.4",
       ExecutionPhase.NUMBERING,
-      `Numbered ${numberedBonds.length} bonds and ${numberedSubstituents.length} substituents`
+      `Numbered ${numberedBonds.length} bonds and ${numberedSubstituents.length} substituents`,
     );
-  }
+  },
 };

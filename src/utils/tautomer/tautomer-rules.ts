@@ -21,11 +21,14 @@ export interface TautomerRulesFile {
   rules: TautomerRule[];
 }
 
-import rulesJson from './tautomer-rules.json';
+import rulesJson from "./tautomer-rules.json";
 
-const loaded = (rulesJson as unknown) as TautomerRulesFile;
+const loaded = rulesJson as unknown as TautomerRulesFile;
 
 // Normalize and ensure phase defaults to 1
-export const tautomerRules: TautomerRule[] = (loaded.rules || []).map(r => ({ ...r, phase: r.phase ?? 1 }));
+export const tautomerRules: TautomerRule[] = (loaded.rules || []).map((r) => ({
+  ...r,
+  phase: r.phase ?? 1,
+}));
 
 export default tautomerRules;

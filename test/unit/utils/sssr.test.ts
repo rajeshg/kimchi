@@ -48,7 +48,7 @@ describe("SSSR (Smallest Set of Smallest Rings)", () => {
       expect(result.molecules.length).toBe(1);
       const mg = new MoleculeGraph(result.molecules[0]!);
       expect(mg.sssr.length).toBe(2);
-      const sizes = mg.sssr.map(r => r.length).sort();
+      const sizes = mg.sssr.map((r) => r.length).sort();
       expect(sizes).toEqual([5, 6]);
     });
 
@@ -68,7 +68,7 @@ describe("SSSR (Smallest Set of Smallest Rings)", () => {
       expect(result.molecules.length).toBe(1);
       const mg = new MoleculeGraph(result.molecules[0]!);
       expect(mg.sssr.length).toBe(3);
-      expect(mg.sssr.every(r => r.length === 6)).toBe(true);
+      expect(mg.sssr.every((r) => r.length === 6)).toBe(true);
     });
 
     it("phenanthrene (angular fused 6+6+6) should have 3 rings", () => {
@@ -77,7 +77,7 @@ describe("SSSR (Smallest Set of Smallest Rings)", () => {
       expect(result.molecules.length).toBe(1);
       const mg = new MoleculeGraph(result.molecules[0]!);
       expect(mg.sssr.length).toBe(3);
-      expect(mg.sssr.every(r => r.length === 6)).toBe(true);
+      expect(mg.sssr.every((r) => r.length === 6)).toBe(true);
     });
 
     it("quinoline (fused 6+6 with N) should have 2 rings", () => {
@@ -86,7 +86,7 @@ describe("SSSR (Smallest Set of Smallest Rings)", () => {
       expect(result.molecules.length).toBe(1);
       const mg = new MoleculeGraph(result.molecules[0]!);
       expect(mg.sssr.length).toBe(2);
-      expect(mg.sssr.every(r => r.length === 6)).toBe(true);
+      expect(mg.sssr.every((r) => r.length === 6)).toBe(true);
     });
   });
 
@@ -97,7 +97,7 @@ describe("SSSR (Smallest Set of Smallest Rings)", () => {
       expect(result.molecules.length).toBe(1);
       const mg = new MoleculeGraph(result.molecules[0]!);
       expect(mg.sssr.length).toBe(2);
-      const sizes = mg.sssr.map(r => r.length).sort();
+      const sizes = mg.sssr.map((r) => r.length).sort();
       expect(sizes).toEqual([5, 6]);
     });
 
@@ -129,7 +129,7 @@ describe("SSSR (Smallest Set of Smallest Rings)", () => {
       expect(result.molecules.length).toBe(1);
       const mg = new MoleculeGraph(result.molecules[0]!);
       expect(mg.sssr.length).toBe(3);
-      expect(mg.sssr.every(r => r.length === 6)).toBe(true);
+      expect(mg.sssr.every((r) => r.length === 6)).toBe(true);
     });
 
     it("cubane should have 5 rings", () => {
@@ -138,7 +138,7 @@ describe("SSSR (Smallest Set of Smallest Rings)", () => {
       expect(result.molecules.length).toBe(1);
       const mg = new MoleculeGraph(result.molecules[0]!);
       expect(mg.sssr.length).toBe(5);
-      expect(mg.sssr.every(r => r.length === 4)).toBe(true);
+      expect(mg.sssr.every((r) => r.length === 4)).toBe(true);
     });
 
     it("basketane should have 6 rings", () => {
@@ -147,7 +147,7 @@ describe("SSSR (Smallest Set of Smallest Rings)", () => {
       expect(result.molecules.length).toBe(1);
       const mg = new MoleculeGraph(result.molecules[0]!);
       expect(mg.sssr.length).toBe(6);
-      const sizes = mg.sssr.map(r => r.length).sort();
+      const sizes = mg.sssr.map((r) => r.length).sort();
       expect(sizes).toEqual([4, 4, 5, 5, 5, 5]);
     });
   });
@@ -193,7 +193,7 @@ describe("SSSR (Smallest Set of Smallest Rings)", () => {
       expect(result.molecules.length).toBe(1);
       const mg = new MoleculeGraph(result.molecules[0]!);
       expect(mg.sssr.length).toBe(2);
-      const sizes = mg.sssr.map(r => r.length).sort();
+      const sizes = mg.sssr.map((r) => r.length).sort();
       expect(sizes).toEqual([5, 6]);
     });
 
@@ -203,7 +203,7 @@ describe("SSSR (Smallest Set of Smallest Rings)", () => {
       expect(result.molecules.length).toBe(1);
       const mg = new MoleculeGraph(result.molecules[0]!);
       expect(mg.sssr.length).toBe(2);
-      expect(mg.sssr.every(r => r.length === 6)).toBe(true);
+      expect(mg.sssr.every((r) => r.length === 6)).toBe(true);
     });
 
     it("pyrene (4 fused 6-rings) should have 4 rings", () => {
@@ -212,7 +212,7 @@ describe("SSSR (Smallest Set of Smallest Rings)", () => {
       expect(result.molecules.length).toBe(1);
       const mg = new MoleculeGraph(result.molecules[0]!);
       expect(mg.sssr.length).toBe(4);
-      expect(mg.sssr.every(r => r.length === 6)).toBe(true);
+      expect(mg.sssr.every((r) => r.length === 6)).toBe(true);
     });
   });
 
@@ -262,12 +262,10 @@ describe("SSSR (Smallest Set of Smallest Rings)", () => {
       expect(result.molecules.length).toBe(1);
       const mg = new MoleculeGraph(result.molecules[0]!);
 
-      const fusionAtomIds = result.molecules[0]!.atoms
-        .filter(a => {
-          const ringIndices = mg.getNodeRings(a.id);
-          return ringIndices.length === 2;
-        })
-        .map(a => a.id);
+      const fusionAtomIds = result.molecules[0]!.atoms.filter((a) => {
+        const ringIndices = mg.getNodeRings(a.id);
+        return ringIndices.length === 2;
+      }).map((a) => a.id);
 
       expect(fusionAtomIds.length).toBe(2);
     });
@@ -278,11 +276,10 @@ describe("SSSR (Smallest Set of Smallest Rings)", () => {
       expect(result.molecules.length).toBe(1);
       const mg = new MoleculeGraph(result.molecules[0]!);
 
-      const spiroCenters = result.molecules[0]!.atoms
-        .filter(a => {
-          const ringIndices = mg.getNodeRings(a.id);
-          return ringIndices.length === 2;
-        });
+      const spiroCenters = result.molecules[0]!.atoms.filter((a) => {
+        const ringIndices = mg.getNodeRings(a.id);
+        return ringIndices.length === 2;
+      });
 
       expect(spiroCenters.length).toBe(1);
     });

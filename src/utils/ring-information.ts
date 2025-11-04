@@ -1,6 +1,10 @@
-import type { Molecule } from 'types';
-import type { RingInfo } from './ring-analysis';
-import { analyzeRings, findSSSR, getRingsContainingAtom } from './ring-analysis';
+import type { Molecule } from "types";
+import type { RingInfo } from "./ring-analysis";
+import {
+  analyzeRings,
+  findSSSR,
+  getRingsContainingAtom,
+} from "./ring-analysis";
 
 /**
  * Comprehensive ring information interface providing access to SSSR (Smallest Set of Smallest Rings)
@@ -41,7 +45,7 @@ export interface RingInformation {
   ringAtoms(ringIdx: number): number[];
 
   /** Get bonds in a specific ring */
-  ringBonds(ringIdx: number): Array<{atom1: number, atom2: number}>;
+  ringBonds(ringIdx: number): Array<{ atom1: number; atom2: number }>;
 }
 
 /**
@@ -75,15 +79,18 @@ class RingInformationImpl implements RingInformation {
   }
 
   isAtomInRingOfSize(atomIdx: number, size: number): boolean {
-    return this.sssr.some(ring => ring.length === size && ring.includes(atomIdx));
+    return this.sssr.some(
+      (ring) => ring.length === size && ring.includes(atomIdx),
+    );
   }
 
   isBondInRingOfSize(atom1: number, atom2: number, size: number): boolean {
-    return this.sssr.some(ring =>
-      ring.length === size &&
-      ring.includes(atom1) &&
-      ring.includes(atom2) &&
-      Math.abs(ring.indexOf(atom1) - ring.indexOf(atom2)) <= 1
+    return this.sssr.some(
+      (ring) =>
+        ring.length === size &&
+        ring.includes(atom1) &&
+        ring.includes(atom2) &&
+        Math.abs(ring.indexOf(atom1) - ring.indexOf(atom2)) <= 1,
     );
   }
 
@@ -92,8 +99,8 @@ class RingInformationImpl implements RingInformation {
   }
 
   bondRingMembership(atom1: number, atom2: number): number {
-    return this.sssr.filter(ring =>
-      ring.includes(atom1) && ring.includes(atom2)
+    return this.sssr.filter(
+      (ring) => ring.includes(atom1) && ring.includes(atom2),
     ).length;
   }
 
@@ -102,8 +109,8 @@ class RingInformationImpl implements RingInformation {
   }
 
   bondRings(atom1: number, atom2: number): number[][] {
-    return this.sssr.filter(ring =>
-      ring.includes(atom1) && ring.includes(atom2)
+    return this.sssr.filter(
+      (ring) => ring.includes(atom1) && ring.includes(atom2),
     );
   }
 
@@ -112,11 +119,11 @@ class RingInformationImpl implements RingInformation {
     return ring ? [...ring] : [];
   }
 
-  ringBonds(ringIdx: number): Array<{atom1: number, atom2: number}> {
+  ringBonds(ringIdx: number): Array<{ atom1: number; atom2: number }> {
     const ring = this.sssr[ringIdx];
     if (!ring) return [];
 
-    const bonds: Array<{atom1: number, atom2: number}> = [];
+    const bonds: Array<{ atom1: number; atom2: number }> = [];
     for (let i = 0; i < ring.length; i++) {
       const atom1 = ring[i]!;
       const atom2 = ring[(i + 1) % ring.length]!;
@@ -147,6 +154,3 @@ class RingInformationImpl implements RingInformation {
 export function getRingInfo(molecule: Molecule): RingInformation {
   return new RingInformationImpl(molecule);
 }
-
-
-

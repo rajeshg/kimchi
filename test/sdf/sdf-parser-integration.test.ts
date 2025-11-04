@@ -1,54 +1,59 @@
-import { describe, it, expect } from 'bun:test';
-import { parseSDF, writeSDF, parseSMILES } from 'index';
+import { describe, it, expect } from "bun:test";
+import { parseSDF, writeSDF, parseSMILES } from "index";
 
-describe('SDF Parser - Integration Tests', () => {
-  describe('Round-trip parsing', () => {
-    it('should round-trip a single molecule with properties', () => {
-      const parseResult = parseSMILES('CCO');
+describe("SDF Parser - Integration Tests", () => {
+  describe("Round-trip parsing", () => {
+    it("should round-trip a single molecule with properties", () => {
+      const parseResult = parseSMILES("CCO");
       if (parseResult.errors.length > 0 || parseResult.molecules.length === 0) {
-        throw new Error('Failed to parse SMILES');
+        throw new Error("Failed to parse SMILES");
       }
       const molecule = parseResult.molecules[0];
       if (!molecule) {
-        throw new Error('No molecule in parse result');
+        throw new Error("No molecule in parse result");
       }
 
       const writeResult = writeSDF({
         molecule,
         properties: {
-          ID: '001',
-          NAME: 'Ethanol',
-          FORMULA: 'C2H6O',
+          ID: "001",
+          NAME: "Ethanol",
+          FORMULA: "C2H6O",
         },
       });
 
       if (writeResult.errors.length > 0) {
-        throw new Error('Failed to write SDF');
+        throw new Error("Failed to write SDF");
       }
 
       const sdfParseResult = parseSDF(writeResult.sdf);
       expect(sdfParseResult.errors).toHaveLength(0);
       expect(sdfParseResult.records).toHaveLength(1);
       const record = sdfParseResult.records[0];
-      if (!record) throw new Error('Expected record');
+      if (!record) throw new Error("Expected record");
       expect(record.properties).toEqual({
-        ID: '001',
-        NAME: 'Ethanol',
-        FORMULA: 'C2H6O',
+        ID: "001",
+        NAME: "Ethanol",
+        FORMULA: "C2H6O",
       });
       expect(record.molecule).toBeTruthy();
       expect(record.molecule?.atoms).toHaveLength(3);
     });
 
-    it('should round-trip multiple molecules with properties', () => {
-      const mol1Result = parseSMILES('C');
-      const mol2Result = parseSMILES('CC');
-      const mol3Result = parseSMILES('CCC');
+    it("should round-trip multiple molecules with properties", () => {
+      const mol1Result = parseSMILES("C");
+      const mol2Result = parseSMILES("CC");
+      const mol3Result = parseSMILES("CCC");
 
-      if (mol1Result.errors.length > 0 || mol1Result.molecules.length === 0 ||
-          mol2Result.errors.length > 0 || mol2Result.molecules.length === 0 ||
-          mol3Result.errors.length > 0 || mol3Result.molecules.length === 0) {
-        throw new Error('Failed to parse SMILES');
+      if (
+        mol1Result.errors.length > 0 ||
+        mol1Result.molecules.length === 0 ||
+        mol2Result.errors.length > 0 ||
+        mol2Result.molecules.length === 0 ||
+        mol3Result.errors.length > 0 ||
+        mol3Result.molecules.length === 0
+      ) {
+        throw new Error("Failed to parse SMILES");
       }
 
       const mol1 = mol1Result.molecules[0];
@@ -56,17 +61,17 @@ describe('SDF Parser - Integration Tests', () => {
       const mol3 = mol3Result.molecules[0];
 
       if (!mol1 || !mol2 || !mol3) {
-        throw new Error('No molecules in parse result');
+        throw new Error("No molecules in parse result");
       }
 
       const writeResult = writeSDF([
-        { molecule: mol1, properties: { ID: '1', NAME: 'Methane' } },
-        { molecule: mol2, properties: { ID: '2', NAME: 'Ethane' } },
-        { molecule: mol3, properties: { ID: '3', NAME: 'Propane' } },
+        { molecule: mol1, properties: { ID: "1", NAME: "Methane" } },
+        { molecule: mol2, properties: { ID: "2", NAME: "Ethane" } },
+        { molecule: mol3, properties: { ID: "3", NAME: "Propane" } },
       ]);
 
       if (writeResult.errors.length > 0) {
-        throw new Error('Failed to write SDF');
+        throw new Error("Failed to write SDF");
       }
 
       const parseResult = parseSDF(writeResult.sdf);
@@ -76,19 +81,19 @@ describe('SDF Parser - Integration Tests', () => {
       const record0 = parseResult.records[0];
       const record1 = parseResult.records[1];
       const record2 = parseResult.records[2];
-      if (!record0 || !record1 || !record2) throw new Error('Expected records');
+      if (!record0 || !record1 || !record2) throw new Error("Expected records");
 
-      expect(record0.properties.ID).toBe('1');
-      expect(record0.properties.NAME).toBe('Methane');
-      expect(record1.properties.ID).toBe('2');
-      expect(record1.properties.NAME).toBe('Ethane');
-      expect(record2.properties.ID).toBe('3');
-      expect(record2.properties.NAME).toBe('Propane');
+      expect(record0.properties.ID).toBe("1");
+      expect(record0.properties.NAME).toBe("Methane");
+      expect(record1.properties.ID).toBe("2");
+      expect(record1.properties.NAME).toBe("Ethane");
+      expect(record2.properties.ID).toBe("3");
+      expect(record2.properties.NAME).toBe("Propane");
     });
   });
 
-  describe('Real-world SDF files', () => {
-    it('should parse complex molecules with multiple properties', () => {
+  describe("Real-world SDF files", () => {
+    it("should parse complex molecules with multiple properties", () => {
       const sdf = `  Mrv2311 02102409422D          
 
 
@@ -144,22 +149,24 @@ $$$$
       expect(result.errors).toHaveLength(0);
       expect(result.records).toHaveLength(1);
       const record = result.records[0];
-      if (!record) throw new Error('Expected record');
+      if (!record) throw new Error("Expected record");
 
       expect(record.molecule).toBeTruthy();
       expect(record.molecule?.atoms).toHaveLength(6);
-      expect(record.properties.DATABASE_ID).toBe('CHEMBL123456');
-      expect(record.properties.COMPOUND_NAME).toBe('Benzene');
-      expect(record.properties.MOLECULAR_FORMULA).toBe('C6H6');
-      expect(record.properties.MOLECULAR_WEIGHT).toBe('78.11');
-      expect(record.properties.SMILES).toBe('c1ccccc1');
-      expect(record.properties.CANONICAL_SMILES).toBe('C1=CC=CC=C1');
-      expect(record.properties.ACTIVITY).toBe('Active');
-      expect(record.properties.IC50).toBe('1.23');
-      expect(record.properties.NOTES).toBe('Test compound for aromaticity\ndetection and validation');
+      expect(record.properties.DATABASE_ID).toBe("CHEMBL123456");
+      expect(record.properties.COMPOUND_NAME).toBe("Benzene");
+      expect(record.properties.MOLECULAR_FORMULA).toBe("C6H6");
+      expect(record.properties.MOLECULAR_WEIGHT).toBe("78.11");
+      expect(record.properties.SMILES).toBe("c1ccccc1");
+      expect(record.properties.CANONICAL_SMILES).toBe("C1=CC=CC=C1");
+      expect(record.properties.ACTIVITY).toBe("Active");
+      expect(record.properties.IC50).toBe("1.23");
+      expect(record.properties.NOTES).toBe(
+        "Test compound for aromaticity\ndetection and validation",
+      );
     });
 
-    it('should handle large SDF files with many records', () => {
+    it("should handle large SDF files with many records", () => {
       const records = [];
       for (let i = 0; i < 100; i++) {
         records.push(`  Mrv2311 02102409422D          
@@ -176,7 +183,7 @@ Record ${i}
 
 $$$$`);
       }
-      const sdf = records.join('\n');
+      const sdf = records.join("\n");
 
       const result = parseSDF(sdf);
       expect(result.errors).toHaveLength(0);
@@ -192,8 +199,8 @@ $$$$`);
     });
   });
 
-  describe('Error handling in mixed scenarios', () => {
-    it('should continue parsing after encountering invalid records', () => {
+  describe("Error handling in mixed scenarios", () => {
+    it("should continue parsing after encountering invalid records", () => {
       const sdf = `  Mrv2311 02102409422D          
 
 
@@ -244,73 +251,73 @@ $$$$
       const valid3 = result.records[4];
 
       if (!valid1 || !invalid1 || !valid2 || !invalid2 || !valid3) {
-        throw new Error('Expected records');
+        throw new Error("Expected records");
       }
 
       expect(valid1.molecule).toBeTruthy();
-      expect(valid1.properties.ID).toBe('valid1');
+      expect(valid1.properties.ID).toBe("valid1");
 
       expect(invalid1.molecule).toBeNull();
       expect(invalid1.errors.length).toBeGreaterThan(0);
 
       expect(valid2.molecule).toBeTruthy();
-      expect(valid2.properties.ID).toBe('valid2');
+      expect(valid2.properties.ID).toBe("valid2");
 
       expect(invalid2.molecule).toBeNull();
       expect(invalid2.errors.length).toBeGreaterThan(0);
 
       expect(valid3.molecule).toBeTruthy();
-      expect(valid3.properties.ID).toBe('valid3');
+      expect(valid3.properties.ID).toBe("valid3");
     });
   });
 
-  describe('Property edge cases in integration', () => {
-    it('should preserve empty properties', () => {
-      const parseResult = parseSMILES('C');
+  describe("Property edge cases in integration", () => {
+    it("should preserve empty properties", () => {
+      const parseResult = parseSMILES("C");
       if (parseResult.errors.length > 0 || parseResult.molecules.length === 0) {
-        throw new Error('Failed to parse SMILES');
+        throw new Error("Failed to parse SMILES");
       }
       const molecule = parseResult.molecules[0];
       if (!molecule) {
-        throw new Error('No molecule in parse result');
+        throw new Error("No molecule in parse result");
       }
 
       const writeResult = writeSDF({
         molecule,
         properties: {
-          FILLED: 'Value',
-          EMPTY: '',
+          FILLED: "Value",
+          EMPTY: "",
         },
       });
 
       const sdfParseResult = parseSDF(writeResult.sdf);
       const record = sdfParseResult.records[0];
-      if (!record) throw new Error('Expected record');
-      expect(record.properties.FILLED).toBe('Value');
-      expect(record.properties.EMPTY).toBe('');
+      if (!record) throw new Error("Expected record");
+      expect(record.properties.FILLED).toBe("Value");
+      expect(record.properties.EMPTY).toBe("");
     });
 
-    it('should handle properties with newlines', () => {
-      const parseResult = parseSMILES('C');
+    it("should handle properties with newlines", () => {
+      const parseResult = parseSMILES("C");
       if (parseResult.errors.length > 0 || parseResult.molecules.length === 0) {
-        throw new Error('Failed to parse SMILES');
+        throw new Error("Failed to parse SMILES");
       }
       const molecule = parseResult.molecules[0];
       if (!molecule) {
-        throw new Error('No molecule in parse result');
+        throw new Error("No molecule in parse result");
       }
 
       const writeResult = writeSDF({
         molecule,
         properties: {
-          DESCRIPTION: 'Line 1\nLine 2\nLine 3',
+          DESCRIPTION: "Line 1\nLine 2\nLine 3",
         },
       });
 
       const sdfParseResult = parseSDF(writeResult.sdf);
       const record = sdfParseResult.records[0];
-      if (!record) throw new Error('Expected record');
-      expect(record.properties.DESCRIPTION).toBe('Line 1\nLine 2\nLine 3');
+      if (!record) throw new Error("Expected record");
+      expect(record.properties.DESCRIPTION).toBe("Line 1\nLine 2\nLine 3");
     });
   });
 });

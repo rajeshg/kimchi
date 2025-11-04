@@ -1,7 +1,9 @@
-import type { AtomCoordinates } from './types';
+import type { AtomCoordinates } from "./types";
 
-export function normalizeCoordinates(rawCoords: Array<[number, number]> | AtomCoordinates[]): AtomCoordinates[] {
-  return rawCoords.map(c => Array.isArray(c) ? { x: c[0], y: c[1] } : c);
+export function normalizeCoordinates(
+  rawCoords: Array<[number, number]> | AtomCoordinates[],
+): AtomCoordinates[] {
+  return rawCoords.map((c) => (Array.isArray(c) ? { x: c[0], y: c[1] } : c));
 }
 
 export function createCoordinateTransforms(
@@ -9,10 +11,10 @@ export function createCoordinateTransforms(
   width: number,
   height: number,
   padding: number,
-  useRDKitStyle: boolean
+  useRDKitStyle: boolean,
 ): [(x: number) => number, (y: number) => number] {
-  const xs = coords.map(c => c.x);
-  const ys = coords.map(c => c.y);
+  const xs = coords.map((c) => c.x);
+  const ys = coords.map((c) => c.y);
   const minX = Math.min(...xs);
   const maxX = Math.max(...xs);
   const minY = Math.min(...ys);
@@ -30,7 +32,7 @@ export function createCoordinateTransforms(
     const drawHeight = height * (1 - 2 * rdkitPadding);
 
     const minDim = Math.min(drawWidth, drawHeight);
-    const scale = minDim * 0.75 / Math.max(xRange, yRange);
+    const scale = (minDim * 0.75) / Math.max(xRange, yRange);
 
     const centerX = (minX + maxX) / 2;
     const centerY = (minY + maxY) / 2;
@@ -41,10 +43,12 @@ export function createCoordinateTransforms(
   } else {
     const scale = Math.min(
       (width - 2 * padding) / (maxX - minX || 1),
-      (height - 2 * padding) / (maxY - minY || 1)
+      (height - 2 * padding) / (maxY - minY || 1),
     );
-    const offsetX = padding - minX * scale + (width - (maxX - minX) * scale) / 2;
-    const offsetY = padding - minY * scale + (height - (maxY - minY) * scale) / 2;
+    const offsetX =
+      padding - minX * scale + (width - (maxX - minX) * scale) / 2;
+    const offsetY =
+      padding - minY * scale + (height - (maxY - minY) * scale) / 2;
 
     const tx = (x: number) => x * scale + offsetX;
     const ty = (y: number) => y * scale + offsetY;
@@ -52,12 +56,12 @@ export function createCoordinateTransforms(
   }
 }
 
-import { regularPolygonVertices } from './ring-template-cache';
+import { regularPolygonVertices } from "./ring-template-cache";
 
 export function regularizeRingCoordinates(
   coords: AtomCoordinates[],
   ringAtomIds: number[],
-  atomIdToIndex: Map<number, number>
+  atomIdToIndex: Map<number, number>,
 ): void {
   const n = ringAtomIds.length;
   if (n < 3 || n > 8) return;
@@ -65,19 +69,22 @@ export function regularizeRingCoordinates(
   const indices: number[] = [];
   for (const aid of ringAtomIds) {
     const idx = atomIdToIndex.get(aid as number);
-    if (typeof idx !== 'number') return;
+    if (typeof idx !== "number") return;
     indices.push(idx);
   }
   if (indices.length !== ringAtomIds.length) return;
 
   // compute centroid and average bond length
-  let cx = 0, cy = 0;
+  let cx = 0,
+    cy = 0;
   for (const idx of indices) {
     const c = coords[idx];
     if (!c) return;
-    cx += c.x; cy += c.y;
+    cx += c.x;
+    cy += c.y;
   }
-  cx /= indices.length; cy /= indices.length;
+  cx /= indices.length;
+  cy /= indices.length;
 
   // compute average edge length to scale template
   let avgEdge = 0;
@@ -88,7 +95,8 @@ export function regularizeRingCoordinates(
     const a = coords[ia];
     const b = coords[ib];
     if (!a || !b) return;
-    const dx = b.x - a.x; const dy = b.y - a.y;
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
     avgEdge += Math.sqrt(dx * dx + dy * dy);
   }
   avgEdge /= indices.length;
@@ -133,9 +141,9 @@ function unwrapAngles(angles: number[]): number[] {
   const unwrapped = angles.slice();
   for (let i = 1; i < unwrapped.length; i++) {
     const prev = unwrapped[i - 1];
-    if (typeof prev !== 'number') continue;
+    if (typeof prev !== "number") continue;
     let curr = unwrapped[i];
-    if (typeof curr !== 'number') continue;
+    if (typeof curr !== "number") continue;
     while (curr - prev > Math.PI) curr -= Math.PI * 2;
     while (curr - prev < -Math.PI) curr += Math.PI * 2;
     unwrapped[i] = curr;
@@ -143,12 +151,11 @@ function unwrapAngles(angles: number[]): number[] {
   return unwrapped;
 }
 
-
 function regularizeRingToPolygon(
   coords: AtomCoordinates[],
   atomIndices: number[],
   centerX: number,
-  centerY: number
+  centerY: number,
 ): { targets: Map<number, { x: number; y: number }>; radius: number } | null {
   const n = atomIndices.length;
   if (n < 5 || n > 6) return null;
@@ -177,7 +184,7 @@ function regularizeRingToPolygon(
   let base = 0;
   for (let i = 0; i < n; i++) {
     const val = unwrapped[i];
-    if (typeof val !== 'number') return null;
+    if (typeof val !== "number") return null;
     base += val - dir * step * i;
   }
   base /= n;
@@ -190,18 +197,17 @@ function regularizeRingToPolygon(
     const theta = base + dir * step * i;
     targets.set(idx, {
       x: centerX + Math.cos(theta) * radius,
-      y: centerY + Math.sin(theta) * radius
+      y: centerY + Math.sin(theta) * radius,
     });
   }
   return { targets, radius };
 }
 
-
 export function regularizeFusedRingClusters(
   coords: AtomCoordinates[],
   clusters: number[][],
   rings: readonly (readonly number[])[],
-  atomIdToIndex: Map<number, number>
+  atomIdToIndex: Map<number, number>,
 ): void {
   for (const cluster of clusters) {
     const accum = new Map<number, { x: number; y: number; count: number }>();
@@ -213,9 +219,15 @@ export function regularizeFusedRingClusters(
       let cy = 0;
       for (const atomId of ring) {
         const idx = atomIdToIndex.get(atomId as number);
-        if (typeof idx !== 'number') { cx = NaN; break; }
+        if (typeof idx !== "number") {
+          cx = NaN;
+          break;
+        }
         const coord = coords[idx];
-        if (!coord) { cx = NaN; break; }
+        if (!coord) {
+          cx = NaN;
+          break;
+        }
         atomIndices.push(idx);
         cx += coord.x;
         cy += coord.y;
@@ -230,7 +242,11 @@ export function regularizeFusedRingClusters(
       for (const [idx, target] of regularized.targets.entries()) {
         const prev = accum.get(idx);
         if (prev) {
-          accum.set(idx, { x: prev.x + target.x, y: prev.y + target.y, count: prev.count + 1 });
+          accum.set(idx, {
+            x: prev.x + target.x,
+            y: prev.y + target.y,
+            count: prev.count + 1,
+          });
         } else {
           accum.set(idx, { x: target.x, y: target.y, count: 1 });
         }
@@ -247,15 +263,15 @@ export function regularizeFusedRingClusters(
 // Multi-pass / constrained snapping of bond angles to preserve fused ring geometry.
 export function snapBondAngles(
   coords: AtomCoordinates[],
-  molecule: import('types').Molecule,
+  molecule: import("types").Molecule,
   allowedAnglesDeg: number[] = [30, 45, 60, 90, 120, 180],
   passes: number = 3,
   // optional set of ring indices that belong to fused ring systems which
   // should not be regularized per-ring (they will be handled as fused
   // clusters by the caller).
-  fusedRingIds?: Set<number>
+  fusedRingIds?: Set<number>,
 ): void {
-  const allowedRad = allowedAnglesDeg.map(d => (d * Math.PI) / 180);
+  const allowedRad = allowedAnglesDeg.map((d) => (d * Math.PI) / 180);
 
   const atomIdToIndex = new Map<number, number>();
   molecule.atoms.forEach((a, i) => atomIdToIndex.set(a.id, i));
@@ -268,12 +284,16 @@ export function snapBondAngles(
       const ids = Array.from(ring);
       for (const aid of ids) {
         const idx = atomIdToIndex.get(aid as number);
-        if (typeof idx === 'number') atomInRing[idx] = true;
+        if (typeof idx === "number") atomInRing[idx] = true;
       }
       for (let i = 0; i < ids.length; ++i) {
         const a1 = ids[i];
         const a2 = ids[(i + 1) % ids.length];
-        const bIdx = molecule.bonds.findIndex(b => (b.atom1 === a1 && b.atom2 === a2) || (b.atom1 === a2 && b.atom2 === a1));
+        const bIdx = molecule.bonds.findIndex(
+          (b) =>
+            (b.atom1 === a1 && b.atom2 === a2) ||
+            (b.atom1 === a2 && b.atom2 === a1),
+        );
         if (bIdx >= 0) bondInSameRing.add(bIdx);
       }
     }
@@ -285,7 +305,9 @@ export function snapBondAngles(
     for (const aRad of allowedRad) {
       const candidateBases = [aRad, (aRad + Math.PI) % (Math.PI * 2)];
       for (const base of candidateBases) {
-        const diff = Math.abs(Math.atan2(Math.sin(angle - base), Math.cos(angle - base)));
+        const diff = Math.abs(
+          Math.atan2(Math.sin(angle - base), Math.cos(angle - base)),
+        );
         if (diff < bestDiff) {
           bestDiff = diff;
           best = base;
@@ -326,7 +348,10 @@ export function snapBondAngles(
       let moveFactor = baseAlpha;
       if (atomInRing[idxA] || atomInRing[idxB]) moveFactor *= 0.25;
 
-      coords[idxB] = { x: b.x + (targetX - b.x) * moveFactor, y: b.y + (targetY - b.y) * moveFactor };
+      coords[idxB] = {
+        x: b.x + (targetX - b.x) * moveFactor,
+        y: b.y + (targetY - b.y) * moveFactor,
+      };
     }
   }
 
@@ -345,13 +370,13 @@ export function snapBondAngles(
 
 export function computeLayoutQuality(
   coords: AtomCoordinates[],
-  molecule: import('types').Molecule,
+  molecule: import("types").Molecule,
   atomsToShow: Set<number>,
   fontSize: number,
   bondLineWidth: number,
-  allowedAnglesDeg: number[] = [30, 45, 60, 90, 120, 180]
+  allowedAnglesDeg: number[] = [30, 45, 60, 90, 120, 180],
 ) {
-  const allowedRad = allowedAnglesDeg.map(d => (d * Math.PI) / 180);
+  const allowedRad = allowedAnglesDeg.map((d) => (d * Math.PI) / 180);
   const atomIdToIndex = new Map<number, number>();
   molecule.atoms.forEach((a, i) => atomIdToIndex.set(a.id, i));
 
@@ -373,7 +398,8 @@ export function computeLayoutQuality(
     const a = coords[idxA];
     const b = coords[idxB];
     if (!a || !b) continue;
-    const dx = b.x - a.x; const dy = b.y - a.y;
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
     const len = Math.sqrt(dx * dx + dy * dy);
     bondLens.push(len);
 
@@ -382,7 +408,9 @@ export function computeLayoutQuality(
     let bestDiff = Number.POSITIVE_INFINITY;
     for (const aRad of allowedRad) {
       for (const base of [aRad, (aRad + Math.PI) % (Math.PI * 2)]) {
-        const diff = Math.abs(Math.atan2(Math.sin(angle - base), Math.cos(angle - base)));
+        const diff = Math.abs(
+          Math.atan2(Math.sin(angle - base), Math.cos(angle - base)),
+        );
         if (diff < bestDiff) bestDiff = diff;
       }
     }
@@ -402,37 +430,53 @@ export function computeLayoutQuality(
   const minAtomDist = Math.max(4, fontSize * 0.4);
   for (let i = 0; i < molecule.atoms.length; i++) {
     for (let j = i + 1; j < molecule.atoms.length; j++) {
-      const ci = coords[i]; const cj = coords[j];
+      const ci = coords[i];
+      const cj = coords[j];
       if (!ci || !cj) continue;
-      const dx = ci.x - cj.x; const dy = ci.y - cj.y; const d = Math.sqrt(dx * dx + dy * dy);
+      const dx = ci.x - cj.x;
+      const dy = ci.y - cj.y;
+      const d = Math.sqrt(dx * dx + dy * dy);
       if (d < minAtomDist) {
-        const diff = (minAtomDist - d);
+        const diff = minAtomDist - d;
         atomOverlapPenalty += diff * diff;
       }
     }
   }
 
-  const minLabelDist = Math.max(fontSize * 0.6, (bondLens.length > 0 ? (bondLens.reduce((s, v) => s + v, 0) / bondLens.length) * 0.2 : fontSize));
+  const minLabelDist = Math.max(
+    fontSize * 0.6,
+    bondLens.length > 0
+      ? (bondLens.reduce((s, v) => s + v, 0) / bondLens.length) * 0.2
+      : fontSize,
+  );
   const shown: number[] = [];
   for (const n of atomsToShow) {
-    if (typeof n === 'number' && n >= 0 && n < coords.length) shown.push(n as number);
+    if (typeof n === "number" && n >= 0 && n < coords.length)
+      shown.push(n as number);
   }
   for (let i = 0; i < shown.length; i++) {
     for (let j = i + 1; j < shown.length; j++) {
       const ai = shown[i];
       const aj = shown[j];
       if (ai === undefined || aj === undefined) continue;
-      const ci = coords[ai]; const cj = coords[aj];
+      const ci = coords[ai];
+      const cj = coords[aj];
       if (!ci || !cj) continue;
-      const dx = ci.x - cj.x; const dy = ci.y - cj.y; const d = Math.sqrt(dx * dx + dy * dy);
+      const dx = ci.x - cj.x;
+      const dy = ci.y - cj.y;
+      const d = Math.sqrt(dx * dx + dy * dy);
       if (d < minLabelDist) {
-        const diff = (minLabelDist - d);
+        const diff = minLabelDist - d;
         labelOverlapPenalty += diff * diff;
       }
     }
   }
 
-  const total = angleWeight * anglePenalty + lengthWeight * lengthPenalty + atomOverlapWeight * atomOverlapPenalty + labelOverlapWeight * labelOverlapPenalty;
+  const total =
+    angleWeight * anglePenalty +
+    lengthWeight * lengthPenalty +
+    atomOverlapWeight * atomOverlapPenalty +
+    labelOverlapWeight * labelOverlapPenalty;
 
   return {
     total,
@@ -440,17 +484,17 @@ export function computeLayoutQuality(
       angle: anglePenalty,
       length: lengthPenalty,
       atomOverlap: atomOverlapPenalty,
-      labelOverlap: labelOverlapPenalty
-    }
+      labelOverlap: labelOverlapPenalty,
+    },
   };
 }
 
 export function computeLabelOffsets(
   svgCoords: Array<{ x: number; y: number }>,
-  molecule: import('types').Molecule,
+  molecule: import("types").Molecule,
   atomsToShow: Set<number>,
   fontSize: number,
-  bondLineWidth: number
+  bondLineWidth: number,
 ): Map<number, { dx: number; dy: number }> {
   const offsets = new Map<number, { dx: number; dy: number }>();
 
@@ -462,9 +506,14 @@ export function computeLabelOffsets(
     return { x: c.x - w / 2, y: c.y - h / 2, w, h };
   }
 
-  for (let i = 0; i < molecule.atoms.length; i++) offsets.set(i, { dx: 0, dy: 0 });
+  for (let i = 0; i < molecule.atoms.length; i++)
+    offsets.set(i, { dx: 0, dy: 0 });
 
-  const labels: { idx: number; label: string; box: { x: number; y: number; w: number; h: number } }[] = [];
+  const labels: {
+    idx: number;
+    label: string;
+    box: { x: number; y: number; w: number; h: number };
+  }[] = [];
   for (let i = 0; i < molecule.atoms.length; i++) {
     if (!atomsToShow.has(i)) continue;
     if (!svgCoords[i]) continue;
@@ -489,7 +538,12 @@ export function computeLabelOffsets(
         const ay = A.box.y + offA.dy;
         const bx = B.box.x + offB.dx;
         const by = B.box.y + offB.dy;
-        if (ax < bx + B.box.w && ax + A.box.w > bx && ay < by + B.box.h && ay + A.box.h > by) {
+        if (
+          ax < bx + B.box.w &&
+          ax + A.box.w > bx &&
+          ay < by + B.box.h &&
+          ay + A.box.h > by
+        ) {
           const acx = ax + A.box.w / 2;
           const acy = ay + A.box.h / 2;
           const bcx = bx + B.box.w / 2;
@@ -497,9 +551,13 @@ export function computeLabelOffsets(
           let vx = bcx - acx;
           let vy = bcy - acy;
           const vlen = Math.sqrt(vx * vx + vy * vy) || 1;
-          vx /= vlen; vy /= vlen;
+          vx /= vlen;
+          vy /= vlen;
           const push = Math.max(4, (A.box.w + B.box.w) / 8);
-          offsets.set(B.idx, { dx: offB.dx + vx * push, dy: offB.dy + vy * push });
+          offsets.set(B.idx, {
+            dx: offB.dx + vx * push,
+            dy: offB.dy + vy * push,
+          });
           moved = true;
         }
       }
@@ -530,7 +588,10 @@ export function computeLabelOffsets(
       const vy = b.y - a.y;
       const segLen2 = vx * vx + vy * vy;
       if (segLen2 === 0) continue;
-      const t = Math.max(0, Math.min(1, ((lx - a.x) * vx + (ly - a.y) * vy) / segLen2));
+      const t = Math.max(
+        0,
+        Math.min(1, ((lx - a.x) * vx + (ly - a.y) * vy) / segLen2),
+      );
       const projX = a.x + vx * t;
       const projY = a.y + vy * t;
       const dx = lx - projX;
@@ -540,9 +601,12 @@ export function computeLabelOffsets(
       if (dist < minDist) {
         let px = dx / (dist || 1);
         let py = dy / (dist || 1);
-        const push = (minDist - dist) + 4;
+        const push = minDist - dist + 4;
         const currOff = offsets.get(L.idx) || { dx: 0, dy: 0 };
-        offsets.set(L.idx, { dx: currOff.dx + px * push, dy: currOff.dy + py * push });
+        offsets.set(L.idx, {
+          dx: currOff.dx + px * push,
+          dy: currOff.dy + py * push,
+        });
       }
     }
   }

@@ -3,18 +3,20 @@ let rdkitInitialized = false;
 
 export async function initializeRDKit(): Promise<any> {
   if (rdkitInitialized) return rdkitInstance;
-  
+
   try {
-    const rdkitModule = await import('@rdkit/rdkit').catch(() => null);
+    const rdkitModule = await import("@rdkit/rdkit").catch(() => null);
     if (!rdkitModule) {
-      throw new Error('RDKit is not available. Install with: npm install @rdkit/rdkit');
+      throw new Error(
+        "RDKit is not available. Install with: npm install @rdkit/rdkit",
+      );
     }
     const initRDKitModule = rdkitModule.default;
     rdkitInstance = await (initRDKitModule as any)();
     rdkitInitialized = true;
     return rdkitInstance;
   } catch (e) {
-    throw new Error('Failed to initialize RDKit');
+    throw new Error("Failed to initialize RDKit");
   }
 }
 
@@ -27,24 +29,24 @@ export interface SubstructMatchResult {
 export function getSubstructMatches(
   rdkit: any,
   smiles: string,
-  pattern: string
+  pattern: string,
 ): SubstructMatchResult {
   let mol = null;
   let qmol = null;
-  
+
   try {
     mol = rdkit.get_mol(smiles);
     if (!mol || !mol.is_valid || !mol.is_valid()) {
-      return { success: false, matches: [], error: 'Invalid molecule' };
+      return { success: false, matches: [], error: "Invalid molecule" };
     }
 
     qmol = rdkit.get_qmol(pattern);
     if (!qmol || !qmol.is_valid || !qmol.is_valid()) {
-      return { success: false, matches: [], error: 'Invalid pattern' };
+      return { success: false, matches: [], error: "Invalid pattern" };
     }
 
     const matchesJson = mol.get_substruct_matches(qmol);
-    
+
     if (!matchesJson) {
       return { success: true, matches: [] };
     }
@@ -57,7 +59,7 @@ export function getSubstructMatches(
           return [];
         })
       : [];
-    
+
     return { success: true, matches };
   } catch (e) {
     return { success: false, matches: [], error: String(e) };
@@ -67,12 +69,15 @@ export function getSubstructMatches(
   }
 }
 
-export function validatePattern(rdkit: any, pattern: string): { valid: boolean; error?: string } {
+export function validatePattern(
+  rdkit: any,
+  pattern: string,
+): { valid: boolean; error?: string } {
   try {
     const qmol = rdkit.get_qmol(pattern);
     if (!qmol || !qmol.is_valid || !qmol.is_valid()) {
       if (qmol && qmol.delete) qmol.delete();
-      return { valid: false, error: 'Invalid SMARTS pattern' };
+      return { valid: false, error: "Invalid SMARTS pattern" };
     }
     if (qmol.delete) qmol.delete();
     return { valid: true };
@@ -87,30 +92,37 @@ export interface AromaticityResult {
   error?: string;
 }
 
-export function getRDKitAromaticity(rdkit: any, smiles: string): AromaticityResult {
+export function getRDKitAromaticity(
+  rdkit: any,
+  smiles: string,
+): AromaticityResult {
   let mol = null;
-  
+
   try {
     mol = rdkit.get_mol(smiles);
     if (!mol || !mol.is_valid || !mol.is_valid()) {
-      return { success: false, aromaticAtoms: [], error: 'Invalid molecule' };
+      return { success: false, aromaticAtoms: [], error: "Invalid molecule" };
     }
 
     const jsonStr = mol.get_json();
     const molData = JSON.parse(jsonStr);
-    
+
     const molecule = molData.molecules?.[0];
     if (!molecule || !molecule.atoms) {
-      return { success: false, aromaticAtoms: [], error: 'No atoms in molecule data' };
+      return {
+        success: false,
+        aromaticAtoms: [],
+        error: "No atoms in molecule data",
+      };
     }
-    
+
     const ext = molecule.extensions?.[0];
     const rdkitAromaticIndices = ext?.aromaticAtoms || [];
-    
-    const aromaticAtoms = molecule.atoms.map((_: any, index: number) => 
-      rdkitAromaticIndices.includes(index)
+
+    const aromaticAtoms = molecule.atoms.map((_: any, index: number) =>
+      rdkitAromaticIndices.includes(index),
     );
-    
+
     return { success: true, aromaticAtoms };
   } catch (e) {
     return { success: false, aromaticAtoms: [], error: String(e) };

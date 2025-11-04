@@ -1,9 +1,9 @@
-import { describe, it, expect } from 'bun:test';
-import { parseSDF } from 'index';
+import { describe, it, expect } from "bun:test";
+import { parseSDF } from "index";
 
-describe('SDF Parser - Unit Tests', () => {
-  describe('Single record parsing', () => {
-    it('should parse a single record with no properties', () => {
+describe("SDF Parser - Unit Tests", () => {
+  describe("Single record parsing", () => {
+    it("should parse a single record with no properties", () => {
       const sdf = `  Mrv2311 02102409422D          
 
 
@@ -20,13 +20,13 @@ $$$$
       expect(result.errors).toHaveLength(0);
       expect(result.records).toHaveLength(1);
       const record = result.records[0];
-      if (!record) throw new Error('Expected record');
+      if (!record) throw new Error("Expected record");
       expect(record.molecule).toBeTruthy();
       expect(record.molecule?.atoms).toHaveLength(3);
       expect(record.properties).toEqual({});
     });
 
-    it('should parse a single record with properties', () => {
+    it("should parse a single record with properties", () => {
       const sdf = `  Mrv2311 02102409422D          
 
 
@@ -52,15 +52,15 @@ $$$$
       expect(result.errors).toHaveLength(0);
       expect(result.records).toHaveLength(1);
       const record = result.records[0];
-      if (!record) throw new Error('Expected record');
+      if (!record) throw new Error("Expected record");
       expect(record.properties).toEqual({
-        ID: 'MOL001',
-        NAME: 'Ethanol',
-        FORMULA: 'C2H6O',
+        ID: "MOL001",
+        NAME: "Ethanol",
+        FORMULA: "C2H6O",
       });
     });
 
-    it('should handle multi-line property values', () => {
+    it("should handle multi-line property values", () => {
       const sdf = `  Mrv2311 02102409422D          
 
 
@@ -78,13 +78,15 @@ $$$$
       expect(result.errors).toHaveLength(0);
       expect(result.records).toHaveLength(1);
       const record = result.records[0];
-      if (!record) throw new Error('Expected record');
-      expect(record.properties.DESCRIPTION).toBe('This is a long\ndescription that spans\nmultiple lines');
+      if (!record) throw new Error("Expected record");
+      expect(record.properties.DESCRIPTION).toBe(
+        "This is a long\ndescription that spans\nmultiple lines",
+      );
     });
   });
 
-  describe('Multiple records parsing', () => {
-    it('should parse multiple records', () => {
+  describe("Multiple records parsing", () => {
+    it("should parse multiple records", () => {
       const sdf = `  Mrv2311 02102409422D          
 
 
@@ -112,26 +114,26 @@ $$$$
       expect(result.records).toHaveLength(2);
       const record0 = result.records[0];
       const record1 = result.records[1];
-      if (!record0 || !record1) throw new Error('Expected records');
-      expect(record0.properties.ID).toBe('1');
-      expect(record1.properties.ID).toBe('2');
+      if (!record0 || !record1) throw new Error("Expected records");
+      expect(record0.properties.ID).toBe("1");
+      expect(record1.properties.ID).toBe("2");
     });
   });
 
-  describe('Edge cases', () => {
-    it('should handle empty input', () => {
-      const result = parseSDF('');
+  describe("Edge cases", () => {
+    it("should handle empty input", () => {
+      const result = parseSDF("");
       expect(result.records).toHaveLength(0);
       expect(result.errors).toHaveLength(0);
     });
 
-    it('should handle whitespace-only input', () => {
-      const result = parseSDF('   \n\n  \t  \n');
+    it("should handle whitespace-only input", () => {
+      const result = parseSDF("   \n\n  \t  \n");
       expect(result.records).toHaveLength(0);
       expect(result.errors).toHaveLength(0);
     });
 
-    it('should handle record with missing M END', () => {
+    it("should handle record with missing M END", () => {
       const sdf = `  Mrv2311 02102409422D          
 
 
@@ -142,11 +144,11 @@ $$$$
       const result = parseSDF(sdf);
       expect(result.records).toHaveLength(1);
       const record = result.records[0];
-      if (!record) throw new Error('Expected record');
+      if (!record) throw new Error("Expected record");
       expect(record.errors.length).toBeGreaterThan(0);
     });
 
-    it('should handle malformed property (missing value)', () => {
+    it("should handle malformed property (missing value)", () => {
       const sdf = `  Mrv2311 02102409422D          
 
 
@@ -160,11 +162,11 @@ $$$$
       const result = parseSDF(sdf);
       expect(result.records).toHaveLength(1);
       const record = result.records[0];
-      if (!record) throw new Error('Expected record');
-      expect(record.properties.NAME).toBe('');
+      if (!record) throw new Error("Expected record");
+      expect(record.properties.NAME).toBe("");
     });
 
-    it('should handle property without proper header format', () => {
+    it("should handle property without proper header format", () => {
       const sdf = `  Mrv2311 02102409422D          
 
 
@@ -179,22 +181,22 @@ $$$$
       const result = parseSDF(sdf);
       expect(result.records).toHaveLength(1);
       const record = result.records[0];
-      if (!record) throw new Error('Expected record');
+      if (!record) throw new Error("Expected record");
       expect(record.properties).toEqual({});
     });
 
-    it('should collect errors from invalid MOL blocks', () => {
+    it("should collect errors from invalid MOL blocks", () => {
       const sdf = `Invalid MOL block
 $$$$`;
       const result = parseSDF(sdf);
       expect(result.records).toHaveLength(1);
       const record = result.records[0];
-      if (!record) throw new Error('Expected record');
+      if (!record) throw new Error("Expected record");
       expect(record.errors.length).toBeGreaterThan(0);
       expect(record.molecule).toBeNull();
     });
 
-    it('should handle mixed valid and invalid records', () => {
+    it("should handle mixed valid and invalid records", () => {
       const sdf = `  Mrv2311 02102409422D          
 
 
@@ -217,15 +219,15 @@ $$$$
       const record0 = result.records[0];
       const record1 = result.records[1];
       const record2 = result.records[2];
-      if (!record0 || !record1 || !record2) throw new Error('Expected records');
+      if (!record0 || !record1 || !record2) throw new Error("Expected records");
       expect(record0.molecule).toBeTruthy();
       expect(record1.molecule).toBeNull();
       expect(record2.molecule).toBeTruthy();
     });
   });
 
-  describe('Property parsing edge cases', () => {
-    it('should trim whitespace from property names and values', () => {
+  describe("Property parsing edge cases", () => {
+    it("should trim whitespace from property names and values", () => {
       const sdf = `  Mrv2311 02102409422D          
 
 
@@ -239,11 +241,11 @@ $$$$
 `;
       const result = parseSDF(sdf);
       const record = result.records[0];
-      if (!record) throw new Error('Expected record');
-      expect(record.properties['NAME']).toBe('Value');
+      if (!record) throw new Error("Expected record");
+      expect(record.properties["NAME"]).toBe("Value");
     });
 
-    it('should handle properties with special characters', () => {
+    it("should handle properties with special characters", () => {
       const sdf = `  Mrv2311 02102409422D          
 
 
@@ -260,12 +262,14 @@ $$$$
 `;
       const result = parseSDF(sdf);
       const record = result.records[0];
-      if (!record) throw new Error('Expected record');
-      expect(record.properties['SMILES']).toBe('C(=O)O');
-      expect(record.properties['INCHI']).toBe('InChI=1S/CH2O2/c2-1-3/h1H,(H,2,3)');
+      if (!record) throw new Error("Expected record");
+      expect(record.properties["SMILES"]).toBe("C(=O)O");
+      expect(record.properties["INCHI"]).toBe(
+        "InChI=1S/CH2O2/c2-1-3/h1H,(H,2,3)",
+      );
     });
 
-    it('should handle duplicate property names (last one wins)', () => {
+    it("should handle duplicate property names (last one wins)", () => {
       const sdf = `  Mrv2311 02102409422D          
 
 
@@ -282,11 +286,11 @@ $$$$
 `;
       const result = parseSDF(sdf);
       const record = result.records[0];
-      if (!record) throw new Error('Expected record');
-      expect(record.properties['ID']).toBe('second');
+      if (!record) throw new Error("Expected record");
+      expect(record.properties["ID"]).toBe("second");
     });
 
-    it('should handle empty property name', () => {
+    it("should handle empty property name", () => {
       const sdf = `  Mrv2311 02102409422D          
 
 
@@ -300,11 +304,11 @@ $$$$
 `;
       const result = parseSDF(sdf);
       const record = result.records[0];
-      if (!record) throw new Error('Expected record');
-      expect(record.properties['']).toBe('value');
+      if (!record) throw new Error("Expected record");
+      expect(record.properties[""]).toBe("value");
     });
 
-    it('should handle numeric property values', () => {
+    it("should handle numeric property values", () => {
       const sdf = `  Mrv2311 02102409422D          
 
 
@@ -324,15 +328,15 @@ $$$$
 `;
       const result = parseSDF(sdf);
       const record = result.records[0];
-      if (!record) throw new Error('Expected record');
-      expect(record.properties['WEIGHT']).toBe('78.11');
-      expect(record.properties['COUNT']).toBe('42');
-      expect(record.properties['RATIO']).toBe('0.123');
+      if (!record) throw new Error("Expected record");
+      expect(record.properties["WEIGHT"]).toBe("78.11");
+      expect(record.properties["COUNT"]).toBe("42");
+      expect(record.properties["RATIO"]).toBe("0.123");
     });
   });
 
-  describe('MOL block edge cases', () => {
-    it('should handle empty title line', () => {
+  describe("MOL block edge cases", () => {
+    it("should handle empty title line", () => {
       const sdf = `
   Mrv2311 02102409422D          
 
@@ -344,12 +348,12 @@ $$$$
       const result = parseSDF(sdf);
       expect(result.records).toHaveLength(1);
       const record = result.records[0];
-      if (!record) throw new Error('Expected record');
+      if (!record) throw new Error("Expected record");
       expect(record.molecule).toBeTruthy();
-      expect(record.molfile?.header.title).toBe('');
+      expect(record.molfile?.header.title).toBe("");
     });
 
-    it('should handle title with special characters', () => {
+    it("should handle title with special characters", () => {
       const sdf = `Compound #123 (test)
   Mrv2311 02102409422D          
 
@@ -361,11 +365,11 @@ $$$$
 `;
       const result = parseSDF(sdf);
       const record = result.records[0];
-      if (!record) throw new Error('Expected record');
-      expect(record.molfile?.header.title).toBe('Compound #123 (test)');
+      if (!record) throw new Error("Expected record");
+      expect(record.molfile?.header.title).toBe("Compound #123 (test)");
     });
 
-    it('should handle empty molecule (0 atoms)', () => {
+    it("should handle empty molecule (0 atoms)", () => {
       const sdf = `Empty
   Mrv2311 02102409422D          
 
@@ -376,13 +380,13 @@ $$$$
       const result = parseSDF(sdf);
       expect(result.records).toHaveLength(1);
       const record = result.records[0];
-      if (!record) throw new Error('Expected record');
+      if (!record) throw new Error("Expected record");
       expect(record.molecule).toBeTruthy();
       expect(record.molecule?.atoms).toHaveLength(0);
       expect(record.molecule?.bonds).toHaveLength(0);
     });
 
-    it('should handle molecule with isotopes', () => {
+    it("should handle molecule with isotopes", () => {
       const sdf = `Deuterated compound
   Mrv2311 02102409422D          
 
@@ -396,14 +400,14 @@ $$$$
 `;
       const result = parseSDF(sdf);
       const record = result.records[0];
-      if (!record) throw new Error('Expected record');
+      if (!record) throw new Error("Expected record");
       expect(record.molecule).toBeTruthy();
       expect(record.molecule?.atoms).toHaveLength(2);
       const hydrogenAtom = record.molecule?.atoms[1];
       expect(hydrogenAtom?.isotope).toBe(2);
     });
 
-    it('should handle molecule with charges', () => {
+    it("should handle molecule with charges", () => {
       const sdf = `Charged compound
   Mrv2311 02102409422D          
 
@@ -417,13 +421,13 @@ $$$$
 `;
       const result = parseSDF(sdf);
       const record = result.records[0];
-      if (!record) throw new Error('Expected record');
+      if (!record) throw new Error("Expected record");
       expect(record.molecule).toBeTruthy();
       const nitrogenAtom = record.molecule?.atoms[1];
       expect(nitrogenAtom?.charge).toBe(1);
     });
 
-    it('should handle molecule with multiple charge entries', () => {
+    it("should handle molecule with multiple charge entries", () => {
       const sdf = `Multiple charges
   Mrv2311 02102409422D          
 
@@ -439,7 +443,7 @@ $$$$
 `;
       const result = parseSDF(sdf);
       const record = result.records[0];
-      if (!record) throw new Error('Expected record');
+      if (!record) throw new Error("Expected record");
       expect(record.molecule).toBeTruthy();
       const nitrogenAtom = record.molecule?.atoms[1];
       const oxygenAtom = record.molecule?.atoms[2];
@@ -448,26 +452,28 @@ $$$$
     });
   });
 
-  describe('Delimiter and formatting variations', () => {
-    it('should handle Windows line endings (CRLF)', () => {
-      const sdf = "  Mrv2311 02102409422D          \r\n\r\n\r\n  1  0  0  0  0  0            999 V2000\r\n    0.0000    0.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\r\nM  END\r\n$$$$\r\n";
+  describe("Delimiter and formatting variations", () => {
+    it("should handle Windows line endings (CRLF)", () => {
+      const sdf =
+        "  Mrv2311 02102409422D          \r\n\r\n\r\n  1  0  0  0  0  0            999 V2000\r\n    0.0000    0.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\r\nM  END\r\n$$$$\r\n";
       const result = parseSDF(sdf);
       expect(result.records).toHaveLength(1);
       const record = result.records[0];
-      if (!record) throw new Error('Expected record');
+      if (!record) throw new Error("Expected record");
       expect(record.molecule).toBeTruthy();
     });
 
-    it('should handle mixed line endings', () => {
-      const sdf = "  Mrv2311 02102409422D          \r\n\n\r\n  1  0  0  0  0  0            999 V2000\n    0.0000    0.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\r\nM  END\n$$$$\r\n";
+    it("should handle mixed line endings", () => {
+      const sdf =
+        "  Mrv2311 02102409422D          \r\n\n\r\n  1  0  0  0  0  0            999 V2000\n    0.0000    0.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\r\nM  END\n$$$$\r\n";
       const result = parseSDF(sdf);
       expect(result.records).toHaveLength(1);
       const record = result.records[0];
-      if (!record) throw new Error('Expected record');
+      if (!record) throw new Error("Expected record");
       expect(record.molecule).toBeTruthy();
     });
 
-    it('should handle multiple consecutive delimiters', () => {
+    it("should handle multiple consecutive delimiters", () => {
       const sdf = `  Mrv2311 02102409422D          
 
 
@@ -489,12 +495,12 @@ $$$$
       expect(result.records).toHaveLength(2);
       const record0 = result.records[0];
       const record1 = result.records[1];
-      if (!record0 || !record1) throw new Error('Expected records');
+      if (!record0 || !record1) throw new Error("Expected records");
       expect(record0.molecule).toBeTruthy();
       expect(record1.molecule).toBeTruthy();
     });
 
-    it('should handle trailing whitespace after delimiter', () => {
+    it("should handle trailing whitespace after delimiter", () => {
       const sdf = `  Mrv2311 02102409422D          
 
 
@@ -506,11 +512,11 @@ $$$$
       const result = parseSDF(sdf);
       expect(result.records).toHaveLength(1);
       const record = result.records[0];
-      if (!record) throw new Error('Expected record');
+      if (!record) throw new Error("Expected record");
       expect(record.molecule).toBeTruthy();
     });
 
-    it('should handle multiple blank lines between records', () => {
+    it("should handle multiple blank lines between records", () => {
       const sdf = `  Mrv2311 02102409422D          
 
 
@@ -533,14 +539,14 @@ $$$$
       expect(result.records).toHaveLength(2);
       const record0 = result.records[0];
       const record1 = result.records[1];
-      if (!record0 || !record1) throw new Error('Expected records');
+      if (!record0 || !record1) throw new Error("Expected records");
       expect(record0.molecule).toBeTruthy();
       expect(record1.molecule).toBeTruthy();
     });
   });
 
-  describe('Property value variations', () => {
-    it('should handle property with only whitespace as value', () => {
+  describe("Property value variations", () => {
+    it("should handle property with only whitespace as value", () => {
       const sdf = `  Mrv2311 02102409422D          
 
 
@@ -554,12 +560,12 @@ $$$$
 `;
       const result = parseSDF(sdf);
       const record = result.records[0];
-      if (!record) throw new Error('Expected record');
-      expect(record.properties['EMPTY']).toBe('');
+      if (!record) throw new Error("Expected record");
+      expect(record.properties["EMPTY"]).toBe("");
     });
 
-    it('should handle very long property values', () => {
-      const longValue = 'A'.repeat(10000);
+    it("should handle very long property values", () => {
+      const longValue = "A".repeat(10000);
       const sdf = `  Mrv2311 02102409422D          
 
 
@@ -573,11 +579,11 @@ $$$$
 `;
       const result = parseSDF(sdf);
       const record = result.records[0];
-      if (!record) throw new Error('Expected record');
-      expect(record.properties['LONG']).toBe(longValue);
+      if (!record) throw new Error("Expected record");
+      expect(record.properties["LONG"]).toBe(longValue);
     });
 
-    it('should handle property with leading/trailing blank lines', () => {
+    it("should handle property with leading/trailing blank lines", () => {
       const sdf = `  Mrv2311 02102409422D          
 
 
@@ -594,11 +600,11 @@ $$$$
 `;
       const result = parseSDF(sdf);
       const record = result.records[0];
-      if (!record) throw new Error('Expected record');
-      expect(record.properties['DESC']).toBe('\nLine1\n\nLine2');
+      if (!record) throw new Error("Expected record");
+      expect(record.properties["DESC"]).toBe("\nLine1\n\nLine2");
     });
 
-    it('should handle properties with tabs', () => {
+    it("should handle properties with tabs", () => {
       const sdf = `  Mrv2311 02102409422D          
 
 
@@ -612,11 +618,11 @@ $$$$
 `;
       const result = parseSDF(sdf);
       const record = result.records[0];
-      if (!record) throw new Error('Expected record');
-      expect(record.properties['TABS']).toBe('Col1\tCol2\tCol3');
+      if (!record) throw new Error("Expected record");
+      expect(record.properties["TABS"]).toBe("Col1\tCol2\tCol3");
     });
 
-    it('should handle property names with underscores and numbers', () => {
+    it("should handle property names with underscores and numbers", () => {
       const sdf = `  Mrv2311 02102409422D          
 
 
@@ -633,9 +639,9 @@ $$$$
 `;
       const result = parseSDF(sdf);
       const record = result.records[0];
-      if (!record) throw new Error('Expected record');
-      expect(record.properties['PROP_123']).toBe('value1');
-      expect(record.properties['TEST_VALUE_2']).toBe('value2');
+      if (!record) throw new Error("Expected record");
+      expect(record.properties["PROP_123"]).toBe("value1");
+      expect(record.properties["TEST_VALUE_2"]).toBe("value2");
     });
   });
 });
