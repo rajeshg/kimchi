@@ -4,7 +4,10 @@ import type { RingSystem } from "../../types";
 import type { Atom, Bond } from "types";
 import { ExecutionPhase } from "../../immutable-context";
 import { analyzeRings } from "../../../utils/ring-analysis";
-import { generateBaseCyclicName } from "../../naming/iupac-rings/index";
+import {
+  generateBaseCyclicName,
+  findSubstituentsOnMonocyclicRing,
+} from "../../naming/iupac-rings/index";
 import { generateRingLocants } from "./helpers";
 
 /**
@@ -186,11 +189,25 @@ export const RING_SELECTION_COMPLETE_RULE: IUPACRule = {
           spiro: false,
         };
 
+        // Find substituents on the polycyclic ring system
+        const polycyclicRingAtomIds = atomsArray.map((atom) => atom.id);
+        const polycyclicSubstituents = findSubstituentsOnMonocyclicRing(
+          polycyclicRingAtomIds,
+          molecule,
+        );
+
+        if (process.env.VERBOSE) {
+          console.log(
+            `[ring-selection-complete] Found ${polycyclicSubstituents.length} substituents on polycyclic ring`,
+          );
+        }
+
         const parentStructure = {
           type: "ring" as const,
           ring: parentRing,
           name: generateBaseCyclicName(molecule, ringInfo),
           locants: generateRingLocants(parentRing),
+          substituents: polycyclicSubstituents,
         };
 
         return context.withParentStructure(
@@ -206,21 +223,136 @@ export const RING_SELECTION_COMPLETE_RULE: IUPACRule = {
 
     // Single ring or multiple disconnected rings - select first one
     const parentRing = candidateRings[0];
+    if (!parentRing) {
+      return context.withConflict(
+        {
+          ruleId: "ring-selection-complete",
+          conflictType: "state_inconsistency",
+          description: "No parent ring available",
+          context: {},
+        },
+        "ring-selection-complete",
+        "Ring Selection Complete",
+        "P-44.2",
+        ExecutionPhase.PARENT_STRUCTURE,
+        "No parent ring available",
+      );
+    }
+
+    // Find substituents on the ring
+    const ringAtomIdArray = parentRing.atoms.map((atom) => atom.id);
+    const substituents = findSubstituentsOnMonocyclicRing(
+      ringAtomIdArray,
+      molecule,
+    );
+
+    if (process.env.VERBOSE) {
+      console.log(
+        `[ring-selection-complete] Found ${substituents.length} substituents on ring`,
+      );
+      console.log(
+        `[ring-selection-complete] Substituents:`,
+        substituents.map((s) => `${s.name} at position ${s.position}`),
+      );
+    }
 
     const parentStructure = {
       type: "ring" as const,
       ring: parentRing,
       name: generateBaseCyclicName(molecule, ringInfo),
       locants: generateRingLocants(parentRing),
+      substituents: substituents,
     };
 
-    return context.withParentStructure(
-      parentStructure,
-      "ring-selection-complete",
-      "Ring Selection Complete",
-      "P-44.2",
-      ExecutionPhase.PARENT_STRUCTURE,
-      "Finalized ring system selection",
-    );
+    // Filter functional groups to only include those directly attached to the ring
+    // Functional groups on side chains should NOT be principal groups
+    const functionalGroups = context.getState().functionalGroups || [];
+    const ringAtomIds = new Set(parentRing.atoms.map((atom) => atom.id));
+
+    const filteredFunctionalGroups = functionalGroups.filter((fg) => {
+      // Check if the functional group atom is in the ring or directly attached to a ring atom
+      if (!fg.atoms || fg.atoms.length === 0) return true; // Keep if no atoms specified
+
+      for (const fgAtom of fg.atoms) {
+        const fgAtomId = typeof fgAtom === "object" ? fgAtom.id : fgAtom;
+
+        // If FG atom is in ring, keep it
+        if (ringAtomIds.has(fgAtomId)) return true;
+
+        // If FG atom is directly bonded to a ring atom, check if it's a simple substituent
+        // (not part of a longer side chain)
+        for (const bond of molecule.bonds) {
+          if (bond.atom1 === fgAtomId || bond.atom2 === fgAtomId) {
+            const otherAtomId =
+              bond.atom1 === fgAtomId ? bond.atom2 : bond.atom1;
+            if (ringAtomIds.has(otherAtomId)) {
+              // FG atom is directly bonded to ring - but is it part of a side chain?
+              // Count how many non-ring carbons are bonded to this FG atom
+              const nonRingNeighbors = molecule.bonds.filter((b) => {
+                if (b.atom1 === fgAtomId || b.atom2 === fgAtomId) {
+                  const neighborId = b.atom1 === fgAtomId ? b.atom2 : b.atom1;
+                  return (
+                    !ringAtomIds.has(neighborId) &&
+                    molecule.atoms[neighborId]?.symbol === "C"
+                  );
+                }
+                return false;
+              }).length;
+
+              // If FG atom has non-ring carbon neighbors, it's part of a side chain
+              if (nonRingNeighbors > 0) {
+                if (process.env.VERBOSE) {
+                  console.log(
+                    `[ring-selection-complete] Excluding FG ${fg.type} on atom ${fgAtomId} - part of side chain`,
+                  );
+                }
+                return false; // Part of side chain, exclude it
+              }
+
+              return true; // Simple substituent directly on ring
+            }
+          }
+        }
+      }
+
+      // FG is not connected to ring at all
+      if (process.env.VERBOSE) {
+        console.log(
+          `[ring-selection-complete] Excluding FG ${fg.type} - not attached to ring`,
+        );
+      }
+      return false;
+    });
+
+    if (process.env.VERBOSE) {
+      console.log(
+        `[ring-selection-complete] Filtered FGs from ${functionalGroups.length} to ${filteredFunctionalGroups.length}`,
+      );
+      console.log(
+        `[ring-selection-complete] Kept FG types:`,
+        filteredFunctionalGroups.map((fg) => fg.type),
+      );
+    }
+
+    return context
+      .withParentStructure(
+        parentStructure,
+        "ring-selection-complete",
+        "Ring Selection Complete",
+        "P-44.2",
+        ExecutionPhase.PARENT_STRUCTURE,
+        "Finalized ring system selection",
+      )
+      .withStateUpdate(
+        (state) => ({
+          ...state,
+          functionalGroups: filteredFunctionalGroups,
+        }),
+        "ring-selection-complete",
+        "Filter Functional Groups for Ring Parent",
+        "P-44.2",
+        ExecutionPhase.PARENT_STRUCTURE,
+        `Filtered functional groups to only include those directly on ring (${filteredFunctionalGroups.length} of ${functionalGroups.length})`,
+      );
   },
 };

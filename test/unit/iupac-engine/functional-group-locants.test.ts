@@ -84,9 +84,13 @@ describe("Functional group locants and trace metadata", () => {
     expect(result.name).toBe("4-methoxycycloheptan-1-one");
 
     // Verify that the alkoxy group has the correct locant (4, not 8)
-    const alkoxy = result.functionalGroups.find((g) => g.type === "alkoxy");
+    // Alkoxy groups are stored as substituents in parentStructure.substituents
+    const alkoxy = result.parentStructure?.substituents?.find(
+      (s: any) => s.type === "alkoxy",
+    );
     expect(alkoxy).toBeDefined();
-    expect(alkoxy?.locants).toEqual([4]);
+    expect(alkoxy?.position).toBe("4");
+    expect(alkoxy?.name).toBe("methoxy");
 
     // Verify that the ketone has locant 1
     const ketone = result.functionalGroups.find((g) => g.type === "ketone");

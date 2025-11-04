@@ -1,7 +1,29 @@
 import { buildRingSubstituentAlkylName } from "./ring-substituent-naming";
 import { analyzeRings } from "src/utils/ring-analysis";
-import type { ParentStructure, FunctionalGroup, Substituent } from "../types";
+import type {
+  ParentStructure,
+  FunctionalGroup,
+  StructuralSubstituent,
+} from "../types";
 import type { Molecule, Bond, Atom } from "types";
+
+/**
+ * Helper function to safely get position string from a substituent.
+ * Handles both StructuralSubstituent (with locant:number) and NamingSubstituent (with position:string).
+ * This abstraction prevents mixing numeric locants with string positions throughout the code.
+ */
+function getSubstituentPosition(sub: StructuralSubstituent): string {
+  // If position is already a string, use it (from ring numbering)
+  if (sub.position) {
+    return sub.position;
+  }
+  // Otherwise, convert numeric locant to string
+  if (sub.locant !== undefined) {
+    return sub.locant.toString();
+  }
+  // Fallback to empty string
+  return "";
+}
 
 /**
  * Build functional class name for ester with ring-based alkyl group
@@ -207,6 +229,573 @@ export function getAlkanoateName(length: number): string {
 }
 
 /**
+ * Detect and name substituents on the carbonyl carbon of an ester
+ * Returns substituent name or empty string if no substituents found
+ */
+function getAcylSubstituents(
+  carbonylCarbonId: number,
+  esterOxygenId: number,
+  molecule: Molecule,
+): string {
+  if (process.env.VERBOSE) {
+    console.log(
+      `[getAcylSubstituents] carbonylCarbonId=${carbonylCarbonId}, esterOxygenId=${esterOxygenId}`,
+    );
+  }
+
+  // Find all atoms bonded to the carbonyl carbon, excluding:
+  // - The carbonyl oxygen (double bond)
+  // - The ester oxygen (single bond)
+  const substituents: number[] = [];
+
+  // Find the carbonyl oxygen (C=O double bond)
+  const carbonylBond = molecule.bonds.find(
+    (b: Bond) =>
+      b.type === "double" &&
+      ((b.atom1 === carbonylCarbonId &&
+        molecule.atoms[b.atom2]?.symbol === "O") ||
+        (b.atom2 === carbonylCarbonId &&
+          molecule.atoms[b.atom1]?.symbol === "O")),
+  );
+
+  const carbonylOxygenId = carbonylBond
+    ? carbonylBond.atom1 === carbonylCarbonId
+      ? carbonylBond.atom2
+      : carbonylBond.atom1
+    : undefined;
+
+  for (const bond of molecule.bonds) {
+    if (
+      bond.atom1 === carbonylCarbonId &&
+      bond.atom2 !== carbonylOxygenId &&
+      bond.atom2 !== esterOxygenId
+    ) {
+      substituents.push(bond.atom2);
+    } else if (
+      bond.atom2 === carbonylCarbonId &&
+      bond.atom1 !== carbonylOxygenId &&
+      bond.atom1 !== esterOxygenId
+    ) {
+      substituents.push(bond.atom1);
+    }
+  }
+
+  if (process.env.VERBOSE) {
+    console.log(
+      `[getAcylSubstituents] Found ${substituents.length} substituents:`,
+      substituents,
+    );
+  }
+
+  if (substituents.length === 0) return "";
+
+  // For now, handle the most common case: single substituent connected via S, N, or C
+  if (substituents.length === 1) {
+    const subAtomId = substituents[0];
+    if (subAtomId === undefined) return "";
+
+    const subAtom = molecule.atoms[subAtomId];
+    if (!subAtom) return "";
+
+    // Handle sulfanyl substituents (R-S-)
+    if (subAtom.symbol === "S") {
+      return nameAcylSulfanylSubstituent(subAtomId, carbonylCarbonId, molecule);
+    }
+
+    // Handle amino substituents (R-NH- or R2N-)
+    if (subAtom.symbol === "N") {
+      return nameAcylAminoSubstituent(subAtomId, carbonylCarbonId, molecule);
+    }
+
+    // Handle alkyl substituents (R-C-)
+    if (subAtom.symbol === "C") {
+      return nameAcylAlkylSubstituent(subAtomId, carbonylCarbonId, molecule);
+    }
+  }
+
+  return "";
+}
+
+/**
+ * Name a sulfanyl substituent on the carbonyl carbon
+ * Example: CH3-C≡C-S- → "prop-1-ynylsulfanyl"
+ */
+function nameAcylSulfanylSubstituent(
+  sulfurId: number,
+  carbonylCarbonId: number,
+  molecule: Molecule,
+): string {
+  if (process.env.VERBOSE) {
+    console.log(
+      `[nameAcylSulfanylSubstituent] sulfurId=${sulfurId}, carbonylCarbonId=${carbonylCarbonId}`,
+    );
+  }
+
+  // Find the carbon chain attached to sulfur (excluding the carbonyl carbon)
+  const carbonChain: number[] = [];
+  const visited = new Set<number>([carbonylCarbonId]);
+  const queue: number[] = [];
+
+  // Find carbon neighbors of sulfur
+  for (const bond of molecule.bonds) {
+    if (
+      bond.atom1 === sulfurId &&
+      molecule.atoms[bond.atom2]?.symbol === "C" &&
+      bond.atom2 !== carbonylCarbonId
+    ) {
+      queue.push(bond.atom2);
+    } else if (
+      bond.atom2 === sulfurId &&
+      molecule.atoms[bond.atom1]?.symbol === "C" &&
+      bond.atom1 !== carbonylCarbonId
+    ) {
+      queue.push(bond.atom1);
+    }
+  }
+
+  // BFS to find the full carbon chain
+  while (queue.length > 0) {
+    const currentId = queue.shift()!;
+    if (visited.has(currentId)) continue;
+    visited.add(currentId);
+
+    const currentAtom = molecule.atoms[currentId];
+    if (currentAtom?.symbol === "C") {
+      carbonChain.push(currentId);
+
+      // Find neighbors
+      for (const bond of molecule.bonds) {
+        if (bond.atom1 === currentId || bond.atom2 === currentId) {
+          const otherId = bond.atom1 === currentId ? bond.atom2 : bond.atom1;
+          const otherAtom = molecule.atoms[otherId];
+
+          // Only follow carbon chains
+          if (
+            otherAtom?.symbol === "C" &&
+            !visited.has(otherId) &&
+            otherId !== sulfurId
+          ) {
+            queue.push(otherId);
+          }
+        }
+      }
+    }
+  }
+
+  if (process.env.VERBOSE) {
+    console.log(`[nameAcylSulfanylSubstituent] carbonChain:`, carbonChain);
+  }
+
+  if (carbonChain.length === 0) {
+    return "sulfanyl";
+  }
+
+  if (carbonChain.length === 1) {
+    return "methylsulfanyl";
+  }
+
+  // For chains with multiple carbons, need to generate the alkyl name
+  // For now, handle simple linear chains
+  // For CH3-C≡C-S-, we need to detect the triple bond and generate "prop-1-ynyl"
+
+  // Find the longest linear path through the carbon chain
+  const longestPath = findLongestPath(carbonChain, molecule);
+
+  if (process.env.VERBOSE) {
+    console.log(`[nameAcylSulfanylSubstituent] longestPath:`, longestPath);
+  }
+
+  // Generate alkyl name from the path
+  const alkylName = generateAlkylNameFromPath(longestPath, molecule);
+
+  return `${alkylName}sulfanyl`;
+}
+
+/**
+ * Find the longest path through a set of carbon atoms
+ */
+function findLongestPath(carbonIds: number[], molecule: Molecule): number[] {
+  if (carbonIds.length === 0) return [];
+  if (carbonIds.length === 1) return carbonIds;
+
+  // Try starting from each carbon and find the longest path
+  let longestPath: number[] = [];
+
+  for (const startId of carbonIds) {
+    const path = findLongestPathFrom(startId, carbonIds, molecule);
+    if (path.length > longestPath.length) {
+      longestPath = path;
+    }
+  }
+
+  return longestPath;
+}
+
+/**
+ * Find the longest path starting from a specific carbon
+ */
+function findLongestPathFrom(
+  startId: number,
+  allowedIds: number[],
+  molecule: Molecule,
+): number[] {
+  const visited = new Set<number>();
+  const path: number[] = [];
+
+  function dfs(currentId: number): number[] {
+    visited.add(currentId);
+    path.push(currentId);
+
+    let longestSubpath: number[] = [...path];
+
+    // Find all unvisited carbon neighbors
+    for (const bond of molecule.bonds) {
+      if (bond.atom1 === currentId || bond.atom2 === currentId) {
+        const otherId = bond.atom1 === currentId ? bond.atom2 : bond.atom1;
+
+        if (
+          !visited.has(otherId) &&
+          allowedIds.includes(otherId) &&
+          molecule.atoms[otherId]?.symbol === "C"
+        ) {
+          const subpath = dfs(otherId);
+          if (subpath.length > longestSubpath.length) {
+            longestSubpath = subpath;
+          }
+        }
+      }
+    }
+
+    path.pop();
+    visited.delete(currentId);
+
+    return longestSubpath;
+  }
+
+  return dfs(startId);
+}
+
+/**
+ * Generate alkyl name from a path of carbon atoms
+ * Example: [0,1,2] with C≡C bond → "prop-1-ynyl"
+ */
+function generateAlkylNameFromPath(path: number[], molecule: Molecule): string {
+  if (path.length === 0) return "";
+  if (path.length === 1) return "methyl";
+  if (path.length === 2) return "ethyl";
+
+  const prefixes = [
+    "",
+    "meth",
+    "eth",
+    "prop",
+    "but",
+    "pent",
+    "hex",
+    "hept",
+    "oct",
+    "non",
+    "dec",
+  ];
+  const baseName =
+    path.length < prefixes.length ? prefixes[path.length] : `C${path.length}`;
+
+  // Check for unsaturation (double or triple bonds)
+  const unsaturations: { position: number; type: "en" | "yn" }[] = [];
+
+  for (let i = 0; i < path.length - 1; i++) {
+    const atom1 = path[i];
+    const atom2 = path[i + 1];
+
+    const bond = molecule.bonds.find(
+      (b) =>
+        (b.atom1 === atom1 && b.atom2 === atom2) ||
+        (b.atom1 === atom2 && b.atom2 === atom1),
+    );
+
+    if (bond) {
+      if (bond.type === "double") {
+        unsaturations.push({ position: i + 1, type: "en" });
+      } else if (bond.type === "triple") {
+        unsaturations.push({ position: i + 1, type: "yn" });
+      }
+    }
+  }
+
+  if (unsaturations.length === 0) {
+    return `${baseName}yl`;
+  }
+
+  // For single unsaturation, add position and type
+  if (unsaturations.length === 1) {
+    const u = unsaturations[0];
+    if (u) {
+      return `${baseName}-${u.position}-${u.type}yl`;
+    }
+  }
+
+  // For multiple unsaturations (not common in acyl substituents), use simplified naming
+  return `${baseName}enyl`;
+}
+
+/**
+ * Name an amino substituent on the carbonyl carbon
+ */
+function nameAcylAminoSubstituent(
+  _nitrogenId: number,
+  _carbonylCarbonId: number,
+  _molecule: Molecule,
+): string {
+  // TODO: Implement amino substituent naming
+  return "amino";
+}
+
+/**
+ * Name an alkyl substituent on the carbonyl carbon
+ */
+function nameAcylAlkylSubstituent(
+  _alkylCarbonId: number,
+  _carbonylCarbonId: number,
+  _molecule: Molecule,
+): string {
+  // TODO: Implement alkyl substituent naming
+  return "alkyl";
+}
+
+/**
+ * Detect benzene ring substituents (e.g., amide groups) that may be missing
+ * Returns array of { position, name } for substituents to add
+ */
+function detectBenzeneRingSubstituents(
+  parentStructure: ParentStructure,
+  esterGroup: FunctionalGroup,
+  molecule: Molecule,
+): Array<{ position: string; name: string }> {
+  const substituents: Array<{ position: string; name: string }> = [];
+
+  // Get ring structure
+  const ring = parentStructure.ring;
+  if (!ring || !ring.atoms || ring.atoms.length === 0) {
+    return substituents;
+  }
+
+  const locants = parentStructure.locants || [];
+
+  // Iterate through ring atoms
+  for (let i = 0; i < ring.atoms.length; i++) {
+    const ringAtom = ring.atoms[i];
+    if (!ringAtom) continue;
+
+    const ringAtomId = ringAtom.id;
+    const locant = locants[i] || i + 1;
+
+    // Find bonds from this ring atom to non-ring atoms
+    const externalBonds = molecule.bonds.filter(
+      (b) =>
+        (b.atom1 === ringAtomId || b.atom2 === ringAtomId) &&
+        b.type === "single",
+    );
+
+    for (const bond of externalBonds) {
+      const externalAtomId =
+        bond.atom1 === ringAtomId ? bond.atom2 : bond.atom1;
+      const externalAtom = molecule.atoms[externalAtomId];
+
+      if (!externalAtom) continue;
+
+      // Check if external atom is nitrogen (amide check)
+      if (externalAtom.symbol === "N") {
+        // Find carbonyl carbon bonded to nitrogen
+        const carbonylBond = molecule.bonds.find(
+          (b) =>
+            (b.atom1 === externalAtomId || b.atom2 === externalAtomId) &&
+            b.type === "single",
+        );
+
+        if (!carbonylBond) continue;
+
+        const carbonylCarbonId =
+          carbonylBond.atom1 === externalAtomId
+            ? carbonylBond.atom2
+            : carbonylBond.atom1;
+        const carbonylCarbon = molecule.atoms[carbonylCarbonId];
+
+        if (!carbonylCarbon || carbonylCarbon.symbol !== "C") continue;
+
+        // Verify C=O bond exists
+        const doubleBond = molecule.bonds.find(
+          (b) =>
+            (b.atom1 === carbonylCarbonId || b.atom2 === carbonylCarbonId) &&
+            b.type === "double",
+        );
+
+        if (!doubleBond) continue;
+
+        // This is an amide: Ring-N-C(=O)-R
+        // Name the acyl part (the R-C(=O) portion)
+        const acylName = nameAcylChainForAmide(
+          carbonylCarbonId,
+          externalAtomId,
+          molecule,
+        );
+        const amideName = `${acylName}amino`;
+
+        substituents.push({
+          position: String(locant),
+          name: amideName,
+        });
+      }
+    }
+  }
+
+  return substituents;
+}
+
+/**
+ * Name the acyl chain for an amide substituent
+ * Given carbonyl carbon and nitrogen, trace the alkyl chain and name it
+ */
+function nameAcylChainForAmide(
+  carbonylCarbonId: number,
+  nitrogenId: number,
+  molecule: Molecule,
+): string {
+  // Find the alkyl chain attached to carbonyl carbon (not the oxygen or nitrogen)
+  const chainBonds = molecule.bonds.filter(
+    (b) =>
+      (b.atom1 === carbonylCarbonId || b.atom2 === carbonylCarbonId) &&
+      b.type === "single",
+  );
+
+  let chainStartId = -1;
+  for (const bond of chainBonds) {
+    const otherId = bond.atom1 === carbonylCarbonId ? bond.atom2 : bond.atom1;
+    const otherAtom = molecule.atoms[otherId];
+
+    if (otherAtom && otherAtom.symbol === "C" && otherId !== nitrogenId) {
+      chainStartId = otherId;
+      break;
+    }
+  }
+
+  if (chainStartId === -1) {
+    // No alkyl chain, just formyl
+    return "formyl";
+  }
+
+  // Find longest carbon chain starting from chainStartId
+  function findLongestChain(startId: number, visited: Set<number>): number[] {
+    const newVisited = new Set(visited);
+    newVisited.add(startId);
+
+    let longestChain: number[] = [startId];
+
+    const neighbors = molecule.bonds
+      .filter(
+        (b) =>
+          (b.atom1 === startId || b.atom2 === startId) && b.type === "single",
+      )
+      .map((b) => (b.atom1 === startId ? b.atom2 : b.atom1))
+      .filter((id) => {
+        const atom = molecule.atoms[id];
+        return atom && atom.symbol === "C" && !newVisited.has(id);
+      });
+
+    for (const neighborId of neighbors) {
+      const subChain = findLongestChain(neighborId, newVisited);
+      if (subChain.length + 1 > longestChain.length) {
+        longestChain = [startId, ...subChain];
+      }
+    }
+
+    return longestChain;
+  }
+
+  const mainChain = findLongestChain(chainStartId, new Set([carbonylCarbonId]));
+  const chainLength = mainChain.length + 1; // +1 for carbonyl carbon
+
+  if (process.env.VERBOSE) {
+    console.log(
+      `[nameAcylChainForAmide] chainStartId=${chainStartId}, mainChain=${mainChain}, chainLength=${chainLength}`,
+    );
+  }
+
+  // Check for branching at the first carbon (position 2 in the acyl group)
+  const firstCarbon = molecule.atoms[chainStartId];
+  if (!firstCarbon) return "formyl";
+
+  // Get all carbon neighbors of the first carbon
+  const firstCarbonNeighbors = molecule.bonds
+    .filter(
+      (b) =>
+        (b.atom1 === chainStartId || b.atom2 === chainStartId) &&
+        b.type === "single",
+    )
+    .map((b) => (b.atom1 === chainStartId ? b.atom2 : b.atom1))
+    .filter((id) => {
+      const atom = molecule.atoms[id];
+      return atom && atom.symbol === "C";
+    });
+
+  // Identify branches (carbons not in main chain and not carbonyl)
+  const branches = firstCarbonNeighbors.filter(
+    (id) => id !== carbonylCarbonId && !mainChain.includes(id),
+  );
+
+  // Check if branches are methyl groups
+  const methylBranches = branches.filter((branchId) => {
+    const branchBonds = molecule.bonds.filter(
+      (b) => b.atom1 === branchId || b.atom2 === branchId,
+    );
+    // Methyl has only 1 carbon neighbor (the attachment point)
+    const carbonNeighbors = branchBonds.filter((b) => {
+      const otherId = b.atom1 === branchId ? b.atom2 : b.atom1;
+      const atom = molecule.atoms[otherId];
+      return atom && atom.symbol === "C";
+    });
+    return carbonNeighbors.length === 1;
+  });
+
+  if (process.env.VERBOSE) {
+    console.log(
+      `[nameAcylChainForAmide] firstCarbonNeighbors=${firstCarbonNeighbors}, branches=${branches}, methylBranches=${methylBranches}`,
+    );
+  }
+
+  // Simple naming based on chain length
+  const prefixes = [
+    "",
+    "meth",
+    "eth",
+    "prop",
+    "but",
+    "pent",
+    "hex",
+    "hept",
+    "oct",
+  ];
+  const baseName = prefixes[chainLength] || "alk";
+
+  // If we have 2 methyl branches at position 2, and chain length is 4, name it accordingly
+  if (methylBranches.length === 2 && chainLength === 4) {
+    return "2,2-dimethylbutanoyl";
+  }
+
+  // TODO: Handle other branching patterns
+  if (methylBranches.length > 0) {
+    const multiplier =
+      methylBranches.length === 2
+        ? "di"
+        : methylBranches.length === 3
+          ? "tri"
+          : "";
+    return `2${methylBranches.length > 1 ? ",2" : ""}-${multiplier}methyl${baseName}anoyl`;
+  }
+
+  return `${baseName}anoyl`;
+}
+
+/**
  * Build ester name when ring is on acyl side
  * Example: CC(C)COC(=O)C1CCCC1 → "2-methylpropyl cyclopentanecarboxylate"
  */
@@ -227,10 +816,113 @@ export function buildEsterWithRingAcylGroup(
   const ringName = parentStructure.name || "ring";
   const isAromatic = parentStructure.ring?.type === "aromatic";
 
+  if (process.env.VERBOSE) {
+    console.log("[buildEsterWithRingAcylGroup] ringName:", ringName);
+    console.log("[buildEsterWithRingAcylGroup] isAromatic:", isAromatic);
+    console.log(
+      "[buildEsterWithRingAcylGroup] condition check: isAromatic && ringName.includes('benzen'):",
+      isAromatic && ringName.includes("benzen"),
+    );
+  }
+
   // For aromatic rings with carboxylate, use special naming
   if (isAromatic && ringName.includes("benzen")) {
-    // benzoate for benzene ring
-    const acylName = "benzoate";
+    // Collect ring substituents (excluding the carboxylate attachment point at position 1)
+    const ringSubstituents = (
+      (parentStructure.substituents as StructuralSubstituent[]) || []
+    )
+      .filter((sub) => {
+        // Filter out the carboxylate carbonyl carbon (position 1)
+        // It's typically named "carbon" or is the first position
+        const pos = getSubstituentPosition(sub);
+        return pos !== "1" && sub.type !== "carbon";
+      })
+      .map((sub) => {
+        const pos = getSubstituentPosition(sub);
+        const name = (sub.name || sub.type || "").replace(/^\(|\)$/g, ""); // Remove parentheses
+        return { position: pos, name };
+      })
+      .sort((a, b) => {
+        // Sort by position number
+        const numA = Number.parseInt(a.position, 10) || 0;
+        const numB = Number.parseInt(b.position, 10) || 0;
+        return numA - numB;
+      });
+
+    // Detect additional substituents (e.g., amide groups) that may be missing
+    if (process.env.VERBOSE) {
+      console.log(
+        "[buildEsterWithRingAcylGroup] About to call detectBenzeneRingSubstituents",
+      );
+    }
+    let additionalSubs: Array<{ position: string; name: string }> = [];
+    try {
+      additionalSubs = detectBenzeneRingSubstituents(
+        parentStructure,
+        esterGroup,
+        molecule,
+      );
+      if (process.env.VERBOSE) {
+        console.log(
+          "[buildEsterWithRingAcylGroup] detectBenzeneRingSubstituents returned:",
+          additionalSubs,
+        );
+      }
+    } catch (err) {
+      if (process.env.VERBOSE) {
+        console.log(
+          "[buildEsterWithRingAcylGroup] detectBenzeneRingSubstituents threw error:",
+          err,
+        );
+      }
+      additionalSubs = [];
+    }
+
+    // Merge with existing substituents
+    const allSubstituents = [...ringSubstituents];
+    for (const newSub of additionalSubs) {
+      // Only add if not already present at this position
+      if (!allSubstituents.some((s) => s.position === newSub.position)) {
+        allSubstituents.push(newSub);
+      }
+    }
+
+    // Sort by position
+    allSubstituents.sort((a, b) => {
+      const numA = Number.parseInt(a.position, 10) || 0;
+      const numB = Number.parseInt(b.position, 10) || 0;
+      return numA - numB;
+    });
+
+    if (process.env.VERBOSE) {
+      console.log(
+        "[buildEsterWithRingAcylGroup] ringSubstituents (initial):",
+        ringSubstituents,
+      );
+      console.log(
+        "[buildEsterWithRingAcylGroup] additionalSubs:",
+        additionalSubs,
+      );
+      console.log(
+        "[buildEsterWithRingAcylGroup] allSubstituents:",
+        allSubstituents,
+      );
+    }
+
+    // Build substituent prefix: "3-(substituent1)-5-(substituent2)"
+    let substituentPrefix = "";
+    if (allSubstituents.length > 0) {
+      const parts = allSubstituents.map(
+        (sub) => `${sub.position}-(${sub.name})`,
+      );
+      substituentPrefix = parts.join("-");
+    }
+
+    // Build acyl name: benzoate with substituents
+    const baseAcylName = "benzoate";
+    const acylName = substituentPrefix
+      ? `${substituentPrefix}${baseAcylName}`
+      : baseAcylName;
 
     // Now find the alkoxy group
     const alkoxyName = getAlkoxyGroupName(
@@ -244,7 +936,7 @@ export function buildEsterWithRingAcylGroup(
       console.log("[buildEsterWithRingAcylGroup] alkoxyName:", alkoxyName);
     }
 
-    return `${alkoxyName} ${acylName}`;
+    return `${alkoxyName}${acylName}`;
   }
 
   // For non-aromatic rings: cyclo[ring]carboxylate
@@ -261,7 +953,7 @@ export function buildEsterWithRingAcylGroup(
     console.log("[buildEsterWithRingAcylGroup] alkoxyName:", alkoxyName);
   }
 
-  return `${alkoxyName} ${acylName}`;
+  return `${alkoxyName}${acylName}`;
 }
 
 /**
@@ -1910,7 +2602,7 @@ export function buildEsterName(
   // e.g., trimethylsilyloxy recorded in parentStructure.chain.substituents for the alkoxy group
   try {
     const parentSubstituents = parentStructure.chain?.substituents || [];
-    for (const sub of parentSubstituents as Substituent[]) {
+    for (const sub of parentSubstituents as StructuralSubstituent[]) {
       // Avoid duplicates by checking if a similar type already exists in alkoxySubstituents
       const key = (sub.type || sub.name || "").toString();
       // We'll attempt to find an attachment atom below; declare here so we can merge if needed
@@ -2113,10 +2805,28 @@ export function buildEsterName(
         "nonanoate",
         "decanoate",
       ];
-      acylName =
+
+      // Check for substituents on the carbonyl carbon
+      const acylSubstituentName =
+        carbonylCarbonId !== undefined && esterOxygenId !== undefined
+          ? getAcylSubstituents(carbonylCarbonId, esterOxygenId, molecule)
+          : "";
+
+      if (process.env.VERBOSE) {
+        console.log(
+          "[buildEsterName] acylSubstituentName:",
+          acylSubstituentName,
+        );
+      }
+
+      const baseAcylName =
         acylLength < acylNames.length && acylNames[acylLength]
           ? acylNames[acylLength]
           : `C${acylLength}-anoate`;
+
+      acylName = acylSubstituentName
+        ? `${acylSubstituentName}${baseAcylName}`
+        : baseAcylName;
     }
   } catch (_e) {
     const acylNames = [
@@ -2138,14 +2848,8 @@ export function buildEsterName(
         : `C${acylLength}-anoate`;
   }
 
-  // Don't add space if alkyl name is complex (surrounded by brackets) or ring-based (contains parentheses with ring names)
-  const isComplexAlkyl = alkylName.startsWith("[") && alkylName.endsWith("]");
-  const isRingBasedAlkyl =
-    alkylName.includes("(") && alkylName.includes(")") && /\d+/.test(alkylName);
-  const result =
-    alkoxySubstituents.length > 0 || isComplexAlkyl || isRingBasedAlkyl
-      ? `${alkylName}${acylName}`
-      : `${alkylName} ${acylName}`;
+  // Use compact format without spaces for consistency with IUPAC notation
+  const result = `${alkylName}${acylName}`;
 
   if (process.env.VERBOSE) {
     console.log("[buildEsterName] result:", result);

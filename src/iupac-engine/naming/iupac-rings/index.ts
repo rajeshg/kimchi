@@ -1,5 +1,5 @@
 import type { Molecule } from "types";
-import type { Substituent } from "../iupac-types";
+import type { NamingSubstituent } from "../iupac-types";
 import { BondType } from "types";
 import {
   analyzeRings,
@@ -660,11 +660,11 @@ function getMonocyclicBaseName(ring: number[], molecule: Molecule): string {
   }
 }
 
-function findSubstituentsOnMonocyclicRing(
+export function findSubstituentsOnMonocyclicRing(
   ring: number[],
   molecule: Molecule,
-): Substituent[] {
-  const substituents: Substituent[] = [];
+): NamingSubstituent[] {
+  const substituents: NamingSubstituent[] = [];
   const ringSet = new Set(ring);
 
   // Find all atoms bonded to the ring that are not part of the ring
@@ -743,6 +743,100 @@ function findSubstituentsOnMonocyclicRing(
   return unique;
 }
 
+function createSubMoleculeFromSubstituent(
+  molecule: Molecule,
+  substituentAtoms: Set<number>,
+): Molecule {
+  const atomMapping = new Map<number, number>();
+  const newAtomsArray: (typeof molecule.atoms)[0][] = [];
+  const newBondsArray: (typeof molecule.bonds)[0][] = [];
+
+  Array.from(substituentAtoms)
+    .sort((a, b) => a - b)
+    .forEach((oldIdx, newIdx) => {
+      atomMapping.set(oldIdx, newIdx);
+      const atom = molecule.atoms[oldIdx];
+      if (atom) {
+        newAtomsArray.push({ ...atom });
+      }
+    });
+
+  for (const bond of molecule.bonds) {
+    const newAtom1 = atomMapping.get(bond.atom1);
+    const newAtom2 = atomMapping.get(bond.atom2);
+    if (newAtom1 !== undefined && newAtom2 !== undefined) {
+      newBondsArray.push({
+        ...bond,
+        atom1: newAtom1,
+        atom2: newAtom2,
+      });
+    }
+  }
+
+  return {
+    atoms: newAtomsArray as Molecule["atoms"],
+    bonds: newBondsArray as Molecule["bonds"],
+  };
+}
+
+function nameComplexSubstituent(
+  molecule: Molecule,
+  substituentAtoms: Set<number>,
+): string | null {
+  const subMolecule = createSubMoleculeFromSubstituent(
+    molecule,
+    substituentAtoms,
+  );
+
+  try {
+    const { generateIUPACName } = require("../../index");
+    let iupacName = generateIUPACName(subMolecule);
+
+    if (process.env.VERBOSE) {
+      console.log("[nameComplexSubstituent] Generated IUPAC name:", iupacName);
+    }
+
+    // Convert IUPAC name to substituent form (e.g., "propan-2-ol" → "hydroxypropan-2-yl")
+    // Strategy:
+    // 1. If it ends with "-ol" or "ol", replace with "hydroxy" prefix and "yl" suffix
+    // 2. If it contains numbered positions, preserve them
+
+    // Pattern: "2-methylpropan-2-ol" → "2-hydroxypropan-2-yl"
+    if (iupacName.includes("ol")) {
+      // Extract the base name and functional group positions
+      // Example: "2-methylpropan-2-ol" → base="2-methylpropan", position="2", suffix="ol"
+      const olMatch =
+        iupacName.match(/^(.+?)-(\d+)-ol$/) || iupacName.match(/^(.+?)ol$/);
+
+      if (olMatch) {
+        if (olMatch.length === 3) {
+          // Has position number: "propan-2-ol"
+          const baseName = olMatch[1]; // "propan"
+          const position = olMatch[2]; // "2"
+          iupacName = `${position}-hydroxy${baseName}-${position}-yl`;
+        } else {
+          // No position number: "propanol"
+          const baseName = olMatch[1]; // "propan"
+          iupacName = `hydroxy${baseName}yl`;
+        }
+      }
+    }
+
+    // Ensure it ends with "yl" for substituent form
+    if (!iupacName.endsWith("yl")) {
+      // Remove common suffixes and add "yl"
+      iupacName = iupacName.replace(/ane$|ene$|ol$/, "") + "yl";
+    }
+
+    return iupacName;
+  } catch (error) {
+    if (process.env.VERBOSE) {
+      console.error("[nameComplexSubstituent] Error generating name:", error);
+    }
+    return null;
+  }
+}
+
 function classifySubstituent(
   molecule: Molecule,
   startAtomIdx: number,
@@ -776,6 +870,9 @@ function classifySubstituent(
     .filter((atom): atom is (typeof molecule.atoms)[0] => atom !== undefined);
 
   const carbonCount = atoms.filter((atom) => atom.symbol === "C").length;
+  const heteroatomCount = atoms.filter(
+    (atom) => atom.symbol !== "C" && atom.symbol !== "H",
+  ).length;
 
   // Check for carboxyl group: -C(=O)OH
   // Pattern: carbon with double-bonded oxygen and hydroxyl group
@@ -848,7 +945,59 @@ function classifySubstituent(
     return { type: "halo", size: 1, name: "iodo" };
   }
 
-  // Larger alkyl groups
+  // Alkoxy groups: -O-R where R is an alkyl chain
+  // Pattern: oxygen (without hydrogen) bonded to carbon chain
+  if (heteroatomCount === 1 && carbonCount >= 1) {
+    const oxygenAtom = atoms.find((atom) => atom.symbol === "O");
+    if (
+      oxygenAtom &&
+      (oxygenAtom.hydrogens === 0 || oxygenAtom.hydrogens === undefined)
+    ) {
+      // This is an alkoxy group: -O-C-...
+      const alkaneNames = [
+        "",
+        "meth",
+        "eth",
+        "prop",
+        "but",
+        "pent",
+        "hex",
+        "hept",
+        "oct",
+        "non",
+        "dec",
+      ];
+      const prefix = alkaneNames[carbonCount] || `C${carbonCount}`;
+      return { type: "alkoxy", size: carbonCount, name: `${prefix}oxy` };
+    }
+  }
+
+  // Complex substituents: multiple carbons with heteroatoms (O, N, S, etc.)
+  // These need recursive IUPAC naming
+  if (carbonCount > 1 && heteroatomCount > 0) {
+    if (process.env.VERBOSE) {
+      console.log(
+        `[classifySubstituent] Detected complex substituent with ${carbonCount} carbons and ${heteroatomCount} heteroatoms`,
+      );
+      console.log(
+        "[classifySubstituent] Substituent atoms:",
+        Array.from(substituentAtoms),
+      );
+    }
+
+    const complexName = nameComplexSubstituent(molecule, substituentAtoms);
+    if (complexName) {
+      if (process.env.VERBOSE) {
+        console.log(
+          "[classifySubstituent] Complex substituent name:",
+          complexName,
+        );
+      }
+      return { type: "complex", size: carbonCount, name: complexName };
+    }
+  }
+
+  // Larger alkyl groups (pure hydrocarbon chains)
   if (carbonCount > 0) {
     const alkaneNames = [
       "",
@@ -872,7 +1021,7 @@ function classifySubstituent(
 
 function generateMonocyclicSubstitutedName(
   cycloName: string,
-  substituents: Substituent[],
+  substituents: NamingSubstituent[],
   ring: number[],
   _molecule: Molecule,
 ): string {

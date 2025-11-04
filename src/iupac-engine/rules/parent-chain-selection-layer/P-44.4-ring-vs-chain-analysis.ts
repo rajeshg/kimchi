@@ -8,8 +8,8 @@ import { ExecutionPhase } from "../../immutable-context";
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const {
-  findSubstituents: _findSubstituents,
-} = require("../../naming/iupac-chains");
+  findSubstituentsOnMonocyclicRing: _findSubstituentsOnMonocyclicRing,
+} = require("../../naming/iupac-rings");
 
 /**
  * Rule: P-44.4 (chain-analysis placement)
@@ -82,9 +82,9 @@ export const P44_4_RING_VS_CHAIN_IN_CHAIN_ANALYSIS_RULE: IUPACRule = {
       const mol = state.molecule;
       if (ring && ring.atoms && mol) {
         substituents =
-          _findSubstituents(
-            mol,
+          _findSubstituentsOnMonocyclicRing(
             ring.atoms.map((a) => a.id),
+            mol,
           ) || [];
       }
     } catch (_e) {

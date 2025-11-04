@@ -145,19 +145,31 @@ export const P44_1_1_PRINCIPAL_CHARACTERISTIC_GROUPS_RULE: IUPACRule = {
           .map((atom) => molecule.atoms.findIndex((a) => a === atom))
           .filter((idx) => idx !== -1);
 
+        // IMPORTANT: Check if FG atoms are part of a ring FIRST
+        // If they are, they should NOT be counted as chain functional groups
+        const hasAtomInRing = (fg.atoms || []).some((atom) => atom.isInRing);
+
         // Check if FG atom is in chain
         const hasAtomInChain = fgAtomIndices.some((atomIdx) =>
           chainAtomIndices.has(atomIdx),
         );
 
         // Check if FG atom is attached to chain (directly or through short carbon bridge)
+        // BUT only if it's not already part of a ring
         const isAttachedToChain =
+          !hasAtomInRing &&
           !hasAtomInChain &&
           isFunctionalGroupAttachedToRing(
             fgAtomIndices,
             chainAtomIndices,
             molecule,
           );
+
+        if (process.env.VERBOSE) {
+          console.log(
+            `[P-44.1.1]   FG ${fg.type} atoms ${fgAtomIndices}: hasAtomInRing=${hasAtomInRing}, hasAtomInChain=${hasAtomInChain}, isAttachedToChain=${isAttachedToChain}`,
+          );
+        }
 
         if (hasAtomInChain || isAttachedToChain) {
           fgCount++;
@@ -167,7 +179,7 @@ export const P44_1_1_PRINCIPAL_CHARACTERISTIC_GROUPS_RULE: IUPACRule = {
 
       if (process.env.VERBOSE) {
         console.log(
-          `[P-44.1.1] Chain with ${chain.atoms.length} atoms: fgCount=${fgCount}`,
+          `[P-44.1.1] Chain with ${chain.atoms.length} atoms (IDs: ${Array.from(chainAtomIndices).join(",")}): fgCount=${fgCount}`,
         );
       }
 

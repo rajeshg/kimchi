@@ -516,6 +516,22 @@ export class OPSINFunctionalGroupDetector {
               // Claim this atom
               claimedAtoms.add(sulfurId);
             }
+          } else if (check.pattern === "[OX2H]" && atomsMatched.length > 1) {
+            // Special case: For alcohols, create one functional group per oxygen atom
+            // since each alcohol should be counted separately for diol, triol, etc.
+            for (const oxygenId of atomsMatched) {
+              detectedGroups.push({
+                type: check.pattern,
+                name: fgEntry?.name || check.name,
+                suffix: fgEntry?.suffix || "",
+                prefix: fgEntry?.prefix || undefined,
+                priority: fgEntry?.priority || check.priority,
+                atoms: [oxygenId],
+                pattern: check.pattern,
+              });
+              // Claim this atom
+              claimedAtoms.add(oxygenId);
+            }
           } else {
             if (process.env.DEBUG_ALDEHYDE && check.name === "aldehyde") {
               console.log(`[DEBUG] Aldehyde detection:`);
@@ -778,7 +794,9 @@ export class OPSINFunctionalGroupDetector {
     atoms: readonly Atom[],
     bonds: readonly Bond[],
   ): number[] {
-    // Look for oxygen with carbon and hydrogen bonds
+    // Look for ALL oxygen atoms with carbon and hydrogen bonds (alcohols)
+    const alcohols: number[] = [];
+
     for (let i = 0; i < atoms.length; i++) {
       const atom = atoms[i];
       if (!atom || atom.symbol !== "O") continue;
@@ -821,10 +839,10 @@ export class OPSINFunctionalGroupDetector {
         (carbonBonds.length >= 1 && hydrogenBonds.length >= 1) ||
         carbonBonds.length === 1
       ) {
-        return [atom.id];
+        alcohols.push(atom.id);
       }
     }
-    return [];
+    return alcohols;
   }
 
   private findKetonePattern(

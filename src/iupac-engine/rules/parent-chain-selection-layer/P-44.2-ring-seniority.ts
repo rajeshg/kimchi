@@ -1,12 +1,16 @@
-import type { IUPACRule, FunctionalGroup, Substituent } from "../../types";
+import type {
+  IUPACRule,
+  FunctionalGroup,
+  StructuralSubstituent,
+} from "../../types";
 import type { Atom, Bond, Molecule } from "types";
 import { BLUE_BOOK_RULES, RulePriority } from "../../types";
 import { ExecutionPhase } from "../../immutable-context";
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const {
-  findSubstituents: _findSubstituents,
-} = require("../../naming/iupac-chains");
+  findSubstituentsOnMonocyclicRing: _findSubstituentsOnMonocyclicRing,
+} = require("../../naming/iupac-rings");
 
 /**
  * Rule: P-44.2 - Ring System Seniority
@@ -129,12 +133,25 @@ export const P44_2_RING_SENIORITY_RULE: IUPACRule = {
       ? ring.atoms.map((_: Atom, idx: number) => idx + 1)
       : [];
     // Try to find substituents on the ring atoms so substituted ring names can be produced
-    let substituents: Substituent[] = [];
+    let substituents: StructuralSubstituent[] = [];
     try {
       const mol = (context.getState() as { molecule: Molecule }).molecule;
       if (ring && ring.atoms && mol) {
         const atomIds = ring.atoms.map((a: Atom) => a.id);
-        substituents = (_findSubstituents(mol, atomIds) as Substituent[]) || [];
+        if (process.env.VERBOSE) {
+          console.log(
+            "[P-44.2] Finding substituents on ring with atom IDs:",
+            atomIds,
+          );
+        }
+        substituents =
+          (_findSubstituentsOnMonocyclicRing(
+            atomIds,
+            mol,
+          ) as StructuralSubstituent[]) || [];
+        if (process.env.VERBOSE) {
+          console.log("[P-44.2] Found substituents:", substituents);
+        }
       }
     } catch (_e) {
       substituents = [];

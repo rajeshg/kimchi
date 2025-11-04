@@ -1,5 +1,6 @@
-import type { ParentStructure, FunctionalGroup, Ring } from "../../types";
+import type { ParentStructure, FunctionalGroup } from "../../types";
 import type { Atom, Bond, Molecule } from "types";
+import type { RingSystem } from "../../types";
 
 /**
  * Helper functions for numbering logic
@@ -308,11 +309,72 @@ export function getPrincipalGroupLocantFromSet(
     // parentStructure.ring should have the atoms in numbered order
     const ring = parentStructure.ring;
     if (ring && ring.atoms) {
-      const positionInRing = ring.atoms.findIndex(
+      let positionInRing = ring.atoms.findIndex(
         (atom: Atom) => atom.id === atomId,
       );
+
+      if (process.env.VERBOSE) {
+        console.log(
+          "[getPrincipalGroupLocantFromSet] Ring - atomId:",
+          atomId,
+          "initial positionInRing:",
+          positionInRing,
+        );
+      }
+
+      // If the functional group atom is not in the ring (e.g., alcohol O stored as C),
+      // find which ring atom it's bonded to
+      if (
+        positionInRing === -1 &&
+        principalGroup.bonds &&
+        principalGroup.bonds.length > 0
+      ) {
+        if (process.env.VERBOSE) {
+          console.log(
+            "[getPrincipalGroupLocantFromSet] Ring - Atom not in ring, checking bonds:",
+            principalGroup.bonds,
+          );
+        }
+        // Look through the bonds to find the ring atom
+        for (const bond of principalGroup.bonds) {
+          const otherAtomId = bond.atom1 === atomId ? bond.atom2 : bond.atom1;
+          const foundPosition = ring.atoms.findIndex(
+            (atom: Atom) => atom.id === otherAtomId,
+          );
+          if (process.env.VERBOSE) {
+            console.log(
+              "[getPrincipalGroupLocantFromSet] Ring - Checking bond to atom",
+              otherAtomId,
+              "foundPosition:",
+              foundPosition,
+            );
+          }
+          if (foundPosition !== -1) {
+            positionInRing = foundPosition;
+            if (process.env.VERBOSE) {
+              console.log(
+                "[getPrincipalGroupLocantFromSet] Ring - Found ring atom at position",
+                foundPosition,
+              );
+            }
+            break;
+          }
+        }
+      }
+
       if (positionInRing !== -1 && positionInRing < locantSet.length) {
-        return locantSet[positionInRing]!;
+        const locant = locantSet[positionInRing];
+        if (locant !== undefined) {
+          if (process.env.VERBOSE) {
+            console.log(
+              "[getPrincipalGroupLocantFromSet] Ring - final positionInRing:",
+              positionInRing,
+              "result:",
+              locant,
+            );
+          }
+          return locant;
+        }
       }
     }
 
@@ -433,7 +495,7 @@ export function getFixedLocants(parentStructure: ParentStructure): number[] {
   return parentStructure.locants;
 }
 
-export function generateRingLocants(ring: Ring): number[] {
+export function generateRingLocants(ring: RingSystem): number[] {
   // Generate locants for ring atoms
   const locants: number[] = [];
   for (let i = 0; i < ring.atoms.length; i++) {
@@ -443,7 +505,7 @@ export function generateRingLocants(ring: Ring): number[] {
 }
 
 export function findOptimalRingNumbering(
-  ring: Ring,
+  ring: RingSystem,
   molecule: Molecule,
   functionalGroups?: FunctionalGroup[],
 ): number {
@@ -722,7 +784,7 @@ export function findOptimalRingNumbering(
 }
 
 export function findOptimalRingNumberingFromHeteroatom(
-  ring: Ring,
+  ring: RingSystem,
   molecule: Molecule,
   heteroatomIndex: number,
   functionalGroups?: FunctionalGroup[],
@@ -1002,7 +1064,7 @@ export function compareLocantSets(a: number[], b: number[]): number {
 }
 
 export function findRingStartingPosition(
-  ring: Ring,
+  ring: RingSystem,
   molecule?: Molecule,
   functionalGroups?: FunctionalGroup[],
 ): number {
@@ -1043,11 +1105,13 @@ export function findRingStartingPosition(
       const ccwHeteroLocants = heteroatomIndices
         .map((idx) => {
           // Find where this heteroatom ended up in the new arrangement
-          const atomId = ring.atoms[idx].id;
-          // @ts-ignore
+          const atom = ring.atoms[idx];
+          if (!atom) return -1;
+          const atomId = atom.id;
           const newIdx = ccwAtoms.findIndex((a) => a.id === atomId);
           return newIdx + 1; // 1-based locant
         })
+        .filter((locant) => locant > 0)
         .sort((a, b) => a - b);
 
       // Compare with current best

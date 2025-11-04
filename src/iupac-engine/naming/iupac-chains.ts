@@ -5,7 +5,7 @@ import {
   getAlkylName,
   getGreekNumeral,
 } from "./iupac-helpers";
-import type { Substituent, SubstituentInfo } from "./iupac-types";
+import type { NamingSubstituent, NamingSubstituentInfo } from "./iupac-types";
 import { getSharedDetector } from "../opsin-functional-group-detector";
 
 /**
@@ -203,11 +203,8 @@ export function findMainChain(molecule: Molecule): number[] {
     );
   }
 
-  // Exclude all ring atoms from the main chain
-  // Rings should be treated as substituents unless P-44.1.1 or other rules override this
-  // Exclude all ring atoms from the main chain by default. This keeps rings
-  // treated as substituents which is the historically-correct behavior for
-  // selecting a hydrocarbon parent chain in the presence of aromatic systems.
+  // Exclude ring atoms from acyclic chain finding
+  // The P-44.4 rule will compare rings vs acyclic chains separately
   if (molecule.rings && molecule.rings.length > 0) {
     for (const ring of molecule.rings) {
       for (const atomId of ring) {
@@ -216,7 +213,7 @@ export function findMainChain(molecule: Molecule): number[] {
     }
     if (process.env.VERBOSE) {
       console.log(
-        `[findMainChain] Excluded ${molecule.rings.length} rings with atoms: ${Array.from(excludedAtomIds).join(",")}`,
+        `[findMainChain] Excluded ring atoms: ${Array.from(excludedAtomIds).join(",")}`,
       );
     }
   }
@@ -1416,8 +1413,8 @@ export function generateChainBaseName(
 export function findSubstituents(
   molecule: Molecule,
   mainChain: number[],
-): Substituent[] {
-  const substituents: Substituent[] = [];
+): NamingSubstituent[] {
+  const substituents: NamingSubstituent[] = [];
   const chainSet = new Set(mainChain);
 
   // Detect functional groups to exclude their atoms from being classified as substituents
@@ -3285,7 +3282,7 @@ function nameRingSubstituent(
   molecule: Molecule,
   startAtomIdx: number,
   chainAtoms: Set<number>,
-): SubstituentInfo | null {
+): NamingSubstituentInfo | null {
   if (!molecule.rings) return null;
 
   // Import aromatic naming function dynamically to avoid circular dependencies
@@ -3828,7 +3825,7 @@ export function classifySubstituent(
   startAtomIdx: number,
   chainAtoms: Set<number>,
   fgAtomIds: Set<number> = new Set(),
-): SubstituentInfo | null {
+): NamingSubstituentInfo | null {
   // First check: if the starting atom is part of a functional group, skip it
   if (fgAtomIds.has(startAtomIdx)) {
     if (process.env.VERBOSE)
@@ -4184,7 +4181,7 @@ export function classifySubstituent(
 
 export function generateSubstitutedName(
   hydrocarbonBase: string,
-  substituents: Substituent[],
+  substituents: NamingSubstituent[],
   heteroPrefixes: string[] = [],
   unsaturation: { type: "ene" | "yne"; positions: number[] } | null,
 ): string {

@@ -6,8 +6,9 @@ import type {
   FunctionalGroup,
   ParentStructure,
   MultipleBond,
-  Substituent,
+  StructuralSubstituent,
 } from "../types";
+import type { NamingSubstituent } from "../naming/iupac-types";
 import type { Molecule, Atom } from "types";
 import { buildEsterName } from "../utils/ester-naming";
 import { buildAmideName } from "../utils/amide-naming";
@@ -17,7 +18,7 @@ import { buildAmideName } from "../utils/amide-naming";
  */
 type ParentStructureExtended = ParentStructure & {
   assembledName?: string;
-  substituents?: Substituent[];
+  substituents?: (StructuralSubstituent | NamingSubstituent)[];
   size?: number;
 };
 
@@ -29,9 +30,9 @@ type FunctionalGroupExtended = FunctionalGroup & {
 };
 
 /**
- * Extended Substituent with optional assembly properties
+ * Extended StructuralSubstituent with optional assembly properties
  */
-type SubstituentExtended = Substituent & {
+type StructuralSubstituentExtended = StructuralSubstituent & {
   assembledName?: string;
   prefix?: string;
   locants?: number[];
@@ -39,11 +40,11 @@ type SubstituentExtended = Substituent & {
 };
 
 /**
- * Union type for items that can be either FunctionalGroup or Substituent with extensions
+ * Union type for items that can be either FunctionalGroup or StructuralSubstituent with extensions
  */
-type SubstituentOrFunctionalGroup =
+type StructuralSubstituentOrFunctionalGroup =
   | FunctionalGroupExtended
-  | SubstituentExtended;
+  | StructuralSubstituentExtended;
 
 /**
  * Name Assembly Layer Rules
@@ -56,13 +57,13 @@ type SubstituentOrFunctionalGroup =
  */
 
 /**
- * Rule: Substituent Alphabetization
+ * Rule: StructuralSubstituent Alphabetization
  *
  * Arrange substituents in alphabetical order according to Blue Book rules.
  */
 export const SUBSTITUENT_ALPHABETIZATION_RULE: IUPACRule = {
   id: "substituent-alphabetization",
-  name: "Substituent Alphabetization",
+  name: "StructuralSubstituent Alphabetization",
   description: "Arrange substituents in alphabetical order",
   blueBookReference: "P-14.3 - Alphabetization of substituents",
   priority: RulePriority.TEN, // 100 - Run first in assembly phase
@@ -88,7 +89,7 @@ export const SUBSTITUENT_ALPHABETIZATION_RULE: IUPACRule = {
     );
 
     // Alphabetize substituents
-    const alphabetizedSubstituents = substituentGroups.sort(
+    const alphabetizedStructuralSubstituents = substituentGroups.sort(
       (a: FunctionalGroup, b: FunctionalGroup) => {
         const prefixA = a.prefix || a.type;
         const prefixB = b.prefix || b.type;
@@ -99,13 +100,16 @@ export const SUBSTITUENT_ALPHABETIZATION_RULE: IUPACRule = {
     return context.withStateUpdate(
       (state: ContextState) => ({
         ...state,
-        functionalGroups: [...principalGroups, ...alphabetizedSubstituents],
+        functionalGroups: [
+          ...principalGroups,
+          ...alphabetizedStructuralSubstituents,
+        ],
       }),
       "substituent-alphabetization",
-      "Substituent Alphabetization",
+      "StructuralSubstituent Alphabetization",
       "P-14.3",
       ExecutionPhase.ASSEMBLY,
-      `Alphabetized ${alphabetizedSubstituents.length} substituent(s)`,
+      `Alphabetized ${alphabetizedStructuralSubstituents.length} substituent(s)`,
     );
   },
 };
@@ -682,7 +686,7 @@ function buildRingName(
   const size = ring.size || (ring.atoms ? ring.atoms.length : 0);
   const baseName = ringNames[size] || `cyclo${size - 1}ane`;
 
-  // NOTE: Substituents will be handled by buildSubstitutiveName() with proper bis/tris logic
+  // NOTE: StructuralSubstituents will be handled by buildSubstitutiveName() with proper bis/tris logic
   // Check for aromatic naming
   if (ring.type === "aromatic" && size === 6) {
     return "benzene";
@@ -701,7 +705,7 @@ function buildHeteroatomName(
   }
 
   // For simple heteroatom hydrides, just return the parent hydride name
-  // Substituents would be handled by prefix addition in substitutive nomenclature
+  // StructuralSubstituents would be handled by prefix addition in substitutive nomenclature
   return parentStructure.name || "unknown-heteroatom";
 }
 
@@ -810,7 +814,7 @@ function buildAlkylGroupName(
     );
     console.log(
       "[buildAlkylGroupName] parentStructure.substituents:",
-      parentStructure.substituents?.map((s: Substituent) => ({
+      parentStructure.substituents?.map((s: StructuralSubstituent) => ({
         type: s.type,
         locant: s.locant,
       })),
@@ -821,7 +825,7 @@ function buildAlkylGroupName(
     );
     console.log(
       "[buildAlkylGroupName] parentStructure.chain.substituents:",
-      parentStructure.chain?.substituents?.map((s: Substituent) => ({
+      parentStructure.chain?.substituents?.map((s: StructuralSubstituent) => ({
         type: s.type,
         locant: s.locant,
       })),
@@ -832,7 +836,7 @@ function buildAlkylGroupName(
     );
     console.log(
       "[buildAlkylGroupName] parentStructure.chain.substituents:",
-      parentStructure.chain?.substituents?.map((s: Substituent) => ({
+      parentStructure.chain?.substituents?.map((s: StructuralSubstituent) => ({
         type: s.type,
         locant: s.locant,
       })),
@@ -869,22 +873,25 @@ function buildAlkylGroupName(
 
   // Add substituents from functional groups
   // For functional class nomenclature, ALL functional groups (except thiocyanate) become substituents
-  const fgSubstituents = functionalGroups; // Don't filter by isPrincipal - include all
-  const parentSubstituents = parentStructure.substituents || [];
+  const fgStructuralSubstituents = functionalGroups; // Don't filter by isPrincipal - include all
+  const parentStructuralSubstituents = parentStructure.substituents || [];
 
   // Filter out thiocyanate substituents from parent
-  const chainSubstituents = parentStructure.chain?.substituents || [];
-  const allParentSubstituents = [...parentSubstituents, ...chainSubstituents];
+  const chainStructuralSubstituents = parentStructure.chain?.substituents || [];
+  const allParentStructuralSubstituents = [
+    ...parentStructuralSubstituents,
+    ...chainStructuralSubstituents,
+  ];
   // Filter out thiocyanate substituents and deduplicate by type+locant
   const seen = new Set<string>();
-  const filteredParentSubstituents = allParentSubstituents
+  const filteredParentStructuralSubstituents = allParentStructuralSubstituents
     .filter(
-      (sub: Substituent) =>
+      (sub: StructuralSubstituent) =>
         sub.type !== "thiocyanate" &&
         sub.type !== "thiocyano" &&
         sub.name !== "thiocyano",
     )
-    .filter((sub: Substituent) => {
+    .filter((sub: StructuralSubstituent) => {
       const key = `${sub.type}:${sub.locant || ""}`;
       if (seen.has(key)) return false;
       seen.add(key);
@@ -893,22 +900,22 @@ function buildAlkylGroupName(
 
   if (process.env.VERBOSE) {
     console.log(
-      "[buildAlkylGroupName] parentSubstituents:",
-      parentSubstituents.map((s: Substituent) => ({
+      "[buildAlkylGroupName] parentStructuralSubstituents:",
+      parentStructuralSubstituents.map((s: StructuralSubstituent) => ({
         type: s.type,
         locant: s.locant,
       })),
     );
     console.log(
-      "[buildAlkylGroupName] chainSubstituents:",
-      chainSubstituents.map((s: Substituent) => ({
+      "[buildAlkylGroupName] chainStructuralSubstituents:",
+      chainStructuralSubstituents.map((s: StructuralSubstituent) => ({
         type: s.type,
         locant: s.locant,
       })),
     );
     console.log(
-      "[buildAlkylGroupName] filteredParentSubstituents:",
-      filteredParentSubstituents.map((s: Substituent) => ({
+      "[buildAlkylGroupName] filteredParentStructuralSubstituents:",
+      filteredParentStructuralSubstituents.map((s: StructuralSubstituent) => ({
         type: s.type,
         locant: s.locant,
       })),
@@ -942,8 +949,8 @@ function buildAlkylGroupName(
   }
 
   // Renumber functional groups
-  const renumberedFgSubstituents: FunctionalGroupExtended[] =
-    fgSubstituents.map((group) => {
+  const renumberedFgStructuralSubstituents: FunctionalGroupExtended[] =
+    fgStructuralSubstituents.map((group) => {
       if (group.atoms && group.atoms.length > 0) {
         // For ketone, the carbon of C=O is the position
         const carbonAtom = group.atoms[0]; // First atom is typically the C in C=O
@@ -981,53 +988,59 @@ function buildAlkylGroupName(
       return group;
     });
 
-  const allSubstituents: SubstituentOrFunctionalGroup[] = [
-    ...renumberedFgSubstituents,
-    ...filteredParentSubstituents,
+  const allStructuralSubstituents: StructuralSubstituentOrFunctionalGroup[] = [
+    ...renumberedFgStructuralSubstituents,
+    ...filteredParentStructuralSubstituents,
   ];
 
   if (process.env.VERBOSE) {
     console.log(
-      "[buildAlkylGroupName] renumberedFgSubstituents:",
-      renumberedFgSubstituents.map((s: FunctionalGroupExtended) => ({
+      "[buildAlkylGroupName] renumberedFgStructuralSubstituents:",
+      renumberedFgStructuralSubstituents.map((s: FunctionalGroupExtended) => ({
         type: s.type,
         locants: s.locants,
       })),
     );
     console.log(
-      "[buildAlkylGroupName] allSubstituents:",
-      allSubstituents.map((s: SubstituentOrFunctionalGroup) => ({
-        type: s.type,
-        name: s.name,
-        locant: "locant" in s ? s.locant : undefined,
-        locants: "locants" in s ? s.locants : undefined,
-      })),
+      "[buildAlkylGroupName] allStructuralSubstituents:",
+      allStructuralSubstituents.map(
+        (s: StructuralSubstituentOrFunctionalGroup) => ({
+          type: s.type,
+          name: s.name,
+          locant: "locant" in s ? s.locant : undefined,
+          locants: "locants" in s ? s.locants : undefined,
+        }),
+      ),
     );
   }
 
   // Determine whether the assembledName already includes substituent text
   const parentAssembled = parentStructure.assembledName || "";
-  const parentHasAssembledSubstituents = !!(
+  const parentHasAssembledStructuralSubstituents = !!(
     parentAssembled &&
     parentStructure.substituents &&
     parentStructure.substituents.length > 0 &&
-    parentStructure.substituents.some((s: Substituent) => {
+    parentStructure.substituents.some((s: StructuralSubstituent) => {
       const nameToFind = s.name || s.type;
       return nameToFind && parentAssembled.includes(String(nameToFind));
     })
   );
-  const hasFgSubstituents = renumberedFgSubstituents.length > 0;
+  const hasFgStructuralSubstituents =
+    renumberedFgStructuralSubstituents.length > 0;
 
   if (process.env.VERBOSE) {
     console.log(
-      "[buildAlkylGroupName] parentHasAssembledSubstituents:",
-      parentHasAssembledSubstituents,
+      "[buildAlkylGroupName] parentHasAssembledStructuralSubstituents:",
+      parentHasAssembledStructuralSubstituents,
     );
     console.log(
-      "[buildAlkylGroupName] allSubstituents.length:",
-      allSubstituents.length,
+      "[buildAlkylGroupName] allStructuralSubstituents.length:",
+      allStructuralSubstituents.length,
     );
-    console.log("[buildAlkylGroupName] hasFgSubstituents:", hasFgSubstituents);
+    console.log(
+      "[buildAlkylGroupName] hasFgStructuralSubstituents:",
+      hasFgStructuralSubstituents,
+    );
     console.log(
       "[buildAlkylGroupName] useAssembledNameAsBase:",
       useAssembledNameAsBase,
@@ -1039,13 +1052,13 @@ function buildAlkylGroupName(
   // want to include functional group substituents (like ketones) in alkyl names.
   // Only skip if there are NO functional group substituents to add.
   if (
-    allSubstituents.length > 0 &&
-    (hasFgSubstituents || !parentHasAssembledSubstituents)
+    allStructuralSubstituents.length > 0 &&
+    (hasFgStructuralSubstituents || !parentHasAssembledStructuralSubstituents)
   ) {
     const substituentParts: string[] = [];
     const substituentGroups = new Map<string, number[]>();
 
-    for (const sub of allSubstituents) {
+    for (const sub of allStructuralSubstituents) {
       // For ketone groups, use "oxo" prefix
       let subName = sub.assembledName || sub.name || sub.prefix || sub.type;
 
@@ -1139,7 +1152,7 @@ function buildSubstitutiveName(
     console.log(
       "[buildSubstitutiveName] parentStructure.substituents:",
       JSON.stringify(
-        parentStructure.substituents?.map((s: Substituent) => ({
+        parentStructure.substituents?.map((s: StructuralSubstituent) => ({
           type: s.type,
           locant: s.locant,
         })),
@@ -1162,9 +1175,8 @@ function buildSubstitutiveName(
   let name = "";
 
   // Add substituents from functional groups (excluding principal group)
-  const fgSubstituents: FunctionalGroupExtended[] = functionalGroups.filter(
-    (group) => !group.isPrincipal,
-  );
+  const fgStructuralSubstituents: FunctionalGroupExtended[] =
+    functionalGroups.filter((group) => !group.isPrincipal);
 
   // Find principal functional group atoms to exclude from substituents
   const principalFG = functionalGroups.find((group) => group.isPrincipal);
@@ -1197,36 +1209,36 @@ function buildSubstitutiveName(
   // For chain parent structures, use parent substituents if they exist
   // Only add functional groups that are NOT already represented in parent substituents
   // This prevents double-counting ethers that are already named as alkoxy substituents
-  const parentSubstituents = (parentStructure.substituents || []).filter(
-    (sub: Substituent) => {
-      // Exclude if this substituent matches the principal functional group prefix
-      // E.g., "hydroxy" substituent matches "alcohol" FG with prefix="hydroxy"
-      if (principalFGPrefix && sub.type === principalFGPrefix) {
-        if (process.env.VERBOSE) {
-          console.log(
-            `[buildSubstitutiveName] excluding substituent ${sub.type} (locant=${sub.locant}) - matches principal FG prefix`,
-          );
-        }
-        return false;
-      }
-
-      // Also check by atoms if available
-      const subAtoms = sub.atoms || [];
-      if (subAtoms.length > 0) {
-        const isPrincipal = subAtoms.some((atom: Atom) =>
-          principalGroupAtomIds.has(atom.id),
+  const parentStructuralSubstituents = (
+    parentStructure.substituents || []
+  ).filter((sub: StructuralSubstituent) => {
+    // Exclude if this substituent matches the principal functional group prefix
+    // E.g., "hydroxy" substituent matches "alcohol" FG with prefix="hydroxy"
+    if (principalFGPrefix && sub.type === principalFGPrefix) {
+      if (process.env.VERBOSE) {
+        console.log(
+          `[buildSubstitutiveName] excluding substituent ${sub.type} (locant=${sub.locant}) - matches principal FG prefix`,
         );
-        if (isPrincipal && process.env.VERBOSE) {
-          console.log(
-            `[buildSubstitutiveName] excluding substituent ${sub.type} - atoms overlap with principal FG`,
-          );
-        }
-        return !isPrincipal;
       }
+      return false;
+    }
 
-      return true;
-    },
-  );
+    // Also check by atoms if available
+    const subAtoms = sub.atoms || [];
+    if (subAtoms.length > 0) {
+      const isPrincipal = subAtoms.some((atom: Atom) =>
+        principalGroupAtomIds.has(atom.id),
+      );
+      if (isPrincipal && process.env.VERBOSE) {
+        console.log(
+          `[buildSubstitutiveName] excluding substituent ${sub.type} - atoms overlap with principal FG`,
+        );
+      }
+      return !isPrincipal;
+    }
+
+    return true;
+  });
 
   // ============================================================================
   // CRITICAL SECTION: Ring Atom Filtering for Heterocycles
@@ -1288,8 +1300,8 @@ function buildSubstitutiveName(
 
   // Filter out functional groups whose atoms are part of the parent ring structure
   // This prevents ring heteroatoms from being misidentified as substituents
-  const fgSubstituentFilteredByAtoms = fgSubstituents.filter(
-    (fgSub: FunctionalGroupExtended) => {
+  const fgStructuralSubstituentFilteredByAtoms =
+    fgStructuralSubstituents.filter((fgSub: FunctionalGroupExtended) => {
       // GUARD: Validate fgSub.atoms structure
       if (!fgSub.atoms || !Array.isArray(fgSub.atoms)) {
         // If no atoms array, we can't filter by atom overlap - keep the FG
@@ -1332,8 +1344,7 @@ function buildSubstitutiveName(
       }
 
       return true; // Keep this functional group
-    },
-  );
+    });
 
   // ============================================================================
   // CRITICAL SECTION: Name-Based Filtering to Prevent Duplicate FG Names
@@ -1362,13 +1373,13 @@ function buildSubstitutiveName(
   const parentStructureName = parentStructure.assembledName || "";
 
   // GUARD: Validate parent substituents structure
-  const parentSubstituentNames: string[] = [];
-  if (Array.isArray(parentSubstituents)) {
-    for (const sub of parentSubstituents) {
+  const parentStructuralSubstituentNames: string[] = [];
+  if (Array.isArray(parentStructuralSubstituents)) {
+    for (const sub of parentStructuralSubstituents) {
       if (sub && typeof sub === "object") {
         const subName = sub.name || sub.type || "";
         if (typeof subName === "string") {
-          parentSubstituentNames.push(subName);
+          parentStructuralSubstituentNames.push(subName);
         }
       }
     }
@@ -1378,7 +1389,7 @@ function buildSubstitutiveName(
 
   // Check parent structure name for FG type inclusion
   if (parentStructureName && typeof parentStructureName === "string") {
-    for (const fgSub of fgSubstituentFilteredByAtoms) {
+    for (const fgSub of fgStructuralSubstituentFilteredByAtoms) {
       // GUARD: Validate fgSub structure
       if (!fgSub || typeof fgSub !== "object") continue;
 
@@ -1407,11 +1418,11 @@ function buildSubstitutiveName(
   // This avoids false positives like filtering "oxy" from "hydroxy"
   if (process.env.VERBOSE) {
     console.log(
-      `[buildSubstitutiveName] parentSubstituentNames for FG filtering:`,
-      parentSubstituentNames,
+      `[buildSubstitutiveName] parentStructuralSubstituentNames for FG filtering:`,
+      parentStructuralSubstituentNames,
     );
   }
-  for (const fgSub of fgSubstituentFilteredByAtoms) {
+  for (const fgSub of fgStructuralSubstituentFilteredByAtoms) {
     // GUARD: Validate fgSub structure
     if (!fgSub || typeof fgSub !== "object") continue;
 
@@ -1446,7 +1457,7 @@ function buildSubstitutiveName(
       }
 
       // Check if any parent substituent contains this oxygen atom
-      for (const parentSub of parentSubstituents) {
+      for (const parentSub of parentStructuralSubstituents) {
         if (parentSub.atoms && Array.isArray(parentSub.atoms)) {
           const parentSubAtomIds = new Set<number>(
             parentSub.atoms.map((a) => a.id),
@@ -1468,7 +1479,7 @@ function buildSubstitutiveName(
       continue; // Skip name-based matching for alkoxy groups
     }
 
-    for (const parentSubName of parentSubstituentNames) {
+    for (const parentSubName of parentStructuralSubstituentNames) {
       if (process.env.VERBOSE) {
         console.log(
           `[buildSubstitutiveName]   Comparing "${fgType}" with parentSubName="${parentSubName}" (length=${parentSubName.length})`,
@@ -1496,24 +1507,26 @@ function buildSubstitutiveName(
   }
 
   // Apply the filter: remove FGs that are already incorporated in names
-  const fgSubstituentsFinal: FunctionalGroupExtended[] =
-    fgSubstituentFilteredByAtoms.filter((fgSub: FunctionalGroupExtended) => {
-      // GUARD: Validate fgSub structure
-      if (
-        !fgSub ||
-        typeof fgSub !== "object" ||
-        typeof fgSub.type !== "string"
-      ) {
-        if (process.env.VERBOSE) {
-          console.warn(
-            `[buildSubstitutiveName] WARNING: Invalid fgSub structure, keeping it:`,
-            fgSub,
-          );
+  const fgStructuralSubstituentsFinal: FunctionalGroupExtended[] =
+    fgStructuralSubstituentFilteredByAtoms.filter(
+      (fgSub: FunctionalGroupExtended) => {
+        // GUARD: Validate fgSub structure
+        if (
+          !fgSub ||
+          typeof fgSub !== "object" ||
+          typeof fgSub.type !== "string"
+        ) {
+          if (process.env.VERBOSE) {
+            console.warn(
+              `[buildSubstitutiveName] WARNING: Invalid fgSub structure, keeping it:`,
+              fgSub,
+            );
+          }
+          return true; // Keep invalid entries to avoid silent data loss
         }
-        return true; // Keep invalid entries to avoid silent data loss
-      }
-      return !fgTypesToFilter.has(fgSub.type);
-    });
+        return !fgTypesToFilter.has(fgSub.type);
+      },
+    );
 
   // ============================================================================
   // CRITICAL SECTION: Locant-Based Deduplication Map
@@ -1526,9 +1539,9 @@ function buildSubstitutiveName(
   //   Problem: If we build this map BEFORE filtering, parent substituents get
   //            deduplicated against FGs that are later filtered out, causing
   //            substituents like "6-hydroxy" to be missing from the final name
-  //   Solution: Build fgLocantTypeMap from fgSubstituentsFinal (after filtering)
+  //   Solution: Build fgLocantTypeMap from fgStructuralSubstituentsFinal (after filtering)
   //
-  // IMPORTANT: This map MUST be built from fgSubstituentsFinal, NOT fgSubstituents
+  // IMPORTANT: This map MUST be built from fgStructuralSubstituentsFinal, NOT fgStructuralSubstituents
   //            Building from the unfiltered list causes incorrect deduplication
   //
   // FRAGILITY WARNING:
@@ -1537,7 +1550,7 @@ function buildSubstitutiveName(
   //   - Test case: test/unit/iupac-engine/regressions/duplicated-substituent.test.ts
   // ============================================================================
   const fgLocantTypeMap = new Map<string, FunctionalGroupExtended>();
-  for (const fgSub of fgSubstituentsFinal) {
+  for (const fgSub of fgStructuralSubstituentsFinal) {
     const locant = fgSub.locant ?? fgSub.locants?.[0];
     const type = fgSub.type;
     if (locant !== undefined) {
@@ -1549,8 +1562,8 @@ function buildSubstitutiveName(
   }
 
   // Filter out parent substituents that duplicate functional group substituents
-  const deduplicatedParentSubs = parentSubstituents.filter(
-    (pSub: Substituent) => {
+  const deduplicatedParentSubs = parentStructuralSubstituents.filter(
+    (pSub: StructuralSubstituent) => {
       const locant = pSub.locant;
       const type = pSub.type;
       if (locant !== undefined && type) {
@@ -1569,13 +1582,16 @@ function buildSubstitutiveName(
     },
   );
 
-  const allSubstituents = [...fgSubstituentsFinal, ...deduplicatedParentSubs];
+  const allStructuralSubstituents = [
+    ...fgStructuralSubstituentsFinal,
+    ...deduplicatedParentSubs,
+  ];
 
   if (process.env.VERBOSE) {
     console.log(
-      "[buildSubstitutiveName] fgSubstituents:",
+      "[buildSubstitutiveName] fgStructuralSubstituents:",
       JSON.stringify(
-        fgSubstituents.map((s) => ({
+        fgStructuralSubstituents.map((s) => ({
           type: s.type,
           name: s.name,
           locant: s.locant ?? s.locants?.[0],
@@ -1583,9 +1599,9 @@ function buildSubstitutiveName(
       ),
     );
     console.log(
-      "[buildSubstitutiveName] fgSubstituentsFinal:",
+      "[buildSubstitutiveName] fgStructuralSubstituentsFinal:",
       JSON.stringify(
-        fgSubstituentsFinal.map((s: FunctionalGroupExtended) => ({
+        fgStructuralSubstituentsFinal.map((s: FunctionalGroupExtended) => ({
           type: s.type,
           name: s.name,
           locant: s.locant ?? s.locants?.[0],
@@ -1593,9 +1609,9 @@ function buildSubstitutiveName(
       ),
     );
     console.log(
-      "[buildSubstitutiveName] parentSubstituents:",
+      "[buildSubstitutiveName] parentStructuralSubstituents:",
       JSON.stringify(
-        parentSubstituents.map((s: Substituent) => ({
+        parentStructuralSubstituents.map((s: StructuralSubstituent) => ({
           type: s.type,
           name: s.name,
           locant: s.locant,
@@ -1605,7 +1621,7 @@ function buildSubstitutiveName(
     console.log(
       "[buildSubstitutiveName] deduplicatedParentSubs:",
       JSON.stringify(
-        deduplicatedParentSubs.map((s: Substituent) => ({
+        deduplicatedParentSubs.map((s: StructuralSubstituent) => ({
           type: s.type,
           name: s.name,
           locant: s.locant,
@@ -1613,18 +1629,20 @@ function buildSubstitutiveName(
       ),
     );
     console.log(
-      "[buildSubstitutiveName] allSubstituents:",
+      "[buildSubstitutiveName] allStructuralSubstituents:",
       JSON.stringify(
-        allSubstituents.map((s: SubstituentOrFunctionalGroup) => ({
-          type: s.type,
-          name: s.name,
-          locant: "locant" in s ? s.locant : s.locants?.[0],
-        })),
+        allStructuralSubstituents.map(
+          (s: StructuralSubstituentOrFunctionalGroup) => ({
+            type: s.type,
+            name: s.name,
+            locant: "locant" in s ? s.locant : s.locants?.[0],
+          }),
+        ),
       ),
     );
   }
 
-  if (allSubstituents.length > 0) {
+  if (allStructuralSubstituents.length > 0) {
     // Build substituent names with locants and multiplicative prefixes
     const substituentParts: string[] = [];
     const _size =
@@ -1634,7 +1652,7 @@ function buildSubstitutiveName(
     if (isHeteroatomParent) {
       // For heteroatom parents, group identical substituents and add multiplicative prefixes
       const groupedSubs = new Map<string, number>();
-      for (const sub of allSubstituents) {
+      for (const sub of allStructuralSubstituents) {
         // Skip the principal functional group - it will be handled as a suffix
         // But non-principal functional groups should be included as substituents even if they have a suffix property
         const hasSuffix = "suffix" in sub && sub.suffix;
@@ -1662,7 +1680,7 @@ function buildSubstitutiveName(
     } else {
       // For chain/ring parents, group by name and add locants
       const substituentGroups = new Map<string, number[]>();
-      for (const sub of allSubstituents) {
+      for (const sub of allStructuralSubstituents) {
         // Skip the principal functional group - it will be handled as a suffix
         // But non-principal functional groups should be included as substituents even if they have a suffix property
         const hasSuffix = "suffix" in sub && sub.suffix;
@@ -1705,27 +1723,38 @@ function buildSubstitutiveName(
             if (!substituentGroups.has(subName)) {
               substituentGroups.set(subName, []);
             }
-            // Get locant from substituent
-            const locant = "locant" in sub ? sub.locant : sub.locants?.[0];
+            // Get locant from substituent - handle both IUPACStructuralSubstituent (position) and StructuralSubstituent (locant/locants)
+            let locant: number | undefined;
+            if ("locant" in sub && sub.locant !== undefined) {
+              locant = sub.locant;
+            } else if ("locants" in sub && sub.locants?.[0] !== undefined) {
+              locant = sub.locants[0];
+            } else if ("position" in sub && sub.position !== undefined) {
+              // IUPACStructuralSubstituent uses 'position' field (string) - convert to number
+              locant = Number.parseInt(sub.position as string, 10);
+            }
             if (process.env.VERBOSE) {
               const subLocant = "locant" in sub ? sub.locant : undefined;
               const subLocants = "locants" in sub ? sub.locants : undefined;
+              const subPosition =
+                "position" in sub
+                  ? (sub as { position: string }).position
+                  : undefined;
               console.log(
-                `[LOCANT DEBUG] sub.type=${sub.type}, sub.name=${sub.name}, sub.locant=${subLocant}, sub.locants=${JSON.stringify(subLocants)}, calculated locant=${locant}`,
+                `[LOCANT DEBUG] sub.type=${sub.type}, sub.name=${sub.name}, sub.locant=${subLocant}, sub.locants=${JSON.stringify(subLocants)}, sub.position=${subPosition}, calculated locant=${locant}`,
               );
             }
-            if (locant) {
+            if (locant && !Number.isNaN(locant)) {
               substituentGroups.get(subName)!.push(locant);
             }
           }
         }
       }
       // Check if there are multiple substituent types or multiple positions
-      const _hasMultipleSubstituentTypes = substituentGroups.size > 1;
-      const totalSubstituents = Array.from(substituentGroups.values()).reduce(
-        (sum, locs) => sum + locs.length,
-        0,
-      );
+      const _hasMultipleStructuralSubstituentTypes = substituentGroups.size > 1;
+      const totalStructuralSubstituents = Array.from(
+        substituentGroups.values(),
+      ).reduce((sum, locs) => sum + locs.length, 0);
 
       for (const [subName, locants] of substituentGroups.entries()) {
         locants.sort((a, b) => a - b);
@@ -1736,12 +1765,12 @@ function buildSubstitutiveName(
           parentStructure.assembledName || parentStructure.name || "";
         const isSymmetricRing =
           parentName.includes("benzene") || parentName.includes("cyclo");
-        const isSingleSubstituentOnly =
+        const isSingleStructuralSubstituentOnly =
           locants.length === 1 &&
           locants[0] === 1 &&
           isSymmetricRing &&
-          totalSubstituents === 1;
-        const needsLocant = !isSingleSubstituentOnly;
+          totalStructuralSubstituents === 1;
+        const needsLocant = !isSingleStructuralSubstituentOnly;
         const locantStr = needsLocant ? locants.join(",") + "-" : "";
 
         // Check if substituent name contains nested parentheses
@@ -1947,7 +1976,7 @@ function buildSubstitutiveName(
       };
 
       // Filter out parts that duplicate the principal functional-group prefix
-      let filteredSubstituentParts = substituentParts.filter((p) => {
+      let filteredStructuralSubstituentParts = substituentParts.filter((p) => {
         if (!principalPrefix) return true;
         const base = extractBaseName(p);
         if (!base) return true;
@@ -1962,13 +1991,36 @@ function buildSubstitutiveName(
           ? (principalFG.suffix as string).toLowerCase()
           : "";
       if (principalSuffix.includes("ol")) {
-        filteredSubstituentParts = filteredSubstituentParts.filter(
-          (p) => !/hydroxy/i.test(p),
-        );
+        const beforeFilter = [...filteredStructuralSubstituentParts];
+        filteredStructuralSubstituentParts =
+          filteredStructuralSubstituentParts.filter((p) => {
+            // Keep complex substituents that contain hydroxy as part of their internal structure
+            // Complex substituents are identified by having parentheses (e.g., "2-(2-hydroxypropan-2-yl)")
+            const isComplexStructuralSubstituent =
+              p.includes("(") && p.includes(")");
+            const containsHydroxy = /hydroxy/i.test(p);
+
+            // Only filter out simple "hydroxy" substituents, not complex ones
+            if (isComplexStructuralSubstituent) {
+              return true; // Keep all complex substituents
+            }
+            return !containsHydroxy; // Filter out simple hydroxy substituents
+          });
+        if (
+          process.env.VERBOSE &&
+          beforeFilter.length !== filteredStructuralSubstituentParts.length
+        ) {
+          console.log(
+            `[buildSubstitutiveName] Hydroxy filter removed: ${beforeFilter.filter((p) => !filteredStructuralSubstituentParts.includes(p)).join(", ")}`,
+          );
+          console.log(
+            `[buildSubstitutiveName] Remaining after hydroxy filter: ${filteredStructuralSubstituentParts.join(", ")}`,
+          );
+        }
       }
 
       // Find substituentParts that are not (approximately) present in parent
-      const missingParts = filteredSubstituentParts.filter((part) => {
+      const missingParts = filteredStructuralSubstituentParts.filter((part) => {
         const normalizedPart = normalize(part);
         const isMissing =
           normalizedPart.length > 0 &&
@@ -1987,7 +2039,7 @@ function buildSubstitutiveName(
             "[buildSubstitutiveName] Skipping adding substituentParts because parent already contains them (approx match)",
           );
           console.log(
-            `[buildSubstitutiveName] filteredSubstituentParts: ${JSON.stringify(filteredSubstituentParts)}`,
+            `[buildSubstitutiveName] filteredStructuralSubstituentParts: ${JSON.stringify(filteredStructuralSubstituentParts)}`,
           );
           console.log(
             `[buildSubstitutiveName] normalizedParent: "${normalizedParent}"`,
@@ -2056,7 +2108,11 @@ function buildSubstitutiveName(
 
   // If we have substituents and the parent name starts with a digit (locant), add hyphen
   // Example: "5-methoxy" + "2-hexyl-2-methylbutane" → "5-methoxy-2-hexyl-2-methylbutane"
-  if (allSubstituents.length > 0 && name.length > 0 && /^\d/.test(parentName)) {
+  if (
+    allStructuralSubstituents.length > 0 &&
+    name.length > 0 &&
+    /^\d/.test(parentName)
+  ) {
     name += "-";
   }
 
@@ -2128,11 +2184,11 @@ function buildSubstitutiveName(
       // by matching the prefix (e.g., "hydroxy" for alcohol)
       let fgLocant: number | undefined;
       if (principalGroup.prefix && parentStructure.substituents) {
-        const matchingSubstituent = parentStructure.substituents.find(
-          (sub: Substituent) => sub.type === principalGroup.prefix,
+        const matchingStructuralSubstituent = parentStructure.substituents.find(
+          (sub: StructuralSubstituent) => sub.type === principalGroup.prefix,
         );
-        if (matchingSubstituent) {
-          fgLocant = matchingSubstituent.locant;
+        if (matchingStructuralSubstituent) {
+          fgLocant = matchingStructuralSubstituent.locant;
           if (process.env.VERBOSE) {
             console.log(
               `[buildSubstitutiveName] mapped principal FG locant from substituent: ${fgLocant}`,

@@ -139,7 +139,6 @@ function analyzeAlkoxyGroup(
   const chain2Size = getChainSize(mol, carbon2, oxyAtom);
 
   // The substituent is the smaller chain
-  const substituentCarbon = chain1Size <= chain2Size ? carbon1 : carbon2;
   const substituentSize = Math.min(chain1Size, chain2Size);
 
   // Simple alkoxy names based on chain length

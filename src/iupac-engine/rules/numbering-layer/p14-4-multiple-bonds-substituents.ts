@@ -1,6 +1,11 @@
-import type { IUPACRule, MultipleBond, Substituent } from "../../types";
+import type {
+  IUPACRule,
+  MultipleBond,
+  StructuralSubstituent,
+} from "../../types";
 import { RulePriority } from "../../types";
 import type { Atom } from "types";
+
 import {
   ExecutionPhase,
   ImmutableNamingContext,
@@ -48,7 +53,7 @@ export const P14_4_MULTIPLE_BONDS_SUBSTITUENTS_RULE: IUPACRule = {
     });
 
     const numberedSubstituents = chain.substituents.map(
-      (substituent: Substituent) => ({
+      (substituent: StructuralSubstituent) => ({
         ...substituent,
         locant: typeof substituent.locant === "number" ? substituent.locant : 1,
       }),

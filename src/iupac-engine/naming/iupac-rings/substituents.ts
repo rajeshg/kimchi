@@ -1,5 +1,5 @@
 import type { Molecule } from "types";
-import type { Substituent } from "../iupac-types";
+import type { NamingSubstituent } from "../iupac-types";
 import type { RingSystem } from "../../types";
 import {
   identifyPolycyclicPattern,
@@ -13,7 +13,7 @@ interface FusedSystem {
 
 export function generateSubstitutedFusedNameWithIUPACNumbering(
   baseName: string,
-  substituents: Substituent[],
+  substituents: NamingSubstituent[],
   fusedSystem: RingSystem,
   molecule: Molecule,
 ): string {
@@ -31,11 +31,11 @@ export function generateSubstitutedFusedNameWithIUPACNumbering(
 }
 
 function applyNumberingToSubstituents(
-  substituents: Substituent[],
+  substituents: NamingSubstituent[],
   numberingFn: Function,
   fusedSystem: RingSystem,
   molecule: Molecule,
-): Substituent[] {
+): NamingSubstituent[] {
   return substituents.map((sub) => {
     if (typeof sub.position === "string") return sub; // already numbered
     return {
@@ -46,7 +46,7 @@ function applyNumberingToSubstituents(
 }
 
 function groupSubstituents(
-  substituents: Substituent[],
+  substituents: NamingSubstituent[],
 ): Record<string, { positions: string[]; name: string }> {
   const grouped: Record<string, { positions: string[]; name: string }> = {};
   for (const sub of substituents) {
@@ -86,8 +86,8 @@ function getMultiplicityPrefix(n: number): string {
 export function findSubstituentsOnFusedSystem(
   fusedSystem: FusedSystem,
   molecule: Molecule,
-): Substituent[] {
-  const substituents: Substituent[] = [];
+): NamingSubstituent[] {
+  const substituents: NamingSubstituent[] = [];
   const fusedAtoms = new Set<number>();
   for (const ring of fusedSystem.rings)
     for (const atomIdx of ring) fusedAtoms.add(atomIdx);

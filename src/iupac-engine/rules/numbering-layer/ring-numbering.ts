@@ -28,7 +28,12 @@ export const RING_NUMBERING_RULE: IUPACRule = {
   conditions: (context: ImmutableNamingContext) => {
     const state = context.getState();
     const parentStructure = state.parentStructure;
-    return !!(parentStructure && parentStructure.type === "ring");
+    // Only apply ring numbering if it hasn't been applied yet
+    return !!(
+      parentStructure &&
+      parentStructure.type === "ring" &&
+      !parentStructure.ringNumberingApplied
+    );
   },
   action: (context: ImmutableNamingContext) => {
     const state = context.getState() as ContextState;
@@ -384,19 +389,54 @@ export const RING_NUMBERING_RULE: IUPACRule = {
       },
     );
 
+    // Update substituent positions to match the renumbered ring
+    const updatedSubstituents = parentStructure.substituents?.map((sub) => {
+      // For NamingSubstituent, position is the original atom ID (as a string)
+      // For StructuralSubstituent, locant is the original atom ID (as number)
+      const atomId = "position" in sub ? Number(sub.position) : sub.locant;
+      const newPosition = atomIdToPosition.get(atomId);
+      if (newPosition !== undefined) {
+        return {
+          ...sub,
+          position: String(newPosition),
+        };
+      }
+      return sub;
+    });
+
+    if (process.env.VERBOSE) {
+      console.log(
+        `[ring-numbering] Updated substituent positions:`,
+        updatedSubstituents?.map((s) => `${s.name} at position ${s.position}`),
+      );
+    }
+
+    const updatedParentStructure = {
+      ...parentStructure,
+      locants: adjustedLocants,
+      ring: {
+        ...ring,
+        atoms: reorderedAtoms,
+        bonds: reorderedBonds,
+      },
+      ringNumberingApplied: true,
+      substituents: updatedSubstituents,
+    };
+
+    if (process.env.VERBOSE) {
+      console.log(
+        `[ring-numbering] updatedParentStructure.substituents AFTER spread:`,
+        updatedParentStructure.substituents?.map(
+          (s) => `${s.name} at position ${s.position}`,
+        ),
+      );
+    }
+
     return context.withStateUpdate(
       (state: ContextState) => ({
         ...state,
         functionalGroups: updatedFunctionalGroups,
-        parentStructure: {
-          ...parentStructure,
-          locants: adjustedLocants,
-          ring: {
-            ...ring,
-            atoms: reorderedAtoms,
-            bonds: reorderedBonds,
-          },
-        },
+        parentStructure: updatedParentStructure,
       }),
       "ring-numbering",
       "Ring System Numbering",

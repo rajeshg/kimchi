@@ -5,7 +5,7 @@
 /**
  * Represents a substituent at a specific position on a chain
  */
-export interface Substituent {
+export interface NamingSubstituent {
   position: string;
   type: string;
   size: number;
@@ -16,7 +16,7 @@ export interface Substituent {
 /**
  * Metadata about a substituent without position information
  */
-export interface SubstituentInfo {
+export interface NamingSubstituentInfo {
   type: string;
   size: number;
   name: string;
@@ -31,7 +31,7 @@ export interface Chain {
   /** Length of the chain (number of atoms) */
   length: number;
   /** Substituents attached to this chain */
-  substituents: Substituent[];
+  substituents: NamingSubstituent[];
   /** Functional groups attached to this chain */
   functionalGroups: FunctionalGroupOccurrence[];
   /** Whether this chain is cyclic */

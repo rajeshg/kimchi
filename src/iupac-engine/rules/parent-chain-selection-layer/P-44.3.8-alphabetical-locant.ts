@@ -6,7 +6,7 @@ import {
 } from "../../utils/citation-normalizer";
 import type { ImmutableNamingContext } from "../../immutable-context";
 import { ExecutionPhase } from "../../immutable-context";
-import type { Chain, Substituent } from "../../types";
+import type { Chain, StructuralSubstituent } from "../../types";
 
 /**
  * Rule: P-44.3.8 - Lowest Alphabetical Locant
@@ -48,14 +48,14 @@ export const P44_3_8_ALPHABETICAL_LOCANT_RULE: IUPACRule = {
     function citationNamesForChain(chain: Chain): string[] {
       const subs = (chain.substituents || [])
         .slice()
-        .sort((a: Substituent, b: Substituent) => {
+        .sort((a: StructuralSubstituent, b: StructuralSubstituent) => {
           const la = (a.locant || 0) as number;
           const lb = (b.locant || 0) as number;
           return la - lb;
         });
       // Use only the 'type' property for canonicalization
       const namesRaw: string[] = subs
-        .map((sub: Substituent) => sub.type || "")
+        .map((sub: StructuralSubstituent) => sub.type || "")
         .filter(Boolean);
       return canonicalizeCitationList(namesRaw);
     }

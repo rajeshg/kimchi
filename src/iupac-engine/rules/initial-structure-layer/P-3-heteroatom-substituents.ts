@@ -17,6 +17,7 @@ import { RulePriority } from "../../types";
 import type { IUPACRule } from "../../types";
 import type { Atom, Molecule, Bond } from "types";
 import { BondType } from "types";
+import type { StructuralSubstituent as IUPACSubstituent } from "../../types";
 
 /**
  * Rule P-3.1: Heteroatom Parent Substituent Detection
@@ -64,7 +65,7 @@ export const P3_1_HETEROATOM_SUBSTITUENT_RULE: IUPACRule = {
         bond.atom1 === heteroatomIndex || bond.atom2 === heteroatomIndex,
     );
 
-    const substituents: unknown[] = [];
+    const substituents: IUPACSubstituent[] = [];
 
     for (const bond of connectedBonds) {
       const otherAtomIndex =
@@ -91,10 +92,10 @@ export const P3_1_HETEROATOM_SUBSTITUENT_RULE: IUPACRule = {
         }
         substituents.push({
           name: substituentName,
-          locant: "", // For heteroatoms, locants are not used in simple cases
-          atoms: [otherAtom], // keep object for backward compatibility
-          atomIndices: [otherAtomIndex], // explicit atom indices for robust downstream processing
-          bond: bond,
+          type: substituentName,
+          position: "1", // Heteroatom parents don't use positional numbering
+          size: 1,
+          atoms: [otherAtomIndex], // Store atom ID, not Atom object
         });
       }
     }
@@ -352,7 +353,48 @@ export const P3_2_RING_SUBSTITUENT_RULE: IUPACRule = {
       }
     }
 
-    const substituents: unknown[] = [];
+    // IMPORTANT: If substituents are already detected (e.g., by ring-selection-complete),
+    // check if they need refinement. Preserve properly named substituents like "methoxy"
+    // (which getRingSubstituentName() doesn't handle), but re-analyze simple alkyl names
+    // like "butyl" to detect branching (e.g., "2-methylpropyl").
+    const existingSubstituents = parentStructure.substituents || [];
+
+    if (process.env.VERBOSE) {
+      console.log(
+        `[P-3.2] Existing substituents: ${existingSubstituents.length}`,
+        existingSubstituents.map(
+          (s: IUPACSubstituent) => `${s.name} at position ${s.locant}`,
+        ),
+      );
+    }
+
+    // Only preserve substituents that are non-alkyl (e.g., alkoxy, halogen) or complex alkyl names
+    // Simple alkyl names like "methyl", "ethyl", "propyl", "butyl", etc. should be re-analyzed
+    const simpleAlkylNames =
+      /^(methyl|ethyl|propyl|butyl|pentyl|hexyl|heptyl|octyl|nonyl|decyl)$/;
+    const shouldPreserve =
+      existingSubstituents.length > 0 &&
+      existingSubstituents.every(
+        (s: IUPACSubstituent) =>
+          s.type !== "alkyl" || !s.name || !simpleAlkylNames.test(s.name),
+      );
+
+    if (shouldPreserve) {
+      if (process.env.VERBOSE) {
+        console.log(
+          `[P-3.2] Preserving existing non-alkyl or complex substituents`,
+        );
+      }
+      return context; // No changes needed
+    }
+
+    if (existingSubstituents.length > 0 && process.env.VERBOSE) {
+      console.log(
+        `[P-3.2] Re-analyzing existing substituents to detect branching`,
+      );
+    }
+
+    const substituents: IUPACSubstituent[] = [];
 
     for (const ringAtom of ring.atoms) {
       if (!ringAtom || typeof ringAtom.id !== "number") continue;
@@ -399,10 +441,9 @@ export const P3_2_RING_SUBSTITUENT_RULE: IUPACRule = {
               substituents.push({
                 name: substituentName,
                 type: substituentName,
-                locant: position,
-                position: position,
-                atoms: [substituentAtom],
-                bond: bond,
+                position: String(position), // Convert to string for IUPACSubstituent interface
+                size: 1, // Size for simple substituents
+                atoms: [otherAtomId], // Store atom ID, not Atom object
               });
             }
           }

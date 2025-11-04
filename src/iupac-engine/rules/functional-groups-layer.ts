@@ -385,22 +385,22 @@ export const FUNCTIONAL_GROUP_PRIORITY_RULE: IUPACRule = {
     let shouldDemotePrincipalGroup = false;
     if (hasRingSystem && principalGroup && principalGroup.locants) {
       const fgLocants = principalGroup.locants;
-      
+
       // For alcohols, ketones, and aldehydes: locants are the carbon atoms
       // We need to check if the OXYGEN (not the carbon) is part of the ring
-      if (principalGroup.type === "alcohol" || principalGroup.type === "ketone" || principalGroup.type === "aldehyde") {
+      if (
+        principalGroup.type === "alcohol" ||
+        principalGroup.type === "ketone" ||
+        principalGroup.type === "aldehyde"
+      ) {
         for (const locant of fgLocants) {
           // Find oxygen atoms bonded to this carbon
           const oxygenAtoms = mol.bonds
-            .filter(
-              (bond) =>
-                (bond.atom1 === locant || bond.atom2 === locant),
-            )
+            .filter((bond) => bond.atom1 === locant || bond.atom2 === locant)
             .map((bond) => (bond.atom1 === locant ? bond.atom2 : bond.atom1))
             .map((atomId) => mol.atoms.find((a) => a.id === atomId))
             .filter(
-              (atom): atom is Atom =>
-                atom !== undefined && atom.symbol === "O",
+              (atom): atom is Atom => atom !== undefined && atom.symbol === "O",
             );
 
           // Check if any of these oxygens are part of the ring

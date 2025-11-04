@@ -4,6 +4,7 @@
 
 import type { Molecule, Atom, Bond } from "../../types";
 import type { ImmutableNamingContext } from "./immutable-context";
+import type { NamingSubstituent } from "./naming/iupac-types";
 
 export interface NamingContext {
   // Core molecule data
@@ -106,7 +107,7 @@ export interface Chain {
   bonds: Bond[];
   length: number;
   multipleBonds: MultipleBond[];
-  substituents: Substituent[];
+  substituents: StructuralSubstituent[];
   locants: number[];
 }
 
@@ -148,9 +149,11 @@ export interface ParentStructure {
   locants: number[];
   vonBaeyerNumbering?: Map<number, number>; // For bicyclo/tricyclo systems
   assembledName?: string;
+  ringNumberingApplied?: boolean; // Track if ring numbering rule has already been applied
+  substituents?: (StructuralSubstituent | NamingSubstituent)[]; // Ring substituents attached to the parent structure
 }
 
-export interface Substituent {
+export interface StructuralSubstituent {
   atoms: Atom[];
   bonds: Bond[];
   type: string;
@@ -158,6 +161,7 @@ export interface Substituent {
   isPrincipal: boolean;
   name?: string;
   prefix?: string;
+  position?: string;
 }
 
 export interface MultipleBond {
