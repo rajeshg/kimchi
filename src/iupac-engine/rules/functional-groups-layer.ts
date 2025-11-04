@@ -2651,6 +2651,33 @@ export const ANALYZE_ALKOXY_RULE: IUPACRule = {
         )
       : null;
 
+    // If no parent structure yet, mark as pending and defer analysis
+    if (!parentStructure) {
+      if (process.env.VERBOSE) {
+        console.log(
+          "[ANALYZE_ALKOXY_RULE] No parent structure yet, marking alkoxy groups as pending",
+        );
+      }
+      const updatedGroups = functionalGroups.map((fg) => {
+        if (fg.type === "alkoxy" && !fg.prefix) {
+          return {
+            ...fg,
+            prefix: "pending-analysis",
+          };
+        }
+        return fg;
+      });
+
+      return context.withFunctionalGroups(
+        updatedGroups,
+        "analyze-alkoxy-groups",
+        "Analyze Alkoxy Groups",
+        "P-63.2.2",
+        ExecutionPhase.FUNCTIONAL_GROUP,
+        "Marked alkoxy groups as pending (no parent structure yet)",
+      );
+    }
+
     const updatedGroups = functionalGroups.map((fg) => {
       if (
         fg.type === "alkoxy" &&

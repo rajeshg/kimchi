@@ -12,6 +12,7 @@ export {
   PARENT_CHAIN_SELECTION_COMPLETE_RULE,
   generateChainName,
 } from "./parent-chain-selection-complete";
+export { RE_ANALYZE_ALKOXY_AFTER_PARENT_RULE } from "./re-analyze-alkoxy-after-parent";
 
 import type { IUPACRule } from "../../types";
 import { P44_2_RING_SENIORITY_RULE } from "./P-44.2-ring-seniority";
@@ -24,6 +25,7 @@ import { P44_3_6_SUBSTITUENTS_RULE } from "./P-44.3.6-substituents";
 import { P44_3_7_SUBSTITUENT_LOCANTS_RULE } from "./P-44.3.7-substituent-locants";
 import { P44_3_8_ALPHABETICAL_LOCANT_RULE } from "./P-44.3.8-alphabetical-locant";
 import { PARENT_CHAIN_SELECTION_COMPLETE_RULE } from "./parent-chain-selection-complete";
+import { RE_ANALYZE_ALKOXY_AFTER_PARENT_RULE } from "./re-analyze-alkoxy-after-parent";
 
 export const PARENT_CHAIN_SELECTION_LAYER_RULES: IUPACRule[] = [
   P44_2_RING_SENIORITY_RULE,
@@ -36,4 +38,5 @@ export const PARENT_CHAIN_SELECTION_LAYER_RULES: IUPACRule[] = [
   P44_3_7_SUBSTITUENT_LOCANTS_RULE,
   P44_3_8_ALPHABETICAL_LOCANT_RULE,
   PARENT_CHAIN_SELECTION_COMPLETE_RULE,
+  RE_ANALYZE_ALKOXY_AFTER_PARENT_RULE,
 ];
