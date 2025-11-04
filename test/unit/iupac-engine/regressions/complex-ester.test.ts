@@ -7,7 +7,7 @@ describe("Regression: complex ester handling", () => {
     const engine = new RuleEngine();
     const smiles = "CCCC(=O)OC(C)(C)C(=O)NC1=CC(=C(C=C1)[N+](=O)[O-])C(F)(F)F";
     const expected =
-      "[2-methyl-1-[4-nitro-3-(trifluoromethyl)anilino]-1-oxopropan-2-yl]butanoate";
+      "[2-methyl-1-[4-nitro-3-(trifluoromethyl)anilino]-1-oxopropan-2-yl] butanoate";
 
     const parsed = parseSMILES(smiles);
     expect(parsed.errors).toHaveLength(0);
@@ -22,7 +22,7 @@ describe("Regression: complex ester handling", () => {
   it("handles dimethyl propoxy butanedioate", () => {
     const engine = new RuleEngine();
     const smiles = "CCCOC(CC(=O)OC)C(=O)OC";
-    const expected = "dimethyl2-propoxybutanedioate";
+    const expected = "dimethyl 2-propoxybutanedioate";
 
     const parsed = parseSMILES(smiles);
     expect(parsed.errors).toHaveLength(0);
@@ -34,7 +34,7 @@ describe("Regression: complex ester handling", () => {
   it("handles silyloxy-substituted ester (trimethylsilyloxy case)", () => {
     const engine = new RuleEngine();
     const smiles = "CC(C)C(=O)OCC(CO[Si](C)(C)C)O[Si](C)(C)C";
-    const expected = "2,3-bis(trimethylsilyloxy)propyl2-methylpropanoate";
+    const expected = "2,3-bis(trimethylsilyloxy)propyl 2-methylpropanoate";
 
     const parsed = parseSMILES(smiles);
     expect(parsed.errors).toHaveLength(0);

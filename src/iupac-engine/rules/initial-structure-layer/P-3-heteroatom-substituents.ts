@@ -91,11 +91,13 @@ export const P3_1_HETEROATOM_SUBSTITUENT_RULE: IUPACRule = {
           );
         }
         substituents.push({
-          name: substituentName,
           type: substituentName,
+          atoms: [otherAtom], // Store Atom object, not index
+          bonds: [], // No bonds for single atom substituent
+          locant: 1, // Heteroatom parents use position 1
+          isPrincipal: false,
+          name: substituentName,
           position: "1", // Heteroatom parents don't use positional numbering
-          size: 1,
-          atoms: [otherAtomIndex], // Store atom ID, not Atom object
         });
       }
     }
@@ -363,7 +365,8 @@ export const P3_2_RING_SUBSTITUENT_RULE: IUPACRule = {
       console.log(
         `[P-3.2] Existing substituents: ${existingSubstituents.length}`,
         existingSubstituents.map(
-          (s: IUPACSubstituent) => `${s.name} at position ${s.locant}`,
+          (s) =>
+            `${s.name} at position ${"locant" in s ? s.locant : "unknown"}`,
         ),
       );
     }
@@ -375,8 +378,7 @@ export const P3_2_RING_SUBSTITUENT_RULE: IUPACRule = {
     const shouldPreserve =
       existingSubstituents.length > 0 &&
       existingSubstituents.every(
-        (s: IUPACSubstituent) =>
-          s.type !== "alkyl" || !s.name || !simpleAlkylNames.test(s.name),
+        (s) => s.type !== "alkyl" || !s.name || !simpleAlkylNames.test(s.name),
       );
 
     if (shouldPreserve) {
@@ -439,11 +441,13 @@ export const P3_2_RING_SUBSTITUENT_RULE: IUPACRule = {
 
             if (substituentName) {
               substituents.push({
-                name: substituentName,
                 type: substituentName,
+                atoms: [substituentAtom], // Store Atom object, not index
+                bonds: [], // No bonds for single atom substituent
+                locant: position,
+                isPrincipal: false,
+                name: substituentName,
                 position: String(position), // Convert to string for IUPACSubstituent interface
-                size: 1, // Size for simple substituents
-                atoms: [otherAtomId], // Store atom ID, not Atom object
               });
             }
           }
@@ -813,78 +817,94 @@ function getRingSubstituentName(
 
   // Sulfur-based substituents (thioethers: R-S-)
   if (symbol === "S") {
+    if (process.env.VERBOSE) {
+      console.log(
+        `[getSubstituentNameFromIndex] Sulfur at attachedAtomId=${attachedAtomId}, fromIndex=${fromIndex}`,
+      );
+    }
     // Find what the sulfur is bonded to (excluding the ring atom)
     const sulfurBonds = molecule.bonds.filter(
       (b: Bond) => b.atom1 === attachedAtomId || b.atom2 === attachedAtomId,
     );
 
-    for (const bond of sulfurBonds) {
-      const otherAtomId =
-        bond.atom1 === attachedAtomId ? bond.atom2 : bond.atom1;
-
-      // Skip the ring atom we came from
-      if (otherAtomId === fromIndex) continue;
-
-      const otherAtom = molecule.atoms[otherAtomId];
-      if (!otherAtom) continue;
-
-      // Check if sulfur is bonded to a carbon chain
-      if (otherAtom.symbol === "C") {
-        // Traverse the carbon chain attached to sulfur
-        const chainIndices = traverseSubstituentChainByIndex(
-          otherAtomId,
-          molecule,
-          attachedAtomId,
-        );
-
-        if (chainIndices.length === 1) {
-          // Single carbon: methylsulfanyl, ethylsulfanyl, etc.
-          const carbonIdx = chainIndices[0];
-          if (carbonIdx === undefined) continue;
-          const carbonAtom = molecule.atoms[carbonIdx];
-          if (!carbonAtom) continue;
-
-          const hydrogens = carbonAtom.hydrogens || 0;
-          if (hydrogens === 3) {
-            return "methylsulfanyl";
-          } else if (hydrogens === 2) {
-            return "methylidenesulfanyl";
-          }
-        } else if (chainIndices.length === 2) {
-          return "ethylsulfanyl";
-        } else if (chainIndices.length === 3) {
-          return "propylsulfanyl";
-        } else if (chainIndices.length > 0) {
-          // For longer chains, use generic alkylsulfanyl
-          const baseName = getParentChainName(chainIndices.length);
-          return baseName ? `${baseName}ylsulfanyl` : "alkylsulfanyl";
-        }
-      }
+    if (process.env.VERBOSE) {
+      console.log(
+        `[getSubstituentNameFromIndex] Found ${sulfurBonds.length} sulfur bonds`,
+      );
     }
 
-    // If no carbon chain found, return generic sulfanyl
-    return "sulfanyl";
-  }
-
-  // Sulfur-based substituents (thioethers: R-S-)
-  if (symbol === "S") {
-    // Find what the sulfur is bonded to (excluding the ring atom)
-    const sulfurBonds = molecule.bonds.filter(
-      (b: Bond) => b.atom1 === attachedAtomId || b.atom2 === attachedAtomId,
-    );
-
     for (const bond of sulfurBonds) {
       const otherAtomId =
         bond.atom1 === attachedAtomId ? bond.atom2 : bond.atom1;
 
       // Skip the ring atom we came from
-      if (otherAtomId === fromIndex) continue;
+      if (otherAtomId === fromIndex) {
+        if (process.env.VERBOSE) {
+          console.log(
+            `[getSubstituentNameFromIndex] Skipping otherAtomId=${otherAtomId} (same as fromIndex)`,
+          );
+        }
+        continue;
+      }
 
       const otherAtom = molecule.atoms[otherAtomId];
       if (!otherAtom) continue;
 
-      // Check if sulfur is bonded to a carbon chain
+      if (process.env.VERBOSE) {
+        console.log(
+          `[getSubstituentNameFromIndex] Checking otherAtomId=${otherAtomId}, symbol=${otherAtom.symbol}, aromatic=${otherAtom.aromatic}`,
+        );
+      }
+
+      // Check if sulfur is bonded to a carbon chain or aromatic ring
       if (otherAtom.symbol === "C") {
+        // Check if the carbon is part of an aromatic ring (e.g., phenyl)
+        if (otherAtom.aromatic) {
+          if (process.env.VERBOSE) {
+            console.log(
+              `[getSubstituentNameFromIndex] Aromatic carbon detected! Looking for phenyl ring...`,
+            );
+          }
+          // Find which ring contains this carbon
+          const ringContainingCarbon = molecule.rings?.find((ring) =>
+            ring.includes(otherAtomId),
+          );
+
+          if (ringContainingCarbon) {
+            const ringSize = ringContainingCarbon.length;
+            if (process.env.VERBOSE) {
+              console.log(
+                `[getSubstituentNameFromIndex] Found ring: size=${ringSize}, atoms=${ringContainingCarbon}`,
+              );
+            }
+            // Check if it's a 6-membered aromatic ring (phenyl)
+            if (ringSize === 6) {
+              // Check if all atoms in ring are carbons (not heteroaromatic)
+              const allCarbons = ringContainingCarbon.every(
+                (atomId: number) => {
+                  const atom = molecule.atoms[atomId];
+                  return atom?.symbol === "C";
+                },
+              );
+
+              if (process.env.VERBOSE) {
+                console.log(
+                  `[getSubstituentNameFromIndex] All carbons in ring: ${allCarbons}`,
+                );
+              }
+
+              if (allCarbons) {
+                if (process.env.VERBOSE) {
+                  console.log(
+                    `[getSubstituentNameFromIndex] ✓ RETURNING phenylsulfanyl`,
+                  );
+                }
+                return "phenylsulfanyl";
+              }
+            }
+          }
+        }
+
         // Traverse the carbon chain attached to sulfur
         const chainIndices = traverseSubstituentChainByIndex(
           otherAtomId,

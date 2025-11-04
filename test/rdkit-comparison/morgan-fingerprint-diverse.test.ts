@@ -1,6 +1,9 @@
 import { it, expect, describe } from "bun:test";
 import { parseSMILES } from "index";
-import { computeMorganFingerprint } from "src/utils/morgan-fingerprint";
+import {
+  computeMorganFingerprint,
+  getBitsSet,
+} from "src/utils/morgan-fingerprint";
 
 /**
  * Enhanced Morgan Fingerprint Validation Test
@@ -77,17 +80,6 @@ function hammingDistance(fp1: Uint8Array, fp2: Uint8Array): number {
     }
   }
   return distance;
-}
-
-function getBitsSet(fp: Uint8Array): number {
-  let count = 0;
-  for (let i = 0; i < fp.length; i++) {
-    const byte = fp[i]!;
-    for (let bit = 0; bit < 8; bit++) {
-      if ((byte & (1 << bit)) !== 0) count++;
-    }
-  }
-  return count;
 }
 
 // 20+ Diverse SMILES test set

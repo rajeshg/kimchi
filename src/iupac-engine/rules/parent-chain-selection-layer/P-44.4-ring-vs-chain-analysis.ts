@@ -1,10 +1,11 @@
-import type { IUPACRule } from "../../types";
+import type { IUPACRule, StructuralSubstituent } from "../../types";
 import { BLUE_BOOK_RULES, RulePriority } from "../../types";
 import type {
   ImmutableNamingContext,
   ContextState,
 } from "../../immutable-context";
 import { ExecutionPhase } from "../../immutable-context";
+import type { NamingSubstituent } from "../../naming/iupac-types";
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const {
@@ -77,15 +78,15 @@ export const P44_4_RING_VS_CHAIN_IN_CHAIN_ANALYSIS_RULE: IUPACRule = {
     const locants =
       ring && ring.atoms ? ring.atoms.map((_, idx: number) => idx + 1) : [];
     // Try to find substituents on the ring atoms so substituted ring names can be produced
-    let substituents: unknown[] = [];
+    let substituents: (StructuralSubstituent | NamingSubstituent)[] = [];
     try {
       const mol = state.molecule;
       if (ring && ring.atoms && mol) {
         substituents =
-          _findSubstituentsOnMonocyclicRing(
+          (_findSubstituentsOnMonocyclicRing(
             ring.atoms.map((a) => a.id),
             mol,
-          ) || [];
+          ) as (StructuralSubstituent | NamingSubstituent)[]) || [];
       }
     } catch (_e) {
       substituents = [];

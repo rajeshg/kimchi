@@ -559,3 +559,19 @@ export function hammingDistance(fp1: Uint8Array, fp2: Uint8Array): number {
   }
   return distance;
 }
+
+/**
+ * Counts the number of bits set to 1 in a fingerprint.
+ * @param fp The fingerprint bit vector.
+ * @returns The count of bits set to 1.
+ */
+export function getBitsSet(fp: Uint8Array): number {
+  let count = 0;
+  for (let i = 0; i < fp.length; i++) {
+    const byte = fp[i] ?? 0;
+    for (let bit = 0; bit < 8; bit++) {
+      if ((byte >> bit) & 1) count++;
+    }
+  }
+  return count;
+}

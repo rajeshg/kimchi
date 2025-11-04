@@ -1,6 +1,9 @@
 import type { Molecule } from "types";
 import type { NamingSubstituent } from "../iupac-types";
 import { BondType } from "types";
+import type { Atom, Bond } from "types";
+import type { RingSystem, Ring, HeteroAtom } from "../../types";
+import { RingSystemType } from "../../types";
 import {
   analyzeRings,
   classifyRingSystems,
@@ -19,6 +22,90 @@ import {
   findSubstituentsOnFusedSystem,
 } from "./substituents";
 import { getAlkaneBySize, generateClassicPolycyclicName } from "./utils";
+
+function createRingSystemFromRings(
+  rings: number[][],
+  molecule: Molecule,
+): RingSystem {
+  const allAtomIndices = rings.flat();
+  const atoms: Atom[] = [];
+  const atomMap = new Map<number, Atom>();
+
+  for (const idx of allAtomIndices) {
+    const atom = molecule.atoms[idx];
+    if (atom) {
+      atoms.push(atom);
+      atomMap.set(idx, atom);
+    }
+  }
+
+  const bonds = molecule.bonds.filter(
+    (b) => allAtomIndices.includes(b.atom1) && allAtomIndices.includes(b.atom2),
+  );
+
+  const hasAromatic = atoms.some((a) => !!a.aromatic);
+  const hasHetero = atoms.some((a) => a.symbol !== "C" && a.symbol !== "H");
+
+  const type: RingSystemType = hasAromatic
+    ? RingSystemType.AROMATIC
+    : hasHetero
+      ? RingSystemType.HETEROCYCLIC
+      : RingSystemType.ALIPHATIC;
+
+  // Convert number[][] rings to Ring[] interface
+  const ringObjects: Ring[] = rings.map((ring) => {
+    const ringAtoms: Atom[] = [];
+    const ringBonds: Bond[] = [];
+    const ringAtomSet = new Set(ring);
+
+    for (const idx of ring) {
+      const atom = molecule.atoms[idx];
+      if (atom) ringAtoms.push(atom);
+    }
+
+    for (const bond of molecule.bonds) {
+      if (ringAtomSet.has(bond.atom1) && ringAtomSet.has(bond.atom2)) {
+        ringBonds.push(bond);
+      }
+    }
+
+    const heteroatoms: HeteroAtom[] = ringAtoms
+      .filter((a) => a.symbol !== "C")
+      .map((a, i) => ({
+        atom: a,
+        type: a.symbol,
+        locant: i + 1,
+      }));
+
+    return {
+      atoms: ringAtoms,
+      bonds: ringBonds,
+      size: ringAtoms.length,
+      aromatic: ringAtoms.some((a) => !!a.aromatic),
+      heteroatoms,
+    };
+  });
+
+  const heteroatoms: HeteroAtom[] = atoms
+    .filter((a) => a.symbol !== "C")
+    .map((a, i) => ({
+      atom: a,
+      type: a.symbol,
+      locant: i + 1,
+    }));
+
+  return {
+    atoms,
+    bonds,
+    rings: ringObjects,
+    size: atoms.length,
+    heteroatoms,
+    type,
+    fused: rings.length > 1,
+    bridged: false,
+    spiro: false,
+  };
+}
 
 export function generateCyclicName(
   molecule: Molecule,
@@ -133,13 +220,19 @@ export function generateCyclicName(
             if ((a1InA && a2InB) || (a1InB && a2InA)) interBonds++;
           }
           if (interBonds === 1) {
-            const possibleFused = { rings: [ringA, ringB] };
-            const subs = findSubstituentsOnFusedSystem(possibleFused, molecule);
+            const possibleFusedSystem = createRingSystemFromRings(
+              [ringA, ringB],
+              molecule,
+            );
+            const subs = findSubstituentsOnFusedSystem(
+              { rings: [ringA, ringB] },
+              molecule,
+            );
             if (subs.length > 0) {
               return generateSubstitutedFusedNameWithIUPACNumbering(
                 "biphenyl",
                 subs,
-                possibleFused,
+                possibleFusedSystem,
                 molecule,
               );
             }
@@ -203,6 +296,10 @@ export function generateCyclicName(
         console.log("[VERBOSE] identified fusedSystems=", fusedSystems.length);
       if (fusedSystems.length > 0) {
         const fusedSystem = fusedSystems[0]!;
+        const ringSystem = createRingSystemFromRings(
+          fusedSystem.rings,
+          molecule,
+        );
         if (process.env.VERBOSE)
           console.log(
             "[VERBOSE] using fusedSystem with rings=",
@@ -232,7 +329,7 @@ export function generateCyclicName(
             const res = generateSubstitutedFusedNameWithIUPACNumbering(
               fusedName,
               substituents,
-              fusedSystem,
+              ringSystem,
               molecule,
             );
             if (process.env.VERBOSE)
@@ -251,8 +348,14 @@ export function generateCyclicName(
       console.log("[VERBOSE] polycyclicName=", polycyclicName);
     if (polycyclicName) {
       // Attempt to find substituents on this fused ring set and apply numbering
-      const possibleFusedSystem = { rings: meaningfulRings };
-      const subs = findSubstituentsOnFusedSystem(possibleFusedSystem, molecule);
+      const possibleFusedSystem = createRingSystemFromRings(
+        meaningfulRings,
+        molecule,
+      );
+      const subs = findSubstituentsOnFusedSystem(
+        { rings: meaningfulRings },
+        molecule,
+      );
       if (process.env.VERBOSE)
         console.log("[VERBOSE] polycyclic substituents count=", subs.length);
       if (subs.length > 0) {
@@ -623,37 +726,43 @@ function getHeterocyclicName(
 function getMonocyclicBaseName(ring: number[], molecule: Molecule): string {
   const ringSize = ring.length;
 
-  // Check for unsaturation in the ring
-  let doubleCount = 0;
-  let tripleCount = 0;
+  // Find positions of double and triple bonds in the reordered ring
+  const doubleBondPositions: number[] = [];
+  const tripleBondPositions: number[] = [];
 
-  for (const atomIdx of ring) {
-    for (const bond of molecule.bonds) {
-      const isInRing = ring.includes(bond.atom1) && ring.includes(bond.atom2);
-      if (isInRing) {
-        if (bond.atom1 === atomIdx || bond.atom2 === atomIdx) {
-          if (bond.type === BondType.DOUBLE) doubleCount++;
-          else if (bond.type === BondType.TRIPLE) tripleCount++;
-        }
+  for (let i = 0; i < ring.length; i++) {
+    const atom1 = ring[i];
+    const atom2 = ring[(i + 1) % ring.length];
+
+    const bond = molecule.bonds.find(
+      (b) =>
+        (b.atom1 === atom1 && b.atom2 === atom2) ||
+        (b.atom1 === atom2 && b.atom2 === atom1),
+    );
+
+    if (bond) {
+      if (bond.type === BondType.DOUBLE) {
+        // For double bonds, the locant is the second carbon of the pair (higher position)
+        doubleBondPositions.push(((i + 1) % ring.length) + 1); // IUPAC numbering starts at 1
+      } else if (bond.type === BondType.TRIPLE) {
+        tripleBondPositions.push(((i + 1) % ring.length) + 1); // IUPAC numbering starts at 1
       }
     }
   }
 
-  // Divide by 2 since each bond is counted twice
-  doubleCount = doubleCount / 2;
-  tripleCount = tripleCount / 2;
-
   // Get the alkane name
   const alkaneFullName = getAlkaneBySize(ringSize);
+  const alkaneRoot = alkaneFullName.replace(/ane$/, "");
 
-  if (tripleCount > 0) {
-    // cycloalkyne - strip off "ane" and add "yne"
-    const alkaneRoot = alkaneFullName.replace(/ane$/, "");
-    return `cyclo${alkaneRoot}yne`;
-  } else if (doubleCount > 0) {
-    // cycloalkene - strip off "ane" and add "ene"
-    const alkaneRoot = alkaneFullName.replace(/ane$/, "");
-    return `cyclo${alkaneRoot}ene`;
+  if (tripleBondPositions.length > 0) {
+    // cycloalkyne with locants
+    const locants = tripleBondPositions.join(",");
+    return `cyclo${alkaneRoot}-${locants}-yne`;
+  } else if (doubleBondPositions.length > 0) {
+    // cycloalkene with locants
+    const locants = doubleBondPositions.join(",");
+    const suffix = doubleBondPositions.length > 1 ? "diene" : "ene";
+    return `cyclo${alkaneRoot}-${locants}-${suffix}`;
   } else {
     // cycloalkane - keep the full name
     return `cyclo${alkaneFullName}`;

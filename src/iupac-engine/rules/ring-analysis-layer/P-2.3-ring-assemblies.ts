@@ -96,7 +96,7 @@ export const P2_3_RING_ASSEMBLIES_RULE: IUPACRule = {
         console.log("[P-2.3 ACTION] bridgedNameResult:", bridgedNameResult);
       }
 
-      if (bridgedNameResult) {
+      if (bridgedNameResult && candidateRings[0]) {
         const parentStructure = {
           type: "ring" as const,
           ring: candidateRings[0], // Use first ring as representative

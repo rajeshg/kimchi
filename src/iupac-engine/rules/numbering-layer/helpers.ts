@@ -1201,13 +1201,131 @@ export function findRingStartingPosition(
     return heteroatomIndex + 1; // 1-based indexing
   }
 
-  // Start at unsaturation if present
-  for (let i = 0; i < ring.bonds.length; i++) {
-    const bond = ring.bonds[i]!;
+  // Handle unsaturation (double/triple bonds) if present
+  // IUPAC Rule: Unsaturation gets lowest locants, then substituents get lowest locants
+  const unsaturatedBonds: { bond: Bond; pos1: number; pos2: number }[] = [];
+  for (const bond of ring.bonds) {
     if (bond.type === "double" || bond.type === "triple") {
-      const atom1 = ring.atoms[bond.atom1]!;
-      const atom2 = ring.atoms[bond.atom2]!;
-      return Math.min(atom1.id, atom2.id) + 1;
+      // Find ring positions for this bond
+      const pos1 = ring.atoms.findIndex((a) => a.id === bond.atom1);
+      const pos2 = ring.atoms.findIndex((a) => a.id === bond.atom2);
+      if (pos1 >= 0 && pos2 >= 0) {
+        unsaturatedBonds.push({ bond, pos1, pos2 });
+      }
+    }
+  }
+
+  if (unsaturatedBonds.length > 0 && molecule) {
+    // For each unsaturated bond, try numbering schemes where it gets lowest locants
+    // Valid schemes: bond at positions (1,2) or (2,3)
+    let bestStart = 0;
+    let bestLocants: number[] = [];
+
+    for (const { pos1, pos2 } of unsaturatedBonds) {
+      // Ensure pos1 < pos2 for consistent processing
+      const [minPos, maxPos] = pos1 < pos2 ? [pos1, pos2] : [pos2, pos1];
+
+      // Check if adjacent positions (required for valid ring bond)
+      const isAdjacent =
+        maxPos - minPos === 1 ||
+        (minPos === 0 && maxPos === ring.atoms.length - 1);
+
+      if (!isAdjacent) {
+        console.log(
+          `[Ring Numbering] WARNING: Double bond at positions ${minPos},${maxPos} is not adjacent`,
+        );
+        continue;
+      }
+
+      // Try both CW and CCW to give the bond positions (1,2) or (2,3)
+      const candidates: Array<{ start: number; direction: number }> = [];
+
+      // Scheme 1: Bond at positions (1,2) - CW from minPos
+      candidates.push({ start: minPos, direction: 1 });
+
+      // Scheme 2: Bond at positions (1,2) - CCW from maxPos
+      candidates.push({ start: maxPos, direction: -1 });
+
+      // Scheme 3: Bond at positions (2,3) - CW from position before minPos
+      const beforeMin = (minPos - 1 + ring.atoms.length) % ring.atoms.length;
+      candidates.push({ start: beforeMin, direction: 1 });
+
+      // Scheme 4: Bond at positions (2,3) - CCW from position after maxPos
+      const afterMax = (maxPos + 1) % ring.atoms.length;
+      candidates.push({ start: afterMax, direction: -1 });
+
+      // Evaluate each candidate
+      for (const { start, direction } of candidates) {
+        const substituentLocants: number[] = [];
+
+        // Count substituents at each position (excluding functional groups)
+        const ringAtomIds = new Set<number>(ring.atoms.map((a) => a.id));
+        const functionalGroupAtomIds = new Set<number>();
+        if (functionalGroups) {
+          for (const fg of functionalGroups) {
+            if (fg.atoms) {
+              for (const fgAtom of fg.atoms) {
+                const atomId = typeof fgAtom === "object" ? fgAtom.id : fgAtom;
+                functionalGroupAtomIds.add(atomId);
+              }
+            }
+          }
+        }
+
+        for (let i = 0; i < ring.atoms.length; i++) {
+          const ringAtom = ring.atoms[i];
+          if (!ringAtom) continue;
+
+          // Find non-ring substituents
+          const bonds = molecule.bonds.filter(
+            (b: Bond) => b.atom1 === ringAtom.id || b.atom2 === ringAtom.id,
+          );
+
+          for (const b of bonds) {
+            const otherAtomId = b.atom1 === ringAtom.id ? b.atom2 : b.atom1;
+            if (
+              !ringAtomIds.has(otherAtomId) &&
+              !functionalGroupAtomIds.has(otherAtomId)
+            ) {
+              const substituentAtom = molecule.atoms[otherAtomId];
+              if (substituentAtom && substituentAtom.symbol !== "H") {
+                // Calculate locant for this position
+                let locant: number;
+                if (direction === 1) {
+                  locant =
+                    ((i - start + ring.atoms.length) % ring.atoms.length) + 1;
+                } else {
+                  locant =
+                    ((start - i + ring.atoms.length) % ring.atoms.length) + 1;
+                }
+                substituentLocants.push(locant);
+              }
+            }
+          }
+        }
+
+        substituentLocants.sort((a, b) => a - b);
+        const directionStr = direction === 1 ? "CW" : "CCW";
+        console.log(
+          `[Ring Numbering] Unsaturation scheme: start=${start + 1} ${directionStr}, substituent locants=[${substituentLocants.join(", ")}]`,
+        );
+
+        // Compare with best so far
+        if (
+          bestLocants.length === 0 ||
+          compareLocantSets(substituentLocants, bestLocants) < 0
+        ) {
+          bestLocants = substituentLocants;
+          bestStart = direction === 1 ? start + 1 : -(start + 1);
+          console.log(
+            `[Ring Numbering] New best for unsaturation! Start at ${Math.abs(bestStart)} (${directionStr})`,
+          );
+        }
+      }
+    }
+
+    if (bestStart !== 0) {
+      return bestStart;
     }
   }
 
@@ -1299,18 +1417,139 @@ export function isPrincipalGroup(group: FunctionalGroup): boolean {
 export function assignSubstituentLocants(
   group: FunctionalGroup,
   parentStructure: ParentStructure,
+  molecule: Molecule,
   _index: number,
 ): number[] {
-  // If the group already has valid locants assigned (e.g., from ring numbering), keep them
-  if (
-    group.locants &&
-    group.locants.length > 0 &&
-    group.locants.every((l: number) => l > 0)
-  ) {
-    return group.locants;
+  // Convert atom IDs in group.locants to chain positions
+  if (group.locants && group.locants.length > 0) {
+    const convertedLocants: number[] = [];
+
+    for (const atomIdOrLocant of group.locants) {
+      // Try to find this atom in the parent chain/ring
+      let chainPosition = -1;
+
+      if (parentStructure.type === "chain" && parentStructure.chain) {
+        const chain = parentStructure.chain;
+        chainPosition = chain.atoms.findIndex(
+          (a: Atom) => a.id === atomIdOrLocant,
+        );
+
+        if (chainPosition !== -1) {
+          // Found the atom in chain, convert to locant
+          const locant = parentStructure.locants[chainPosition];
+          if (locant !== undefined) {
+            convertedLocants.push(locant);
+            continue;
+          }
+        }
+
+        // Atom not in chain - it's a substituent attached to the chain
+        // Find which chain atom this substituent is bonded to
+        const chainAtomIds = new Set(chain.atoms.map((a: Atom) => a.id));
+        for (const bond of molecule.bonds) {
+          const atom1InChain = chainAtomIds.has(bond.atom1);
+          const atom2InChain = chainAtomIds.has(bond.atom2);
+
+          // Check if this bond connects the substituent atom to a chain atom
+          if (bond.atom1 === atomIdOrLocant && atom2InChain) {
+            // Substituent is atom1, chain atom is atom2
+            const chainAtomPosition = chain.atoms.findIndex(
+              (a: Atom) => a.id === bond.atom2,
+            );
+            if (chainAtomPosition !== -1) {
+              const locant = parentStructure.locants[chainAtomPosition];
+              if (locant !== undefined) {
+                convertedLocants.push(locant);
+                break;
+              }
+            }
+          } else if (bond.atom2 === atomIdOrLocant && atom1InChain) {
+            // Substituent is atom2, chain atom is atom1
+            const chainAtomPosition = chain.atoms.findIndex(
+              (a: Atom) => a.id === bond.atom1,
+            );
+            if (chainAtomPosition !== -1) {
+              const locant = parentStructure.locants[chainAtomPosition];
+              if (locant !== undefined) {
+                convertedLocants.push(locant);
+                break;
+              }
+            }
+          }
+        }
+
+        // If we found a locant via bond, continue to next atomIdOrLocant
+        if (convertedLocants.length > 0) {
+          continue;
+        }
+      } else if (parentStructure.type === "ring" && parentStructure.ring) {
+        const ring = parentStructure.ring;
+        chainPosition = ring.atoms.findIndex(
+          (a: Atom) => a.id === atomIdOrLocant,
+        );
+
+        if (chainPosition !== -1) {
+          // Found the atom in ring, convert to locant
+          const locant = parentStructure.locants[chainPosition];
+          if (locant !== undefined) {
+            convertedLocants.push(locant);
+            continue;
+          }
+        }
+
+        // Atom not in ring - it's a substituent attached to the ring
+        // Find which ring atom this substituent is bonded to
+        const ringAtomIds = new Set(ring.atoms.map((a: Atom) => a.id));
+        for (const bond of molecule.bonds) {
+          const atom1InRing = ringAtomIds.has(bond.atom1);
+          const atom2InRing = ringAtomIds.has(bond.atom2);
+
+          // Check if this bond connects the substituent atom to a ring atom
+          if (bond.atom1 === atomIdOrLocant && atom2InRing) {
+            // Substituent is atom1, ring atom is atom2
+            const ringAtomPosition = ring.atoms.findIndex(
+              (a: Atom) => a.id === bond.atom2,
+            );
+            if (ringAtomPosition !== -1) {
+              const locant = parentStructure.locants[ringAtomPosition];
+              if (locant !== undefined) {
+                convertedLocants.push(locant);
+                break;
+              }
+            }
+          } else if (bond.atom2 === atomIdOrLocant && atom1InRing) {
+            // Substituent is atom2, ring atom is atom1
+            const ringAtomPosition = ring.atoms.findIndex(
+              (a: Atom) => a.id === bond.atom1,
+            );
+            if (ringAtomPosition !== -1) {
+              const locant = parentStructure.locants[ringAtomPosition];
+              if (locant !== undefined) {
+                convertedLocants.push(locant);
+                break;
+              }
+            }
+          }
+        }
+
+        // If we found a locant via bond, continue to next atomIdOrLocant
+        if (convertedLocants.length > 0) {
+          continue;
+        }
+      }
+
+      // If we couldn't find the atom, assume it's already a valid locant
+      if (atomIdOrLocant > 0) {
+        convertedLocants.push(atomIdOrLocant);
+      }
+    }
+
+    if (convertedLocants.length > 0) {
+      return convertedLocants;
+    }
   }
 
-  // Simple implementation - assign consecutive locants
+  // Fallback: assign consecutive locants
   const usedLocants = parentStructure.locants || [];
   const locants: number[] = [];
 

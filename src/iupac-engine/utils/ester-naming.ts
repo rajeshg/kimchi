@@ -552,14 +552,147 @@ function nameAcylAminoSubstituent(
 
 /**
  * Name an alkyl substituent on the carbonyl carbon
+ * Example: For 2-methylpropanoate, this names the "2-methyl" part
  */
 function nameAcylAlkylSubstituent(
-  _alkylCarbonId: number,
-  _carbonylCarbonId: number,
-  _molecule: Molecule,
+  alkylCarbonId: number,
+  carbonylCarbonId: number,
+  molecule: Molecule,
 ): string {
-  // TODO: Implement alkyl substituent naming
-  return "alkyl";
+  if (process.env.VERBOSE) {
+    console.log(
+      `[nameAcylAlkylSubstituent] alkylCarbonId=${alkylCarbonId}, carbonylCarbonId=${carbonylCarbonId}`,
+    );
+  }
+
+  // Build the chain starting from carbonyl carbon, through alkyl carbon
+  const chain = findLongestChainFrom(carbonylCarbonId, -1, molecule);
+
+  if (process.env.VERBOSE) {
+    console.log(`[nameAcylAlkylSubstituent] acyl chain:`, chain);
+  }
+
+  // Find all substituents on the chain (excluding main chain atoms)
+  const chainSet = new Set(chain);
+  const substituents: Array<{ name: string; locant: number }> = [];
+
+  // Iterate through chain atoms to find substituents
+  for (let i = 0; i < chain.length; i++) {
+    const chainAtomId = chain[i];
+    if (chainAtomId === undefined) continue;
+
+    const chainAtom = molecule.atoms[chainAtomId];
+    if (!chainAtom || chainAtom.symbol !== "C") continue;
+
+    // Find bonds from this chain atom
+    const bonds = molecule.bonds.filter(
+      (b) => b.atom1 === chainAtomId || b.atom2 === chainAtomId,
+    );
+
+    for (const bond of bonds) {
+      const otherAtomId = bond.atom1 === chainAtomId ? bond.atom2 : bond.atom1;
+      const otherAtom = molecule.atoms[otherAtomId];
+
+      if (!otherAtom) continue;
+
+      // Skip if it's part of the main chain
+      if (chainSet.has(otherAtomId)) continue;
+
+      // Skip if it's the carbonyl oxygen
+      if (otherAtom.symbol === "O" && bond.type === "double") continue;
+
+      // This is a substituent - determine its type
+      if (otherAtom.symbol === "C") {
+        // Count the carbon chain length for alkyl substituents
+        const subChain = findLongestChainFrom(
+          otherAtomId,
+          chainAtomId,
+          molecule,
+        );
+        const subName = getAlkylSubstituentName(subChain.length);
+
+        // Position is 1-indexed from carbonyl carbon
+        const locant = i + 1;
+
+        substituents.push({ name: subName, locant });
+
+        if (process.env.VERBOSE) {
+          console.log(
+            `[nameAcylAlkylSubstituent] Found ${subName} at position ${locant}`,
+          );
+        }
+      }
+    }
+  }
+
+  // If no substituents, return empty string
+  if (substituents.length === 0) {
+    return "";
+  }
+
+  // Group substituents by name
+  const substByName = new Map<string, number[]>();
+  for (const sub of substituents) {
+    if (!substByName.has(sub.name)) {
+      substByName.set(sub.name, []);
+    }
+    substByName.get(sub.name)!.push(sub.locant);
+  }
+
+  // Sort substituent names alphabetically
+  const sortedNames = Array.from(substByName.keys()).sort((a, b) =>
+    a.localeCompare(b),
+  );
+
+  // Build the name parts
+  const parts: string[] = [];
+  for (const name of sortedNames) {
+    const locants = substByName.get(name)!;
+    locants.sort((a, b) => a - b);
+
+    const locantString = locants.join(",");
+    const count = locants.length;
+
+    if (count === 1) {
+      parts.push(`${locantString}-${name}`);
+    } else {
+      const multipliers = [
+        "",
+        "mono",
+        "di",
+        "tri",
+        "tetra",
+        "penta",
+        "hexa",
+        "hepta",
+        "octa",
+      ];
+      const multiplier = multipliers[count] || `${count}`;
+      parts.push(`${locantString}-${multiplier}${name}`);
+    }
+  }
+
+  return parts.join("-");
+}
+
+/**
+ * Get the name for an alkyl substituent based on carbon count
+ */
+function getAlkylSubstituentName(carbonCount: number): string {
+  const names = [
+    "",
+    "methyl",
+    "ethyl",
+    "propyl",
+    "butyl",
+    "pentyl",
+    "hexyl",
+    "heptyl",
+    "octyl",
+  ];
+  return carbonCount < names.length && names[carbonCount]
+    ? names[carbonCount]!
+    : `C${carbonCount}`;
 }
 
 /**
@@ -1451,6 +1584,99 @@ function buildAnilinoPart(
 }
 
 /**
+ * Helper function: Calculate depth (number of carbons) from a starting carbon using DFS
+ */
+function getChainDepth(
+  startId: number,
+  parentId: number,
+  molecule: Molecule,
+  visited: Set<number>,
+): number {
+  const newVisited = new Set(visited);
+  newVisited.add(startId);
+
+  let maxDepth = 1; // Count the current carbon
+
+  // Find all carbon neighbors except parent
+  const neighbors: number[] = [];
+  for (const bond of molecule.bonds) {
+    const atom1 = molecule.atoms[bond.atom1];
+    const atom2 = molecule.atoms[bond.atom2];
+
+    if (
+      bond.atom1 === startId &&
+      atom2?.symbol === "C" &&
+      bond.atom2 !== parentId &&
+      !newVisited.has(bond.atom2)
+    ) {
+      neighbors.push(bond.atom2);
+    } else if (
+      bond.atom2 === startId &&
+      atom1?.symbol === "C" &&
+      bond.atom1 !== parentId &&
+      !newVisited.has(bond.atom1)
+    ) {
+      neighbors.push(bond.atom1);
+    }
+  }
+
+  // Recurse into each neighbor and find max depth
+  for (const neighborId of neighbors) {
+    const depth = 1 + getChainDepth(neighborId, startId, molecule, newVisited);
+    if (depth > maxDepth) {
+      maxDepth = depth;
+    }
+  }
+
+  return maxDepth;
+}
+
+/**
+ * Helper function: Recursively add all carbons in a branch to alkoxyCarbonIds
+ */
+function addBranchToAlkoxyCarbonIds(
+  branchId: number,
+  molecule: Molecule,
+  alkoxyCarbonIds: Set<number>,
+  visited: Set<number>,
+): void {
+  if (visited.has(branchId)) return;
+
+  visited.add(branchId);
+  alkoxyCarbonIds.add(branchId);
+
+  // Find all carbon neighbors
+  for (const bond of molecule.bonds) {
+    const atom1 = molecule.atoms[bond.atom1];
+    const atom2 = molecule.atoms[bond.atom2];
+
+    if (
+      bond.atom1 === branchId &&
+      atom2?.symbol === "C" &&
+      !visited.has(bond.atom2)
+    ) {
+      addBranchToAlkoxyCarbonIds(
+        bond.atom2,
+        molecule,
+        alkoxyCarbonIds,
+        visited,
+      );
+    } else if (
+      bond.atom2 === branchId &&
+      atom1?.symbol === "C" &&
+      !visited.has(bond.atom1)
+    ) {
+      addBranchToAlkoxyCarbonIds(
+        bond.atom1,
+        molecule,
+        alkoxyCarbonIds,
+        visited,
+      );
+    }
+  }
+}
+
+/**
  * Get the alkoxy group name from an ester
  * Walks from ester oxygen to find the alkoxy chain
  */
@@ -1630,23 +1856,49 @@ export function getAlkoxyGroupName(
         );
       }
 
-      // If more than 1 neighbor, we have branching
+      // If more than 1 neighbor, we need to choose the longest chain continuation
       if (neighbors.length > 1) {
-        // First neighbor is main chain continuation, rest are branches
-        const firstNeighbor = neighbors[0];
-        if (firstNeighbor !== undefined) {
-          queue.push({ id: firstNeighbor, parent: currentId });
+        // Use DFS to find which neighbor leads to the longest chain
+        let longestNeighbor = neighbors[0];
+        let maxDepth = 0;
+
+        for (const neighborId of neighbors) {
+          if (neighborId !== undefined) {
+            const depth = getChainDepth(
+              neighborId!,
+              currentId,
+              molecule,
+              visited,
+            );
+            if (depth > maxDepth) {
+              maxDepth = depth;
+              longestNeighbor = neighborId;
+            }
+          }
         }
-        for (let i = 1; i < neighbors.length; i++) {
-          const branchNeighbor = neighbors[i];
-          if (branchNeighbor !== undefined) {
+
+        // Add longest chain continuation to queue
+        if (longestNeighbor !== undefined) {
+          queue.push({ id: longestNeighbor, parent: currentId });
+        }
+
+        // Record other neighbors as branches (don't add to queue to keep carbonChain accurate)
+        for (const branchNeighbor of neighbors) {
+          if (
+            branchNeighbor !== undefined &&
+            branchNeighbor !== longestNeighbor
+          ) {
             if (!branches.has(carbonChain.length)) {
               branches.set(carbonChain.length, []);
             }
             branches.get(carbonChain.length)!.push(branchNeighbor);
-
-            // IMPORTANT: Also add branch to queue so it gets visited and added to alkoxyCarbonIds
-            queue.push({ id: branchNeighbor, parent: currentId });
+            // Also add branch carbons to alkoxyCarbonIds for substituent detection
+            addBranchToAlkoxyCarbonIds(
+              branchNeighbor,
+              molecule,
+              alkoxyCarbonIds,
+              visited,
+            );
 
             if (process.env.VERBOSE) {
               console.log(
@@ -1850,6 +2102,177 @@ export function getAlkoxyGroupName(
                   }
                   break;
                 }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // 2b. Direct detection of ether (alkoxy) substituents on alkoxy chain
+  // This catches cases where the ether group isn't in functionalGroups yet
+  if (process.env.VERBOSE) {
+    console.log(
+      "[getAlkoxyGroupName] 2b. Starting direct ether detection, carbonChain length:",
+      carbonChain.length,
+    );
+  }
+  for (let i = 0; i < carbonChain.length; i++) {
+    const carbonId = carbonChain[i];
+    if (carbonId === undefined) continue;
+
+    if (process.env.VERBOSE) {
+      console.log(
+        `[getAlkoxyGroupName] 2b. Checking carbon ${carbonId} at position ${i + 1}`,
+      );
+    }
+
+    // Find oxygen atoms connected to this carbon (excluding ester oxygen and already-detected acyloxy)
+    for (const bond of molecule.bonds) {
+      if (bond.type === "single") {
+        let oxygenId: number | undefined;
+
+        if (
+          bond.atom1 === carbonId &&
+          molecule.atoms[bond.atom2]?.symbol === "O"
+        ) {
+          oxygenId = bond.atom2;
+        } else if (
+          bond.atom2 === carbonId &&
+          molecule.atoms[bond.atom1]?.symbol === "O"
+        ) {
+          oxygenId = bond.atom1;
+        }
+
+        if (oxygenId !== undefined && oxygenId !== esterOxygenId) {
+          if (process.env.VERBOSE) {
+            console.log(
+              `[getAlkoxyGroupName] 2b. Found oxygen ${oxygenId} at carbon ${carbonId} position ${i + 1}`,
+            );
+          }
+          // Found an oxygen attached to this alkoxy carbon
+          // Now find the carbon chain attached to this oxygen to determine the alkoxy name
+          let etherCarbonId: number | undefined;
+
+          for (const bond2 of molecule.bonds) {
+            if (bond2.type === "single") {
+              if (
+                bond2.atom1 === oxygenId &&
+                molecule.atoms[bond2.atom2]?.symbol === "C" &&
+                bond2.atom2 !== carbonId
+              ) {
+                etherCarbonId = bond2.atom2;
+                break;
+              } else if (
+                bond2.atom2 === oxygenId &&
+                molecule.atoms[bond2.atom1]?.symbol === "C" &&
+                bond2.atom1 !== carbonId
+              ) {
+                etherCarbonId = bond2.atom1;
+                break;
+              }
+            }
+          }
+
+          if (etherCarbonId !== undefined) {
+            // Check if this carbon is part of a C=O group (acyloxy)
+            // If so, skip it - it will be handled by acyloxy detection
+            let isAcyloxy = false;
+            for (const bond3 of molecule.bonds) {
+              if (bond3.type === "double") {
+                if (
+                  (bond3.atom1 === etherCarbonId &&
+                    molecule.atoms[bond3.atom2]?.symbol === "O") ||
+                  (bond3.atom2 === etherCarbonId &&
+                    molecule.atoms[bond3.atom1]?.symbol === "O")
+                ) {
+                  isAcyloxy = true;
+                  if (process.env.VERBOSE) {
+                    console.log(
+                      `[getAlkoxyGroupName] 2b. Carbon ${etherCarbonId} has C=O, skipping (acyloxy group)`,
+                    );
+                  }
+                  break;
+                }
+              }
+            }
+
+            if (!isAcyloxy) {
+              // Determine the size of the ether alkyl group via BFS
+              const etherVisited = new Set<number>();
+              const etherQueue: number[] = [etherCarbonId];
+              const etherCarbons: number[] = [];
+
+              while (etherQueue.length > 0) {
+                const currentId = etherQueue.shift()!;
+                if (etherVisited.has(currentId)) continue;
+                etherVisited.add(currentId);
+
+                const atom = molecule.atoms[currentId];
+                if (atom?.symbol === "C") {
+                  etherCarbons.push(currentId);
+
+                  // Find neighbors
+                  for (const bond3 of molecule.bonds) {
+                    if (bond3.type === "single") {
+                      let neighborId: number | undefined;
+
+                      if (
+                        bond3.atom1 === currentId &&
+                        molecule.atoms[bond3.atom2]?.symbol === "C"
+                      ) {
+                        neighborId = bond3.atom2;
+                      } else if (
+                        bond3.atom2 === currentId &&
+                        molecule.atoms[bond3.atom1]?.symbol === "C"
+                      ) {
+                        neighborId = bond3.atom1;
+                      }
+
+                      if (
+                        neighborId !== undefined &&
+                        !etherVisited.has(neighborId) &&
+                        !alkoxyCarbonIds.has(neighborId)
+                      ) {
+                        etherQueue.push(neighborId);
+                      }
+                    }
+                  }
+                }
+              }
+
+              // Build the alkoxy name based on carbon count
+              const etherCarbonCount = etherCarbons.length;
+              const alkoxyNames = [
+                "",
+                "methoxy",
+                "ethoxy",
+                "propoxy",
+                "butoxy",
+                "pentoxy",
+                "hexoxy",
+                "heptoxy",
+                "octoxy",
+              ];
+
+              const alkoxyName =
+                etherCarbonCount < alkoxyNames.length &&
+                alkoxyNames[etherCarbonCount]
+                  ? alkoxyNames[etherCarbonCount]!
+                  : `C${etherCarbonCount}-oxy`;
+
+              const position = i + 1;
+              alkoxySubstituents.push({
+                position,
+                name: alkoxyName,
+                type: "alkoxy",
+              });
+
+              if (process.env.VERBOSE) {
+                console.log(
+                  `[getAlkoxyGroupName] Direct detection: Found ${alkoxyName} substituent at position ${position}`,
+                );
               }
             }
           }
@@ -2151,6 +2574,56 @@ export function getAlkoxyGroupName(
     // Wrap in parentheses for complex alkyl names
     return `(${allSubstituents}${baseName}yl)`;
   }
+}
+
+/**
+ * Find the longest carbon chain starting from a given carbon,
+ * excluding a specific direction (e.g., ester oxygen for acyl side).
+ */
+function findLongestChainFrom(
+  startId: number,
+  excludeNeighborId: number,
+  molecule: Molecule,
+): number[] {
+  let longestChain: number[] = [];
+
+  function dfs(currentId: number, visited: Set<number>, path: number[]): void {
+    const currentPath = [...path, currentId];
+
+    // Update longest chain if current path is longer
+    if (currentPath.length > longestChain.length) {
+      longestChain = [...currentPath];
+    }
+
+    // Explore neighbors
+    for (const bond of molecule.bonds) {
+      if (bond.atom1 === currentId || bond.atom2 === currentId) {
+        const otherId = bond.atom1 === currentId ? bond.atom2 : bond.atom1;
+        const otherAtom = molecule.atoms[otherId];
+
+        // Skip excluded neighbor, visited atoms, and non-carbons
+        if (
+          otherId === excludeNeighborId ||
+          visited.has(otherId) ||
+          otherAtom?.symbol !== "C"
+        ) {
+          continue;
+        }
+
+        // Recursively explore this neighbor
+        const newVisited = new Set(visited);
+        newVisited.add(otherId);
+        dfs(otherId, newVisited, currentPath);
+      }
+    }
+  }
+
+  // Start DFS from the starting carbon
+  const visited = new Set<number>();
+  visited.add(startId);
+  dfs(startId, visited, []);
+
+  return longestChain;
 }
 
 export function buildEsterName(
@@ -2510,63 +2983,114 @@ export function buildEsterName(
   if (process.env.VERBOSE)
     console.log("[buildEsterName] Found alkoxyCarbonId:", alkoxyCarbonId);
 
-  const acylCarbonIds = new Set<number>();
-  const visitedAcyl = new Set<number>();
-  const queueAcyl = [carbonylCarbonId];
-
-  while (queueAcyl.length > 0) {
-    const currentId = queueAcyl.shift()!;
-    if (visitedAcyl.has(currentId)) continue;
-    visitedAcyl.add(currentId);
-
-    const currentAtom = molecule.atoms[currentId];
-    if (currentAtom?.symbol === "C") {
-      acylCarbonIds.add(currentId);
-
-      for (const bond of molecule.bonds) {
-        if (bond.atom1 === currentId || bond.atom2 === currentId) {
-          const otherId = bond.atom1 === currentId ? bond.atom2 : bond.atom1;
-          const otherAtom = molecule.atoms[otherId];
-
-          if (otherId === esterOxygenId) continue;
-
-          if (otherAtom?.symbol === "C" && !visitedAcyl.has(otherId)) {
-            queueAcyl.push(otherId);
-          }
-        }
+  // Determine if the parent chain represents the alkoxy or acyl side
+  const parentChainAtomIds: number[] = [];
+  if (parentStructure.chain?.atoms) {
+    for (const a of parentStructure.chain.atoms) {
+      const id =
+        a && typeof a === "object" && typeof a.id === "number"
+          ? a.id
+          : typeof a === "number"
+            ? a
+            : undefined;
+      if (id !== undefined) {
+        parentChainAtomIds.push(id);
       }
     }
   }
 
-  const acylLength = acylCarbonIds.size;
-
-  const alkoxyCarbonIds = new Set<number>();
-  const visitedAlkoxy = new Set<number>();
-  const queueAlkoxy = [alkoxyCarbonId];
-
-  while (queueAlkoxy.length > 0) {
-    const currentId = queueAlkoxy.shift()!;
-    if (visitedAlkoxy.has(currentId)) continue;
-    visitedAlkoxy.add(currentId);
-
-    const currentAtom = molecule.atoms[currentId];
-    if (currentAtom?.symbol === "C") {
-      alkoxyCarbonIds.add(currentId);
-
-      for (const bond of molecule.bonds) {
-        if (bond.atom1 === currentId || bond.atom2 === currentId) {
-          const otherId = bond.atom1 === currentId ? bond.atom2 : bond.atom1;
-          const otherAtom = molecule.atoms[otherId];
-
-          if (otherAtom?.symbol === "C" && !visitedAlkoxy.has(otherId)) {
-            queueAlkoxy.push(otherId);
-          }
-        }
-      }
+  const parentChainCarbonIds: number[] = [];
+  for (const id of parentChainAtomIds) {
+    if (molecule.atoms[id]?.symbol === "C") {
+      parentChainCarbonIds.push(id);
     }
   }
 
-  const alkoxyLength = alkoxyCarbonIds.size;
+  const parentChainIncludesAlkoxy =
+    parentChainCarbonIds.includes(alkoxyCarbonId);
+  const parentChainIncludesAcyl =
+    parentChainCarbonIds.includes(carbonylCarbonId);
+
+  if (process.env.VERBOSE) {
+    console.log("[buildEsterName] parentChainCarbonIds:", parentChainCarbonIds);
+    console.log(
+      "[buildEsterName] parentChainIncludesAlkoxy:",
+      parentChainIncludesAlkoxy,
+    );
+    console.log(
+      "[buildEsterName] parentChainIncludesAcyl:",
+      parentChainIncludesAcyl,
+    );
+  }
+
+  // Calculate acyl side carbons
+  let acylLength: number;
+
+  if (parentChainIncludesAcyl && parentStructure.chain) {
+    // Parent chain represents the acyl side - use chain length directly
+    acylLength = parentChainCarbonIds.length;
+
+    if (process.env.VERBOSE) {
+      console.log(
+        "[buildEsterName] Using parent chain for acyl side, length:",
+        acylLength,
+      );
+    }
+  } else {
+    // Use longest chain finder for acyl side
+    // Find the longest carbon chain starting from carbonyl carbon,
+    // excluding the ester oxygen direction
+    const longestChain = findLongestChainFrom(
+      carbonylCarbonId,
+      esterOxygenId,
+      molecule,
+    );
+    acylLength = longestChain.length;
+
+    if (process.env.VERBOSE) {
+      console.log(
+        "[buildEsterName] Using longest chain for acyl side, length:",
+        acylLength,
+      );
+      console.log("[buildEsterName] Acyl chain:", longestChain);
+    }
+  }
+
+  // Calculate alkoxy side carbons
+  let alkoxyCarbonIds: Set<number>;
+  let alkoxyLength: number;
+
+  if (parentChainIncludesAlkoxy && parentStructure.chain) {
+    // Parent chain represents the alkoxy side - use chain length directly
+    alkoxyLength = parentChainCarbonIds.length;
+    alkoxyCarbonIds = new Set(parentChainCarbonIds);
+
+    if (process.env.VERBOSE) {
+      console.log(
+        "[buildEsterName] Using parent chain for alkoxy side, length:",
+        alkoxyLength,
+      );
+    }
+  } else {
+    // Use longest chain finder for alkoxy side
+    // Find the longest carbon chain starting from alkoxy carbon,
+    // excluding the ester oxygen direction
+    const longestChain = findLongestChainFrom(
+      alkoxyCarbonId,
+      esterOxygenId,
+      molecule,
+    );
+    alkoxyLength = longestChain.length;
+    alkoxyCarbonIds = new Set(longestChain);
+
+    if (process.env.VERBOSE) {
+      console.log(
+        "[buildEsterName] Using longest chain for alkoxy side, length:",
+        alkoxyLength,
+      );
+      console.log("[buildEsterName] Alkoxy chain:", longestChain);
+    }
+  }
 
   if (process.env.VERBOSE) {
     console.log("[buildEsterName] carbonylCarbonId:", carbonylCarbonId);
@@ -2719,9 +3243,293 @@ export function buildEsterName(
     );
   }
 
-  // Always use getAlkoxyGroupName - it handles both simple and complex cases
-  // It has built-in detection for amide groups and other complex structural features
-  const alkylName = getAlkoxyGroupName(esterGroup, molecule, functionalGroups);
+  // Build alkoxy name from parent structure if parent chain includes alkoxy side
+  let alkylName = "";
+  if (parentChainIncludesAlkoxy && parentStructure.chain) {
+    // Use parent chain to build alkoxy name
+    const chainLength = alkoxyLength;
+    const alkylChainNames = [
+      "",
+      "methyl",
+      "ethyl",
+      "propyl",
+      "butyl",
+      "pentyl",
+      "hexyl",
+      "heptyl",
+      "octyl",
+      "nonyl",
+      "decyl",
+    ];
+
+    const baseAlkylName =
+      chainLength < alkylChainNames.length
+        ? alkylChainNames[chainLength]!
+        : `C${chainLength}-yl`;
+
+    // Build substituent prefix from parent chain substituents
+    const alkylSubs = parentStructure.chain.substituents || [];
+
+    // For alkoxy side, we need to renumber from the alkoxy carbon (lowest number)
+    // The parent chain might be numbered in the opposite direction
+    // Find the index of alkoxyCarbonId in the parent chain
+    const alkoxyIndexInChain = parentChainCarbonIds.indexOf(alkoxyCarbonId);
+    // If alkoxy carbon is at the end of the chain array, we need to reverse
+    // so it becomes position 1
+    const needsReversal =
+      alkoxyIndexInChain === parentChainCarbonIds.length - 1;
+
+    if (process.env.VERBOSE) {
+      console.log("[buildEsterName] alkoxyCarbonId:", alkoxyCarbonId);
+      console.log("[buildEsterName] alkoxyIndexInChain:", alkoxyIndexInChain);
+      console.log("[buildEsterName] needsReversal:", needsReversal);
+      console.log(
+        "[buildEsterName] alkylSubs from parent chain:",
+        alkylSubs.map((s) => ({
+          type: s.type,
+          name: s.name,
+          locant: s.locant,
+        })),
+      );
+    }
+
+    // Map to collect substituents by position
+    const substByPosition = new Map<
+      number,
+      { name: string; count: number }[]
+    >();
+
+    // Add regular substituents (alkyl groups) with renumbered locants
+    for (const s of alkylSubs) {
+      const originalLocant = s.locant;
+      if (!originalLocant) continue;
+
+      // Renumber if needed: if the chain is [11,10,9,7,6] and alkoxy is at 6,
+      // then position 1 should be at 6, position 2 at 7, etc.
+      // So we need to reverse: locant 1 → 5, locant 2 → 4, etc.
+      const newLocant = needsReversal
+        ? chainLength - originalLocant + 1
+        : originalLocant;
+
+      const name = s.name || s.type;
+      if (name) {
+        if (!substByPosition.has(newLocant)) {
+          substByPosition.set(newLocant, []);
+        }
+        const existing = substByPosition
+          .get(newLocant)!
+          .find((x) => x.name === name);
+        if (existing) {
+          existing.count++;
+        } else {
+          substByPosition.get(newLocant)!.push({ name, count: 1 });
+        }
+      }
+    }
+
+    // Add functional groups that are substituents on the alkoxy chain
+    // (e.g., alcohol → hydroxy, amine → amino, etc.)
+    const chainAtomIds = parentChainCarbonIds;
+    if (process.env.VERBOSE) {
+      console.log(
+        "[buildEsterName] Adding FG substituents, chainAtomIds:",
+        chainAtomIds,
+      );
+      console.log(
+        "[buildEsterName] functionalGroups:",
+        functionalGroups.map((fg) => ({
+          type: fg.type,
+          atoms: fg.atoms?.map((a) => (typeof a === "number" ? a : a.id)),
+        })),
+      );
+    }
+    for (const fg of functionalGroups) {
+      // Skip the principal ester group
+      if (fg.type === "ester") continue;
+
+      // Map functional group types to substituent prefixes
+      const fgToPrefix: Record<string, string> = {
+        alcohol: "hydroxy",
+        amine: "amino",
+        thiol: "mercapto",
+        aldehyde: "oxo",
+        ketone: "oxo",
+      };
+
+      const prefixName = fgToPrefix[fg.type];
+      if (process.env.VERBOSE) {
+        console.log(
+          `[buildEsterName] FG type=${fg.type}, prefixName=${prefixName}`,
+        );
+      }
+      if (!prefixName) continue;
+
+      // Find heteroatoms (O, N, S, etc.) attached to chain atoms
+      // The FG atoms might have been converted to locants, so we search all molecule atoms
+      for (let i = 0; i < chainAtomIds.length; i++) {
+        const chainAtomId = chainAtomIds[i];
+        if (chainAtomId === undefined) continue;
+
+        const chainAtom = molecule.atoms[chainAtomId];
+        if (!chainAtom) continue;
+
+        // Find heteroatoms bonded to this chain atom
+        for (const bond of molecule.bonds) {
+          let heteroAtomId: number;
+
+          if (bond.atom1 === chainAtomId) {
+            heteroAtomId = bond.atom2;
+          } else if (bond.atom2 === chainAtomId) {
+            heteroAtomId = bond.atom1;
+          } else {
+            continue;
+          }
+
+          const heteroAtom = molecule.atoms[heteroAtomId];
+          if (!heteroAtom) continue;
+
+          // Check if this is the right type of heteroatom for this FG
+          let isMatch = false;
+          if (
+            fg.type === "alcohol" &&
+            heteroAtom.symbol === "O" &&
+            heteroAtom.hydrogens === 1
+          ) {
+            isMatch = true;
+          } else if (fg.type === "amine" && heteroAtom.symbol === "N") {
+            isMatch = true;
+          } else if (
+            fg.type === "thiol" &&
+            heteroAtom.symbol === "S" &&
+            heteroAtom.hydrogens === 1
+          ) {
+            isMatch = true;
+          }
+
+          if (isMatch && !chainAtomIds.includes(heteroAtomId)) {
+            // Calculate position with reversal if needed
+            const rawPosition = i + 1;
+            const position = needsReversal ? chainLength - i : rawPosition;
+
+            if (!substByPosition.has(position)) {
+              substByPosition.set(position, []);
+            }
+            // Check if we already added this substituent
+            const existing = substByPosition
+              .get(position)!
+              .find((x) => x.name === prefixName);
+            if (!existing) {
+              substByPosition
+                .get(position)!
+                .push({ name: prefixName, count: 1 });
+              if (process.env.VERBOSE) {
+                console.log(
+                  `[buildEsterName] Added ${prefixName} at position ${position} (chain atom ${chainAtomId}, heteroatom ${heteroAtomId})`,
+                );
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Build the substituent prefix string
+    const alkylSubParts: string[] = [];
+
+    if (process.env.VERBOSE) {
+      console.log("[buildEsterName] substByPosition details:");
+      for (const [pos, subs] of substByPosition.entries()) {
+        console.log(
+          `  Position ${pos}:`,
+          subs.map((s) => `${s.name} (count=${s.count})`),
+        );
+      }
+    }
+
+    // Group substituents by name (e.g., all "methyl" together)
+    const substByName = new Map<
+      string,
+      Array<{ position: number; count: number }>
+    >();
+
+    for (const [pos, subs] of substByPosition.entries()) {
+      for (const sub of subs) {
+        if (!substByName.has(sub.name)) {
+          substByName.set(sub.name, []);
+        }
+        substByName.get(sub.name)!.push({ position: pos, count: sub.count });
+      }
+    }
+
+    // Sort substituent names alphabetically (IUPAC convention)
+    const sortedNames = Array.from(substByName.keys()).sort((a, b) =>
+      a.localeCompare(b),
+    );
+
+    for (const name of sortedNames) {
+      const entries = substByName.get(name)!;
+
+      // Collect all locants for this substituent type
+      const allLocants: number[] = [];
+      for (const entry of entries) {
+        // Add the position 'count' times (e.g., position 4 with count 2 → [4, 4])
+        for (let i = 0; i < entry.count; i++) {
+          allLocants.push(entry.position);
+        }
+      }
+
+      // Sort locants numerically
+      allLocants.sort((a, b) => a - b);
+
+      const totalCount = allLocants.length;
+      const locantString = allLocants.join(",");
+
+      if (totalCount === 1) {
+        alkylSubParts.push(`${locantString}-${name}`);
+        if (process.env.VERBOSE) {
+          console.log(`[buildEsterName]   Adding: ${locantString}-${name}`);
+        }
+      } else {
+        // Multiple substituents (e.g., 2,4,4-trimethyl)
+        const multipliers = [
+          "",
+          "mono",
+          "di",
+          "tri",
+          "tetra",
+          "penta",
+          "hexa",
+          "hepta",
+          "octa",
+        ];
+        const multiplier = multipliers[totalCount] || `${totalCount}`;
+        alkylSubParts.push(`${locantString}-${multiplier}${name}`);
+        if (process.env.VERBOSE) {
+          console.log(
+            `[buildEsterName]   Adding: ${locantString}-${multiplier}${name} (total count=${totalCount})`,
+          );
+        }
+      }
+    }
+
+    const alkylSubstituentsPrefix =
+      alkylSubParts.length > 0 ? alkylSubParts.join("-") : "";
+
+    alkylName = alkylSubstituentsPrefix
+      ? `(${alkylSubstituentsPrefix}${baseAlkylName})`
+      : baseAlkylName;
+
+    if (process.env.VERBOSE) {
+      console.log(
+        "[buildEsterName] Built alkyl name from parent chain:",
+        alkylName,
+      );
+    }
+  } else {
+    // Use getAlkoxyGroupName - it handles both simple and complex cases
+    // It has built-in detection for amide groups and other complex structural features
+    alkylName = getAlkoxyGroupName(esterGroup, molecule, functionalGroups);
+  }
 
   // Prefer deriving the acyl name from the parentStructure.chain when the parent chain contains the carbonyl carbon
   let acylName = "";
@@ -2819,9 +3627,9 @@ export function buildEsterName(
         );
       }
 
-      const baseAcylName =
+      const baseAcylName: string =
         acylLength < acylNames.length && acylNames[acylLength]
-          ? acylNames[acylLength]
+          ? acylNames[acylLength]!
           : `C${acylLength}-anoate`;
 
       acylName = acylSubstituentName
@@ -2844,11 +3652,12 @@ export function buildEsterName(
     ];
     acylName =
       acylLength < acylNames.length && acylNames[acylLength]
-        ? acylNames[acylLength]
+        ? acylNames[acylLength]!
         : `C${acylLength}-anoate`;
   }
 
-  // Use compact format without spaces for consistency with IUPAC notation
+  // IUPAC ester nomenclature: always add space between alkyl and acyl parts
+  // per PubChem naming convention
   const result = `${alkylName} ${acylName}`;
 
   if (process.env.VERBOSE) {
@@ -3147,6 +3956,8 @@ export function buildDiesterName(
     acidSuffix = `C${acidChainLength}-anedioate`;
   }
 
+  // Build final name
+  // Always add space between alkyl part and acid part (per PubChem convention)
   const result = substituentPart
     ? `${alkylPart} ${substituentPart}${acidSuffix}`
     : `${alkylPart} ${acidSuffix}`;

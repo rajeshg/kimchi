@@ -126,8 +126,18 @@ export function nameRingSubstituent(
     molecule,
   );
 
-  const positionStr = attachmentPosition > 1 ? `${attachmentPosition}-` : "";
-  const fullName = `${ringBaseName}-${positionStr}yl`;
+  // Check if there's an exocyclic double bond from the ring attachment point
+  const hasExocyclicDoubleBond = checkExocyclicDoubleBond(
+    orderedRing,
+    attachmentAtomId,
+    molecule,
+  );
+
+  const suffix = hasExocyclicDoubleBond ? "ylidene" : "yl";
+  const fullName =
+    attachmentPosition > 1
+      ? `${ringBaseName}-${attachmentPosition}-${suffix}`
+      : `${ringBaseName}${suffix}`;
 
   return {
     ringAtoms: orderedRing,
@@ -135,6 +145,29 @@ export function nameRingSubstituent(
     attachmentPosition,
     fullName,
   };
+}
+
+function checkExocyclicDoubleBond(
+  ring: number[],
+  attachmentAtomId: number,
+  molecule: Molecule,
+): boolean {
+  const ringSet = new Set(ring);
+
+  for (const bond of molecule.bonds) {
+    if (bond.type !== "double") continue;
+
+    const atom1InRing = ringSet.has(bond.atom1);
+    const atom2InRing = ringSet.has(bond.atom2);
+
+    if (atom1InRing && bond.atom2 === attachmentAtomId) {
+      return true;
+    } else if (atom2InRing && bond.atom1 === attachmentAtomId) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function getAttachmentPosition(

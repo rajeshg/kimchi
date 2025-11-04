@@ -23,9 +23,10 @@ describe("Unsaturation basic naming", () => {
     expect(result.name.toLowerCase()).toBe("ethyne");
   });
 
-  test("propene (C=CC) -> propene", () => {
+  test("propene (C=CC) -> prop-1-ene", () => {
     const result = namer.generateNameFromSMILES("C=CC");
-    expect(result.name.toLowerCase()).toBe("propene");
+    // PubChem authoritative name: "prop-1-ene" (locant required for C3+)
+    expect(result.name.toLowerCase()).toBe("prop-1-ene");
   });
 
   test("but-2-ene (CC=CC) -> but-2-ene", () => {

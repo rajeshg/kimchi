@@ -7,6 +7,7 @@ import type {
 import { ExecutionPhase } from "../../immutable-context";
 import type { RingSystem } from "../../types";
 import type { Atom, Bond, MultipleBond, Chain } from "types";
+import type { NamingSubstituent } from "../../naming/iupac-types";
 
 /**
  * Initial Structure Analysis Rule
@@ -107,10 +108,10 @@ export const INITIAL_STRUCTURE_ANALYSIS_RULE: IUPACRule = {
         }
 
         const subsRaw = findSubstituents(molecule, main as number[]);
-        const substituents = subsRaw.map((s: unknown) => ({
+        const substituents = subsRaw.map((s: NamingSubstituent) => ({
           atoms: [],
           bonds: [],
-          type: s.name,
+          type: s.type,
           locant: parseInt(s.position, 10),
           isPrincipal: false,
           name: s.name,

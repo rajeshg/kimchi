@@ -50,7 +50,7 @@ export const P2_4_SPIRO_COMPOUNDS_RULE: IUPACRule = {
         context.getState().molecule,
       );
 
-      if (spiroName) {
+      if (spiroName && candidateRings[0]) {
         const parentStructure = {
           type: "ring" as const,
           ring: candidateRings[0], // Use first ring as representative

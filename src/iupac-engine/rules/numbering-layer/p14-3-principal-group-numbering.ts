@@ -113,6 +113,38 @@ export const P14_3_PRINCIPAL_GROUP_NUMBERING_RULE: IUPACRule = {
             locants: [locant],
           };
         }
+
+        // For non-principal groups, convert atom IDs to chain positions
+        if (
+          !group.isPrincipal &&
+          group.locants &&
+          parentStructure.type === "chain" &&
+          parentStructure.chain
+        ) {
+          const chainAtomIds = parentStructure.chain.atoms.map(
+            (a: Atom) => a.id,
+          );
+          const convertedLocants = group.locants.map((atomId: number) => {
+            const position = chainAtomIds.indexOf(atomId);
+            if (position !== -1) {
+              // Convert to 1-based position using the optimized locant set
+              return optimizedLocants[position] ?? position + 1;
+            }
+            return atomId; // Fallback to atom ID if not found in chain
+          });
+
+          if (process.env.VERBOSE) {
+            console.log(
+              `[P-14.3] Non-principal group ${group.type}: atom IDs ${group.locants} → positions ${convertedLocants}`,
+            );
+          }
+
+          return {
+            ...group,
+            locants: convertedLocants,
+          };
+        }
+
         return group;
       },
     );

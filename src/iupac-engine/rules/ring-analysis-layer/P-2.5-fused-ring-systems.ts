@@ -43,7 +43,7 @@ export const P2_5_FUSED_RING_SYSTEMS_RULE: IUPACRule = {
         context.getState().molecule,
       );
 
-      if (fusedName) {
+      if (fusedName && candidateRings[0]) {
         const parentStructure = {
           type: "ring" as const,
           ring: candidateRings[0], // Use first ring as representative

@@ -1941,7 +1941,7 @@ export function findSubstituents(
  * Helper function to analyze an alkyl chain attached to sulfur and generate proper name
  * For example: -S-C≡C-CH3 should be named "prop-1-ynyl"
  */
-function nameAlkylSulfanylSubstituent(
+export function nameAlkylSulfanylSubstituent(
   molecule: Molecule,
   substituentAtoms: Set<number>,
   sulfurAtomIdx: number,
@@ -1989,6 +1989,54 @@ function nameAlkylSulfanylSubstituent(
 
   if (carbonAttachedToS === -1) {
     return "sulfanyl"; // No carbon found
+  }
+
+  // Check if the carbon attached to sulfur is part of an aromatic ring (e.g., phenyl)
+  const carbonAtom = molecule.atoms[carbonAttachedToS];
+  if (carbonAtom?.aromatic) {
+    if (process.env.VERBOSE) {
+      console.log(
+        `[nameAlkylSulfanylSubstituent] Carbon ${carbonAttachedToS} is aromatic, checking for phenyl ring`,
+      );
+    }
+
+    // Find which ring contains this carbon
+    const ringContainingCarbon = molecule.rings?.find((ring) =>
+      ring.includes(carbonAttachedToS),
+    );
+
+    if (ringContainingCarbon) {
+      const ringSize = ringContainingCarbon.length;
+      if (process.env.VERBOSE) {
+        console.log(
+          `[nameAlkylSulfanylSubstituent] Found ring: size=${ringSize}, atoms=${ringContainingCarbon}`,
+        );
+      }
+
+      // Check if it's a 6-membered aromatic ring (phenyl)
+      if (ringSize === 6) {
+        // Check if all atoms in ring are carbons (not heteroaromatic)
+        const allCarbons = ringContainingCarbon.every((atomId: number) => {
+          const atom = molecule.atoms[atomId];
+          return atom?.symbol === "C";
+        });
+
+        if (process.env.VERBOSE) {
+          console.log(
+            `[nameAlkylSulfanylSubstituent] All carbons in ring: ${allCarbons}`,
+          );
+        }
+
+        if (allCarbons) {
+          if (process.env.VERBOSE) {
+            console.log(
+              `[nameAlkylSulfanylSubstituent] ✓ RETURNING phenylsulfanyl`,
+            );
+          }
+          return "phenylsulfanyl";
+        }
+      }
+    }
   }
 
   // Build the carbon chain
@@ -3358,14 +3406,25 @@ function nameRingSubstituent(
   // Find any substituents attached to this ring (excluding the attachment point to main chain)
   // We need to find the atom in chainAtoms that connects to this ring
   let parentAtom = -1;
+  let hasExocyclicDoubleBond = false;
   for (const bond of molecule.bonds) {
     if (
       (bond.atom1 === startAtomIdx && chainAtoms.has(bond.atom2)) ||
       (bond.atom2 === startAtomIdx && chainAtoms.has(bond.atom1))
     ) {
       parentAtom = bond.atom1 === startAtomIdx ? bond.atom2 : bond.atom1;
+      // Check if this is a double bond (exocyclic)
+      if (bond.type === "double") {
+        hasExocyclicDoubleBond = true;
+      }
       break;
     }
+  }
+
+  if (process.env.VERBOSE && hasExocyclicDoubleBond) {
+    console.log(
+      `[nameRingSubstituent] Detected exocyclic double bond from atom ${startAtomIdx}`,
+    );
   }
 
   const ringSubstituents = findRingSubstituents(molecule, ring, parentAtom);
@@ -3498,7 +3557,11 @@ function nameRingSubstituent(
     }
   } else {
     // No substituents, use simple conversion
-    fullName = convertRingNameToSubstituent(ringName, attachmentPosition);
+    fullName = convertRingNameToSubstituent(
+      ringName,
+      attachmentPosition,
+      hasExocyclicDoubleBond,
+    );
   }
 
   if (process.env.VERBOSE) {
@@ -3676,16 +3739,17 @@ function determineRingAttachmentPosition(
     if (carbonsForward === 2) {
       // Mapping from relativePos (position in ring array relative to N) to IUPAC position
       // Ring array: [C-6, N-7, C-8, C-9, S-10] with N at index 1
-      // IUPAC numbering via shorter path: N(7)=1 → C(6)=2 → S(10)=3 → C(9)=4 → C(8)=5
+      // IUPAC numbering: N(7)=1 → C(6)=2 (shorter path to S) → S(10)=3
+      //                  Then continue from N through longer path: C(8)=4 → C(9)=5
       // relativePos 0: N(7) at index 1 → IUPAC position 1
-      // relativePos 1: C(8) at index 2 → IUPAC position 5
-      // relativePos 2: C(9) at index 3 → IUPAC position 4
+      // relativePos 1: C(8) at index 2 → IUPAC position 4 (adjacent to N)
+      // relativePos 2: C(9) at index 3 → IUPAC position 5 (adjacent to S)
       // relativePos 3: S(10) at index 4 → IUPAC position 3
       // relativePos 4: C(6) at index 0 (wrapping) → IUPAC position 2
       const mapping: { [key: number]: number } = {
         0: 1, // N(7) → position 1
-        1: 5, // C(8) → position 5
-        2: 4, // C(9) → position 4
+        1: 4, // C(8) → position 4
+        2: 5, // C(9) → position 5
         3: 3, // S(10) → position 3
         4: 2, // C(6) → position 2
       };
@@ -3780,6 +3844,47 @@ function determineRingAttachmentPosition(
     return relativePos + 1;
   }
 
+  // For heterocyclic rings (oxolane, thiolane, pyrrolidine, etc.), renumber starting from heteroatom
+  // Per IUPAC: heteroatom should be at position 1
+  const heteroatomRings = [
+    "oxolane",
+    "thiolane",
+    "pyrrolidine",
+    "oxane",
+    "thiane",
+    "piperidine",
+  ];
+  if (
+    heteroatomRings.some(
+      (name) =>
+        ringName.includes(name) || ringName.startsWith(name.slice(0, -1)),
+    )
+  ) {
+    // Find the heteroatom in the ring
+    let heteroatomPos = -1;
+    for (let i = 0; i < ring.length; i++) {
+      const atom = molecule.atoms[ring[i]!];
+      if (atom && atom.symbol !== "C" && atom.symbol !== "H") {
+        heteroatomPos = i;
+        break;
+      }
+    }
+
+    if (heteroatomPos !== -1) {
+      // Calculate position relative to heteroatom
+      const relativePos =
+        (posInRing - heteroatomPos + ring.length) % ring.length;
+
+      if (process.env.VERBOSE) {
+        console.log(
+          `[determineRingAttachmentPosition] Heterocycle ${ringName}: heteroatom at ring index ${heteroatomPos}, attachment at ring index ${posInRing}, relative position = ${relativePos}, IUPAC position = ${relativePos + 1}`,
+        );
+      }
+
+      return relativePos + 1;
+    }
+  }
+
   // For other rings, use simple sequential numbering (1-indexed)
   return posInRing + 1;
 }
@@ -3788,10 +3893,12 @@ function determineRingAttachmentPosition(
  * Converts a ring name to substituent form with position.
  * Examples: "thiazole" + position 4 -> "thiazol-4-yl"
  *           "benzene" -> "phenyl"
+ *           "cyclopropane" + exocyclic double bond -> "cyclopropylidene"
  */
 function convertRingNameToSubstituent(
   ringName: string,
   position: number,
+  hasExocyclicDoubleBond = false,
 ): string {
   // Special case: benzene becomes phenyl (no position needed for monosubstituted)
   if (ringName === "benzene") {
@@ -3802,10 +3909,26 @@ function convertRingNameToSubstituent(
   // thiazole -> thiazol-4-yl
   // pyridine -> pyridin-3-yl
   // furan -> furan-2-yl
+  // cyclopropane + exocyclic double bond -> cyclopropylidene
 
   let stem = ringName;
 
-  // Remove common ring suffixes
+  // If there's an exocyclic double bond, use -ylidene suffix instead of -yl
+  if (hasExocyclicDoubleBond) {
+    // For -ane rings: cyclopropane -> cyclopropyl -> cyclopropylidene
+    if (ringName.endsWith("ane")) {
+      stem = ringName.slice(0, -3) + "yl"; // "cyclohexane" -> "cyclohexyl"
+    } else if (ringName.endsWith("ole")) {
+      stem = ringName.slice(0, -1) + "yl"; // "thiazole" -> "thiazolyl"
+    } else if (ringName.endsWith("ine")) {
+      stem = ringName.slice(0, -1) + "yl"; // "pyridine" -> "pyridinyl"
+    } else if (ringName.endsWith("ene")) {
+      stem = ringName.slice(0, -1) + "yl"; // future: handle alkene rings
+    }
+    return `${stem}idene`;
+  }
+
+  // Remove common ring suffixes for regular -yl substituents
   if (ringName.endsWith("ole")) {
     stem = ringName.slice(0, -1); // "thiazole" -> "thiazol"
   } else if (ringName.endsWith("ine")) {
@@ -4210,19 +4333,19 @@ export function generateSubstitutedName(
     const positions = data.positions.sort((a, b) => parseInt(a) - parseInt(b));
     const count = positions.length;
     const multiplier = count === 1 ? "" : getGreekNumeral(count);
-    
+
     // Check if we can omit the locant: single substituent at position 1, no heteroatoms, simple saturated chain
-    const canOmitLocant = 
-      count === 1 && 
-      positions[0] === "1" && 
-      heteroPrefixes.length === 0 && 
+    const canOmitLocant =
+      count === 1 &&
+      positions[0] === "1" &&
+      heteroPrefixes.length === 0 &&
       substituents.length === 1 &&
       unsaturation === null;
-    
+
     const text =
       count === 1
-        ? canOmitLocant 
-          ? `${root}` 
+        ? canOmitLocant
+          ? `${root}`
           : `${positions.join(",")}-${root}`
         : `${positions.join(",")}-${multiplier}${root}`;
     substituentPrefixes.push({ positions, count, root, text });
@@ -4252,6 +4375,11 @@ export function generateSubstitutedName(
   let unsaturationSuffix = "";
   if (unsaturation) {
     const positions = unsaturation.positions;
+    if (process.env.VERBOSE) {
+      console.log(
+        `[Unsaturation] positions=${JSON.stringify(positions)}, type=${unsaturation.type}`,
+      );
+    }
     if (positions.length === 1 && positions[0] === 1) {
       unsaturationSuffix = unsaturation.type;
     } else {

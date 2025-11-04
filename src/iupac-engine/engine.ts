@@ -498,9 +498,9 @@ export class RuleEngine {
       .molecule.atoms.filter((a) => a.symbol === "C").length;
     const acidNames = [
       "",
-      "methanoic",
-      "ethanoic",
-      "propanoic",
+      "formic",
+      "acetic",
+      "propionic",
       "butanoic",
       "pentanoic",
     ];
@@ -509,6 +509,11 @@ export class RuleEngine {
       baseName = acidNames[carbonCount] || "alkanoic";
     } else {
       baseName = `${this.getChainBaseName(carbonCount)}oic`;
+    }
+    if (process.env.VERBOSE) {
+      console.log(
+        `[buildCarboxylicAcidName] carbonCount=${carbonCount}, baseName=${baseName}`,
+      );
     }
     return `${baseName} acid`;
   }

@@ -1,6 +1,7 @@
 export {
   computeMorganFingerprint,
   tanimotoSimilarity,
+  getBitsSet,
 } from "src/utils/morgan-fingerprint";
 export { parseSMILES } from "src/parsers/smiles-parser";
 export { generateSMILES } from "src/generators/smiles-generator";

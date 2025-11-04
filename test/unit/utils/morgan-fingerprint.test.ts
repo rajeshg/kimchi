@@ -1,6 +1,9 @@
 import { describe, it, expect } from "bun:test";
 import { parseSMILES } from "index";
-import { computeMorganFingerprint } from "src/utils/morgan-fingerprint";
+import {
+  computeMorganFingerprint,
+  getBitsSet,
+} from "src/utils/morgan-fingerprint";
 
 describe("computeMorganFingerprint", () => {
   // Bulk test set for cross-validation with RDKit-JS
@@ -96,17 +99,6 @@ describe("computeMorganFingerprint", () => {
       hex += nibble.toString(16);
     }
     return hex;
-  }
-
-  function getBitsSet(fp: Uint8Array): number {
-    let count = 0;
-    for (let i = 0; i < fp.length; i++) {
-      const byte = fp[i]!;
-      for (let bit = 0; bit < 8; bit++) {
-        if ((byte & (1 << bit)) !== 0) count++;
-      }
-    }
-    return count;
   }
 
   it("outputs fingerprints for bulk set (for RDKit-JS comparison)", () => {

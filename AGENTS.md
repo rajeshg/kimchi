@@ -201,7 +201,7 @@ From validation on 28 diverse drug-like molecules:
 
 **Usage Example:**
 ```typescript
-import { parseSMILES, computeMorganFingerprint, tanimotoSimilarity } from 'index';
+import { parseSMILES, computeMorganFingerprint, tanimotoSimilarity, getBitsSet } from 'index';
 
 const mol1 = parseSMILES('CC(=O)Oc1ccccc1C(=O)O').molecules[0];  // Aspirin
 const mol2 = parseSMILES('CC(C)Cc1ccc(cc1)C(C)C(=O)O').molecules[0];  // Ibuprofen
@@ -211,6 +211,10 @@ const fp2 = computeMorganFingerprint(mol2, 2, 512);
 
 const similarity = tanimotoSimilarity(fp1, fp2);
 console.log(`Tanimoto similarity: ${(similarity * 100).toFixed(1)}%`);
+
+// Count bits set in fingerprint
+const bitsSet = getBitsSet(fp1);
+console.log(`Aspirin fingerprint has ${bitsSet} bits set (${(bitsSet/512*100).toFixed(2)}% density)`);
 ```
 
 **Applications:**

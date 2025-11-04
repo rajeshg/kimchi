@@ -33,8 +33,9 @@ export const SUBSTITUENT_NUMBERING_RULE: IUPACRule = {
     const state = context.getState();
     const functionalGroups = state.functionalGroups;
     const parentStructure = state.parentStructure;
+    const molecule = state.molecule;
 
-    if (!functionalGroups || !parentStructure) {
+    if (!functionalGroups || !parentStructure || !molecule) {
       return context;
     }
 
@@ -50,7 +51,12 @@ export const SUBSTITUENT_NUMBERING_RULE: IUPACRule = {
     const numberedSubstituents = substituentGroups.map(
       (group: FunctionalGroup, index: number) => ({
         ...group,
-        locants: assignSubstituentLocants(group, parentStructure, index),
+        locants: assignSubstituentLocants(
+          group,
+          parentStructure,
+          molecule,
+          index,
+        ),
       }),
     );
 

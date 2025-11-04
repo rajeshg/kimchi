@@ -27,5 +27,5 @@
       "index": ["index.ts"]
     }
   },
-  "exclude": ["src/third-party/**/*", "test/**/*", "scripts/**/*", "categorize-failures.ts", "generate-comparison.ts", "debug-*.ts"]
+  "exclude": ["src/third-party/**/*", "test/**/*", "scripts/**/*", "categorize-failures.ts", "generate-comparison.ts", "debug-*.ts", "test-*.ts", "check_*.ts", "verify-*.ts"]
 }
