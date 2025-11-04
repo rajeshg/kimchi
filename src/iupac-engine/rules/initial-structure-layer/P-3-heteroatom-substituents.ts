@@ -770,6 +770,116 @@ function getRingSubstituentName(
     return `${baseName}yl`;
   }
 
+  // Sulfur-based substituents (thioethers: R-S-)
+  if (symbol === "S") {
+    // Find what the sulfur is bonded to (excluding the ring atom)
+    const sulfurBonds = molecule.bonds.filter(
+      (b: Bond) => b.atom1 === attachedAtomId || b.atom2 === attachedAtomId,
+    );
+
+    for (const bond of sulfurBonds) {
+      const otherAtomId =
+        bond.atom1 === attachedAtomId ? bond.atom2 : bond.atom1;
+
+      // Skip the ring atom we came from
+      if (otherAtomId === fromIndex) continue;
+
+      const otherAtom = molecule.atoms[otherAtomId];
+      if (!otherAtom) continue;
+
+      // Check if sulfur is bonded to a carbon chain
+      if (otherAtom.symbol === "C") {
+        // Traverse the carbon chain attached to sulfur
+        const chainIndices = traverseSubstituentChainByIndex(
+          otherAtomId,
+          molecule,
+          attachedAtomId,
+        );
+
+        if (chainIndices.length === 1) {
+          // Single carbon: methylsulfanyl, ethylsulfanyl, etc.
+          const carbonIdx = chainIndices[0];
+          if (carbonIdx === undefined) continue;
+          const carbonAtom = molecule.atoms[carbonIdx];
+          if (!carbonAtom) continue;
+
+          const hydrogens = carbonAtom.hydrogens || 0;
+          if (hydrogens === 3) {
+            return "methylsulfanyl";
+          } else if (hydrogens === 2) {
+            return "methylidenesulfanyl";
+          }
+        } else if (chainIndices.length === 2) {
+          return "ethylsulfanyl";
+        } else if (chainIndices.length === 3) {
+          return "propylsulfanyl";
+        } else if (chainIndices.length > 0) {
+          // For longer chains, use generic alkylsulfanyl
+          const baseName = getParentChainName(chainIndices.length);
+          return baseName ? `${baseName}ylsulfanyl` : "alkylsulfanyl";
+        }
+      }
+    }
+
+    // If no carbon chain found, return generic sulfanyl
+    return "sulfanyl";
+  }
+
+  // Sulfur-based substituents (thioethers: R-S-)
+  if (symbol === "S") {
+    // Find what the sulfur is bonded to (excluding the ring atom)
+    const sulfurBonds = molecule.bonds.filter(
+      (b: Bond) => b.atom1 === attachedAtomId || b.atom2 === attachedAtomId,
+    );
+
+    for (const bond of sulfurBonds) {
+      const otherAtomId =
+        bond.atom1 === attachedAtomId ? bond.atom2 : bond.atom1;
+
+      // Skip the ring atom we came from
+      if (otherAtomId === fromIndex) continue;
+
+      const otherAtom = molecule.atoms[otherAtomId];
+      if (!otherAtom) continue;
+
+      // Check if sulfur is bonded to a carbon chain
+      if (otherAtom.symbol === "C") {
+        // Traverse the carbon chain attached to sulfur
+        const chainIndices = traverseSubstituentChainByIndex(
+          otherAtomId,
+          molecule,
+          attachedAtomId,
+        );
+
+        if (chainIndices.length === 1) {
+          // Single carbon: methylsulfanyl, ethylsulfanyl, etc.
+          const carbonIdx = chainIndices[0];
+          if (carbonIdx === undefined) continue;
+          const carbonAtom = molecule.atoms[carbonIdx];
+          if (!carbonAtom) continue;
+
+          const hydrogens = carbonAtom.hydrogens || 0;
+          if (hydrogens === 3) {
+            return "methylsulfanyl";
+          } else if (hydrogens === 2) {
+            return "methylidenesulfanyl";
+          }
+        } else if (chainIndices.length === 2) {
+          return "ethylsulfanyl";
+        } else if (chainIndices.length === 3) {
+          return "propylsulfanyl";
+        } else if (chainIndices.length > 0) {
+          // For longer chains, use generic alkylsulfanyl
+          const baseName = getParentChainName(chainIndices.length);
+          return baseName ? `${baseName}ylsulfanyl` : "alkylsulfanyl";
+        }
+      }
+    }
+
+    // If no carbon chain found, return generic sulfanyl
+    return "sulfanyl";
+  }
+
   // Halogens
   if (symbol === "F") return "fluoro";
   if (symbol === "Cl") return "chloro";

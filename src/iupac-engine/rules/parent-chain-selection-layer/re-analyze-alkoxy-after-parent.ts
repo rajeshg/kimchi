@@ -165,7 +165,11 @@ function analyzeAlkoxyGroup(
  * Get the size of a carbon chain starting from a carbon atom
  * Stop at the oxygen atom (don't traverse back through it)
  */
-function getChainSize(mol: Molecule, startCarbon: Atom, oxygenAtom: Atom): number {
+function getChainSize(
+  mol: Molecule,
+  startCarbon: Atom,
+  oxygenAtom: Atom,
+): number {
   const visited = new Set<number>([oxygenAtom.id]);
   const queue = [startCarbon];
   let count = 0;
@@ -188,7 +192,9 @@ function getChainSize(mol: Molecule, startCarbon: Atom, oxygenAtom: Atom): numbe
         const otherId = bond.atom1 === current.id ? bond.atom2 : bond.atom1;
         return mol.atoms[otherId];
       })
-      .filter((atom): atom is Atom => atom !== undefined && !visited.has(atom.id));
+      .filter(
+        (atom): atom is Atom => atom !== undefined && !visited.has(atom.id),
+      );
 
     queue.push(...neighbors);
   }

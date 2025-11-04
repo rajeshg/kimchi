@@ -362,23 +362,98 @@ export const FUNCTIONAL_GROUP_PRIORITY_RULE: IUPACRule = {
       );
     }
 
+    // Special handling for ring systems:
+    // If molecule has a heterocyclic ring and functional groups are attached to ring atoms,
+    // those functional groups should be treated as substituents, not as principal groups
+    const hasRingSystem = (mol.rings?.length || 0) > 0;
+    const ringAtomIds = new Set<number>();
+    if (hasRingSystem && mol.rings) {
+      for (const ring of mol.rings) {
+        if (ring && ring.length > 0) {
+          for (const atomId of ring) {
+            ringAtomIds.add(atomId);
+          }
+        }
+      }
+    }
+
+    // Check if principal group is PART OF a ring (not just attached to it)
+    // For example:
+    // - Pyridine: nitrogen IS part of the ring → demote to "pyridine" (not "azine")
+    // - Cyclohexanol: oxygen is NOT part of ring → keep as principal → "cyclohexanol" (not "hydroxycyclohexane")
+    let shouldDemotePrincipalGroup = false;
+    if (hasRingSystem && principalGroup && principalGroup.locants) {
+      const fgLocants = principalGroup.locants;
+      
+      // For alcohols, locants are the carbon atoms where -OH is attached
+      // We need to check if the OXYGEN (not the carbon) is part of the ring
+      if (principalGroup.type === "alcohol") {
+        for (const locant of fgLocants) {
+          // Find oxygen atoms bonded to this carbon
+          const oxygenAtoms = mol.bonds
+            .filter(
+              (bond) =>
+                (bond.atom1 === locant || bond.atom2 === locant) &&
+                bond.type === "single",
+            )
+            .map((bond) => (bond.atom1 === locant ? bond.atom2 : bond.atom1))
+            .map((atomId) => mol.atoms.find((a) => a.id === atomId))
+            .filter(
+              (atom): atom is Atom =>
+                atom !== undefined && atom.symbol === "O",
+            );
+
+          // Check if any of these oxygens are part of the ring
+          for (const oxygen of oxygenAtoms) {
+            if (ringAtomIds.has(oxygen.id)) {
+              shouldDemotePrincipalGroup = true;
+              break;
+            }
+          }
+          if (shouldDemotePrincipalGroup) break;
+        }
+      } else {
+        // For other functional groups, check if the locant itself is in the ring
+        for (const locant of fgLocants) {
+          const isPartOfRing = ringAtomIds.has(locant);
+          if (isPartOfRing) {
+            shouldDemotePrincipalGroup = true;
+            break;
+          }
+        }
+      }
+    }
+
+    if (shouldDemotePrincipalGroup && process.env.VERBOSE) {
+      console.log(
+        "[FUNCTIONAL_GROUP_PRIORITY_RULE] Ring system detected - functional groups attached to ring atoms will be treated as substituents",
+      );
+      console.log(
+        "[FUNCTIONAL_GROUP_PRIORITY_RULE] Demoting principal group:",
+        principalGroup?.type,
+      );
+    }
+
     // Mark ALL functional groups of the principal type as principal
     // (e.g., if we have 2 ketones, both should be marked as principal)
-    // EXCEPT for hierarchical esters - only mark the primary ester as principal
-    let updatedFunctionalGroups = principalGroup
-      ? functionalGroups.map((g) => {
-          if (
-            g.type === principalGroup.type &&
-            g.priority === principalGroup.priority
-          ) {
-            return {
-              ...g,
-              isPrincipal: true,
-            } as FunctionalGroup;
-          }
-          return g;
-        })
-      : functionalGroups;
+    // EXCEPT:
+    // 1. For hierarchical esters - only mark the primary ester as principal
+    // 2. For ring systems - functional groups attached to ring atoms are NOT principal
+    let updatedFunctionalGroups =
+      principalGroup && !shouldDemotePrincipalGroup
+        ? functionalGroups.map((g) => {
+            if (
+              g.type === principalGroup.type &&
+              g.priority === principalGroup.priority
+            ) {
+              return {
+                ...g,
+                isPrincipal: true,
+              } as FunctionalGroup;
+            }
+            return g;
+          })
+        : functionalGroups;
 
     // Special handling for hierarchical esters
     // If we have multiple esters and they're hierarchical, only mark the primary ester as principal
