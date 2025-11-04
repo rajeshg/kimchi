@@ -601,10 +601,10 @@ function buildChainName(
       .map((bond: MultipleBond) => bond.locant)
       .filter(Boolean)
       .sort((a: number, b: number) => a - b);
-    // IUPAC rule: Omit locant when unambiguous (chains ≤3 carbons have only one possible position)
-    // Include locant for chains ≥4 carbons where position matters (but-1-yne vs but-2-yne)
+    // IUPAC rule: Include locants for chains ≥3 carbons with triple bonds
+    // prop-1-yne, but-1-yne vs but-2-yne
     const locantStr =
-      locants.length > 0 && length >= 4 ? `-${locants.join(",")}-` : "";
+      locants.length > 0 && length >= 3 ? `-${locants.join(",")}-` : "";
     baseName = `${baseName}${locantStr}yne`;
   } else if (doubleBonds.length > 0 && tripleBonds.length === 0) {
     baseName = baseName.replace(/[aeiou]+$/, ""); // Remove trailing vowels
@@ -612,10 +612,10 @@ function buildChainName(
     const locants = allLocants
       .filter((loc: number | undefined) => loc !== undefined && loc !== null)
       .sort((a: number, b: number) => a - b);
-    // IUPAC rule: Omit locant when unambiguous (chains ≤3 carbons have only one possible position)
-    // Include locant for chains ≥4 carbons where position matters (but-1-ene vs but-2-ene)
+    // IUPAC rule: Include locants for chains ≥3 carbons with double bonds
+    // prop-1-ene, but-1-ene vs but-2-ene
     const locantStr =
-      locants.length > 0 && length >= 4 ? `-${locants.join(",")}-` : "";
+      locants.length > 0 && length >= 3 ? `-${locants.join(",")}-` : "";
 
     // If there are multiple double bonds (dienes, trienes, ...), use multiplicative prefix
     // e.g., buta-1,3-diene (doubleBonds.length === 2)
@@ -1770,7 +1770,26 @@ function buildSubstitutiveName(
           locants[0] === 1 &&
           isSymmetricRing &&
           totalStructuralSubstituents === 1;
-        const needsLocant = !isSingleStructuralSubstituentOnly;
+        
+        // IUPAC terminal halogen rule: Omit position 1 locant for terminal halogens
+        // on simple unbranched saturated chains with no heteroatoms
+        // Example: CCCl -> "chloroethane" not "1-chloroethane"
+        const isChainParent = parentStructure.type === "chain";
+        const isTerminalPosition = locants.length === 1 && locants[0] === 1;
+        const isSingleSubstituent = totalStructuralSubstituents === 1;
+        const isHalogen = ["chloro", "bromo", "fluoro", "iodo"].includes(subName);
+        const isSaturated = isChainParent && (parentStructure.chain?.multipleBonds?.length ?? 0) === 0;
+        const hasNoHeteroatoms = isChainParent && 
+          (parentStructure.chain?.atoms?.every(atom => atom.symbol === "C") ?? true);
+        const isSimpleTerminalHalogen = 
+          isChainParent && 
+          isTerminalPosition && 
+          isSingleSubstituent && 
+          isHalogen && 
+          isSaturated && 
+          hasNoHeteroatoms;
+        
+        const needsLocant = !isSingleStructuralSubstituentOnly && !isSimpleTerminalHalogen;
         const locantStr = needsLocant ? locants.join(",") + "-" : "";
 
         // Check if substituent name contains nested parentheses

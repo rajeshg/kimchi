@@ -135,8 +135,8 @@ export function buildEsterWithRingAlkylGroup(
     console.log("[buildEsterWithRingAlkylGroup] acylName:", acylName);
   }
 
-  // Functional class format: (alkyl)alkanoate
-  return `(${alkylGroupName})${acylName}`;
+  // Functional class format: (alkyl) alkanoate
+  return `(${alkylGroupName}) ${acylName}`;
 }
 
 /**
@@ -936,7 +936,7 @@ export function buildEsterWithRingAcylGroup(
       console.log("[buildEsterWithRingAcylGroup] alkoxyName:", alkoxyName);
     }
 
-    return `${alkoxyName}${acylName}`;
+    return `${alkoxyName} ${acylName}`;
   }
 
   // For non-aromatic rings: cyclo[ring]carboxylate
@@ -953,7 +953,7 @@ export function buildEsterWithRingAcylGroup(
     console.log("[buildEsterWithRingAcylGroup] alkoxyName:", alkoxyName);
   }
 
-  return `${alkoxyName}${acylName}`;
+  return `${alkoxyName} ${acylName}`;
 }
 
 /**
@@ -2849,7 +2849,7 @@ export function buildEsterName(
   }
 
   // Use compact format without spaces for consistency with IUPAC notation
-  const result = `${alkylName}${acylName}`;
+  const result = `${alkylName} ${acylName}`;
 
   if (process.env.VERBOSE) {
     console.log("[buildEsterName] result:", result);
@@ -3148,8 +3148,8 @@ export function buildDiesterName(
   }
 
   const result = substituentPart
-    ? `${alkylPart}${substituentPart}${acidSuffix}`
-    : `${alkylPart}${acidSuffix}`;
+    ? `${alkylPart} ${substituentPart}${acidSuffix}`
+    : `${alkylPart} ${acidSuffix}`;
 
   if (process.env.VERBOSE) {
     console.log("[buildDiesterName] result:", result);

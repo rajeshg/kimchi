@@ -178,6 +178,18 @@ function getAttachmentPosition(
     }
   }
 
+  // Fallback: explicitly search ring atoms for a direct bond to the attachment atom
+  for (const ringAtom of ring) {
+    for (const bond of molecule.bonds) {
+      if (
+        (bond.atom1 === ringAtom && bond.atom2 === attachmentAtomId) ||
+        (bond.atom2 === ringAtom && bond.atom1 === attachmentAtomId)
+      ) {
+        return ring.indexOf(ringAtom) + 1;
+      }
+    }
+  }
+
   return 1;
 }
 

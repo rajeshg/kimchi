@@ -4210,9 +4210,20 @@ export function generateSubstitutedName(
     const positions = data.positions.sort((a, b) => parseInt(a) - parseInt(b));
     const count = positions.length;
     const multiplier = count === 1 ? "" : getGreekNumeral(count);
+    
+    // Check if we can omit the locant: single substituent at position 1, no heteroatoms, simple saturated chain
+    const canOmitLocant = 
+      count === 1 && 
+      positions[0] === "1" && 
+      heteroPrefixes.length === 0 && 
+      substituents.length === 1 &&
+      unsaturation === null;
+    
     const text =
       count === 1
-        ? `${positions.join(",")}-${root}`
+        ? canOmitLocant 
+          ? `${root}` 
+          : `${positions.join(",")}-${root}`
         : `${positions.join(",")}-${multiplier}${root}`;
     substituentPrefixes.push({ positions, count, root, text });
   }
