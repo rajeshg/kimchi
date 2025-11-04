@@ -1,4 +1,5 @@
-import type { IUPACRule } from "../../types";
+import type { IUPACRule, RingSystem } from "../../types";
+import type { Atom } from "types";
 import { BLUE_BOOK_RULES, RulePriority } from "../../types";
 import { ExecutionPhase } from "../../immutable-context";
 
@@ -34,9 +35,16 @@ export const P44_2_2_HETEROATOM_SENIORITY_RULE: IUPACRule = {
 
     // Check if rings are connected (bonded to each other but not sharing atoms)
     // If rings are connected, they form a polycyclic parent and should NOT be filtered by heteroatom seniority
-    const areRingsConnected = (ring1: any, ring2: any): boolean => {
-      const ring1AtomIds = new Set(ring1.atoms.map((a: any) => a.id));
-      const ring2AtomIds = new Set(ring2.atoms.map((a: any) => a.id));
+    const areRingsConnected = (
+      ring1: RingSystem,
+      ring2: RingSystem,
+    ): boolean => {
+      const ring1AtomIds = new Set(
+        (ring1 as RingSystem).atoms.map((a: Atom) => a.id),
+      );
+      const ring2AtomIds = new Set(
+        (ring2 as RingSystem).atoms.map((a: Atom) => a.id),
+      );
 
       // Check if any atom in ring1 is bonded to any atom in ring2
       for (const bond of molecule.bonds) {
@@ -60,7 +68,7 @@ export const P44_2_2_HETEROATOM_SENIORITY_RULE: IUPACRule = {
         j < candidateRings.length && !hasConnectedRings;
         j++
       ) {
-        if (areRingsConnected(candidateRings[i], candidateRings[j])) {
+        if (areRingsConnected(candidateRings[i]!, candidateRings[j]!)) {
           hasConnectedRings = true;
         }
       }
@@ -91,7 +99,7 @@ export const P44_2_2_HETEROATOM_SENIORITY_RULE: IUPACRule = {
     };
 
     // Calculate seniority score for each ring
-    const ringScores = candidateRings.map((ring: any) => {
+    const ringScores = candidateRings.map((ring: RingSystem) => {
       let score = 0;
 
       for (const atom of ring.atoms) {
@@ -105,7 +113,7 @@ export const P44_2_2_HETEROATOM_SENIORITY_RULE: IUPACRule = {
       }
 
       if (process.env.VERBOSE) {
-        const atomSymbols = ring.atoms?.map((a: any) => a.symbol).join("");
+        const atomSymbols = ring.atoms.map((a: Atom) => a.symbol).join("");
         console.log(
           `[P-44.2.2]   Ring (${atomSymbols}): heteroatom score=${score}`,
         );
@@ -116,7 +124,7 @@ export const P44_2_2_HETEROATOM_SENIORITY_RULE: IUPACRule = {
 
     const maxScore = Math.max(...ringScores);
     const bestRings = candidateRings.filter(
-      (_ring: any, index: number) => ringScores[index] === maxScore,
+      (_ring: RingSystem, index: number) => ringScores[index] === maxScore,
     );
 
     if (process.env.VERBOSE) {

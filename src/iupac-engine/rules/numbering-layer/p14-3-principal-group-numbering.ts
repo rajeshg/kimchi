@@ -5,6 +5,7 @@ import {
   ExecutionPhase,
   ImmutableNamingContext,
 } from "../../immutable-context";
+import type { ContextState } from "../../immutable-context";
 import { optimizeLocantSet, getPrincipalGroupLocantFromSet } from "./helpers";
 
 export const P14_3_PRINCIPAL_GROUP_NUMBERING_RULE: IUPACRule = {
@@ -105,7 +106,7 @@ export const P14_3_PRINCIPAL_GROUP_NUMBERING_RULE: IUPACRule = {
     const updatedFunctionalGroups = functionalGroups.map(
       (group: FunctionalGroup) => {
         if (group.isPrincipal && principalIdx < principalLocants.length) {
-          const locant = principalLocants[principalIdx];
+          const locant = principalLocants[principalIdx]!;
           principalIdx++;
           return {
             ...group,
@@ -117,7 +118,7 @@ export const P14_3_PRINCIPAL_GROUP_NUMBERING_RULE: IUPACRule = {
     );
 
     return context.withStateUpdate(
-      (state: any) => ({
+      (state: ContextState) => ({
         ...state,
         functionalGroups: updatedFunctionalGroups,
       }),

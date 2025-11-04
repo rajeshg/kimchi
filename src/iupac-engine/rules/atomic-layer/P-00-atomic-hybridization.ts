@@ -2,6 +2,7 @@ import type { IUPACRule } from "../../types";
 import { RulePriority } from "../../types";
 import type { ImmutableNamingContext } from "../../immutable-context";
 import { ExecutionPhase } from "../../immutable-context";
+import type { Atom, Bond } from "types";
 
 /**
  * Rule: Hybridization Analysis
@@ -28,13 +29,13 @@ export const ATOMIC_HYBRIDIZATION_RULE: IUPACRule = {
       return context;
     }
     const hybridizationMap = new Map<number, string>();
-    state.molecule.atoms.forEach((atom: any) => {
+    state.molecule.atoms.forEach((atom: Atom) => {
       let hybridization = "unknown";
       if (atom.hybridization) {
         hybridization = atom.hybridization;
       } else {
         const bonds = state.molecule.bonds.filter(
-          (b: any) => b.atom1 === atom.id || b.atom2 === atom.id,
+          (b: Bond) => b.atom1 === atom.id || b.atom2 === atom.id,
         );
         if (bonds.length === 2) {
           hybridization = "sp";

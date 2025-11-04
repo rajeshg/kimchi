@@ -1,5 +1,5 @@
-import type { ParentStructure, FunctionalGroup } from "../../types";
-import type { Atom } from "types";
+import type { ParentStructure, FunctionalGroup, Ring } from "../../types";
+import type { Atom, Bond, Molecule } from "types";
 
 /**
  * Helper functions for numbering logic
@@ -120,7 +120,7 @@ export function getPrincipalGroupLocant(
       );
       console.log(
         "[getPrincipalGroupLocant] functionalGroupAtom.id:",
-        (functionalGroupAtom as any).id,
+        functionalGroupAtom.id,
       );
       console.log(
         "[getPrincipalGroupLocant] chain.atoms:",
@@ -433,7 +433,7 @@ export function getFixedLocants(parentStructure: ParentStructure): number[] {
   return parentStructure.locants;
 }
 
-export function generateRingLocants(ring: any): number[] {
+export function generateRingLocants(ring: Ring): number[] {
   // Generate locants for ring atoms
   const locants: number[] = [];
   for (let i = 0; i < ring.atoms.length; i++) {
@@ -443,9 +443,9 @@ export function generateRingLocants(ring: any): number[] {
 }
 
 export function findOptimalRingNumbering(
-  ring: any,
-  molecule: any,
-  functionalGroups?: any[],
+  ring: Ring,
+  molecule: Molecule,
+  functionalGroups?: FunctionalGroup[],
 ): number {
   if (!ring || !ring.atoms || ring.atoms.length === 0) {
     return 1;
@@ -463,14 +463,14 @@ export function findOptimalRingNumbering(
   );
 
   // Build set of ring atom IDs
-  const ringAtomIds = new Set<number>(ring.atoms.map((a: any) => a.id));
+  const ringAtomIds = new Set<number>(ring.atoms.map((a: Atom) => a.id));
 
   // Identify which ring positions have principal functional groups
   const principalGroupPositions = new Set<number>();
   if (functionalGroups && functionalGroups.length > 0) {
     // Find principal functional groups (alcohol, ketone, aldehyde, etc.)
     const principalGroups = functionalGroups.filter(
-      (g: any) =>
+      (g: FunctionalGroup) =>
         g.isPrincipal ||
         g.priority <= 5 ||
         g.type === "alcohol" ||
@@ -518,7 +518,7 @@ export function findOptimalRingNumbering(
 
             // Find bonds from group atom to ring atoms
             const bonds = molecule.bonds.filter(
-              (bond: any) =>
+              (bond: Bond) =>
                 bond.atom1 === groupAtomId || bond.atom2 === groupAtomId,
             );
 
@@ -553,7 +553,7 @@ export function findOptimalRingNumbering(
   );
 
   // Count substituents at each ring position (not just which positions have substituents)
-  const substituentCounts: number[] = new Array(ring.atoms.length).fill(0);
+  const substituentCounts: number[] = Array(ring.atoms.length).fill(0);
 
   for (let i = 0; i < ring.atoms.length; i++) {
     const ringAtom = ring.atoms[i];
@@ -561,7 +561,7 @@ export function findOptimalRingNumbering(
 
     // Find bonds from this ring atom to non-ring atoms
     const bonds = molecule.bonds.filter(
-      (bond: any) => bond.atom1 === ringAtom.id || bond.atom2 === ringAtom.id,
+      (bond: Bond) => bond.atom1 === ringAtom.id || bond.atom2 === ringAtom.id,
     );
 
     for (const bond of bonds) {
@@ -722,10 +722,10 @@ export function findOptimalRingNumbering(
 }
 
 export function findOptimalRingNumberingFromHeteroatom(
-  ring: any,
-  molecule: any,
+  ring: Ring,
+  molecule: Molecule,
   heteroatomIndex: number,
-  functionalGroups?: any[],
+  functionalGroups?: FunctionalGroup[],
 ): number {
   if (!ring || !ring.atoms || ring.atoms.length === 0) {
     return -1;
@@ -736,7 +736,7 @@ export function findOptimalRingNumberingFromHeteroatom(
   }
 
   // Build set of ring atom IDs
-  const ringAtomIds = new Set<number>(ring.atoms.map((a: any) => a.id));
+  const ringAtomIds = new Set<number>(ring.atoms.map((a: Atom) => a.id));
 
   // Build set of functional group atom IDs to exclude from substituent counting
   const functionalGroupAtomIds = new Set<number>();
@@ -752,7 +752,7 @@ export function findOptimalRingNumberingFromHeteroatom(
             // Also add all atoms bonded to this functional group atom
             // (e.g., C=O oxygen should be excluded if C is in the functional group)
             const bonds = molecule.bonds.filter(
-              (bond: any) => bond.atom1 === atomId || bond.atom2 === atomId,
+              (bond: Bond) => bond.atom1 === atomId || bond.atom2 === atomId,
             );
             for (const bond of bonds) {
               const otherAtomId =
@@ -774,7 +774,7 @@ export function findOptimalRingNumberingFromHeteroatom(
   }
 
   // Count substituents at each ring position (not just which atoms have substituents)
-  const substituentCounts: number[] = new Array(ring.atoms.length).fill(0);
+  const substituentCounts: number[] = Array(ring.atoms.length).fill(0);
 
   for (let i = 0; i < ring.atoms.length; i++) {
     const ringAtom = ring.atoms[i];
@@ -782,7 +782,7 @@ export function findOptimalRingNumberingFromHeteroatom(
 
     // Find bonds from this ring atom to non-ring atoms
     const bonds = molecule.bonds.filter(
-      (bond: any) => bond.atom1 === ringAtom.id || bond.atom2 === ringAtom.id,
+      (bond: Bond) => bond.atom1 === ringAtom.id || bond.atom2 === ringAtom.id,
     );
 
     for (const bond of bonds) {
@@ -1002,14 +1002,14 @@ export function compareLocantSets(a: number[], b: number[]): number {
 }
 
 export function findRingStartingPosition(
-  ring: any,
-  molecule?: any,
-  functionalGroups?: any[],
+  ring: Ring,
+  molecule?: Molecule,
+  functionalGroups?: FunctionalGroup[],
 ): number {
   // Find all heteroatoms in the ring
   const heteroatomIndices: number[] = [];
   for (let i = 0; i < ring.atoms.length; i++) {
-    const atom = ring.atoms[i];
+    const atom = ring.atoms[i]!;
     if (atom.symbol !== "C") {
       heteroatomIndices.push(i);
     }
@@ -1017,7 +1017,7 @@ export function findRingStartingPosition(
 
   // If multiple heteroatoms, find arrangement that gives lowest heteroatom locants
   if (heteroatomIndices.length > 1 && molecule) {
-    let bestArrangement: { atoms: any[]; start: number } | null = null;
+    let bestArrangement: { atoms: Atom[]; start: number } | null = null;
     let bestHeteroatomLocants: number[] = [];
 
     // Try each heteroatom as starting position, both clockwise and counterclockwise
@@ -1026,7 +1026,7 @@ export function findRingStartingPosition(
       const cwAtoms = [
         ...ring.atoms.slice(startIdx),
         ...ring.atoms.slice(0, startIdx),
-      ];
+      ] as Atom[];
       const cwHeteroLocants = heteroatomIndices
         .map((idx) => {
           const offset =
@@ -1036,15 +1036,16 @@ export function findRingStartingPosition(
         .sort((a, b) => a - b);
 
       // Try counterclockwise from this heteroatom
-      const heteroAtom = ring.atoms[startIdx];
-      const before = ring.atoms.slice(0, startIdx).reverse();
-      const after = ring.atoms.slice(startIdx + 1).reverse();
-      const ccwAtoms = [heteroAtom, ...after, ...before];
+      const heteroAtom = ring.atoms[startIdx]!;
+      const before = ring.atoms.slice(0, startIdx).reverse() as Atom[];
+      const after = ring.atoms.slice(startIdx + 1).reverse() as Atom[];
+      const ccwAtoms = [heteroAtom, ...after, ...before] as Atom[];
       const ccwHeteroLocants = heteroatomIndices
         .map((idx) => {
           // Find where this heteroatom ended up in the new arrangement
           const atomId = ring.atoms[idx].id;
-          const newIdx = ccwAtoms.findIndex((a: any) => a.id === atomId);
+          // @ts-ignore
+          const newIdx = ccwAtoms.findIndex((a) => a.id === atomId);
           return newIdx + 1; // 1-based locant
         })
         .sort((a, b) => a - b);
@@ -1065,17 +1066,17 @@ export function findRingStartingPosition(
     }
 
     if (bestArrangement) {
-      const oldAtoms = ring.atoms.map((a: any) => a.id);
+      const oldAtoms = ring.atoms.map((a: Atom) => a.id);
       ring.atoms = bestArrangement.atoms;
       if (process.env.VERBOSE) {
         console.log(
           `[findRingStartingPosition] BEFORE mutation: ring.atoms = [${oldAtoms.join(", ")}]`,
         );
         console.log(
-          `[findRingStartingPosition] AFTER mutation: ring.atoms = [${ring.atoms.map((a: any) => a.id).join(", ")}]`,
+          `[findRingStartingPosition] AFTER mutation: ring.atoms = [${ring.atoms.map((a: Atom) => a.id).join(", ")}]`,
         );
         console.log(
-          `[Ring Numbering] Multiple heteroatoms - reordered to [${ring.atoms.map((a: any) => `${a.id}:${a.symbol}`).join(", ")}] for lowest heteroatom locants [${bestHeteroatomLocants.join(", ")}]`,
+          `[Ring Numbering] Multiple heteroatoms - reordered to [${ring.atoms.map((a: Atom) => `${a.id}:${a.symbol}`).join(", ")}] for lowest heteroatom locants [${bestHeteroatomLocants.join(", ")}]`,
         );
       }
 
@@ -1088,7 +1089,7 @@ export function findRingStartingPosition(
 
       if (process.env.VERBOSE) {
         console.log(
-          `[findRingStartingPosition] About to return 1, ring.atoms is now: [${ring.atoms.map((a: any) => a.id).join(", ")}]`,
+          `[findRingStartingPosition] About to return 1, ring.atoms is now: [${ring.atoms.map((a: Atom) => a.id).join(", ")}]`,
         );
       }
       return 1;
@@ -1098,7 +1099,7 @@ export function findRingStartingPosition(
   // Single heteroatom or no heteroatoms - use original logic
   let heteroatomIndex = -1;
   for (let i = 0; i < ring.atoms.length; i++) {
-    const atom = ring.atoms[i];
+    const atom = ring.atoms[i]!;
     if (atom.symbol !== "C") {
       heteroatomIndex = i;
       break;
@@ -1118,12 +1119,12 @@ export function findRingStartingPosition(
     if (result < 0) {
       // Reverse the ring atoms for counterclockwise numbering
       // CCW from heteroatomIndex means: heteroatom, then previous atoms in reverse, then following atoms in reverse
-      const heteroAtom = ring.atoms[heteroatomIndex];
-      const before = ring.atoms.slice(0, heteroatomIndex).reverse(); // atoms before heteroatom, reversed
-      const after = ring.atoms.slice(heteroatomIndex + 1).reverse(); // atoms after heteroatom, reversed
+      const heteroAtom = ring.atoms[heteroatomIndex]!;
+      const before = ring.atoms.slice(0, heteroatomIndex).reverse() as Atom[];
+      const after = ring.atoms.slice(heteroatomIndex + 1).reverse() as Atom[];
       ring.atoms = [heteroAtom, ...before, ...after];
       console.log(
-        `[Ring Numbering] Reversed ring for counterclockwise numbering: [${ring.atoms.map((a: any) => a.id).join(", ")}]`,
+        `[Ring Numbering] Reversed ring for counterclockwise numbering: [${ring.atoms.map((a: Atom) => a.id).join(", ")}]`,
       );
       return 1; // Heteroatom is now at position 1
     }
@@ -1138,10 +1139,10 @@ export function findRingStartingPosition(
 
   // Start at unsaturation if present
   for (let i = 0; i < ring.bonds.length; i++) {
-    const bond = ring.bonds[i];
+    const bond = ring.bonds[i]!;
     if (bond.type === "double" || bond.type === "triple") {
-      const atom1 = ring.atoms[bond.atom1];
-      const atom2 = ring.atoms[bond.atom2];
+      const atom1 = ring.atoms[bond.atom1]!;
+      const atom2 = ring.atoms[bond.atom2]!;
       return Math.min(atom1.id, atom2.id) + 1;
     }
   }
@@ -1175,9 +1176,9 @@ export function adjustRingLocants(
 }
 
 export function reorderRingAtoms(
-  atoms: any[],
+  atoms: Atom[],
   startingPosition: number,
-): any[] {
+): Atom[] {
   if (Math.abs(startingPosition) === 1 && startingPosition > 0) {
     // Already starting at position 1 clockwise
     return atoms;
@@ -1192,16 +1193,16 @@ export function reorderRingAtoms(
 
   // If counter-clockwise, reverse the order (except the first element)
   if (isCounterClockwise) {
-    const first = reordered[0];
-    const rest = reordered.slice(1).reverse();
+    const first = reordered[0]!;
+    const rest = reordered.slice(1).reverse() as Atom[];
     reordered = [first, ...rest];
   }
 
   console.log(
-    `[Ring Reordering] Original atom IDs: [${atoms.map((a: any) => a.id).join(", ")}]`,
+    `[Ring Reordering] Original atom IDs: [${atoms.map((a: Atom) => a.id).join(", ")}]`,
   );
   console.log(
-    `[Ring Reordering] Reordered atom IDs: [${reordered.map((a: any) => a.id).join(", ")}] (starting from position ${Math.abs(startingPosition)}, ${isCounterClockwise ? "CCW" : "CW"})`,
+    `[Ring Reordering] Reordered atom IDs: [${reordered.map((a: Atom) => a.id).join(", ")}] (starting from position ${Math.abs(startingPosition)}, ${isCounterClockwise ? "CCW" : "CW"})`,
   );
 
   return reordered;

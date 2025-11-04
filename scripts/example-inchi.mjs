@@ -39,7 +39,7 @@ M  END
       const keyResult = await getInChIKeyFromInChI(inchiResult.inchi);
       console.log("InChIKey Result:", keyResult);
     }
-  } catch (error) {
+  } catch (_error) {
     console.error("Error:", error.message);
     console.error("\nTo use real InChI functionality:");
     console.error(

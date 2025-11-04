@@ -1,6 +1,8 @@
 import type { IUPACRule } from "../../types";
 import { BLUE_BOOK_RULES, RulePriority } from "../../types";
 import { ExecutionPhase } from "../../immutable-context";
+import type { RingSystem } from "../../types";
+import type { Atom } from "types";
 
 /**
  * Rule: P-44.2.4 - Maximum Number of Rings
@@ -41,9 +43,12 @@ export const P44_2_4_MAXIMUM_RINGS_RULE: IUPACRule = {
 
     // Check if rings are connected (bonded to each other but not sharing atoms)
     // If rings are connected, they form a polycyclic parent and should NOT be filtered
-    const areRingsConnected = (ring1: any, ring2: any): boolean => {
-      const ring1AtomIds = new Set(ring1.atoms.map((a: any) => a.id));
-      const ring2AtomIds = new Set(ring2.atoms.map((a: any) => a.id));
+    const areRingsConnected = (
+      ring1: RingSystem,
+      ring2: RingSystem,
+    ): boolean => {
+      const ring1AtomIds = new Set(ring1.atoms.map((a: Atom) => a.id));
+      const ring2AtomIds = new Set(ring2.atoms.map((a: Atom) => a.id));
 
       for (const bond of molecule.bonds) {
         const a1InRing1 = ring1AtomIds.has(bond.atom1);
@@ -66,7 +71,11 @@ export const P44_2_4_MAXIMUM_RINGS_RULE: IUPACRule = {
         j < candidateRings.length && !hasConnectedRings;
         j++
       ) {
-        if (areRingsConnected(candidateRings[i], candidateRings[j])) {
+        if (
+          candidateRings[i] &&
+          candidateRings[j] &&
+          areRingsConnected(candidateRings[i]!, candidateRings[j]!)
+        ) {
           hasConnectedRings = true;
         }
       }
@@ -82,8 +91,9 @@ export const P44_2_4_MAXIMUM_RINGS_RULE: IUPACRule = {
     }
 
     // Group rings by size and find size with most rings
-    const ringGroups = new Map<number, any[]>();
-    candidateRings.forEach((ring: any) => {
+    const ringGroups = new Map<number, RingSystem[]>();
+    candidateRings.forEach((ring: RingSystem | undefined) => {
+      if (!ring) return;
       const size = ring.size;
       if (!ringGroups.has(size)) {
         ringGroups.set(size, []);
@@ -107,7 +117,7 @@ export const P44_2_4_MAXIMUM_RINGS_RULE: IUPACRule = {
     // If multiple groups have same number of rings, prefer smaller size
     if (bestGroups.length > 1) {
       const smallestSize = Math.min(
-        ...bestGroups.map((group) => group[0].size),
+        ...bestGroups.map((group) => group[0]?.size || 0),
       );
       return context.withUpdatedRings(
         ringGroups.get(smallestSize)!,

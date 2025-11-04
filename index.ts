@@ -64,7 +64,7 @@ function getIUPACNamer(): IUPACNamer {
  */
 export function generateIUPACName(
   molecule: Molecule,
-  options?: IUPACGeneratorOptions,
+  _options?: IUPACGeneratorOptions,
 ): IUPACGenerationResult {
   try {
     const result = getIUPACNamer().generateName(molecule);

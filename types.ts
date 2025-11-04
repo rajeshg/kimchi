@@ -1,5 +1,7 @@
 // Core types for SMILES parsing
 
+import type { Substituent } from "src/iupac-engine/types";
+
 export enum BondType {
   SINGLE = "single",
   DOUBLE = "double",
@@ -86,7 +88,7 @@ export interface Chain {
   bonds: Bond[];
   length: number;
   multipleBonds: MultipleBond[];
-  substituents: any[];
+  substituents: Substituent[];
   locants: number[];
 }
 

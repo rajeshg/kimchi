@@ -24,9 +24,6 @@ export function findAllCycles(
   // Estimate graph density: typical drug-like ≈ 1.0-1.2, polycyclic ≈ 1.2-1.5
   const density = m / n;
 
-  // Estimate expected SSSR count: sssr = m - n + 1
-  const expectedSSSR = m - n + 1;
-
   // Adaptive limit based on density to prevent exponential explosion in polycyclic systems.
   // Sparse trees use full maxLen; high-density systems cap at 15-25 atoms depending on molecule size.
   if (density >= 1.15) {
@@ -62,7 +59,6 @@ export function findAllCycles(
   function dfs(
     path: number[],
     visited: Set<number>,
-    start: number,
     curr: number,
     depth: number,
   ) {
@@ -86,19 +82,19 @@ export function findAllCycles(
         }
       } else if (!visited.has(next)) {
         visited.add(next);
-        dfs([...path, next], visited, start, next, depth + 1);
+        dfs([...path, next], visited, next, depth + 1);
         visited.delete(next);
       }
     }
   }
   for (const n of nodes) {
-    dfs([n], new Set([n]), n, n, 1);
+    dfs([n], new Set([n]), n, 1);
   }
   return cycles;
 }
 
 // BFS-based cycle finding for large molecules (more efficient than DFS for large rings)
-function findCyclesBFS(
+function _findCyclesBFS(
   atoms: Atom[],
   bonds: Bond[],
   maxLen: number,

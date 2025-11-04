@@ -10,11 +10,11 @@ export class TraceReportGenerator {
     const state = context.getState();
     const history = context.getHistory();
 
-    function safe(s: any): string {
+    function safe(s: unknown): string {
       try {
         if (typeof s === "string") return escapeHtml(s);
         return escapeHtml(JSON.stringify(s, null, 2));
-      } catch (e) {
+      } catch (_e) {
         return String(s);
       }
     }

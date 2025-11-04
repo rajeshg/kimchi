@@ -5,8 +5,6 @@ import type {
   AtomPrimitive,
   BondPrimitive,
   LogicalExpression,
-  AtomPrimitiveType,
-  BondPrimitiveType,
 } from "src/types/smarts-types";
 
 function isAtomAromatic(atom: PatternAtom): boolean {
@@ -765,43 +763,6 @@ function buildLogicalExpression(
   };
 }
 
-function buildCommaGroups(
-  tokens: (AtomPrimitive | string)[],
-  primitives: AtomPrimitive[],
-): AtomPrimitive[][] {
-  const groups: AtomPrimitive[][] = [];
-  let currentGroup: AtomPrimitive[] = [];
-  let primitiveIndex = 0;
-
-  for (const token of tokens) {
-    if (typeof token === "string") {
-      if (token === ",") {
-        if (currentGroup.length > 0) {
-          groups.push(currentGroup);
-          currentGroup = [];
-        }
-      } else if (token === ";") {
-        if (currentGroup.length > 0) {
-          groups.push(currentGroup);
-          currentGroup = [];
-        }
-        break;
-      }
-    } else {
-      if (primitives.includes(token)) {
-        currentGroup.push(token);
-      }
-      primitiveIndex++;
-    }
-  }
-
-  if (currentGroup.length > 0) {
-    groups.push(currentGroup);
-  }
-
-  return groups;
-}
-
 interface OrganicAtomResult {
   primitives: AtomPrimitive[];
   precedingBond?: BondPrimitive[];
@@ -855,7 +816,7 @@ function parseRingClosures(
   ringClosures: Map<string, { atomIndex: number; bond?: BondPrimitive[] }>,
   bonds: PatternBond[],
   atoms: PatternAtom[],
-  pendingBond?: BondPrimitive[],
+  _pendingBond?: BondPrimitive[],
 ): RingClosureResult {
   let i = startIndex;
 

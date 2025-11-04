@@ -1,4 +1,5 @@
 import type { Molecule } from "../../../types";
+import type { ParentStructure, FunctionalGroup } from "../types";
 
 /**
  * Build N-substituted amide name
@@ -7,10 +8,10 @@ import type { Molecule } from "../../../types";
  * Should generate: N-phenylbutanamide (or with full prefix: 2-(tert-butylamino)oxy-3,3-dimethyl-N-phenylbutanamide)
  */
 export function buildAmideName(
-  parentStructure: any,
-  functionalGroup: any,
+  parentStructure: ParentStructure,
+  functionalGroup: FunctionalGroup,
   molecule: Molecule,
-  functionalGroups: any[],
+  _functionalGroups: FunctionalGroup[],
 ): string {
   if (process.env.VERBOSE) {
     console.log(
@@ -76,7 +77,7 @@ export function buildAmideName(
   }
 
   // Find all neighbors of the nitrogen (excluding the carbonyl carbon)
-  const carbonylCarbonId = functionalGroup.atoms?.[0];
+  const carbonylCarbonId = functionalGroup.atoms?.[0]?.id;
   const nSubstituents: Array<{ atomId: number; name: string }> = [];
 
   for (const bond of molecule.bonds) {
@@ -127,7 +128,8 @@ export function buildAmideName(
   // Build final name with N-substituents and carbon chain substituents
 
   // Get carbon chain substituents from parent structure
-  const chainSubstituents = parentStructure.substituents || [];
+  const chainSubstituents =
+    (parentStructure as { substituents?: unknown[] }).substituents || [];
 
   // Group identical substituents by locant
   const groupedSubstituents = new Map<
@@ -135,11 +137,12 @@ export function buildAmideName(
     { locants: number[]; name: string }
   >();
   for (const sub of chainSubstituents) {
-    const key = sub.type || "substituent";
+    const s = sub as { type: string; name?: string; locant?: number };
+    const key = s.name || s.type;
     if (!groupedSubstituents.has(key)) {
       groupedSubstituents.set(key, { locants: [], name: key });
     }
-    groupedSubstituents.get(key)!.locants.push(sub.locant || 0);
+    groupedSubstituents.get(key)!.locants.push(s.locant || 0);
   }
 
   // Build substituent parts

@@ -1,6 +1,6 @@
-import type { IUPACRule } from "../../types";
+import type { IUPACRule, FunctionalGroup, Substituent } from "../../types";
+import type { Atom, Bond, Molecule } from "types";
 import { BLUE_BOOK_RULES, RulePriority } from "../../types";
-import type { ImmutableNamingContext } from "../../immutable-context";
 import { ExecutionPhase } from "../../immutable-context";
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -33,22 +33,25 @@ export const P44_2_RING_SENIORITY_RULE: IUPACRule = {
     const rings = state.candidateRings;
     if (!rings || rings.length === 0) return context;
 
-    const molecule = (state as any).molecule;
-    const functionalGroups = state.functionalGroups || [];
+    const molecule = (state as { molecule: Molecule }).molecule;
+    const functionalGroups =
+      (state as { functionalGroups: FunctionalGroup[] }).functionalGroups || [];
 
     // Get principal functional groups (highest priority groups like carboxylic acids, ketones, etc.)
-    const principalFGs = functionalGroups.filter((fg: any) => fg.isPrincipal);
+    const principalFGs = functionalGroups.filter(
+      (fg: FunctionalGroup) => fg.isPrincipal,
+    );
 
     // For each ring, count how many principal functional groups are attached
     const ringFGScores = rings.map((ring) => {
-      const ringAtomIds = new Set(ring.atoms.map((a: any) => a.id));
+      const ringAtomIds = new Set(ring.atoms.map((a: Atom) => a.id));
 
       let fgCount = 0;
       let highestPriority = Infinity;
 
       for (const fg of principalFGs) {
         // Check if any FG atom is in the ring
-        const fgInRing = (fg.atoms || []).some((atom: any) =>
+        const fgInRing = (fg.atoms || []).some((atom: Atom) =>
           ringAtomIds.has(atom.id),
         );
 
@@ -57,7 +60,7 @@ export const P44_2_RING_SENIORITY_RULE: IUPACRule = {
         if (!fgInRing && molecule) {
           for (const fgAtom of fg.atoms || []) {
             const bonds = molecule.bonds.filter(
-              (b: any) => b.atom1 === fgAtom.id || b.atom2 === fgAtom.id,
+              (b: Bond) => b.atom1 === fgAtom.id || b.atom2 === fgAtom.id,
             );
 
             for (const bond of bonds) {
@@ -100,7 +103,7 @@ export const P44_2_RING_SENIORITY_RULE: IUPACRule = {
     const size = ring.atoms ? ring.atoms.length : ring.size || 0;
     const type =
       ring.type ||
-      (ring.atoms && ring.atoms.some((a: any) => a.aromatic)
+      (ring.atoms && ring.atoms.some((a: Atom) => a.aromatic)
         ? "aromatic"
         : "aliphatic");
     let name = "";
@@ -123,17 +126,17 @@ export const P44_2_RING_SENIORITY_RULE: IUPACRule = {
       name = ringNames[size] || `cyclo${size}ane`;
     }
     const locants = ring.atoms
-      ? ring.atoms.map((_: any, idx: number) => idx + 1)
+      ? ring.atoms.map((_: Atom, idx: number) => idx + 1)
       : [];
     // Try to find substituents on the ring atoms so substituted ring names can be produced
-    let substituents: any[] = [];
+    let substituents: Substituent[] = [];
     try {
-      const mol = (context.getState() as any).molecule;
+      const mol = (context.getState() as { molecule: Molecule }).molecule;
       if (ring && ring.atoms && mol) {
-        const atomIds = ring.atoms.map((a: any) => a.id);
-        substituents = _findSubstituents(mol, atomIds) || [];
+        const atomIds = ring.atoms.map((a: Atom) => a.id);
+        substituents = (_findSubstituents(mol, atomIds) as Substituent[]) || [];
       }
-    } catch (e) {
+    } catch (_e) {
       substituents = [];
     }
 

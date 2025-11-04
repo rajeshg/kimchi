@@ -1,7 +1,10 @@
 import type { IUPACRule } from "../../types";
 import { BLUE_BOOK_RULES, RulePriority } from "../../types";
 import { ExecutionPhase } from "../../immutable-context";
+import type { ContextState } from "../../immutable-context";
 import { detectRingSystems } from "./helpers";
+import type { Atom } from "../../../../types";
+import type { RingSystem } from "../../types";
 
 /**
  * Rule: P-44.2.1 - Ring System Detection
@@ -24,18 +27,22 @@ export const P44_2_1_RING_SYSTEM_DETECTION_RULE: IUPACRule = {
 
     if (process.env.VERBOSE) {
       console.log(`[P-44.2.1] Detected ${ringSystems.length} ring systems`);
-      ringSystems.forEach((ring: any, idx: number) => {
+      ringSystems.forEach((ring: unknown, idx: number) => {
+        const ringObj = ring as { atoms?: Atom[]; size?: number };
         const atomSymbols =
-          ring.atoms?.map((a: any) => a.symbol).join("") || "unknown";
+          ringObj.atoms?.map((a) => a.symbol).join("") || "unknown";
         console.log(
-          `[P-44.2.1]   Ring ${idx}: size=${ring.size}, atoms=${atomSymbols}`,
+          `[P-44.2.1]   Ring ${idx}: size=${ringObj.size}, atoms=${atomSymbols}`,
         );
       });
     }
 
     // Update state with detected ring systems
     return context.withStateUpdate(
-      (state: any) => ({ ...state, candidateRings: ringSystems }),
+      (state: ContextState) => ({
+        ...state,
+        candidateRings: ringSystems as RingSystem[],
+      }),
       "P-44.2.1",
       "Ring System Detection",
       "P-44.2",

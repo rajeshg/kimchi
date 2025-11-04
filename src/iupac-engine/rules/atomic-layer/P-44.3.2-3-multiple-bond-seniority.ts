@@ -2,6 +2,7 @@ import type { IUPACRule } from "../../types";
 import { RulePriority } from "../../types";
 import type { ImmutableNamingContext } from "../../immutable-context";
 import { ExecutionPhase } from "../../immutable-context";
+import type { Bond } from "types";
 
 /**
  * Rule: P-44.3.2-3 - Multiple Bond Seniority
@@ -30,7 +31,7 @@ export const P_44_3_2_3_MULTIPLE_BOND_SENIORITY: IUPACRule = {
       triple: 0,
       aromatic: 0,
     };
-    state.molecule.bonds.forEach((bond: any) => {
+    state.molecule.bonds.forEach((bond: Bond) => {
       switch (bond.type) {
         case "single":
           bondOrderStats.single++;

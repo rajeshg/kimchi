@@ -2,7 +2,7 @@
 // import { renderStickDiagramFromMolfile, renderStickDiagramFromSMILES } from 'src/generators/stick-diagram';
 
 // Small ethanol molfile (V2000) used as an example
-const ethanolMol = `ethanol
+const _ethanolMol = `ethanol
   openchem
 
   3  2  0  0  0  0  0  0  0  0999 V2000
@@ -18,7 +18,7 @@ console.log("\n--- Stick diagram from MOL file (ethanol) ---\n");
 // console.log(renderStickDiagramFromMolfile(ethanolMol, { width: 60, height: 12, labelMode: 'symbol' })); // TODO: stick-diagram generator missing
 
 // SMILES fallback example (benzene)
-const benzeneSmiles = "c1ccccc1";
+const _benzeneSmiles = "c1ccccc1";
 console.log("\n--- Stick diagram from SMILES (fallback schematic) ---\n");
 // console.log(renderStickDiagramFromSMILES(benzeneSmiles)); // TODO: stick-diagram generator missing
 

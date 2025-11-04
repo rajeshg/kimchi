@@ -12,8 +12,11 @@ import {
   ImmutableNamingContext,
   ExecutionPhase,
 } from "../../immutable-context";
+import type { ContextState } from "../../immutable-context";
 import { RulePriority } from "../../types";
 import type { IUPACRule } from "../../types";
+import type { Atom, Molecule, Bond } from "types";
+import { BondType } from "types";
 
 /**
  * Rule P-3.1: Heteroatom Parent Substituent Detection
@@ -61,7 +64,7 @@ export const P3_1_HETEROATOM_SUBSTITUENT_RULE: IUPACRule = {
         bond.atom1 === heteroatomIndex || bond.atom2 === heteroatomIndex,
     );
 
-    const substituents: any[] = [];
+    const substituents: unknown[] = [];
 
     for (const bond of connectedBonds) {
       const otherAtomIndex =
@@ -103,7 +106,7 @@ export const P3_1_HETEROATOM_SUBSTITUENT_RULE: IUPACRule = {
     };
 
     return context.withStateUpdate(
-      (state: any) => ({
+      (state: ContextState) => ({
         ...state,
         parentStructure: updatedParentStructure,
       }),
@@ -120,23 +123,19 @@ export const P3_1_HETEROATOM_SUBSTITUENT_RULE: IUPACRule = {
  * Helper function to determine substituent name from attached atom
  */
 function getSubstituentName(
-  attachedAtom: any,
-  molecule: any,
+  attachedAtom: Atom,
+  molecule: Molecule,
   fromIndex: number,
 ): string | null {
   if (!attachedAtom) return null;
   const symbol = attachedAtom.symbol;
 
   // Helper: get atom index robustly (accept atom object or numeric index)
-  const getAtomIndex = (a: any) => {
+  const getAtomIndex = (a: Atom) => {
     if (a === undefined || a === null) return -1;
-    if (typeof a === "number") return a;
-    if (typeof a.id === "number") {
-      // Prefer atom.id if present
-      const idx = molecule.atoms.findIndex((x: any) => x.id === a.id);
-      return idx >= 0 ? idx : molecule.atoms.indexOf(a);
-    }
-    return molecule.atoms.indexOf(a);
+    // Prefer atom.id if present
+    const idx = molecule.atoms.findIndex((x: Atom) => x.id === a.id);
+    return idx >= 0 ? idx : molecule.atoms.indexOf(a);
   };
 
   // Carbon-based substituents
@@ -157,6 +156,7 @@ function getSubstituentName(
       const firstIdx = chainIndices[0];
       if (typeof firstIdx !== "number") return null;
       const atom = molecule.atoms[firstIdx];
+      if (!atom) return null;
       const hydrogens = atom.hydrogens || 0;
       switch (hydrogens) {
         case 3:
@@ -190,14 +190,13 @@ function getSubstituentName(
     for (const idx of chainIndices) {
       const carbonNeighbors = molecule.bonds
         .filter(
-          (b: any) =>
+          (b: Bond) =>
             (b.atom1 === idx || b.atom2 === idx) && b.type === "single",
         )
-        .map((b: any) => (b.atom1 === idx ? b.atom2 : b.atom1))
+        .map((b: Bond) => (b.atom1 === idx ? b.atom2 : b.atom1))
         .filter(
           (nid: number) =>
-            molecule.atoms[nid]?.symbol === "C" &&
-            nid !== getAtomIndex({ id: molecule.atoms[fromIndex]?.id }),
+            molecule.atoms[nid]?.symbol === "C" && nid !== fromIndex,
         );
       if (carbonNeighbors.length > 2) {
         branched = true;
@@ -219,7 +218,7 @@ function getSubstituentName(
     // Check if it's a phenyl group (benzene ring)
     const ringAtoms = findRingContainingAtom(attachedAtom, molecule);
     if (ringAtoms && ringAtoms.length === 6) {
-      const allCarbon = ringAtoms.every((atom: any) => atom.symbol === "C");
+      const allCarbon = ringAtoms.every((atom: Atom) => atom.symbol === "C");
       if (allCarbon) return "phenyl";
     }
   }
@@ -253,27 +252,12 @@ function getSubstituentName(
 /**
  * Traverse a substituent chain starting from an attached atom
  */
-function traverseSubstituentChain(
-  startAtom: any,
-  molecule: any,
-  excludeIndex: number,
-): any[] {
-  // Backwards-compatible wrapper: accept atom object or index
-  const startIdx =
-    typeof startAtom === "number"
-      ? startAtom
-      : molecule.atoms.indexOf(startAtom);
-  return traverseSubstituentChainByIndex(startIdx, molecule, excludeIndex).map(
-    (i) => molecule.atoms[i],
-  );
-}
-
 /**
  * Traverse substituent chain starting from an atom index and return carbon atom indices
  */
 function traverseSubstituentChainByIndex(
   startIndex: number,
-  molecule: any,
+  molecule: Molecule,
   excludeIndex: number,
 ): number[] {
   if (startIndex === undefined || startIndex < 0) return [];
@@ -289,7 +273,7 @@ function traverseSubstituentChainByIndex(
 
     // push neighboring carbon atoms (single bonds), excluding the heteroatom index
     for (const b of molecule.bonds) {
-      if (b.type !== "single") continue;
+      if (b.type !== BondType.SINGLE) continue;
       const other =
         b.atom1 === idx ? b.atom2 : b.atom2 === idx ? b.atom1 : undefined;
       if (other === undefined) continue;
@@ -307,14 +291,16 @@ function traverseSubstituentChainByIndex(
 /**
  * Find ring containing a given atom
  */
-function findRingContainingAtom(atom: any, molecule: any): any[] | null {
+function findRingContainingAtom(atom: Atom, molecule: Molecule): Atom[] | null {
   const atomIndex = molecule.atoms.indexOf(atom);
 
   // Simple ring detection - check if atom is in any ring
   if (molecule.rings) {
     for (const ring of molecule.rings) {
       if (ring.includes(atomIndex)) {
-        return ring.map((i: number) => molecule.atoms[i]);
+        return ring
+          .map((i: number) => molecule.atoms[i])
+          .filter((a): a is Atom => a !== undefined);
       }
     }
   }
@@ -351,12 +337,12 @@ export const P3_2_RING_SUBSTITUENT_RULE: IUPACRule = {
     }
 
     const ring = parentStructure.ring;
-    const ringAtomIds = new Set(ring.atoms.map((atom: any) => atom.id));
+    const ringAtomIds = new Set(ring.atoms.map((atom) => atom.id));
     const vonBaeyerNumbering = parentStructure.vonBaeyerNumbering;
 
     if (process.env.VERBOSE) {
       console.log(
-        `[P-3.2] Ring atom IDs in order: [${ring.atoms.map((a: any) => a.id).join(", ")}]`,
+        `[P-3.2] Ring atom IDs in order: [${ring.atoms.map((a) => a.id).join(", ")}]`,
       );
       if (vonBaeyerNumbering) {
         console.log(
@@ -366,14 +352,15 @@ export const P3_2_RING_SUBSTITUENT_RULE: IUPACRule = {
       }
     }
 
-    const substituents: any[] = [];
+    const substituents: unknown[] = [];
 
     for (const ringAtom of ring.atoms) {
       if (!ringAtom || typeof ringAtom.id !== "number") continue;
 
       // Find bonds from this ring atom to non-ring atoms
       const bonds = molecule.bonds.filter(
-        (bond: any) => bond.atom1 === ringAtom.id || bond.atom2 === ringAtom.id,
+        (bond: Bond) =>
+          bond.atom1 === ringAtom.id || bond.atom2 === ringAtom.id,
       );
 
       for (const bond of bonds) {
@@ -430,7 +417,7 @@ export const P3_2_RING_SUBSTITUENT_RULE: IUPACRule = {
     };
 
     return context.withStateUpdate(
-      (state: any) => ({
+      (state: ContextState) => ({
         ...state,
         parentStructure: updatedParentStructure,
       }),
@@ -454,7 +441,7 @@ interface SubstituentStructure {
 
 function analyzeSubstituentStructure(
   attachedAtomId: number,
-  molecule: any,
+  molecule: Molecule,
   fromRingAtomId: number,
 ): SubstituentStructure | null {
   // For substituents, we need to find the longest carbon chain
@@ -476,8 +463,8 @@ function analyzeSubstituentStructure(
       if (!currentAtom || currentAtom.symbol !== "C") continue;
 
       const neighbors = molecule.bonds
-        .filter((b: any) => b.atom1 === currentId || b.atom2 === currentId)
-        .map((b: any) => (b.atom1 === currentId ? b.atom2 : b.atom1))
+        .filter((b: Bond) => b.atom1 === currentId || b.atom2 === currentId)
+        .map((b: Bond) => (b.atom1 === currentId ? b.atom2 : b.atom1))
         .filter(
           (id: number) =>
             !excludeIds.has(id) &&
@@ -573,8 +560,8 @@ function analyzeSubstituentStructure(
     const nextAtomId = i < mainChain.length - 1 ? mainChain[i + 1] : -1;
 
     const neighbors = molecule.bonds
-      .filter((b: any) => b.atom1 === chainAtomId || b.atom2 === chainAtomId)
-      .map((b: any) => (b.atom1 === chainAtomId ? b.atom2 : b.atom1))
+      .filter((b: Bond) => b.atom1 === chainAtomId || b.atom2 === chainAtomId)
+      .map((b: Bond) => (b.atom1 === chainAtomId ? b.atom2 : b.atom1))
       .filter(
         (id: number) =>
           id !== fromRingAtomId && id !== prevAtomId && id !== nextAtomId,
@@ -650,8 +637,8 @@ function getParentChainName(carbonCount: number): string | null {
  * Helper function to determine substituent name for ring attachments
  */
 function getRingSubstituentName(
-  attachedAtom: any,
-  molecule: any,
+  attachedAtom: Atom,
+  molecule: Molecule,
   fromIndex: number,
 ): string | null {
   if (!attachedAtom) return null;

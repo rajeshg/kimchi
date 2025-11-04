@@ -1,6 +1,8 @@
 import type { IUPACRule } from "../../types";
 import { BLUE_BOOK_RULES, RulePriority } from "../../types";
 import { ExecutionPhase } from "../../immutable-context";
+import type { RingSystem, FunctionalGroup } from "../../types";
+import type { Atom, Bond } from "types";
 
 /**
  * Rule: P-44.2.3 - Ring Size Seniority
@@ -43,9 +45,12 @@ export const P44_2_3_RING_SIZE_SENIORITY_RULE: IUPACRule = {
 
     // Check if rings are connected (bonded to each other but not sharing atoms)
     // If rings are connected, they form a polycyclic parent and should NOT be filtered by ring size
-    const areRingsConnected = (ring1: any, ring2: any): boolean => {
-      const ring1AtomIds = new Set(ring1.atoms.map((a: any) => a.id));
-      const ring2AtomIds = new Set(ring2.atoms.map((a: any) => a.id));
+    const areRingsConnected = (
+      ring1: RingSystem,
+      ring2: RingSystem,
+    ): boolean => {
+      const ring1AtomIds = new Set(ring1.atoms.map((a: Atom) => a.id));
+      const ring2AtomIds = new Set(ring2.atoms.map((a: Atom) => a.id));
 
       // Check if any atom in ring1 is bonded to any atom in ring2
       for (const bond of molecule.bonds) {
@@ -69,7 +74,7 @@ export const P44_2_3_RING_SIZE_SENIORITY_RULE: IUPACRule = {
         j < candidateRings.length && !hasConnectedRings;
         j++
       ) {
-        if (areRingsConnected(candidateRings[i], candidateRings[j])) {
+        if (areRingsConnected(candidateRings[i]!, candidateRings[j]!)) {
           hasConnectedRings = true;
         }
       }
@@ -87,19 +92,21 @@ export const P44_2_3_RING_SIZE_SENIORITY_RULE: IUPACRule = {
     const functionalGroups = state.functionalGroups || [];
 
     // Get principal functional groups (P-44.1 takes precedence over P-44.2)
-    const principalFGs = functionalGroups.filter((fg: any) => fg.isPrincipal);
+    const principalFGs = functionalGroups.filter(
+      (fg: FunctionalGroup) => fg.isPrincipal,
+    );
 
     if (process.env.VERBOSE) {
       console.log("[P-44.2.3] Principal FGs:", principalFGs.length);
       console.log(
         "[P-44.2.3] FG types:",
-        principalFGs.map((fg: any) => fg.type),
+        principalFGs.map((fg: FunctionalGroup) => fg.type),
       );
     }
 
     // For each ring, check if it has principal functional groups attached
-    const ringFGScores = candidateRings.map((ring: any) => {
-      const ringAtomIds = new Set((ring.atoms || []).map((a: any) => a.id));
+    const ringFGScores = candidateRings.map((ring: RingSystem) => {
+      const ringAtomIds = new Set((ring.atoms || []).map((a: Atom) => a.id));
 
       if (process.env.VERBOSE) {
         console.log(
@@ -113,7 +120,7 @@ export const P44_2_3_RING_SIZE_SENIORITY_RULE: IUPACRule = {
 
       for (const fg of principalFGs) {
         // Check if any FG atom is in the ring
-        const fgInRing = (fg.atoms || []).some((atom: any) =>
+        const fgInRing = (fg.atoms || []).some((atom: Atom) =>
           ringAtomIds.has(atom.id),
         );
 
@@ -122,7 +129,7 @@ export const P44_2_3_RING_SIZE_SENIORITY_RULE: IUPACRule = {
         if (!fgInRing && molecule) {
           for (const fgAtom of fg.atoms || []) {
             const bonds = molecule.bonds.filter(
-              (b: any) => b.atom1 === fgAtom.id || b.atom2 === fgAtom.id,
+              (b: Bond) => b.atom1 === fgAtom.id || b.atom2 === fgAtom.id,
             );
 
             for (const bond of bonds) {
@@ -205,10 +212,10 @@ export const P44_2_3_RING_SIZE_SENIORITY_RULE: IUPACRule = {
 
     // No functional groups attached - use original logic (smallest ring size)
     const smallestSize = Math.min(
-      ...candidateRings.map((ring: any) => ring.size),
+      ...candidateRings.map((ring: RingSystem) => ring.size),
     );
     const smallestRings = candidateRings.filter(
-      (ring: any) => ring.size === smallestSize,
+      (ring: RingSystem) => ring.size === smallestSize,
     );
 
     if (process.env.VERBOSE) {

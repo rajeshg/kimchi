@@ -1,5 +1,4 @@
 import * as fs from "node:fs";
-import { performance } from "node:perf_hooks";
 
 // Timing tracking
 let timings = {
@@ -50,7 +49,7 @@ function profileParseSMILES(smiles: string): ProfilingResult | null {
       bonds: mol.bonds.length,
       timings: { ...timingsObj },
     };
-  } catch (error) {
+  } catch (_error) {
     console.error(`Error parsing SMILES: ${smiles.substring(0, 60)}`);
     return null;
   }

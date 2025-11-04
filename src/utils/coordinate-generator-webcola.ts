@@ -2,13 +2,31 @@ import type { Molecule } from "types";
 import type { MoleculeCoordinates } from "./coordinate-generator";
 import type { SVGRendererOptions } from "src/generators/svg-renderer";
 
-let colaLib: any = null;
+interface ColaNode {
+  index: number;
+  id: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  fixed?: boolean;
+  px?: number;
+  py?: number;
+}
+
+interface ColaLink {
+  source: number;
+  target: number;
+  length: number;
+}
+
+let colaLib: unknown = null;
 try {
   // Try CommonJS require first (works in bun/node)
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   // @ts-ignore
   colaLib = require("webcola");
-} catch (e) {
+} catch (_e) {
   // try dynamic import fallback for ESM bundlers
   try {
     (async () => {
@@ -33,10 +51,9 @@ export function refineCoordinatesWithWebcola(
 ): MoleculeCoordinates {
   if (!colaLib) return coordinates;
 
-  const LayoutCtor =
-    (colaLib as any).Layout ||
-    (colaLib as any).layout ||
-    (colaLib as any).d3adaptor;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const lib = colaLib as any;
+  const LayoutCtor = lib.Layout || lib.layout || lib.d3adaptor;
   if (!LayoutCtor) return coordinates;
 
   // Heuristics for node sizes so avoidOverlaps can work
@@ -46,13 +63,13 @@ export function refineCoordinatesWithWebcola(
   const nodeBase = Math.max(8, bondLength * 0.35);
   const fixedSet = new Set<number>(fixedAtomIds || []);
 
-  const nodes: Array<any> = molecule.atoms.map((atom, index) => {
+  const nodes: ColaNode[] = molecule.atoms.map((atom, index) => {
     const coord = coordinates[index] ?? { x: 0, y: 0 };
     const symbol = atom?.symbol ?? "";
     const labelW = Math.max(labelWidthEstimate, symbol.length * fontSize * 0.6);
     const w = Math.max(nodeBase, labelW + padding * 2);
     const h = Math.max(fontSize, fontSize * 1.0) + padding;
-    const node: any = {
+    const node: ColaNode = {
       index,
       id: atom.id,
       x: coord.x,
@@ -85,18 +102,21 @@ export function refineCoordinatesWithWebcola(
     .filter((l) => l.source >= 0 && l.target >= 0);
 
   // instantiate layout in a few supported ways
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let layout: any;
   try {
-    if ((colaLib as any).Layout) {
-      layout = new (colaLib as any).Layout();
-    } else if ((colaLib as any).d3adaptor) {
-      layout = (colaLib as any).d3adaptor();
-    } else if ((colaLib as any).layout) {
-      layout = (colaLib as any).layout();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const lib = colaLib as any;
+    if (lib.Layout) {
+      layout = new lib.Layout();
+    } else if (lib.d3adaptor) {
+      layout = lib.d3adaptor();
+    } else if (lib.layout) {
+      layout = lib.layout();
     } else {
       return coordinates;
     }
-  } catch (e) {
+  } catch (_e) {
     return coordinates;
   }
 
@@ -110,7 +130,7 @@ export function refineCoordinatesWithWebcola(
     }
 
     if (typeof layout.linkDistance === "function") {
-      layout.linkDistance((l: any) => l.length ?? bondLength);
+      layout.linkDistance((l: ColaLink) => l.length ?? bondLength);
     }
 
     // start/resume layouts where supported
@@ -137,9 +157,10 @@ export function refineCoordinatesWithWebcola(
     }
 
     // map nodes back to coordinates array
-    const refined: MoleculeCoordinates = new Array(molecule.atoms.length);
+    const refined: MoleculeCoordinates = Array(molecule.atoms.length);
     for (let i = 0; i < nodes.length; i++) {
       const node = nodes[i];
+      if (!node) continue;
       const x =
         typeof node.x === "number"
           ? node.x
@@ -156,7 +177,7 @@ export function refineCoordinatesWithWebcola(
     }
 
     return refined;
-  } catch (e) {
+  } catch (_e) {
     return coordinates;
   }
 }

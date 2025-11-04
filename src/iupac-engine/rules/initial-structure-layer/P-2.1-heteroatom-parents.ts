@@ -26,7 +26,7 @@ import type { IUPACRule } from "../../types";
 
 // Load OPSIN rules to reuse alkane stems and substituent aliases where helpful
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const OPSIN_RULES: any = require("../../../../opsin-rules.json");
+const OPSIN_RULES: unknown = require("../../../../opsin-rules.json");
 
 // Parent hydride definitions per IUPAC P-2.1
 const HETEROATOM_PARENT_HYDRIDES: Record<
@@ -237,14 +237,15 @@ export const P2_2_CARBON_PARENT_HYDRIDE_RULE: IUPACRule = {
     let name = `${carbonCount}-ane`;
     try {
       const alkaneKey = "C".repeat(Math.max(1, carbonCount));
-      const stem =
-        OPSIN_RULES && OPSIN_RULES.alkanes && OPSIN_RULES.alkanes[alkaneKey];
+      const alkanes = (OPSIN_RULES as { alkanes?: Record<string, string> })
+        ?.alkanes;
+      const stem = alkanes?.[alkaneKey];
       if (stem) {
         name = `${stem}ane`;
       } else if (carbonCount < defaultAlkaneNames.length) {
         name = defaultAlkaneNames[carbonCount] || `${carbonCount}-ane`;
       }
-    } catch (e) {
+    } catch (_e) {
       // fallback
       if (carbonCount < defaultAlkaneNames.length)
         name = defaultAlkaneNames[carbonCount] || `${carbonCount}-ane`;

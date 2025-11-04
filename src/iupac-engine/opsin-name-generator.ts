@@ -10,7 +10,7 @@ import type { ImmutableNamingContext } from "./immutable-context";
  * to generate accurate IUPAC names.
  */
 export class OPSINNameGenerator {
-  private rules: any;
+  private rules: unknown;
 
   constructor() {
     this.loadOPSINRules();
@@ -21,13 +21,13 @@ export class OPSINNameGenerator {
       const rulesPath = `${import.meta.dir}/../../opsin-rules.json`;
       const rulesData = fs.readFileSync(rulesPath, "utf8");
       this.rules = JSON.parse(rulesData);
-    } catch (error) {
+    } catch (_error) {
       console.warn("Could not load OPSIN rules, using fallback naming");
       this.rules = this.getFallbackRules();
     }
   }
 
-  private getFallbackRules(): any {
+  private getFallbackRules(): unknown {
     return {
       alkanes: {
         C: "meth",
@@ -227,7 +227,7 @@ export class OPSINNameGenerator {
   }
 
   private buildAlkaneStem(carbonCount: number): string {
-    if (!this.rules.alkanes) {
+    if (!(this.rules as Record<string, unknown>).alkanes) {
       // Fallback stem building
       if (carbonCount <= 10) {
         const names = [
@@ -251,13 +251,17 @@ export class OPSINNameGenerator {
     // Build carbon chain string for lookup
     const carbonChain = "C".repeat(carbonCount);
 
-    if (this.rules.alkanes[carbonChain]) {
-      return this.rules.alkanes[carbonChain];
+    const rules = this.rules as Record<string, Record<string, string>>;
+    const alkanes = rules.alkanes;
+    if (alkanes && alkanes[carbonChain]) {
+      return alkanes[carbonChain];
     }
 
     // Fallback for larger chains
     if (carbonCount <= 20) {
-      const multipliers = this.rules.multipliers?.basic || {};
+      const multipliers =
+        (this.rules as Record<string, Record<string, Record<string, string>>>)
+          .multipliers?.basic || {};
       const units = Math.floor(carbonCount / 10);
       const remainder = carbonCount % 10;
 

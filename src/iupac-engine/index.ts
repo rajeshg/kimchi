@@ -58,8 +58,7 @@ export class IUPACNamer {
     }
 
     const molecule = parseResult.molecules[0];
-    // @ts-ignore - call debug method on engine
-    return (this.engine as any).generateNameWithContext(molecule!);
+    return this.engine.generateNameWithContext(molecule!);
   }
 
   /**

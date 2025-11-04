@@ -13,7 +13,9 @@ export function computeImplicitHydrogens(m: Molecule): Molecule {
   for (let i = 0; i < atoms.length; i++) {
     const atom = atoms[i];
     if (!atom) continue;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if ((atom as any).isBracket) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       if ((atom as any).hydrogens < 0) (atom as any).hydrogens = 0;
       continue;
     }
@@ -42,6 +44,7 @@ export function computeImplicitHydrogens(m: Molecule): Molecule {
     }
 
     if (atom.symbol === "*" || atom.symbol === "H" || atom.atomicNumber === 1) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (atom as any).hydrogens = 0;
       continue;
     }
@@ -91,6 +94,7 @@ export function computeImplicitHydrogens(m: Molecule): Molecule {
         hydrogens = 1;
       }
     }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (atom as any).hydrogens = hydrogens;
   }
 

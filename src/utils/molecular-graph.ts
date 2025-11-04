@@ -10,7 +10,6 @@ import {
   findAllSimplePaths,
 } from "src/utils/graph";
 import { findSSSR_Kekule } from "./sssr-kekule";
-import { findSSSR as findSSSRGraph } from "./graph";
 
 export type EdgeData = {
   bond: Bond;

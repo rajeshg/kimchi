@@ -37,8 +37,10 @@ async function doInitializeInChIWasm(): Promise<void> {
     const bytes = await response.arrayBuffer();
     const wasiModule = (await import(
       "../third-party/inchi-wasm/wasi.esm.js"
-    )) as any;
+    )) as unknown;
+    // @ts-ignore
     const wasi = new wasiModule.default();
+    // @ts-ignore
     ({ instance } = await WebAssembly.instantiate(bytes, {
       env: { memory },
       wasi_snapshot_preview1: wasi.wasiImport,
@@ -49,7 +51,8 @@ async function doInitializeInChIWasm(): Promise<void> {
     const { join } = await import("path");
     const wasiModule = (await import(
       "../third-party/inchi-wasm/wasi.esm.js"
-    )) as any;
+    )) as unknown;
+    // @ts-ignore
     const WASI = wasiModule.default;
 
     const wasmPath = join(
@@ -57,15 +60,20 @@ async function doInitializeInChIWasm(): Promise<void> {
       "src/third-party/inchi-wasm/inchi_wasm.wasm",
     );
     const wasmBuffer = readFileSync(wasmPath);
+    // @ts-ignore
     const wasi = new WASI();
+    // @ts-ignore
     ({ instance } = await WebAssembly.instantiate(wasmBuffer, {
       env: { memory },
       wasi_snapshot_preview1: wasi.wasiImport,
     }));
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const pInput = (instance.exports as any).malloc(inputMaxBytes);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const pOptions = (instance.exports as any).malloc(optionsMaxBytes);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const pOutput = (instance.exports as any).malloc(outputMaxBytes);
 
   const molfileToInChI = (molfile: string, options: string = ""): string => {
@@ -80,6 +88,7 @@ async function doInitializeInChIWasm(): Promise<void> {
     inputView.set(encoder.encode(molfile + "\0"), pInput);
     inputView.set(encoder.encode(options + "\0"), pOptions);
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const result = (instance.exports as any).molfile_to_inchi(
       pInput,
       pOptions,
@@ -102,6 +111,7 @@ async function doInitializeInChIWasm(): Promise<void> {
     const inputView = new Uint8Array(memory.buffer);
     inputView.set(new TextEncoder().encode(inchi + "\0"), pInput);
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const result = (instance.exports as any).inchi_to_inchikey(pInput, pOutput);
     const outputView = new Uint8Array(
       memory.buffer.slice(pOutput, pOutput + outputMaxBytes),

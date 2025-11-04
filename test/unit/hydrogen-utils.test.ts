@@ -60,7 +60,7 @@ describe("Hydrogen utils - addExplicitHydrogensWithMapping", () => {
     expect(res.augmentedToOriginal.length).toBe(res.molecule.atoms.length);
 
     // Count hydrogens per heavy atom via mapping
-    const counts = new Array(res.originalAtomCount).fill(0);
+    const counts = Array(res.originalAtomCount).fill(0);
     for (let i = 0; i < res.molecule.atoms.length; i++) {
       const orig = res.augmentedToOriginal[i] ?? -1;
       if (orig >= 0 && orig < res.originalAtomCount)

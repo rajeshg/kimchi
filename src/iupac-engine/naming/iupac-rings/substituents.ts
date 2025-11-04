@@ -1,16 +1,20 @@
 import type { Molecule } from "types";
 import type { Substituent } from "../iupac-types";
+import type { RingSystem } from "../../types";
 import {
   identifyPolycyclicPattern,
   identifyAdvancedFusedPattern,
 } from "./fused-naming";
 import { getNumberingFunction } from "./numbering";
-import { buildPerimeterFromRings, compareNumericArrays } from "./utils";
+
+interface FusedSystem {
+  rings: number[][];
+}
 
 export function generateSubstitutedFusedNameWithIUPACNumbering(
   baseName: string,
   substituents: Substituent[],
-  fusedSystem: any,
+  fusedSystem: RingSystem,
   molecule: Molecule,
 ): string {
   if (substituents.length === 0) return baseName;
@@ -29,7 +33,7 @@ export function generateSubstitutedFusedNameWithIUPACNumbering(
 function applyNumberingToSubstituents(
   substituents: Substituent[],
   numberingFn: Function,
-  fusedSystem: any,
+  fusedSystem: RingSystem,
   molecule: Molecule,
 ): Substituent[] {
   return substituents.map((sub) => {
@@ -80,7 +84,7 @@ function getMultiplicityPrefix(n: number): string {
 }
 
 export function findSubstituentsOnFusedSystem(
-  fusedSystem: any,
+  fusedSystem: FusedSystem,
   molecule: Molecule,
 ): Substituent[] {
   const substituents: Substituent[] = [];
@@ -126,7 +130,7 @@ export function findSubstituentsOnFusedSystem(
 
 export function determinePositionInFusedSystem(
   atomIdx: number,
-  fusedSystem: any,
+  fusedSystem: FusedSystem,
   molecule: Molecule,
 ): string {
   const fusedAtoms = new Set<number>();

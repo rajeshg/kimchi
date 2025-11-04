@@ -26,6 +26,7 @@ import {
   generateInChI,
   generateInChIKey,
 } from "index";
+import type { SDFRecord } from "src/generators/sdf-writer";
 
 console.log("openchem Comprehensive Capabilities Demo");
 console.log("=====================================\n");
@@ -144,7 +145,7 @@ const sdfRecords = sampleMolecules
       },
     };
   })
-  .filter(Boolean) as any[];
+  .filter((record) => record !== null) as SDFRecord[];
 
 const sdfResult = writeSDF(sdfRecords, {
   title: "Sample Molecules",
@@ -237,7 +238,7 @@ if (parseResult.molecules.length > 0) {
       console.log("✓ Generated InChI for aspirin");
       console.log(`  InChI: ${inchi.substring(0, 50)}...`);
       console.log(`  InChIKey: ${inchikey}`);
-    } catch (error) {
+    } catch (_error) {
       console.log("InChI generation requires WebAssembly support");
     }
   })();

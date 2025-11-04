@@ -77,6 +77,7 @@ const bulkSmiles = [
   "C1CC1CCCCCCCCCCCCCCCCCCCC",
   // Stereochemistry
   "F/C=C/F",
+  // eslint-disable-next-line no-useless-escape -- backslash is SMILES cis stereochemistry notation
   "F/C=C\F",
   "N[C@H](C)C(=O)O",
   "N[C@@H](C)C(=O)O",

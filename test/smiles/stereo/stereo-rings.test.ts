@@ -77,6 +77,7 @@ describe("Ring Stereochemistry Handling", () => {
       expect(res.errors).toHaveLength(0);
       const mol = res.molecules[0]!;
       const gen = generateSMILES(mol);
+      // eslint-disable-next-line no-useless-escape -- backslash escape needed to match literal backslash in SMILES
       expect(gen).toMatch(/[\/\\]/);
     });
 

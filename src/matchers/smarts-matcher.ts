@@ -8,8 +8,6 @@ import type {
   Match,
   AtomMatch,
   SMARTSMatchOptions,
-  PatternBond,
-  BondPrimitive,
 } from "src/types/smarts-types";
 import { enrichMolecule } from "src/utils/molecule-enrichment";
 import { calculateValence } from "src/utils/valence-calculator";

@@ -60,6 +60,7 @@ describe("computeMorganFingerprint", () => {
     "C1CC1CCCCCCCCCCCCCCCCCCCC", // eicosylcyclopropane
     // Stereochemistry
     "F/C=C/F", // trans-difluoroethene
+    // eslint-disable-next-line no-useless-escape -- backslash is SMILES cis stereochemistry notation
     "F/C=C\F", // cis-difluoroethene
     "N[C@H](C)C(=O)O", // L-alanine
     "N[C@@H](C)C(=O)O", // D-alanine

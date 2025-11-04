@@ -1,8 +1,14 @@
 import type {
   ImmutableNamingContext,
   ExecutionPhase,
+  ContextState,
+  RuleExecutionTrace,
 } from "./immutable-context";
-import type { LayerContract } from "./contracts/layer-contracts";
+import type {
+  LayerContract,
+  DependencyRequirement,
+  DataStructureDefinition,
+} from "./contracts/layer-contracts";
 import type { IUPACRule } from "./types";
 
 /**
@@ -55,20 +61,20 @@ export class PhaseController {
         try {
           const ruleResult = rule.action(currentContext);
           currentContext = ruleResult;
-        } catch (error) {
+        } catch (_error) {
           // Log error but continue with other rules
           currentContext = currentContext.withConflict(
             {
               ruleId: rule.id,
               conflictType: "state_inconsistency",
-              description: `Rule ${rule.id} failed: ${error instanceof Error ? error.message : "Unknown error"}`,
-              context: { error },
+              description: `Rule ${rule.id} failed: ${_error instanceof Error ? _error.message : "Unknown error"}`,
+              context: { error: _error },
             },
             rule.id,
             rule.name,
             rule.blueBookReference,
             this.phase,
-            `Rule execution failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+            `Rule execution failed: ${_error instanceof Error ? _error.message : "Unknown error"}`,
           );
         }
       }
@@ -117,7 +123,7 @@ export class PhaseController {
    * Check if a specific dependency is satisfied
    */
   private isDependencySatisfied(
-    dependency: any,
+    dependency: DependencyRequirement,
     context: ImmutableNamingContext,
   ): boolean {
     const state = context.getState();
@@ -135,7 +141,9 @@ export class PhaseController {
         return state.candidateRings.length > 0;
       default:
         // Unknown dependency - check if it exists in state
-        return (state as any)[dependency.name] !== undefined;
+        return (
+          (state as Record<string, unknown>)[dependency.name] !== undefined
+        );
     }
   }
 
@@ -157,8 +165,11 @@ export class PhaseController {
   /**
    * Check if an output was properly provided
    */
-  private isOutputProvided(provided: any, state: any): boolean {
-    const output = state[provided.name];
+  private isOutputProvided(
+    provided: DataStructureDefinition,
+    state: ContextState,
+  ): boolean {
+    const output = (state as unknown as Record<string, unknown>)[provided.name];
 
     if (output === undefined) {
       return false;
@@ -200,15 +211,17 @@ export class PhaseController {
   /**
    * Calculate confidence change from this phase
    */
-  private calculateConfidenceChange(history: ReadonlyArray<any>): number {
+  private calculateConfidenceChange(
+    history: ReadonlyArray<RuleExecutionTrace>,
+  ): number {
     const phaseTraces = history.filter((trace) => trace.phase === this.phase);
 
     if (phaseTraces.length === 0) {
       return 0;
     }
 
-    const firstTrace = phaseTraces[0];
-    const lastTrace = phaseTraces[phaseTraces.length - 1];
+    const firstTrace = phaseTraces[0]!;
+    const lastTrace = phaseTraces[phaseTraces.length - 1]!;
 
     return lastTrace.afterState.confidence - firstTrace.beforeState.confidence;
   }
@@ -216,13 +229,15 @@ export class PhaseController {
   /**
    * Calculate execution time for this phase
    */
-  private calculateExecutionTime(traces: ReadonlyArray<any>): number {
+  private calculateExecutionTime(
+    traces: ReadonlyArray<RuleExecutionTrace>,
+  ): number {
     if (traces.length === 0) {
       return 0;
     }
 
-    const startTime = traces[0].timestamp.getTime();
-    const endTime = traces[traces.length - 1].timestamp.getTime();
+    const startTime = traces[0]!.timestamp.getTime();
+    const endTime = traces[traces.length - 1]!.timestamp.getTime();
 
     return endTime - startTime;
   }
@@ -262,7 +277,7 @@ export class PhaseControllerFactory {
   /**
    * Discover rules from file patterns
    */
-  private static discoverRules(patterns: string[]): IUPACRule[] {
+  private static discoverRules(_patterns: string[]): IUPACRule[] {
     const fs = require("fs");
     const path = require("path");
     const rulesDir = path.resolve(__dirname, "rules");
@@ -281,16 +296,17 @@ export class PhaseControllerFactory {
         try {
           // Dynamic import expects a file:// URL in some runtimes; try both approaches
           // Use require as a robust fallback for CommonJS/Test runners
-          let mod: any = null;
+          let mod: Record<string, unknown> | null = null;
           try {
-            mod = require(filePath);
-          } catch (e) {
+            const required: unknown = require(filePath);
+            mod = required as Record<string, unknown>;
+          } catch (_e) {
             // Try dynamic import (Esm)
             try {
               // eslint-disable-next-line no-eval
               const imp = eval("import");
               imp(filePath)
-                .then((m: any) => {
+                .then((m: Record<string, unknown>) => {
                   mod = m;
                 })
                 .catch(() => {});
@@ -302,7 +318,7 @@ export class PhaseControllerFactory {
           if (!mod) continue;
 
           // A module may export a single rule, an array, or named exports
-          const candidates: any[] = [];
+          const candidates: unknown[] = [];
           if (mod.default) candidates.push(mod.default);
           // push named exports that look like rules/arrays
           for (const k of Object.keys(mod)) {
@@ -312,10 +328,13 @@ export class PhaseControllerFactory {
             if (
               Array.isArray(v) &&
               v.length > 0 &&
-              typeof v[0].id === "string"
+              typeof (v[0] as { id?: unknown }).id === "string"
             ) {
               candidates.push(...v);
-            } else if (typeof v === "object" && typeof v.id === "string") {
+            } else if (
+              typeof v === "object" &&
+              typeof (v as { id?: unknown }).id === "string"
+            ) {
               candidates.push(v);
             }
           }
@@ -323,19 +342,19 @@ export class PhaseControllerFactory {
           for (const c of candidates) {
             if (this.validateRule(c)) collected.push(c as IUPACRule);
           }
-        } catch (e) {
+        } catch (_e) {
           // continue on import errors but log under VERBOSE mode
           if (process.env.VERBOSE)
             console.warn(
               "discoverRules import failed for",
               filePath,
-              String(e),
+              String(_e),
             );
           continue;
         }
       }
-    } catch (e) {
-      if (process.env.VERBOSE) console.warn("discoverRules failed", String(e));
+    } catch (_e) {
+      if (process.env.VERBOSE) console.warn("discoverRules failed", String(_e));
     }
 
     // Sort by priority to provide deterministic ordering
@@ -346,15 +365,23 @@ export class PhaseControllerFactory {
   /**
    * Validate rule metadata and structure
    */
-  private static validateRule(rule: any): boolean {
+  private static validateRule(rule: unknown): boolean {
+    const r = rule as {
+      id?: unknown;
+      name?: unknown;
+      blueBookReference?: unknown;
+      priority?: unknown;
+      conditions?: unknown;
+      action?: unknown;
+    };
     return (
-      rule &&
-      typeof rule.id === "string" &&
-      typeof rule.name === "string" &&
-      typeof rule.blueBookReference === "string" &&
-      typeof rule.priority === "number" &&
-      typeof rule.conditions === "function" &&
-      typeof rule.action === "function"
+      r &&
+      typeof r.id === "string" &&
+      typeof r.name === "string" &&
+      typeof r.blueBookReference === "string" &&
+      typeof r.priority === "number" &&
+      typeof r.conditions === "function" &&
+      typeof r.action === "function"
     );
   }
 }

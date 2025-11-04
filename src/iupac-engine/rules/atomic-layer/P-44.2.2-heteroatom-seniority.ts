@@ -2,6 +2,7 @@ import type { IUPACRule } from "../../types";
 import { RulePriority } from "../../types";
 import type { ImmutableNamingContext } from "../../immutable-context";
 import { ExecutionPhase } from "../../immutable-context";
+import type { Atom } from "types";
 
 /**
  * Rule: P-44.2.2 - Heteroatom Seniority
@@ -26,7 +27,7 @@ export const P_44_2_2_HETEROATOM_SENIORITY: IUPACRule = {
     }
     const heteroatoms: Array<{ id: number; element: string; type: string }> =
       [];
-    state.molecule.atoms.forEach((atom: any) => {
+    state.molecule.atoms.forEach((atom: Atom) => {
       if (atom.symbol !== "C") {
         heteroatoms.push({
           id: atom.id,

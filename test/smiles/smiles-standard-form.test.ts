@@ -135,6 +135,7 @@ describe("Standard Form Compliance (OpenSMILES 4.3)", () => {
       const output = generateSMILES(result.molecules);
 
       expect(output).toContain("-");
+      // eslint-disable-next-line no-useless-escape -- backslash escape needed to match literal backslash in SMILES
       expect(output).toMatch(/[\/\\]/);
     });
   });

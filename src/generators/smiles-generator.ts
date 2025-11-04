@@ -452,7 +452,7 @@ function generateComponentSMILES(
       return aId - bId;
     });
 
-    const unseenNeighbors = neighbors.filter(([nid, bond]) => {
+    const unseenNeighbors = neighbors.filter(([nid, _bond]) => {
       const edgeKey = bondKey(atomId, nid);
       return !seen.has(nid) && !backEdges.has(edgeKey);
     });
@@ -791,10 +791,7 @@ function normalizeStereoMarkers(molecule: MutableMolecule): void {
 
     if (bondsOnAtom1.length === 0 || bondsOnAtom2.length === 0) continue;
 
-    // Check if all stereo markers are the same (all UP or all DOWN)
-    const allUp =
-      bondsOnAtom1.every((b) => b.stereo === StereoType.UP) &&
-      bondsOnAtom2.every((b) => b.stereo === StereoType.UP);
+    // Check if all stereo markers are the same (all DOWN)
     const allDown =
       bondsOnAtom1.every((b) => b.stereo === StereoType.DOWN) &&
       bondsOnAtom2.every((b) => b.stereo === StereoType.DOWN);

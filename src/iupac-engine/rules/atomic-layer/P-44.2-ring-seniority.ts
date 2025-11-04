@@ -2,6 +2,9 @@ import type { IUPACRule } from "../../types";
 import { RulePriority } from "../../types";
 import type { ImmutableNamingContext } from "../../immutable-context";
 import { ExecutionPhase } from "../../immutable-context";
+import type { RingSystem } from "../../types";
+import { RingSystemType } from "../../types";
+import type { Atom, Bond } from "types";
 
 /**
  * Rule: P-44.2 - Ring System Seniority
@@ -24,30 +27,30 @@ export const P_44_2_RING_SENIORITY: IUPACRule = {
   action: (context: ImmutableNamingContext) => {
     const molecule = context.getState().molecule;
     if (!molecule || !Array.isArray(molecule.rings)) return context;
-    const ringSystems: any[] = [];
+    const ringSystems: RingSystem[] = [];
     for (const ringIdxs of molecule.rings) {
       const atoms = ringIdxs
         .map((i: number) => molecule.atoms[i])
         .filter(Boolean);
       if (atoms.length < 3) continue;
       const bonds = molecule.bonds.filter(
-        (b: any) => ringIdxs.includes(b.atom1) && ringIdxs.includes(b.atom2),
+        (b: Bond) => ringIdxs.includes(b.atom1) && ringIdxs.includes(b.atom2),
       );
-      const hasAromatic = atoms.some((a: any) => !!a.aromatic);
+      const hasAromatic = atoms.some((a: Atom) => !!a.aromatic);
       const hasHetero = atoms.some(
-        (a: any) => a.symbol !== "C" && a.symbol !== "H",
+        (a: Atom) => a.symbol !== "C" && a.symbol !== "H",
       );
-      const type = hasAromatic
-        ? "aromatic"
+      const type: RingSystemType = hasAromatic
+        ? RingSystemType.AROMATIC
         : hasHetero
-          ? "heterocyclic"
-          : "aliphatic";
+          ? RingSystemType.HETEROCYCLIC
+          : RingSystemType.ALIPHATIC;
       ringSystems.push({
         atoms,
         bonds,
         rings: [ringIdxs],
         size: atoms.length,
-        heteroatoms: atoms.filter((a: any) => a.symbol !== "C"),
+        heteroatoms: atoms.filter((a: Atom) => a.symbol !== "C"),
         type,
         fused: false,
         bridged: false,

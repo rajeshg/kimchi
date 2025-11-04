@@ -191,7 +191,7 @@ export function findMCB(
   return mg.sssr;
 }
 
-function countConnectedComponents(
+function _countConnectedComponents(
   atoms: readonly Atom[],
   bonds: readonly Bond[],
 ): number {
@@ -200,7 +200,7 @@ function countConnectedComponents(
   return mg.components.length;
 }
 
-function getRingEdges(ring: number[]): string[] {
+function _getRingEdges(ring: number[]): string[] {
   const edges: string[] = [];
   for (let i = 0; i < ring.length; i++) {
     const atom1 = ring[i]!;

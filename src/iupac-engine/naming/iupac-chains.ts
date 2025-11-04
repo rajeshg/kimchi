@@ -1,4 +1,4 @@
-import type { Molecule } from "types";
+import type { Molecule, Atom, Bond } from "types";
 import { BondType } from "types";
 import {
   getAlkaneBaseName,
@@ -17,7 +17,7 @@ import { getSharedDetector } from "../opsin-functional-group-detector";
  * For ethers/esters: exclude oxygen only
  */
 function shouldExcludeAtomFromChain(
-  atom: any,
+  atom: Atom,
   fgName: string,
   fgType: string,
 ): boolean {
@@ -585,7 +585,6 @@ export function getChainFunctionalGroupPriority(
   // 4 = aldehyde/ketone / nitrile / sulfone-like
   // 3 = alcohol
   let best = 0;
-  const chainSet = new Set(chain);
   for (const idx of chain) {
     const atom = molecule.atoms[idx];
     if (!atom) continue;
@@ -609,8 +608,7 @@ export function getChainFunctionalGroupPriority(
           if (b.type === BondType.DOUBLE) hasDoubleO = true;
           if (b.type === BondType.SINGLE) {
             hasSingleO = true;
-            if ((nat as any).hydrogens && (nat as any).hydrogens > 0)
-              hasSingleOwithH = true;
+            if (nat.hydrogens && nat.hydrogens > 0) hasSingleOwithH = true;
             // check if that oxygen is bonded to a carbon (ester-like)
             const oConnectedToC = molecule.bonds.some(
               (ob) =>
@@ -704,11 +702,7 @@ export function getChainFunctionalGroupPriority(
         if (!nat) continue;
         if (nat.symbol === "O") {
           if (b.type === BondType.DOUBLE) doubleOcount++;
-          if (
-            b.type === BondType.SINGLE &&
-            (nat as any).hydrogens &&
-            (nat as any).hydrogens > 0
-          )
+          if (b.type === BondType.SINGLE && nat.hydrogens && nat.hydrogens > 0)
             singleOwithH = true;
         }
         if (nat.symbol === "N" && b.type === BondType.SINGLE) singleN = true;
@@ -739,11 +733,7 @@ export function getChainFunctionalGroupPriority(
         if (!nat) continue;
         if (nat.symbol === "O") {
           if (b.type === BondType.DOUBLE) doubleO = true;
-          if (
-            b.type === BondType.SINGLE &&
-            (nat as any).hydrogens &&
-            (nat as any).hydrogens > 0
-          )
+          if (b.type === BondType.SINGLE && nat.hydrogens && nat.hydrogens > 0)
             singleOwithH = true;
         }
       }
@@ -801,7 +791,7 @@ export function getChainFunctionalGroupPriority(
 
     // alcohol: O in chain bonded to C and having H
     if (atom.symbol === "O") {
-      if ((atom as any).hydrogens && (atom as any).hydrogens > 0) {
+      if (atom.hydrogens && atom.hydrogens > 0) {
         best = Math.max(best, 3);
       }
     }
@@ -817,8 +807,8 @@ export function getChainFunctionalGroupPriority(
         if (
           nat.symbol === "O" &&
           b.type === BondType.SINGLE &&
-          (nat as any).hydrogens &&
-          (nat as any).hydrogens > 0
+          nat.hydrogens &&
+          nat.hydrogens > 0
         ) {
           best = Math.max(best, 3);
         }
@@ -883,7 +873,7 @@ function compareChains(
   return false;
 }
 
-function getCombinedLocants(molecule: Molecule, chain: number[]): number[] {
+function _getCombinedLocants(molecule: Molecule, chain: number[]): number[] {
   const substituentLocants = findSubstituents(molecule, chain).map((s) =>
     parseInt(s.position),
   );
@@ -929,7 +919,7 @@ function getFunctionalGroupPositions(
         if (b.type === BondType.DOUBLE) hasDoubleO = true;
         if (b.type === BondType.SINGLE) {
           hasSingleO = true;
-          const oHydrogens = (nat as any).hydrogens || 0;
+          const oHydrogens = nat.hydrogens || 0;
           if (oHydrogens > 0) hasSingleOwithH = true;
         }
       }
@@ -987,7 +977,7 @@ function getUnsaturationPositions(
   return positions;
 }
 
-function isValidChain(chain: number[], molecule: Molecule): boolean {
+function _isValidChain(chain: number[], molecule: Molecule): boolean {
   for (let i = 0; i < chain.length - 1; i++) {
     const atom1 = chain[i];
     const atom2 = chain[i + 1];
@@ -1317,7 +1307,6 @@ export function generateHeteroPrefixes(
   molecule: Molecule,
 ): string[] {
   const prefixes: string[] = [];
-  const chainSet = new Set(mainChain);
   for (const atomIdx of mainChain) {
     const atom = molecule.atoms[atomIdx];
     if (!atom || atom.symbol === "C") continue;
@@ -1584,14 +1573,14 @@ export function findSubstituents(
 
     // Check if this sulfur is directly attached to the main chain
     let attachedToChainAt = -1;
-    let chainSideAtom = -1;
+    let _chainSideAtom = -1;
 
     for (const bond of molecule.bonds) {
       if (bond.atom1 === sulfurIdx || bond.atom2 === sulfurIdx) {
         const otherAtom = bond.atom1 === sulfurIdx ? bond.atom2 : bond.atom1;
 
         if (chainSet.has(otherAtom)) {
-          chainSideAtom = otherAtom;
+          _chainSideAtom = otherAtom;
           attachedToChainAt = mainChain.indexOf(otherAtom);
           break;
         }
@@ -1804,11 +1793,11 @@ export function findSubstituents(
 
     // Now identify the functional group names from the sulfur bridge
     const fgNames: string[] = [];
-    const sulfonylAtoms = sulfurBridge.filter((idx) => {
+    const _sulfonylAtoms = sulfurBridge.filter((idx) => {
       const fg = functionalGroups.find((g) => g.atoms && g.atoms.includes(idx));
       return fg?.name === "sulfonyl";
     });
-    const sulfinylAtoms = sulfurBridge.filter((idx) => {
+    const _sulfinylAtoms = sulfurBridge.filter((idx) => {
       const fg = functionalGroups.find((g) => g.atoms && g.atoms.includes(idx));
       return fg?.name === "sulfinyl";
     });
@@ -3336,7 +3325,7 @@ function nameRingSubstituent(
     // Build ring system object with atoms and bonds
     const ringAtoms = ring.map((idx: number) => molecule.atoms[idx]);
     const ringBonds = molecule.bonds.filter(
-      (bond: any) => ring.includes(bond.atom1) && ring.includes(bond.atom2),
+      (bond: Bond) => ring.includes(bond.atom1) && ring.includes(bond.atom2),
     );
 
     const ringSystem = {
@@ -3431,8 +3420,8 @@ function nameRingSubstituent(
     namedSubstituents.sort((a, b) => a.locant - b.locant);
 
     // Separate ring substituents from simple substituents
-    const ringSubsts = namedSubstituents.filter((s) => s.name.includes("yl"));
-    const simpleSubsts = namedSubstituents.filter(
+    const _ringSubsts = namedSubstituents.filter((s) => s.name.includes("yl"));
+    const _simpleSubsts = namedSubstituents.filter(
       (s) => !s.name.includes("yl"),
     );
 
@@ -3527,56 +3516,6 @@ function nameRingSubstituent(
 }
 
 /**
- * Gets IUPAC numbering for a ring based on heteroatom positions.
- */
-function getRingNumbering(
-  ring: readonly number[],
-  molecule: Molecule,
-  ringName: string,
-): Map<number, number> {
-  const numbering = new Map<number, number>();
-
-  if (ringName === "thiazole") {
-    // Find N and S positions
-    let nPos = -1,
-      sPos = -1;
-    for (let i = 0; i < ring.length; i++) {
-      const atom = molecule.atoms[ring[i]!];
-      if (atom?.symbol === "N") nPos = i;
-      if (atom?.symbol === "S") sPos = i;
-    }
-
-    if (nPos !== -1 && sPos !== -1) {
-      // Standard thiazole numbering: N=1, S=3
-      // From N, go in the direction of S
-      const direction =
-        (sPos - nPos + ring.length) % ring.length <= ring.length / 2 ? 1 : -1;
-
-      for (let i = 0; i < ring.length; i++) {
-        const offset = (i * direction + ring.length) % ring.length;
-        const actualIdx = (nPos + offset + ring.length) % ring.length;
-        const atomIdx = ring[actualIdx]!;
-
-        // Assign IUPAC numbers: N=1, first C=2, S=3, second C=4, third C=5
-        if (actualIdx === nPos) {
-          numbering.set(atomIdx, 1);
-        } else if (actualIdx === sPos) {
-          numbering.set(atomIdx, 3);
-        } else {
-          // Carbons get 2, 4, 5
-          const relPos = (actualIdx - nPos + ring.length) % ring.length;
-          if (relPos === 1) numbering.set(atomIdx, 2);
-          else if (relPos === 3) numbering.set(atomIdx, 4);
-          else if (relPos === 4) numbering.set(atomIdx, 5);
-        }
-      }
-    }
-  }
-
-  return numbering;
-}
-
-/**
  * Determines the IUPAC position number for the attachment point in a ring.
  * For heterocycles, numbering starts from the most senior heteroatom.
  */
@@ -3635,7 +3574,7 @@ function determineRingAttachmentPosition(
     // Map relative position to IUPAC number
     // Relative [0,1,2,3,4] = [N, next-C, next-next-C, next-next-next-C, S]
     // IUPAC    [1,4,2,5,3] based on heteroatom priority
-    const thiazoleMapping: { [key: number]: number } = {
+    const _thiazoleMapping: { [key: number]: number } = {
       0: 1, // N
       1: 4, // C after N (attachment point in our case)
       2: 2, // C between N and S
@@ -3694,8 +3633,8 @@ function determineRingAttachmentPosition(
     // Let's check which direction from N leads to S
 
     // Check if there's a C between N and S, or two Cs
-    const nAtomIdx = ring[nPos]!;
-    const sAtomIdx = ring[sPos]!;
+    const _nAtomIdx = ring[nPos]!;
+    const _sAtomIdx = ring[sPos]!;
 
     // Find carbon count between N and S in forward direction
     let carbonsForward = 0;

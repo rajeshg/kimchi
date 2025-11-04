@@ -276,7 +276,7 @@ export function snapBondAngles(
   const atomIdToIndex = new Map<number, number>();
   molecule.atoms.forEach((a, i) => atomIdToIndex.set(a.id, i));
 
-  const atomInRing: boolean[] = new Array(molecule.atoms.length).fill(false);
+  const atomInRing: boolean[] = Array(molecule.atoms.length).fill(false);
   const bondInSameRing = new Set<number>();
 
   if (molecule.ringInfo && molecule.ringInfo.rings) {

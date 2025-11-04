@@ -1,6 +1,7 @@
-import type { Molecule } from "../../../types";
 import { buildRingSubstituentAlkylName } from "./ring-substituent-naming";
 import { analyzeRings } from "src/utils/ring-analysis";
+import type { ParentStructure, FunctionalGroup, Substituent } from "../types";
+import type { Molecule, Bond, Atom } from "types";
 
 /**
  * Build functional class name for ester with ring-based alkyl group
@@ -8,10 +9,10 @@ import { analyzeRings } from "src/utils/ring-analysis";
  * Expected: (4-acetyl-5,5-dimethyl-2-propan-2-yloxolan-2-yl)acetate
  */
 export function buildEsterWithRingAlkylGroup(
-  parentStructure: any,
-  esterGroup: any,
-  molecule: any,
-  functionalGroups: any[],
+  parentStructure: ParentStructure,
+  esterGroup: FunctionalGroup,
+  molecule: Molecule,
+  functionalGroups: FunctionalGroup[],
 ): string {
   // For functional class nomenclature, build: (ring-with-all-substituents-yl)alkanoate
   // Example: (4-acetyl-5,5-dimethyl-2-propan-2-yloxolan-2-yl)acetate
@@ -28,7 +29,8 @@ export function buildEsterWithRingAlkylGroup(
   }
 
   // Get all substituents from parent structure
-  const parentSubstituents = parentStructure.substituents || [];
+  const parentSubstituents =
+    (parentStructure as { substituents?: unknown[] }).substituents || [];
 
   // Get functional group substituents (non-ester, as prefixes)
   const fgSubstituents = functionalGroups
@@ -59,7 +61,11 @@ export function buildEsterWithRingAlkylGroup(
   }
 
   // Sort substituents by locant
-  allSubstituents.sort((a: any, b: any) => (a.locant || 0) - (b.locant || 0));
+  allSubstituents.sort((a, b) => {
+    const aa = a as { locant?: number };
+    const bb = b as { locant?: number };
+    return (aa.locant || 0) - (bb.locant || 0);
+  });
 
   // Group identical substituents
   const groupedSubstituents = new Map<
@@ -67,11 +73,12 @@ export function buildEsterWithRingAlkylGroup(
     { locants: number[]; name: string }
   >();
   for (const sub of allSubstituents) {
-    const key = sub.name || sub.type;
+    const s = sub as { type: string; name?: string; locant?: number };
+    const key = s.name || s.type;
     if (!groupedSubstituents.has(key)) {
       groupedSubstituents.set(key, { locants: [], name: key });
     }
-    groupedSubstituents.get(key)!.locants.push(sub.locant || 0);
+    groupedSubstituents.get(key)!.locants.push(s.locant || 0);
   }
 
   // Build substituent parts
@@ -133,7 +140,10 @@ export function getMultiplier(count: number): string {
 /**
  * Get the length of the acyl chain (C=O side of the ester)
  */
-export function getAcylChainLength(esterGroup: any, molecule: any): number {
+export function getAcylChainLength(
+  esterGroup: FunctionalGroup,
+  molecule: Molecule,
+): number {
   if (!esterGroup.atoms || esterGroup.atoms.length < 3) return 1;
 
   const carbonylCarbon = esterGroup.atoms[0] as unknown as number;
@@ -201,10 +211,10 @@ export function getAlkanoateName(length: number): string {
  * Example: CC(C)COC(=O)C1CCCC1 → "2-methylpropyl cyclopentanecarboxylate"
  */
 export function buildEsterWithRingAcylGroup(
-  parentStructure: any,
-  esterGroup: any,
-  molecule: any,
-  functionalGroups: any[],
+  parentStructure: ParentStructure,
+  esterGroup: FunctionalGroup,
+  molecule: Molecule,
+  functionalGroups: FunctionalGroup[],
 ): string {
   if (process.env.VERBOSE) {
     console.log(
@@ -392,7 +402,7 @@ function buildComplexAlkoxyWithAmide(
   // Build the alkoxy chain structure
   // The alkoxyCarbonId is the central carbon (propan-2-yl in the example)
   // Find all substituents on this carbon
-  const substituents: Array<{
+  const _substituents: Array<{
     type: string;
     name: string;
     locant: number;
@@ -753,9 +763,9 @@ function buildAnilinoPart(
  * Walks from ester oxygen to find the alkoxy chain
  */
 export function getAlkoxyGroupName(
-  esterGroup: any,
+  esterGroup: FunctionalGroup,
   molecule: Molecule,
-  functionalGroups?: any[],
+  functionalGroups?: FunctionalGroup[],
 ): string {
   // Find carbonyl carbon and ester oxygen
   let carbonylCarbonId: number | undefined;
@@ -769,7 +779,7 @@ export function getAlkoxyGroupName(
       const atom = molecule.atoms[atomId];
       if (atom?.symbol === "C") {
         const hasDoubleBondToO = molecule.bonds.some(
-          (bond: any) =>
+          (bond: Bond) =>
             bond.type === "double" &&
             ((bond.atom1 === atomId &&
               molecule.atoms[bond.atom2]?.symbol === "O") ||
@@ -790,7 +800,7 @@ export function getAlkoxyGroupName(
         const atom = molecule.atoms[atomId];
         if (atom?.symbol === "O") {
           const isSingleBonded = molecule.bonds.some(
-            (bond: any) =>
+            (bond: Bond) =>
               bond.type === "single" &&
               ((bond.atom1 === carbonylCarbonId && bond.atom2 === atomId) ||
                 (bond.atom2 === carbonylCarbonId && bond.atom1 === atomId)),
@@ -1226,10 +1236,10 @@ export function getAlkoxyGroupName(
                 if (carbonIdOnSi !== undefined) {
                   // Check if this carbon is a methyl (no other carbons attached)
                   const carbonNeighbors = molecule.bonds.filter(
-                    (b: any) =>
+                    (b: Bond) =>
                       b.atom1 === carbonIdOnSi || b.atom2 === carbonIdOnSi,
                   );
-                  const hasOtherCarbons = carbonNeighbors.some((b: any) => {
+                  const hasOtherCarbons = carbonNeighbors.some((b: Bond) => {
                     const otherId =
                       b.atom1 === carbonIdOnSi ? b.atom2 : b.atom1;
                     return (
@@ -1419,9 +1429,8 @@ export function getAlkoxyGroupName(
     const branchNames: string[] = [];
 
     for (const [position, branchCarbons] of branches) {
-      for (const branchId of branchCarbons) {
+      for (const _branchId of branchCarbons) {
         // Simple case: assume single carbon branch (methyl)
-        // Position in IUPAC starts at 1, and branch is on the NEXT carbon in chain
         branchNames.push(`${position}-methyl`);
       }
     }
@@ -1453,10 +1462,10 @@ export function getAlkoxyGroupName(
 }
 
 export function buildEsterName(
-  parentStructure: any,
-  esterGroup: any,
-  molecule: any,
-  functionalGroups: any[],
+  parentStructure: ParentStructure,
+  esterGroup: FunctionalGroup,
+  molecule: Molecule,
+  functionalGroups: FunctionalGroup[],
 ): string {
   // Ester functional class nomenclature:
   // Monoester: [alkyl] [alkanoate] (e.g., "methyl acetate")
@@ -1485,7 +1494,7 @@ export function buildEsterName(
     // Check which side the ring is on by checking connectivity
     // First, let's identify the ester components
     let carbonylCarbonIdTemp: number | undefined;
-    let esterOxygenIdTemp: number | undefined;
+    let _esterOxygenIdTemp: number | undefined;
 
     if (esterGroup.atoms && esterGroup.atoms.length >= 2) {
       for (const atomOrId of esterGroup.atoms) {
@@ -1493,7 +1502,7 @@ export function buildEsterName(
         const atom = molecule.atoms[atomId];
         if (atom?.symbol === "C") {
           const hasDoubleBondToO = molecule.bonds.some(
-            (bond: any) =>
+            (bond: Bond) =>
               bond.type === "double" &&
               ((bond.atom1 === atomId &&
                 molecule.atoms[bond.atom2]?.symbol === "O") ||
@@ -1513,7 +1522,7 @@ export function buildEsterName(
           const atom = molecule.atoms[atomId];
           if (atom?.symbol === "O") {
             const isSingleBonded = molecule.bonds.some(
-              (bond: any) =>
+              (bond: Bond) =>
                 bond.type === "single" &&
                 ((bond.atom1 === carbonylCarbonIdTemp &&
                   bond.atom2 === atomId) ||
@@ -1521,7 +1530,7 @@ export function buildEsterName(
                     bond.atom1 === atomId)),
             );
             if (isSingleBonded) {
-              esterOxygenIdTemp = atomId;
+              _esterOxygenIdTemp = atomId;
               break;
             }
           }
@@ -1531,11 +1540,15 @@ export function buildEsterName(
 
     // Now check if the ring atoms include the carbonyl carbon (acyl side) or not (alkoxy side)
     // OR if the carbonyl carbon is bonded to a ring atom (ring substituent on acyl side)
-    const ringAtomIds = new Set(
-      (parentStructure.ring?.atoms || parentStructure.atoms || []).map(
-        (a: any) => a.id,
-      ),
-    );
+    let atoms: Atom[];
+    if (parentStructure.ring) {
+      atoms = parentStructure.ring.atoms;
+    } else if (parentStructure.chain) {
+      atoms = parentStructure.chain.atoms || [];
+    } else {
+      atoms = [];
+    }
+    const ringAtomIds = new Set(atoms.map((a: Atom) => a.id));
 
     let isRingOnAcylSide =
       carbonylCarbonIdTemp !== undefined &&
@@ -1632,11 +1645,16 @@ export function buildEsterName(
   }
 
   if (isMultiester) {
-    return buildDiesterName(parentStructure, esterGroup, molecule);
+    return buildDiesterName(
+      parentStructure,
+      esterGroup,
+      molecule,
+      functionalGroups,
+    );
   }
 
   // Original monoester logic
-  const chainAtomIds = chain.atoms?.map((a: any) => a.id) || [];
+  const _chainAtomIds = chain.atoms?.map((a: Atom) => a.id) || [];
 
   // Use esterGroup.atoms to identify the specific ester we're processing
   // esterGroup.atoms typically contains [carbonyl C, ester O]
@@ -1651,7 +1669,7 @@ export function buildEsterName(
 
     if (process.env.VERBOSE) {
       console.log("[buildEsterName] esterGroup.atoms:", esterGroup.atoms);
-      esterGroup.atoms.forEach((atomOrId: number | any, idx: number) => {
+      esterGroup.atoms.forEach((atomOrId: number | Atom, idx: number) => {
         const atomId = typeof atomOrId === "number" ? atomOrId : atomOrId.id;
         const atom = molecule.atoms[atomId];
         console.log(
@@ -1667,7 +1685,7 @@ export function buildEsterName(
       if (atom?.symbol === "C") {
         // Verify it has a double bond to an oxygen
         const hasDoubleBondToO = molecule.bonds.some(
-          (bond: any) =>
+          (bond: Bond) =>
             bond.type === "double" &&
             ((bond.atom1 === atomId &&
               molecule.atoms[bond.atom2]?.symbol === "O") ||
@@ -1689,7 +1707,7 @@ export function buildEsterName(
         if (atom?.symbol === "O") {
           // Check if this oxygen is single-bonded to the carbonyl carbon
           const isSingleBonded = molecule.bonds.some(
-            (bond: any) =>
+            (bond: Bond) =>
               bond.type === "single" &&
               ((bond.atom1 === carbonylCarbonId && bond.atom2 === atomId) ||
                 (bond.atom2 === carbonylCarbonId && bond.atom1 === atomId)),
@@ -1875,7 +1893,8 @@ export function buildEsterName(
     (fg) =>
       (fg.type === "acyloxy" || fg.type === "alkoxy") &&
       fg.atoms &&
-      fg.atoms.some((atomId: number) => {
+      fg.atoms.some((atom: Atom) => {
+        const atomId = atom.id;
         // Check if this functional group is attached to the alkoxy chain
         for (const bond of molecule.bonds) {
           const atom1 = bond.atom1;
@@ -1891,17 +1910,16 @@ export function buildEsterName(
   // e.g., trimethylsilyloxy recorded in parentStructure.chain.substituents for the alkoxy group
   try {
     const parentSubstituents = parentStructure.chain?.substituents || [];
-    for (const sub of parentSubstituents) {
+    for (const sub of parentSubstituents as Substituent[]) {
       // Avoid duplicates by checking if a similar type already exists in alkoxySubstituents
       const key = (sub.type || sub.name || "").toString();
       // We'll attempt to find an attachment atom below; declare here so we can merge if needed
       let attachmentAtomId: number | undefined;
       const exists = alkoxySubstituents.some(
-        (s: any) => (s.type || s.prefix || s.name || "").toString() === key,
+        (s: FunctionalGroup) => (s.type || s.name || "").toString() === key,
       );
       if (!exists) {
         // Attempt to find the attachment atom in the molecule for this substituent
-        let attachmentAtomId: number | undefined;
 
         try {
           // If substituent looks like a silyloxy group, find an O bonded to an alkoxy carbon that connects to Si
@@ -1926,13 +1944,15 @@ export function buildEsterName(
                 // check if this oxygen connects to Si
                 const neigh = molecule.bonds
                   .filter(
-                    (bb: any) =>
+                    (bb: Bond) =>
                       (bb.atom1 === other || bb.atom2 === other) &&
                       bb.type === "single",
                   )
-                  .map((bb: any) => (bb.atom1 === other ? bb.atom2 : bb.atom1))
+                  .map((bb: Bond) => (bb.atom1 === other ? bb.atom2 : bb.atom1))
                   .map((id: number) => molecule.atoms[id]);
-                if (neigh.some((na: any) => na && na.symbol === "Si")) {
+                if (
+                  neigh.some((na: Atom | undefined) => na && na.symbol === "Si")
+                ) {
                   attachmentAtomId = other;
                   break;
                 }
@@ -1963,14 +1983,17 @@ export function buildEsterName(
               if (attachmentAtomId) break;
             }
           }
-        } catch (e) {
+        } catch (_e) {
           // ignore errors, leave attachmentAtomId undefined
         }
 
-        const newEntry: any = {
+        const newEntry: FunctionalGroup = {
           type: sub.type || sub.name || "substituent",
           prefix: sub.prefix || sub.name || undefined,
-          atoms: attachmentAtomId ? [attachmentAtomId] : [],
+          atoms: attachmentAtomId ? [molecule.atoms[attachmentAtomId]!] : [],
+          bonds: [],
+          priority: 0,
+          locants: [],
           isPrincipal: false,
         };
 
@@ -1979,17 +2002,17 @@ export function buildEsterName(
         // merge attachment atom into existing entry so multiplicities (bis/tri) can be computed
         if (attachmentAtomId) {
           const existing = alkoxySubstituents.find(
-            (s: any) => (s.type || s.prefix || s.name || "").toString() === key,
+            (s: FunctionalGroup) => (s.type || s.name || "").toString() === key,
           );
           if (existing) {
             existing.atoms = existing.atoms || [];
-            if (!existing.atoms.includes(attachmentAtomId))
-              existing.atoms.push(attachmentAtomId);
+            if (!existing.atoms.some((a) => a.id === attachmentAtomId))
+              existing.atoms.push(molecule.atoms[attachmentAtomId]!);
           }
         }
       }
     }
-  } catch (e) {
+  } catch (_e) {
     // non-fatal - just proceed
   }
 
@@ -2012,7 +2035,7 @@ export function buildEsterName(
   let acylName = "";
   try {
     const parentChainAtoms = (parentStructure.chain?.atoms || []).map(
-      (a: any) =>
+      (a: Atom) =>
         a && typeof a === "object" && typeof a.id === "number" ? a.id : a,
     );
     const parentIsAcyl =
@@ -2027,10 +2050,14 @@ export function buildEsterName(
         );
       // Count carbon atoms in parent chain
       const carbonCount = (parentStructure.chain?.atoms || []).filter(
-        (a: any) => {
+        (a: Atom) => {
           const atomId =
-            a && typeof a === "object" && typeof a.id === "number" ? a.id : a;
-          return molecule.atoms[atomId]?.symbol === "C";
+            a && typeof a === "object" && typeof a.id === "number"
+              ? a.id
+              : typeof a === "number"
+                ? a
+                : undefined;
+          return atomId !== undefined && molecule.atoms[atomId]?.symbol === "C";
         },
       ).length;
       if (process.env.VERBOSE)
@@ -2043,7 +2070,7 @@ export function buildEsterName(
       const acylSubs = parentStructure.chain?.substituents || [];
       const acylSubParts: string[] = [];
       for (const s of acylSubs) {
-        const loc = s.locant || s.position;
+        const loc = s.locant;
         const name = s.name || s.type;
         if (loc && name && !(name || "").toLowerCase().includes("oxy")) {
           acylSubParts.push(`${loc}-${name}`);
@@ -2091,7 +2118,7 @@ export function buildEsterName(
           ? acylNames[acylLength]
           : `C${acylLength}-anoate`;
     }
-  } catch (e) {
+  } catch (_e) {
     const acylNames = [
       "",
       "formate",
@@ -2128,15 +2155,17 @@ export function buildEsterName(
 }
 
 export function buildDiesterName(
-  parentStructure: any,
-  esterGroup: any,
-  molecule: any,
+  parentStructure: ParentStructure,
+  esterGroup: FunctionalGroup,
+  molecule: Molecule,
+  _functionalGroups: FunctionalGroup[],
 ): string {
   // Diester nomenclature: dialkyl [substituents] alkanedioate
   // Example: CCCOC(CC(=O)OC)C(=O)OC → dimethyl 2-propoxybutanedioate
 
   const chain = parentStructure.chain;
-  const multiplicity = esterGroup.multiplicity || 2;
+  if (!chain) return "alkyl carboxylate";
+  const _multiplicity = esterGroup.multiplicity || 2;
 
   // Find all ester oxygens (C-O-C where C=O is present)
   const esterOxygens: number[] = [];
@@ -2294,9 +2323,13 @@ export function buildDiesterName(
       .filter((n: number) => !isNaN(n)),
   );
 
-  const substituents = (chain.substituents || []).filter((sub: any) => {
-    const subLocant = sub.locant || sub.position;
-    const isAlkoxySubstituent = sub.type?.includes("oxy"); // methoxy, ethoxy, propoxy, etc.
+  const substituents = (chain.substituents || []).filter((sub: unknown) => {
+    const subLocant =
+      ((sub as Record<string, unknown>).locant as number) ||
+      ((sub as Record<string, unknown>).position as number);
+    const isAlkoxySubstituent = (
+      (sub as Record<string, unknown>).type as string
+    )?.includes("oxy"); // methoxy, ethoxy, propoxy, etc.
 
     // Exclude alkoxy substituents at ester positions (they're part of the ester)
     if (isAlkoxySubstituent && esterLocants.has(subLocant)) {
@@ -2308,7 +2341,7 @@ export function buildDiesterName(
 
   // Count carbons in acid chain (excluding alkoxy groups)
   const chainAtomIds = new Set<number>(
-    chain.atoms?.map((a: any) => a.id) || [],
+    chain.atoms?.map((a: Atom) => a.id) || [],
   );
   const alkoxyCarbonSet = new Set<number>(alkoxyCarbons);
   const acidChainCarbons = Array.from(chainAtomIds).filter((id: number) => {
@@ -2322,16 +2355,21 @@ export function buildDiesterName(
   let carbonPosition = 1;
   for (let i = 0; i < chainAtoms.length; i++) {
     const atomId = chainAtoms[i]?.id;
-    const atom = molecule.atoms[atomId];
-    if (atom?.symbol === "C" && !alkoxyCarbonSet.has(atomId)) {
-      carbonOnlyPositions.set(atomId, carbonPosition);
-      carbonPosition++;
+    if (atomId !== undefined) {
+      const atom = molecule.atoms[atomId];
+      if (atom?.symbol === "C" && !alkoxyCarbonSet.has(atomId)) {
+        carbonOnlyPositions.set(atomId, carbonPosition);
+        carbonPosition++;
+      }
     }
   }
 
   // Re-calculate substituent locants based on carbon-only positions
-  const renumberedSubstituents = substituents.map((sub: any) => {
-    const subLocant = sub.locant || sub.position;
+  const renumberedSubstituents = substituents.map((sub: unknown) => {
+    const subLocant =
+      ((sub as Record<string, unknown>).locant as number) ||
+      ((sub as Record<string, unknown>).position as number);
+    if (subLocant === undefined) return sub;
     const chainAtomAtPosition = chainAtoms[subLocant - 1];
     const atomId = chainAtomAtPosition?.id;
 
@@ -2340,14 +2378,14 @@ export function buildDiesterName(
     let attachedCarbonId: number | undefined;
 
     // If the chain atom itself is a carbon in our carbon-only positions, use it
-    if (carbonOnlyPositions.has(atomId)) {
+    if (atomId !== undefined && carbonOnlyPositions.has(atomId)) {
       attachedCarbonId = atomId;
     } else {
       // Otherwise, find the carbon that this oxygen is bonded to
       for (const bond of molecule.bonds) {
         if (bond.atom1 === atomId || bond.atom2 === atomId) {
           const otherId = bond.atom1 === atomId ? bond.atom2 : bond.atom1;
-          if (carbonOnlyPositions.has(otherId)) {
+          if (otherId !== undefined && carbonOnlyPositions.has(otherId)) {
             attachedCarbonId = otherId;
             break;
           }
@@ -2359,15 +2397,19 @@ export function buildDiesterName(
       attachedCarbonId !== undefined
         ? carbonOnlyPositions.get(attachedCarbonId)
         : subLocant;
-    return { ...sub, locant: newLocant };
+    return { ...(sub as Record<string, unknown>), locant: newLocant };
   });
 
   let substituentPart = "";
   if (renumberedSubstituents.length > 0) {
     const subParts: string[] = [];
     for (const sub of renumberedSubstituents) {
-      const locant = sub.locant || sub.position;
-      const name = sub.name || sub.type;
+      const locant =
+        ((sub as Record<string, unknown>).locant as number) ||
+        ((sub as Record<string, unknown>).position as number);
+      const name =
+        ((sub as Record<string, unknown>).name as string) ||
+        ((sub as Record<string, unknown>).type as string);
       if (locant && name) {
         subParts.push(`${locant}-${name}`);
       }

@@ -3,6 +3,7 @@ import { BLUE_BOOK_RULES, RulePriority } from "../../types";
 import { ExecutionPhase } from "../../immutable-context";
 import { classifyRingSystems } from "../../../utils/ring-analysis";
 import { generateRingLocants } from "./helpers";
+import type { Molecule } from "types";
 
 /**
  * Rule: P-2.5 - Fused Ring Systems
@@ -70,7 +71,7 @@ export const P2_5_FUSED_RING_SYSTEMS_RULE: IUPACRule = {
  */
 function generateFusedPolycyclicName(
   fusedRings: number[][],
-  molecule: any,
+  molecule: Molecule,
 ): string | null {
   // For now, delegate to existing fused naming logic
   // This could be enhanced with specific P-2.5 rules

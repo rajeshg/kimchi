@@ -57,6 +57,7 @@ const testMolecules = [
   "C[C@H](O)C(=O)O", // lactic acid (R)
   "N[C@@H](C)C(=O)O", // alanine (S)
   "F/C=C/F", // (E)-1,2-difluoroethene
+  // eslint-disable-next-line no-useless-escape -- backslash is SMILES cis stereochemistry notation
   "F/C=C\F", // (Z)-1,2-difluoroethene
   "C1=CC[C@H](C)CC1", // chiral cyclohexene
   "C[C@H](N)C(=O)O", // alanine
@@ -113,20 +114,18 @@ const testMolecules = [
 ];
 
 async function generateComparison() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let rdkit: any = null;
 
   try {
     const rdkitModule = await import("@rdkit/rdkit").catch(() => null);
     if (rdkitModule) {
       const initRDKitModule = rdkitModule.default;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       rdkit = await (initRDKitModule as any)();
     }
   } catch (e) {
     console.warn("RDKit not available:", e);
-  }
-
-  function escapeHtml(s: string) {
-    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
 
   const rows: Array<{
@@ -162,11 +161,11 @@ async function generateComparison() {
           const rendered = renderSVG(result, { width: 250, height: 200 });
           openchemSvg = rendered.svg;
         } catch (e) {
-          openchemSvg = `<svg><text x=\"10\" y=\"20\">openchem Error: ${String(e).substring(0, 80)}</text></svg>`;
+          openchemSvg = `<svg><text x="10" y="20">openchem Error: ${String(e).substring(0, 80)}</text></svg>`;
         }
       }
     } catch (e) {
-      openchemSvg = `<svg><text x=\"10\" y=\"20\">openchem Error: ${String(e).substring(0, 80)}</text></svg>`;
+      openchemSvg = `<svg><text x="10" y="20">openchem Error: ${String(e).substring(0, 80)}</text></svg>`;
     }
 
     rows.push({ smiles, rdkitSvg, openchemSvg });

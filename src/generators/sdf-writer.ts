@@ -36,9 +36,9 @@ export function writeSDF(
       }
 
       sdfLines.push("$$$$");
-    } catch (error) {
+    } catch (_error) {
       errors.push(
-        `Record ${i}: ${error instanceof Error ? error.message : String(error)}`,
+        `Record ${i}: ${_error instanceof Error ? _error.message : String(_error)}`,
       );
     }
   }

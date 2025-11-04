@@ -1,9 +1,11 @@
 import type { IUPACRule, MultipleBond, Substituent } from "../../types";
 import { RulePriority } from "../../types";
+import type { Atom } from "types";
 import {
   ExecutionPhase,
   ImmutableNamingContext,
 } from "../../immutable-context";
+import type { ContextState } from "../../immutable-context";
 
 export const P14_4_MULTIPLE_BONDS_SUBSTITUENTS_RULE: IUPACRule = {
   id: "P-14.4",
@@ -32,7 +34,7 @@ export const P14_4_MULTIPLE_BONDS_SUBSTITUENTS_RULE: IUPACRule = {
     const numberedBonds = chain.multipleBonds.map((bond: MultipleBond) => {
       const atomLocants: number[] = [];
       for (const atom of bond.atoms) {
-        const atomIndex = chain.atoms.findIndex((a: any) => a.id === atom.id);
+        const atomIndex = chain.atoms.findIndex((a: Atom) => a.id === atom.id);
         if (atomIndex >= 0 && chain.locants[atomIndex]) {
           atomLocants.push(chain.locants[atomIndex]);
         }
@@ -53,7 +55,7 @@ export const P14_4_MULTIPLE_BONDS_SUBSTITUENTS_RULE: IUPACRule = {
     );
 
     return context.withStateUpdate(
-      (state: any) => ({
+      (state: ContextState) => ({
         ...state,
         parentStructure: {
           ...parentStructure,

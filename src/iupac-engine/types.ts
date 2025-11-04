@@ -22,7 +22,7 @@ export interface NamingContext {
   conflicts: RuleConflict[];
 
   // Context state
-  state: Map<string, any>;
+  state: Map<string, unknown>;
 
   // Methods for rule access
   isAcyclic(): boolean;
@@ -35,8 +35,8 @@ export interface NamingContext {
   updateCandidates(candidates: Chain[] | RingSystem[]): void;
   setParentStructure(structure: ParentStructure): void;
   addFunctionalGroup(group: FunctionalGroup): void;
-  setState(key: string, value: any): void;
-  getState(key: string): any;
+  setState(key: string, value: unknown): void;
+  getState(key: string): unknown;
   addConflict(conflict: RuleConflict): void;
 }
 
@@ -93,6 +93,7 @@ export interface FunctionalGroup {
   prefix?: string;
   name?: string; // Full name from complex substituent analysis (e.g., flattened alkoxy names)
   locants: number[];
+  locant?: number;
   // Assembled metadata used during name assembly
   assembledName?: string;
   locantString?: string;
@@ -146,6 +147,7 @@ export interface ParentStructure {
   name: string;
   locants: number[];
   vonBaeyerNumbering?: Map<number, number>; // For bicyclo/tricyclo systems
+  assembledName?: string;
 }
 
 export interface Substituent {
@@ -155,6 +157,7 @@ export interface Substituent {
   locant: number;
   isPrincipal: boolean;
   name?: string;
+  prefix?: string;
 }
 
 export interface MultipleBond {
@@ -174,7 +177,7 @@ export interface RuleConflict {
   ruleId: string;
   conflictType: "dependency" | "mutual_exclusion" | "state_inconsistency";
   description: string;
-  context: any;
+  context: unknown;
 }
 
 export enum NomenclatureMethod {

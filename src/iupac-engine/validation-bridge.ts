@@ -47,7 +47,7 @@ export class ValidationBridge {
         confidence: newResult.confidence,
         differences,
       };
-    } catch (error) {
+    } catch (_error) {
       return {
         molecule: smiles,
         legacyName: "Error in legacy",
@@ -55,7 +55,7 @@ export class ValidationBridge {
         match: false,
         confidence: 0,
         differences: [
-          `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+          `Error: ${_error instanceof Error ? _error.message : "Unknown error"}`,
         ],
       };
     }
@@ -85,7 +85,7 @@ export class ValidationBridge {
           confidence: 0,
           differences: ["Test case not yet implemented"],
         });
-      } catch (error) {
+      } catch (_error) {
         results.push({
           molecule: testCase.smiles,
           legacyName: "Parse error",
@@ -93,7 +93,7 @@ export class ValidationBridge {
           match: false,
           confidence: 0,
           differences: [
-            `Parse error: ${error instanceof Error ? error.message : "Unknown error"}`,
+            `Parse error: ${_error instanceof Error ? _error.message : "Unknown error"}`,
           ],
         });
       }
@@ -125,14 +125,14 @@ export class ValidationBridge {
   /**
    * Get legacy name using existing implementation
    */
-  private getLegacyName(molecule: Molecule): string {
+  private getLegacyName(_molecule: Molecule): string {
     try {
       // This would call the existing IUPAC implementation
       // For now, return a placeholder
       // return generateIUPACName(molecule);
       return "Legacy name not available yet";
-    } catch (error) {
-      return `Error generating legacy name: ${error instanceof Error ? error.message : "Unknown error"}`;
+    } catch (_error) {
+      return `Error generating legacy name: ${_error instanceof Error ? _error.message : "Unknown error"}`;
     }
   }
 

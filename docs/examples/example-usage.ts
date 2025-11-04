@@ -7,26 +7,20 @@ const smiles = "CC(C)CC";
 const result = parseSMILES(smiles);
 
 if (result.molecules.length > 0) {
-  const mol = result.molecules[0];
+  const mol = result.molecules[0]!;
 
   console.log("Input SMILES:", smiles);
   console.log();
 
   // Generate canonical SMILES (default)
   console.log("Canonical SMILES (default):");
-  console.log("  generateSMILES(mol)       =", generateSMILES(mol as any));
-  console.log(
-    "  generateSMILES(mol, true) =",
-    generateSMILES(mol as any, true),
-  );
+  console.log("  generateSMILES(mol)       =", generateSMILES(mol));
+  console.log("  generateSMILES(mol, true) =", generateSMILES(mol, true));
   console.log();
 
   // Generate simple (non-canonical) SMILES
   console.log("Simple SMILES:");
-  console.log(
-    "  generateSMILES(mol, false) =",
-    generateSMILES(mol as any, false),
-  );
+  console.log("  generateSMILES(mol, false) =", generateSMILES(mol, false));
   console.log();
 
   console.log("Note: Canonical SMILES uses iterative atom invariants");

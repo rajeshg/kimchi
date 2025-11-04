@@ -1,7 +1,7 @@
 import { readFileSync } from "fs";
 import * as path from "path";
 
-type OpsinRules = any;
+type OpsinRules = unknown;
 
 let cachedRules: OpsinRules | null = null;
 let aliasMap: Map<string, string> | null = null;
@@ -12,7 +12,7 @@ function loadRules(): OpsinRules {
   let json: OpsinRules = {} as OpsinRules;
   try {
     json = JSON.parse(readFileSync(rulesPath, "utf8"));
-  } catch (e) {
+  } catch (_e) {
     // If OPSIN rules file is not present (e.g., in certain test environments),
     // fall back to empty rules — alias map will still include builtin tokens.
     json = {} as OpsinRules;
@@ -27,11 +27,13 @@ function buildAliasMap(): Map<string, string> {
   const map = new Map<string, string>();
 
   // Map canonical substituent keys and their aliases to a canonical citation token
-  if (rules && rules.substituents) {
-    for (const [canonical, data] of Object.entries(rules.substituents)) {
+  const r = rules as { substituents?: Record<string, unknown> } | null;
+  if (r && r.substituents) {
+    for (const [canonical, data] of Object.entries(r.substituents)) {
       const canonicalToken = normalizeToken(canonical);
       map.set(canonicalToken, canonicalToken);
-      const aliases: string[] = (data as any).aliases || [];
+      const aliases = ((data as { aliases?: unknown[] }).aliases ||
+        []) as string[];
       for (const a of aliases) {
         const t = normalizeToken(a);
         if (t) map.set(t, canonicalToken);

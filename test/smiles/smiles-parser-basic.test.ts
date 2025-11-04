@@ -6,61 +6,61 @@ describe("SMILES Parser", () => {
   it("parses simple molecule C", () => {
     const result = parseSMILES("C");
     expect(result.errors).toHaveLength(0);
-    expect(result.molecules[0]!!.atoms).toHaveLength(1);
-    const atom = result.molecules[0]!!.atoms[0]!;
+    expect(result.molecules[0]!.atoms).toHaveLength(1);
+    const atom = result.molecules[0]!.atoms[0]!;
     expect(atom.symbol).toBe("C");
     expect(atom.hydrogens).toBe(4); // methane
-    expect(result.molecules[0]!!.bonds).toHaveLength(0);
+    expect(result.molecules[0]!.bonds).toHaveLength(0);
   });
 
   it("parses CC (ethane)", () => {
     const result = parseSMILES("CC");
     expect(result.errors).toHaveLength(0);
-    expect(result.molecules[0]!!.atoms).toHaveLength(2);
-    expect(result.molecules[0]!!.bonds).toHaveLength(1);
-    const bond = result.molecules[0]!!.bonds[0]!;
+    expect(result.molecules[0]!.atoms).toHaveLength(2);
+    expect(result.molecules[0]!.bonds).toHaveLength(1);
+    const bond = result.molecules[0]!.bonds[0]!;
     expect(bond.type).toBe(BondType.SINGLE);
-    expect(result.molecules[0]!!.atoms[0]!.hydrogens).toBe(3);
-    expect(result.molecules[0]!!.atoms[1]!.hydrogens).toBe(3);
+    expect(result.molecules[0]!.atoms[0]!.hydrogens).toBe(3);
+    expect(result.molecules[0]!.atoms[1]!.hydrogens).toBe(3);
   });
 
   it("parses C=C (ethene)", () => {
     const result = parseSMILES("C=C");
     expect(result.errors).toHaveLength(0);
-    expect(result.molecules[0]!!.atoms).toHaveLength(2);
-    expect(result.molecules[0]!!.bonds).toHaveLength(1);
-    const bond = result.molecules[0]!!.bonds[0]!;
+    expect(result.molecules[0]!.atoms).toHaveLength(2);
+    expect(result.molecules[0]!.bonds).toHaveLength(1);
+    const bond = result.molecules[0]!.bonds[0]!;
     expect(bond.type).toBe(BondType.DOUBLE);
-    expect(result.molecules[0]!!.atoms[0]!.hydrogens).toBe(2);
-    expect(result.molecules[0]!!.atoms[1]!.hydrogens).toBe(2);
+    expect(result.molecules[0]!.atoms[0]!.hydrogens).toBe(2);
+    expect(result.molecules[0]!.atoms[1]!.hydrogens).toBe(2);
   });
 
   it("parses C#N (hydrogen cyanide)", () => {
     const result = parseSMILES("C#N");
     expect(result.errors).toHaveLength(0);
-    expect(result.molecules[0]!!.atoms).toHaveLength(2);
-    expect(result.molecules[0]!!.bonds).toHaveLength(1);
-    const bond = result.molecules[0]!!.bonds[0]!;
+    expect(result.molecules[0]!.atoms).toHaveLength(2);
+    expect(result.molecules[0]!.bonds).toHaveLength(1);
+    const bond = result.molecules[0]!.bonds[0]!;
     expect(bond.type).toBe(BondType.TRIPLE);
-    expect(result.molecules[0]!!.atoms[0]!.symbol).toBe("C");
-    expect(result.molecules[0]!!.atoms[1]!.symbol).toBe("N");
-    expect(result.molecules[0]!!.atoms[0]!.hydrogens).toBe(1);
-    expect(result.molecules[0]!!.atoms[1]!.hydrogens).toBe(0);
+    expect(result.molecules[0]!.atoms[0]!.symbol).toBe("C");
+    expect(result.molecules[0]!.atoms[1]!.symbol).toBe("N");
+    expect(result.molecules[0]!.atoms[0]!.hydrogens).toBe(1);
+    expect(result.molecules[0]!.atoms[1]!.hydrogens).toBe(0);
   });
 
   it("parses CC(C)C (isobutane)", () => {
     const result = parseSMILES("CC(C)C");
     expect(result.errors).toHaveLength(0);
-    expect(result.molecules[0]!!.atoms).toHaveLength(4);
-    expect(result.molecules[0]!!.bonds).toHaveLength(3);
+    expect(result.molecules[0]!.atoms).toHaveLength(4);
+    expect(result.molecules[0]!.bonds).toHaveLength(3);
     // All C, all single bonds, hydrogens: central C has 1 H, others 3
-    expect(result.molecules[0]!!.atoms.every((a) => a.symbol === "C")).toBe(
+    expect(result.molecules[0]!.atoms.every((a) => a.symbol === "C")).toBe(
       true,
     );
     expect(
-      result.molecules[0]!!.bonds.every((b) => b.type === BondType.SINGLE),
+      result.molecules[0]!.bonds.every((b) => b.type === BondType.SINGLE),
     ).toBe(true);
-    const hydrogens = result.molecules[0]!!.atoms.map((a) => a.hydrogens);
+    const hydrogens = result.molecules[0]!.atoms.map((a) => a.hydrogens);
     expect(hydrogens.sort()).toEqual([1, 3, 3, 3]); // one with 1 H
   });
 
@@ -81,26 +81,26 @@ describe("SMILES Parser", () => {
   it("parses [OH-] (hydroxide)", () => {
     const result = parseSMILES("[OH-]");
     expect(result.errors).toHaveLength(0);
-    expect(result.molecules[0]!!.atoms).toHaveLength(1);
-    const atom = result.molecules[0]!!.atoms[0]!;
+    expect(result.molecules[0]!.atoms).toHaveLength(1);
+    const atom = result.molecules[0]!.atoms[0]!;
     expect(atom.symbol).toBe("O");
     expect(atom.charge).toBe(-1);
     expect(atom.hydrogens).toBe(1);
-    expect(result.molecules[0]!!.bonds).toHaveLength(0);
+    expect(result.molecules[0]!.bonds).toHaveLength(0);
   });
 
   it("parses c1ccccc1 (benzene)", () => {
     const result = parseSMILES("c1ccccc1");
     expect(result.errors).toHaveLength(0);
-    expect(result.molecules[0]!!.atoms).toHaveLength(6);
-    expect(result.molecules[0]!!.bonds).toHaveLength(6);
+    expect(result.molecules[0]!.atoms).toHaveLength(6);
+    expect(result.molecules[0]!.bonds).toHaveLength(6);
     expect(
-      result.molecules[0]!!.atoms.every((a) => a.symbol === "C" && a.aromatic),
+      result.molecules[0]!.atoms.every((a) => a.symbol === "C" && a.aromatic),
     ).toBe(true);
     expect(
-      result.molecules[0]!!.bonds.every((b) => b.type === BondType.AROMATIC),
+      result.molecules[0]!.bonds.every((b) => b.type === BondType.AROMATIC),
     ).toBe(true);
-    expect(result.molecules[0]!!.atoms.every((a) => a.hydrogens === 1)).toBe(
+    expect(result.molecules[0]!.atoms.every((a) => a.hydrogens === 1)).toBe(
       true,
     );
   });
@@ -108,8 +108,8 @@ describe("SMILES Parser", () => {
   it("parses C[C@H] (chiral carbon)", () => {
     const result = parseSMILES("C[C@H]");
     expect(result.errors).toHaveLength(0);
-    expect(result.molecules[0]!!.atoms).toHaveLength(2);
-    const chiralAtom = result.molecules[0]!!.atoms.find(
+    expect(result.molecules[0]!.atoms).toHaveLength(2);
+    const chiralAtom = result.molecules[0]!.atoms.find(
       (a) => a.chiral === "@",
     )!;
     expect(chiralAtom.symbol).toBe("C");

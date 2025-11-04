@@ -1,9 +1,11 @@
-import type { IUPACRule } from "../../types";
+import type { IUPACRule, FunctionalGroup } from "../../types";
 import { RulePriority } from "../../types";
+import type { Bond, Atom } from "types";
 import {
   ExecutionPhase,
   ImmutableNamingContext,
 } from "../../immutable-context";
+import type { ContextState } from "../../immutable-context";
 import {
   generateRingLocants,
   findRingStartingPosition,
@@ -29,7 +31,7 @@ export const RING_NUMBERING_RULE: IUPACRule = {
     return !!(parentStructure && parentStructure.type === "ring");
   },
   action: (context: ImmutableNamingContext) => {
-    const state = context.getState();
+    const state = context.getState() as ContextState;
     const parentStructure = state.parentStructure;
 
     if (!parentStructure || parentStructure.type !== "ring") {
@@ -69,7 +71,7 @@ export const RING_NUMBERING_RULE: IUPACRule = {
                 locants.push(atomIdToPosition.get(groupAtomId)!);
               } else {
                 const bonds = molecule.bonds.filter(
-                  (bond: any) =>
+                  (bond: Bond) =>
                     bond.atom1 === groupAtomId || bond.atom2 === groupAtomId,
                 );
                 for (const bond of bonds) {
@@ -91,7 +93,7 @@ export const RING_NUMBERING_RULE: IUPACRule = {
         // Collect locants from substituents attached to ring
         for (const atomId of ringAtomIds) {
           const bonds = molecule.bonds.filter(
-            (bond: any) => bond.atom1 === atomId || bond.atom2 === atomId,
+            (bond: Bond) => bond.atom1 === atomId || bond.atom2 === atomId,
           );
           for (const bond of bonds) {
             const otherAtomId = bond.atom1 === atomId ? bond.atom2 : bond.atom1;
@@ -159,67 +161,69 @@ export const RING_NUMBERING_RULE: IUPACRule = {
       const atomIdToPosition = chosenNumbering;
 
       // Update functional group locants to use chosen von Baeyer positions
-      const updatedFunctionalGroups = functionalGroups.map((fg: any) => {
-        if (process.env.VERBOSE) {
-          console.log(
-            `[Ring Numbering - von Baeyer] Processing functional group ${fg.type}: atoms=${fg.atoms?.map((a: any) => a).join(",")}, old locants=${fg.locants}, old locant=${fg.locant}`,
-          );
-        }
+      const updatedFunctionalGroups = functionalGroups.map(
+        (fg: FunctionalGroup) => {
+          if (process.env.VERBOSE) {
+            console.log(
+              `[Ring Numbering - von Baeyer] Processing functional group ${fg.type}: atoms=${fg.atoms?.map((a: Atom) => a.id).join(",")}, old locants=${fg.locants}, old locant=${fg.locant}`,
+            );
+          }
 
-        // Find which ring atoms this functional group is attached to
-        const attachedRingPositions: number[] = [];
+          // Find which ring atoms this functional group is attached to
+          const attachedRingPositions: number[] = [];
 
-        if (fg.atoms && fg.atoms.length > 0) {
-          for (const groupAtom of fg.atoms) {
-            const groupAtomId =
-              typeof groupAtom === "object" ? groupAtom.id : groupAtom;
-            // Check if this functional group atom is itself in the ring
-            if (atomIdToPosition.has(groupAtomId)) {
-              attachedRingPositions.push(atomIdToPosition.get(groupAtomId)!);
-            } else {
-              // This functional group atom is NOT in the ring, so find which ring atom it's bonded to
-              const bonds = molecule.bonds.filter(
-                (bond: any) =>
-                  bond.atom1 === groupAtomId || bond.atom2 === groupAtomId,
-              );
+          if (fg.atoms && fg.atoms.length > 0) {
+            for (const groupAtom of fg.atoms) {
+              const groupAtomId =
+                typeof groupAtom === "object" ? groupAtom.id : groupAtom;
+              // Check if this functional group atom is itself in the ring
+              if (atomIdToPosition.has(groupAtomId)) {
+                attachedRingPositions.push(atomIdToPosition.get(groupAtomId)!);
+              } else {
+                // This functional group atom is NOT in the ring, so find which ring atom it's bonded to
+                const bonds = molecule.bonds.filter(
+                  (bond: Bond) =>
+                    bond.atom1 === groupAtomId || bond.atom2 === groupAtomId,
+                );
 
-              for (const bond of bonds) {
-                const otherAtomId =
-                  bond.atom1 === groupAtomId ? bond.atom2 : bond.atom1;
-                if (ringAtomIds.has(otherAtomId)) {
-                  // Found a ring atom bonded to this functional group
-                  const position = atomIdToPosition.get(otherAtomId);
-                  if (
-                    position !== undefined &&
-                    !attachedRingPositions.includes(position)
-                  ) {
-                    attachedRingPositions.push(position);
+                for (const bond of bonds) {
+                  const otherAtomId =
+                    bond.atom1 === groupAtomId ? bond.atom2 : bond.atom1;
+                  if (ringAtomIds.has(otherAtomId)) {
+                    // Found a ring atom bonded to this functional group
+                    const position = atomIdToPosition.get(otherAtomId);
+                    if (
+                      position !== undefined &&
+                      !attachedRingPositions.includes(position)
+                    ) {
+                      attachedRingPositions.push(position);
+                    }
                   }
                 }
               }
             }
           }
-        }
 
-        // If we found ring positions, use those as locants
-        if (attachedRingPositions.length > 0) {
-          attachedRingPositions.sort((a, b) => a - b);
+          // If we found ring positions, use those as locants
+          if (attachedRingPositions.length > 0) {
+            attachedRingPositions.sort((a, b) => a - b);
 
-          if (process.env.VERBOSE) {
-            console.log(
-              `[Ring Numbering - von Baeyer] Updated functional group ${fg.type}: new locants=${attachedRingPositions}, new locant=${attachedRingPositions[0]}`,
-            );
+            if (process.env.VERBOSE) {
+              console.log(
+                `[Ring Numbering - von Baeyer] Updated functional group ${fg.type}: new locants=${attachedRingPositions}, new locant=${attachedRingPositions[0]}`,
+              );
+            }
+
+            return {
+              ...fg,
+              locants: attachedRingPositions,
+              locant: attachedRingPositions[0],
+            };
           }
 
-          return {
-            ...fg,
-            locants: attachedRingPositions,
-            locant: attachedRingPositions[0],
-          };
-        }
-
-        return fg;
-      });
+          return fg;
+        },
+      );
 
       // Update parent structure with chosen numbering
       const updatedParentStructure = {
@@ -228,7 +232,7 @@ export const RING_NUMBERING_RULE: IUPACRule = {
       };
 
       return context.withStateUpdate(
-        (state: any) => ({
+        (state: ContextState) => ({
           ...state,
           functionalGroups: updatedFunctionalGroups,
           parentStructure: updatedParentStructure,
@@ -259,13 +263,13 @@ export const RING_NUMBERING_RULE: IUPACRule = {
     // This ensures that ring.atoms[0] corresponds to locant 1, ring.atoms[1] to locant 2, etc.
     if (process.env.VERBOSE) {
       console.log(
-        `[Ring Numbering] Before reorderRingAtoms: ring.atoms = [${ring.atoms.map((a: any) => a.id).join(", ")}], startingPosition = ${startingPosition}`,
+        `[Ring Numbering] Before reorderRingAtoms: ring.atoms = [${ring.atoms.map((a: Atom) => a.id).join(", ")}], startingPosition = ${startingPosition}`,
       );
     }
     const reorderedAtoms = reorderRingAtoms(ring.atoms, startingPosition);
     if (process.env.VERBOSE) {
       console.log(
-        `[Ring Numbering] After reorderRingAtoms: reorderedAtoms = [${reorderedAtoms.map((a: any) => a.id).join(", ")}]`,
+        `[Ring Numbering] After reorderRingAtoms: reorderedAtoms = [${reorderedAtoms.map((a: Atom) => a.id).join(", ")}]`,
       );
     }
     const reorderedBonds = ring.bonds; // Bonds don't need reordering as they reference atom IDs
@@ -288,98 +292,100 @@ export const RING_NUMBERING_RULE: IUPACRule = {
     }
 
     // Build set of ring atom IDs
-    const ringAtomIds = new Set(reorderedAtoms.map((a: any) => a.id));
+    const ringAtomIds = new Set(reorderedAtoms.map((a: Atom) => a.id));
 
     // Update functional group locants to use ring positions instead of atom IDs
     // For functional groups attached to the ring (like -OH), we need to find which ring atom they're bonded to
-    const updatedFunctionalGroups = functionalGroups.map((fg: any) => {
-      if (process.env.VERBOSE) {
-        console.log(
-          `[Ring Numbering] Processing functional group ${fg.type}: atoms=${fg.atoms?.map((a: any) => a).join(",")}, old locants=${fg.locants}, old locant=${fg.locant}`,
-        );
-      }
+    const updatedFunctionalGroups = functionalGroups.map(
+      (fg: FunctionalGroup) => {
+        if (process.env.VERBOSE) {
+          console.log(
+            `[Ring Numbering] Processing functional group ${fg.type}: atoms=${fg.atoms?.map((a: Atom) => a.id).join(",")}, old locants=${fg.locants}, old locant=${fg.locant}`,
+          );
+        }
 
-      // Find which ring atoms this functional group is attached to
-      const attachedRingPositions: number[] = [];
+        // Find which ring atoms this functional group is attached to
+        const attachedRingPositions: number[] = [];
 
-      if (fg.atoms && fg.atoms.length > 0) {
-        for (const groupAtom of fg.atoms) {
-          // Handle both object format (with .id) and direct ID format
-          const groupAtomId =
-            typeof groupAtom === "object" ? groupAtom.id : groupAtom;
+        if (fg.atoms && fg.atoms.length > 0) {
+          for (const groupAtom of fg.atoms) {
+            // Handle both object format (with .id) and direct ID format
+            const groupAtomId =
+              typeof groupAtom === "object" ? groupAtom.id : groupAtom;
 
-          // Check if this functional group atom is itself in the ring
-          if (atomIdToPosition.has(groupAtomId)) {
-            attachedRingPositions.push(atomIdToPosition.get(groupAtomId)!);
-          } else {
-            // This functional group atom is NOT in the ring, so find which ring atom it's bonded to
-            const bonds = molecule.bonds.filter(
-              (bond: any) =>
-                bond.atom1 === groupAtomId || bond.atom2 === groupAtomId,
-            );
+            // Check if this functional group atom is itself in the ring
+            if (atomIdToPosition.has(groupAtomId)) {
+              attachedRingPositions.push(atomIdToPosition.get(groupAtomId)!);
+            } else {
+              // This functional group atom is NOT in the ring, so find which ring atom it's bonded to
+              const bonds = molecule.bonds.filter(
+                (bond: Bond) =>
+                  bond.atom1 === groupAtomId || bond.atom2 === groupAtomId,
+              );
 
-            for (const bond of bonds) {
-              const otherAtomId =
-                bond.atom1 === groupAtomId ? bond.atom2 : bond.atom1;
-              if (ringAtomIds.has(otherAtomId)) {
-                // Found a ring atom bonded to this functional group
-                const position = atomIdToPosition.get(otherAtomId);
-                if (
-                  position !== undefined &&
-                  !attachedRingPositions.includes(position)
-                ) {
-                  attachedRingPositions.push(position);
-                  console.log(
-                    `[Ring Numbering] Functional group ${fg.type} attached to ring position ${position} (atom ${otherAtomId})`,
-                  );
+              for (const bond of bonds) {
+                const otherAtomId =
+                  bond.atom1 === groupAtomId ? bond.atom2 : bond.atom1;
+                if (ringAtomIds.has(otherAtomId)) {
+                  // Found a ring atom bonded to this functional group
+                  const position = atomIdToPosition.get(otherAtomId);
+                  if (
+                    position !== undefined &&
+                    !attachedRingPositions.includes(position)
+                  ) {
+                    attachedRingPositions.push(position);
+                    console.log(
+                      `[Ring Numbering] Functional group ${fg.type} attached to ring position ${position} (atom ${otherAtomId})`,
+                    );
+                  }
                 }
               }
             }
           }
         }
-      }
 
-      // If we found ring positions, use those as locants
-      if (attachedRingPositions.length > 0) {
-        attachedRingPositions.sort((a, b) => a - b);
+        // If we found ring positions, use those as locants
+        if (attachedRingPositions.length > 0) {
+          attachedRingPositions.sort((a, b) => a - b);
 
-        if (process.env.VERBOSE) {
-          console.log(
-            `[Ring Numbering] Updated functional group ${fg.type}: new locants=${attachedRingPositions}, new locant=${attachedRingPositions[0]}`,
-          );
+          if (process.env.VERBOSE) {
+            console.log(
+              `[Ring Numbering] Updated functional group ${fg.type}: new locants=${attachedRingPositions}, new locant=${attachedRingPositions[0]}`,
+            );
+          }
+
+          return {
+            ...fg,
+            locants: attachedRingPositions,
+            locant: attachedRingPositions[0],
+          };
         }
 
-        return {
-          ...fg,
-          locants: attachedRingPositions,
-          locant: attachedRingPositions[0],
-        };
-      }
+        // Otherwise, try to convert existing locants using the atom ID to position map
+        if (fg.locants && fg.locants.length > 0) {
+          const newLocants = fg.locants.map((atomId: number) => {
+            const position = atomIdToPosition.get(atomId);
+            return position !== undefined ? position : atomId; // fallback to atom ID if not in ring
+          });
 
-      // Otherwise, try to convert existing locants using the atom ID to position map
-      if (fg.locants && fg.locants.length > 0) {
-        const newLocants = fg.locants.map((atomId: number) => {
-          const position = atomIdToPosition.get(atomId);
-          return position !== undefined ? position : atomId; // fallback to atom ID if not in ring
-        });
+          const newLocant =
+            fg.locant !== undefined && atomIdToPosition.has(fg.locant)
+              ? atomIdToPosition.get(fg.locant)
+              : fg.locant;
 
-        const newLocant =
-          fg.locant !== undefined && atomIdToPosition.has(fg.locant)
-            ? atomIdToPosition.get(fg.locant)
-            : fg.locant;
+          return {
+            ...fg,
+            locants: newLocants,
+            locant: newLocant,
+          };
+        }
 
-        return {
-          ...fg,
-          locants: newLocants,
-          locant: newLocant,
-        };
-      }
-
-      return fg;
-    });
+        return fg;
+      },
+    );
 
     return context.withStateUpdate(
-      (state: any) => ({
+      (state: ContextState) => ({
         ...state,
         functionalGroups: updatedFunctionalGroups,
         parentStructure: {

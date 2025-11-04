@@ -1,4 +1,4 @@
-import { describe, it, expect } from "bun:test";
+import { describe, it } from "bun:test";
 import { parseSMILES, parseSMARTS, matchSMARTS } from "index";
 
 describe("Benzene Ring Failures", () => {

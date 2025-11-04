@@ -22,7 +22,21 @@ type MutableBond = {
   -readonly [K in keyof Bond]: Bond[K];
 };
 
-export function parseSMILES(smiles: string, timings?: any): ParseResult {
+interface TimingMetrics {
+  tokenize: number;
+  buildGraph: number;
+  validateAromaticity: number;
+  validateValences: number;
+  validateStereo: number;
+  perceiveAromaticity: number;
+  enrichMolecule: number;
+  total: number;
+}
+
+export function parseSMILES(
+  smiles: string,
+  timings?: TimingMetrics,
+): ParseResult {
   const errors: ParseError[] = [];
   const molecules: Molecule[] = [];
 
@@ -40,7 +54,7 @@ export function parseSMILES(smiles: string, timings?: any): ParseResult {
 
 function parseSingleSMILES(
   smiles: string,
-  timings?: any,
+  timings?: TimingMetrics,
 ): { molecule: Molecule; errors: ParseError[] } {
   const errors: ParseError[] = [];
   let atoms: MutableAtom[] = [];
@@ -182,7 +196,7 @@ function parseSingleSMILES(
         ) {
           const charAfterNext = i + 2 < smiles.length ? smiles[i + 2]! : "";
           const followedByAtomContext =
-            charAfterNext !== "" && /^[0-9=\/#$@(]/.test(charAfterNext);
+            charAfterNext !== "" && /^[0-9=#/$@(]/.test(charAfterNext);
           shouldSplit = followedByAtomContext;
         }
         if (twoLetterIsValid && !shouldSplit) {
@@ -368,7 +382,7 @@ function parseSingleSMILES(
     if (entries.length < 2) continue;
 
     // Pair up endpoints in chronological order, but never pair an atom with itself.
-    const used = new Array(entries.length).fill(false);
+    const used = Array(entries.length).fill(false);
     for (let i = 0; i < entries.length; i++) {
       if (used[i]) continue;
       const first = entries[i]!;

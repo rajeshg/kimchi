@@ -1,7 +1,7 @@
 import type { Molecule } from "types";
 import { matchSMARTS } from "src/matchers/smarts-matcher";
 import { isRingAromatic } from "./aromatic-naming";
-import { findHeteroatomsInRing, buildPerimeterFromRings } from "./utils";
+import { findHeteroatomsInRing } from "./utils";
 
 export function identifyPolycyclicPattern(
   rings: number[][],
@@ -19,7 +19,7 @@ export function identifyPolycyclicPattern(
     ).length;
     return aroCount >= Math.floor(r.length / 2);
   });
-  const allRingsAromatic = perRingAromatic.every(Boolean);
+  const _allRingsAromatic = perRingAromatic.every(Boolean);
   const ringCount = rings.length;
   const ringSizes = rings.map((r) => r.length).sort((a, b) => a - b);
   const allRingAtoms = new Set<number>();
@@ -331,7 +331,10 @@ export function identifyAdvancedFusedPattern(
   const ringAtoms = Array.from(allRingAtoms)
     .map((idx) => molecule.atoms[idx])
     .filter((a): a is (typeof molecule.atoms)[0] => a !== undefined);
-  const heteroAtoms = findHeteroatomsInRing(Array.from(allRingAtoms), molecule);
+  const _heteroAtoms = findHeteroatomsInRing(
+    Array.from(allRingAtoms),
+    molecule,
+  );
   const ringCount = rings.length;
   const ringSizes = rings.map((r) => r.length).sort((a, b) => a - b);
 

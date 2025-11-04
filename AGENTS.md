@@ -391,15 +391,21 @@ console.log(adamRings.classifyRingSystems());      // bridged system
 2. Add/modify source files in `src/`
 3. Add tests in corresponding `test/` directory
 4. Run `bun run typecheck && bun run test`
-5. Commit with clear message (use conventional commits format)
-6. Create pull request
+5. **Run `bun run lint` and `bun run fmt` before every commit.**
+   - Lint and format must be run regularly during development and are **required before every commit**.
+   - Fix all lint and formatting issues before staging changes.
+6. Commit with clear message (use conventional commits format)
+7. Create pull request
 
 ### Fixing a Bug
 1. Create bug branch: `git checkout -b fix/description`
 2. Write failing test first (if not already exists)
 3. Fix the bug in `src/`
 4. Verify test passes and check for regressions: `bun run test:full`
-5. Commit and create pull request
+5. **Run `bun run lint` and `bun run fmt` before every commit.**
+   - Lint and format must be run regularly during development and are **required before every commit**.
+   - Fix all lint and formatting issues before staging changes.
+6. Commit and create pull request
 
 ### Running Specific Tests
 ```bash

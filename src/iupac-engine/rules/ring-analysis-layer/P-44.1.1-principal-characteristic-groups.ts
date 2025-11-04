@@ -124,7 +124,7 @@ export const P44_1_1_PRINCIPAL_CHARACTERISTIC_GROUPS_RULE: IUPACRule = {
     }
 
     // Track which functional groups are part of chains
-    const fgsOnChains = new Set<any>();
+    const fgsOnChains = new Set<unknown>();
 
     // Count how many principal functional groups are on each chain
     const chainFGCounts = chains.map((chain) => {

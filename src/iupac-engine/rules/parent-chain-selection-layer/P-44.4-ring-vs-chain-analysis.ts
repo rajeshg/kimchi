@@ -1,6 +1,9 @@
 import type { IUPACRule } from "../../types";
 import { BLUE_BOOK_RULES, RulePriority } from "../../types";
-import type { ImmutableNamingContext } from "../../immutable-context";
+import type {
+  ImmutableNamingContext,
+  ContextState,
+} from "../../immutable-context";
 import { ExecutionPhase } from "../../immutable-context";
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -40,16 +43,16 @@ export const P44_4_RING_VS_CHAIN_IN_CHAIN_ANALYSIS_RULE: IUPACRule = {
     );
   },
   action: (context: ImmutableNamingContext) => {
-    const state = context.getState();
-    const candidateRings = state.candidateRings as any[];
+    const state = context.getState() as ContextState;
+    const candidateRings = state.candidateRings;
     if (!candidateRings || candidateRings.length === 0) return context;
     // Choose the first (already filtered) ring candidate as parent
-    const ring = candidateRings[0];
+    const ring = candidateRings[0]!;
     // Generate a simple ring name (aromatic vs aliphatic)
     const size = ring.size || (ring.atoms ? ring.atoms.length : 0);
     const type =
       ring.type ||
-      (ring.atoms && ring.atoms.some((a: any) => a.aromatic)
+      (ring.atoms && ring.atoms.some((a) => a.aromatic)
         ? "aromatic"
         : "aliphatic");
     let name = "";
@@ -72,17 +75,19 @@ export const P44_4_RING_VS_CHAIN_IN_CHAIN_ANALYSIS_RULE: IUPACRule = {
       name = ringNames[size] || `cyclo${size}ane`;
     }
     const locants =
-      ring && ring.atoms
-        ? ring.atoms.map((_: any, idx: number) => idx + 1)
-        : [];
+      ring && ring.atoms ? ring.atoms.map((_, idx: number) => idx + 1) : [];
     // Try to find substituents on the ring atoms so substituted ring names can be produced
-    let substituents: any[] = [];
+    let substituents: unknown[] = [];
     try {
-      const mol = (context.getState() as any).molecule;
+      const mol = state.molecule;
       if (ring && ring.atoms && mol) {
-        substituents = _findSubstituents(mol, ring.atoms as number[]) || [];
+        substituents =
+          _findSubstituents(
+            mol,
+            ring.atoms.map((a) => a.id),
+          ) || [];
       }
-    } catch (e) {
+    } catch (_e) {
       substituents = [];
     }
 

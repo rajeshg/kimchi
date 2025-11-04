@@ -2,6 +2,7 @@ import type { IUPACRule } from "../../types";
 import { RulePriority } from "../../types";
 import type { ImmutableNamingContext } from "../../immutable-context";
 import { ExecutionPhase } from "../../immutable-context";
+import type { Atom, Bond } from "types";
 
 /**
  * Rule: Valence Analysis
@@ -28,12 +29,12 @@ export const ATOMIC_VALENCE_RULE: IUPACRule = {
       return context;
     }
     const valenceMap = new Map<number, number>();
-    state.molecule.atoms.forEach((atom: any) => {
+    state.molecule.atoms.forEach((atom: Atom) => {
       const bonds = state.molecule.bonds.filter(
-        (b: any) => b.atom1 === atom.id || b.atom2 === atom.id,
+        (b: Bond) => b.atom1 === atom.id || b.atom2 === atom.id,
       );
       let valence = 0;
-      bonds.forEach((bond: any) => {
+      bonds.forEach((bond: Bond) => {
         switch (bond.type) {
           case "single":
             valence += 1;

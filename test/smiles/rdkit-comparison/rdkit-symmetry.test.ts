@@ -26,20 +26,20 @@ async function initializeRDKit(): Promise<any> {
 }
 
 function getRDKitCanonical(smiles: string): Promise<string> {
-  return new Promise(async (resolve) => {
+  return (async () => {
     try {
       const RDKit = await initializeRDKit();
 
       const mol = RDKit.get_mol(smiles);
       if (mol && mol.is_valid()) {
-        resolve(mol.get_smiles());
+        return mol.get_smiles();
       } else {
-        resolve("PARSE_ERROR");
+        return "PARSE_ERROR";
       }
     } catch (e) {
-      resolve("RDKIT_ERROR");
+      return "RDKIT_ERROR";
     }
-  });
+  })();
 }
 
 describe("RDKit Symmetry Detection Validation", () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { parseSMILES, generateSMILES } from "index";
+import { parseSMILES } from "index";
 
 const failingBondSMILES = [
   "CC(C)(C)OC(=O)CCC(CO)NC(=O)C1=CC=CC(=C1)CNC(=O)C23CC4C5C(C2ON(C3C(=O)O4)CC6=CC=C(C=C6)C=CC7CCC8C(C7)O8)OC9(O5)CC1=CC=CC=C1C9",

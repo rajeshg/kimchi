@@ -9,7 +9,6 @@ import { describe, test, expect } from "bun:test";
 import {
   ImmutableNamingContext,
   ExecutionPhase,
-  NomenclatureMethod,
 } from "../../../src/iupac-engine/immutable-context";
 
 // Blue Book Example: P-44.3.6 - Chain Selection with Substituents

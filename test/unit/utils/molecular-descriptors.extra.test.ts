@@ -4,7 +4,6 @@ import {
   computeDescriptors,
   getAtomCount,
   getBondCount,
-  getFormalCharge,
   getElementCounts,
   getHeavyAtomFraction,
 } from "src/utils/molecular-descriptors";

@@ -1,4 +1,4 @@
-import type { Atom, Bond, Molecule } from "types";
+import type { Bond, Molecule } from "types";
 
 /**
  * Stereochemistry utilities for R/S and E/Z configuration assignment
@@ -214,8 +214,8 @@ function determineEZConfiguration(
   const priority2B = calculateCIPPriority(molecule, bond.atom2, sub2B);
 
   // Determine which substituents have higher priority on each carbon
-  const highPriority1 = priority1A > priority1B ? sub1A : sub1B;
-  const highPriority2 = priority2A > priority2B ? sub2A : sub2B;
+  const _highPriority1 = priority1A > priority1B ? sub1A : sub1B;
+  const _highPriority2 = priority2A > priority2B ? sub2A : sub2B;
 
   // In SMILES, bond stereo indicates relative positions
   // This is a simplified mapping - real implementation would need geometric analysis

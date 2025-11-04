@@ -202,6 +202,20 @@ class OC_MorganAtom implements IMorganAtom {
     }
     return neighbors;
   }
+
+  // Getter methods for OC_MorganBond to access private properties
+  getAtomData(): Atom {
+    return this.atom;
+  }
+  getMoleculeData(): Molecule {
+    return this.mol;
+  }
+  getAtomsData(): Atom[] {
+    return this.atoms;
+  }
+  getBondsData(): Bond[] {
+    return this.bonds;
+  }
 }
 
 // Adapter: openchem Bond -> IMorganBond
@@ -212,13 +226,13 @@ class OC_MorganBond implements IMorganBond {
     this.bond = bond;
     this.atom = atom;
   }
-  getOtherAtom(atom: IMorganAtom): IMorganAtom {
+  getOtherAtom(_atom: IMorganAtom): IMorganAtom {
     const a =
-      this.bond.atom1 === (this.atom as any).atom.id
+      this.bond.atom1 === this.atom.getAtomData().id
         ? this.bond.atom2
         : this.bond.atom1;
-    const atoms = (this.atom as any).atoms as Atom[];
-    const mol = (this.atom as any).mol as Molecule;
+    const atoms = this.atom.getAtomsData();
+    const mol = this.atom.getMoleculeData();
     const idx = atoms.findIndex((at) => at.id === a);
     if (idx === -1 || !atoms[idx])
       throw new Error("Invalid atom index in getOtherAtom");
@@ -227,7 +241,7 @@ class OC_MorganBond implements IMorganBond {
       mol,
       idx,
       atoms,
-      (this.atom as any).bonds,
+      this.atom.getBondsData(),
     );
   }
   getBondType(): number {
@@ -255,7 +269,7 @@ class OC_MorganMolecule implements IMorganMolecule {
   constructor(mol: Molecule) {
     this.mol = mol;
     this.atoms = Array.from(mol.atoms);
-    this.bonds = (mol as any).bonds ? Array.from((mol as any).bonds) : [];
+    this.bonds = Array.from(mol.bonds);
     this.ocAtoms = this.atoms.map(
       (a, i) => new OC_MorganAtom(a, mol, i, this.atoms, this.bonds),
     );
@@ -409,7 +423,7 @@ function getAtomInvariants(mol: IMorganMolecule): Uint32Array {
     // Calculate isotope delta mass (mass - standard atomic weight)
     // For simplicity, if isotope is specified, use it as delta mass
     // Otherwise, assume natural abundance (delta = 0)
-    const isotope = (atom as any).atom?.isotope || 0;
+    const isotope = (atom as OC_MorganAtom).getAtomData().isotope || 0;
     const deltaMass = isotope > 0 ? isotope - atom.getAtomicNum() : 0; // Approximation
     components.push(deltaMass);
 

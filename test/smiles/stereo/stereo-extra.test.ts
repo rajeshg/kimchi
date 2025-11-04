@@ -168,6 +168,7 @@ describe("SMILES Stereo Extras", () => {
     expect(dbl).toBeDefined();
     const gen = generateSMILES(mol);
     expect(gen).toContain("=");
+    // eslint-disable-next-line no-useless-escape -- backslash escape needed to match literal backslash in SMILES
     expect(gen.match(/[\/\\]/g)?.length).toBeGreaterThan(0);
   });
 

@@ -32,12 +32,16 @@ export function combineCycloWithSuffix(base: string, suffix: string): string {
   return base + suffix;
 }
 
-export function buildPerimeterFromRings(fusedSystem: any): number[] {
+export interface FusedSystem {
+  rings: number[][];
+}
+
+export function buildPerimeterFromRings(fusedSystem: FusedSystem): number[] {
   // Build edges present in rings, count ring-membership per edge and keep edges
   // that belong to only one ring -> outer perimeter edges. Then traverse that
   // cycle to return an ordered list of perimeter atoms.
   const edgeCount: Record<string, number> = {};
-  const rings: number[][] = fusedSystem.rings || [];
+  const rings = fusedSystem.rings;
   for (const ring of rings) {
     for (let i = 0; i < ring.length; i++) {
       const a = ring[i]!,

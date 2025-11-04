@@ -4,6 +4,7 @@ import {
   ExecutionPhase,
   ImmutableNamingContext,
 } from "../../immutable-context";
+import type { ContextState } from "../../immutable-context";
 import { isPrincipalGroup, assignSubstituentLocants } from "./helpers";
 
 /**
@@ -54,7 +55,7 @@ export const SUBSTITUENT_NUMBERING_RULE: IUPACRule = {
     );
 
     return context.withStateUpdate(
-      (state: any) => ({
+      (state: ContextState) => ({
         ...state,
         functionalGroups: [...principalGroups, ...numberedSubstituents],
       }),

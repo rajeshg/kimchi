@@ -6,7 +6,6 @@ import { describe, test, expect } from "bun:test";
 import {
   ImmutableNamingContext,
   ExecutionPhase,
-  NomenclatureMethod,
 } from "../../../src/iupac-engine/immutable-context";
 import {
   FUNCTIONAL_GROUP_CONTRACT,

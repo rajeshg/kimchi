@@ -57,7 +57,7 @@ export function isRingAromatic(ring: number[], molecule: Molecule): boolean {
         aromaticAtomCount,
         atomAromaticFraction,
       });
-    } catch (e) {}
+    } catch (_e) {}
   }
 
   // Conservative rules:

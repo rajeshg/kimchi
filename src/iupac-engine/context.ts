@@ -1,16 +1,12 @@
-import type { Molecule, Atom, Bond } from "../../types";
+import type { Molecule } from "../../types";
 import type {
   NamingContext,
-  IUPACRule,
-  Layer,
-  NamingResult,
   Chain,
   RingSystem,
   FunctionalGroup,
   ParentStructure,
   RuleConflict,
   NomenclatureMethod,
-  MultipleBond,
 } from "./types";
 
 /**
@@ -25,7 +21,7 @@ export class NamingContextImpl implements NamingContext {
   public currentLayer?: string;
   public executedRules = new Set<string>();
   public conflicts: RuleConflict[] = [];
-  public state = new Map<string, any>();
+  public state = new Map<string, unknown>();
 
   private _parentStructure?: ParentStructure;
 
@@ -82,11 +78,11 @@ export class NamingContextImpl implements NamingContext {
     this.functionalGroups.push(group);
   }
 
-  setState(key: string, value: any): void {
+  setState(key: string, value: unknown): void {
     this.state.set(key, value);
   }
 
-  getState(key: string): any {
+  getState(key: string): unknown {
     return this.state.get(key);
   }
 

@@ -18,16 +18,12 @@ import {
   generateSubstitutedFusedNameWithIUPACNumbering,
   findSubstituentsOnFusedSystem,
 } from "./substituents";
-import {
-  getAlkaneBySize,
-  combineCycloWithSuffix,
-  generateClassicPolycyclicName,
-} from "./utils";
+import { getAlkaneBySize, generateClassicPolycyclicName } from "./utils";
 
 export function generateCyclicName(
   molecule: Molecule,
   ringInfo: ReturnType<typeof analyzeRings>,
-  options?: any,
+  options?: unknown,
 ): string {
   // Consider rings of size >= 3 as meaningful for IUPAC naming. Small rings (3- and 4-member)
   // should still be named as cycloalkanes (e.g., cyclopropane), so don't filter them out.
@@ -150,7 +146,7 @@ export function generateCyclicName(
             return "biphenyl";
           }
         }
-      } catch (e) {
+      } catch (_e) {
         // ignore and fall through to general polycyclic handling
       }
     }
@@ -210,7 +206,7 @@ export function generateCyclicName(
         if (process.env.VERBOSE)
           console.log(
             "[VERBOSE] using fusedSystem with rings=",
-            fusedSystem.rings.map((r: any) => r.length),
+            fusedSystem.rings.map((r: number[]) => r.length),
           );
         let fusedName = identifyAdvancedFusedPattern(
           fusedSystem.rings,
@@ -353,7 +349,7 @@ export function generateBaseCyclicName(
             return "biphenyl";
           }
         }
-      } catch (e) {
+      } catch (_e) {
         // ignore and fall through
       }
     }
@@ -428,7 +424,7 @@ export function generateBaseCyclicName(
 function generateSpiroName(
   spiroRings: number[][],
   molecule: Molecule,
-  options?: any,
+  _options?: unknown,
 ): string {
   if (spiroRings.length < 2) return `spiro_C${molecule.atoms.length}`;
 
@@ -474,9 +470,9 @@ function generateSpiroName(
 }
 
 function generateBridgedName(
-  bridged: any,
+  bridged: number[][],
   molecule: Molecule,
-  options?: any,
+  _options?: unknown,
 ): string {
   return `bridged_C${molecule.atoms.length}`;
 }
@@ -728,11 +724,11 @@ function findSubstituentsOnMonocyclicRing(
         if (substituentInfo) {
           // Store the ring atom index as position (will be renumbered later)
           substituents.push({
-            position: ringAtomIdx,
+            position: String(ringAtomIdx),
             type: substituentInfo.type,
             size: substituentInfo.size,
             name: substituentInfo.name,
-          } as any);
+          });
         }
       }
     }
@@ -878,7 +874,7 @@ function generateMonocyclicSubstitutedName(
   cycloName: string,
   substituents: Substituent[],
   ring: number[],
-  molecule: Molecule,
+  _molecule: Molecule,
 ): string {
   if (substituents.length === 0) return cycloName;
 
@@ -1082,7 +1078,7 @@ function normalizeCyclicName(
           }
         }
       }
-    } catch (e) {
+    } catch (_e) {
       // ignore and fall through to return original name
     }
   }

@@ -1,0 +1,20 @@
+{
+  "ignorePatterns": [
+    "src/third-party/**",
+    "dist/**",
+    "node_modules/**",
+    "test/**",
+    "scripts/**"
+  ],
+  "rules": {
+    "no-unused-vars": [
+      "warn",
+      {
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_",
+        "caughtErrorsIgnorePattern": "^_"
+      }
+    ],
+    "@typescript-eslint/no-explicit-any": "error"
+  }
+}

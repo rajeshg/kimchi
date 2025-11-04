@@ -1,6 +1,6 @@
 import type { Molecule } from "types";
 import { MONOISOTOPIC_MASSES, ISOTOPE_MASSES } from "src/constants";
-import { analyzeRings, findRings } from "src/utils/ring-analysis";
+import { findRings } from "src/utils/ring-analysis";
 import { enrichMolecule } from "src/utils/molecule-enrichment";
 import {
   getBondsForAtom,

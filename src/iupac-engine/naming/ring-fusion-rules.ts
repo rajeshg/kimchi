@@ -29,7 +29,7 @@ export function identifyFusedRingSystems(
   for (let i = 0; i < rings.length; i++) {
     if (processedRings.has(i)) continue;
 
-    const currentRing = rings[i]!;
+    const _currentRing = rings[i]!;
     const fusedSystem = buildFusedSystem(i, rings, molecule, processedRings);
 
     if (fusedSystem.rings.length > 1) {
@@ -228,8 +228,8 @@ function determineFusionType(
       return fusionCount;
     });
 
-    const shared01 = findSharedAtoms(rings[0]!, rings[1]!).length;
-    const shared12 = findSharedAtoms(rings[1]!, rings[2]!).length;
+    const _shared01 = findSharedAtoms(rings[0]!, rings[1]!).length;
+    const _shared12 = findSharedAtoms(rings[1]!, rings[2]!).length;
     const shared02 = findSharedAtoms(rings[0]!, rings[2]!).length;
 
     // Linear fusion (anthracene): middle ring shares 2 atoms with each neighbor, outer rings don't share
@@ -462,7 +462,7 @@ function checkAllCarbonInRings(rings: number[][], molecule: Molecule): boolean {
  */
 function analyzeFusionPattern(
   fusedSystem: FusedRingSystem,
-  molecule: Molecule,
+  _molecule: Molecule,
 ): "linear" | "angular" | null {
   if (fusedSystem.rings.length !== 3) return null;
 

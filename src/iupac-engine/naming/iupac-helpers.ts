@@ -82,7 +82,7 @@ export function generateSimpleNameFromFormula(
 
 export function identifyPrincipalFunctionalGroup(
   molecule: Molecule,
-  _options?: any,
+  _options?: unknown,
 ): string | null {
   // Use rule engine to find principal functional group
   const fgRule = ruleEngine.findPrincipalFunctionalGroup(molecule);

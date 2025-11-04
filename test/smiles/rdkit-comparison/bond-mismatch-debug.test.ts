@@ -1,4 +1,4 @@
-import { describe, it, expect } from "bun:test";
+import { describe, it } from "bun:test";
 import { parseSMILES } from "index";
 
 // The 11 SMILES that showed bond-count mismatches in the last run

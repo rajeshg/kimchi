@@ -22,6 +22,11 @@ export interface ParsedFusionTemplate {
   locantMap: Map<number, string>; // atom index in molecule -> locant string
 }
 
+// Fused system structure
+export interface FusedSystem {
+  rings: number[][];
+}
+
 // Database of fusion templates (subset from OPSIN)
 export const FUSION_TEMPLATES: FusionTemplate[] = [
   {
@@ -229,7 +234,7 @@ export const FUSION_TEMPLATES: FusionTemplate[] = [
  * graph isomorphism or canonical labeling comparison
  */
 export function findMatchingFusionTemplate(
-  fusedSystem: any,
+  fusedSystem: FusedSystem,
   molecule: Molecule,
 ): FusionTemplate | null {
   // For now, use simple heuristics based on ring count and heteroatoms
@@ -310,7 +315,7 @@ export function parseFusionTemplate(
       molecule,
       locantMap,
     };
-  } catch (e) {
+  } catch (_e) {
     return null;
   }
 }

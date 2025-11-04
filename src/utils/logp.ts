@@ -1,4 +1,5 @@
-import type { Molecule, Atom, Bond } from "types";
+import type { Molecule } from "types";
+import type { SMARTSPattern } from "src/types/smarts-types";
 import { parseSMARTS } from "src/parsers/smarts-parser";
 import { matchSMARTS } from "src/matchers/smarts-matcher";
 import { addExplicitHydrogensWithMapping } from "src/utils/hydrogen-utils";
@@ -21,7 +22,7 @@ export interface CrippenParam {
   smarts: string;
   logp: number;
   mr: number;
-  pattern?: any;
+  pattern?: SMARTSPattern | null;
 }
 
 const defaultParamData = `#ID	SMARTS	logP	MR	Notes/Questions
@@ -213,9 +214,9 @@ export function getCrippenAtomContribs(
   }
 
   const nAtoms = molToMatch.atoms.length;
-  const logpContribs = new Array<number>(nAtoms).fill(0);
-  const mrContribs = new Array<number>(nAtoms).fill(0);
-  const doneAtoms = new Array<boolean>(nAtoms).fill(false);
+  const logpContribs = Array<number>(nAtoms).fill(0);
+  const mrContribs = Array<number>(nAtoms).fill(0);
+  const doneAtoms = Array<boolean>(nAtoms).fill(false);
   let nAtomsFound = 0;
 
   for (const cha of _patternOrder) {
@@ -245,8 +246,8 @@ export function getCrippenAtomContribs(
   if (includeHs) {
     const cached = augmentedCache.get(mol)!;
     const augmentedToOriginal = cached.augmentedToOriginal;
-    const originalLogp = new Array<number>(originalCount).fill(0);
-    const originalMr = new Array<number>(originalCount).fill(0);
+    const originalLogp = Array<number>(originalCount).fill(0);
+    const originalMr = Array<number>(originalCount).fill(0);
     for (let i = 0; i < nAtoms; i++) {
       const origIdx = augmentedToOriginal[i];
       if (origIdx != null && origIdx >= 0 && origIdx < originalCount) {

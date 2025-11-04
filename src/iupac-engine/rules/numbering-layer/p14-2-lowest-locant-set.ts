@@ -4,6 +4,7 @@ import {
   ExecutionPhase,
   ImmutableNamingContext,
 } from "../../immutable-context";
+import type { ContextState } from "../../immutable-context";
 import { normalizeFunctionalGroupLocants, optimizeLocantSet } from "./helpers";
 
 export const P14_2_LOWEST_LOCANT_SET_RULE: IUPACRule = {
@@ -54,7 +55,7 @@ export const P14_2_LOWEST_LOCANT_SET_RULE: IUPACRule = {
     };
 
     return context.withStateUpdate(
-      (state: any) => ({
+      (state: ContextState) => ({
         ...state,
         parentStructure: updatedParentStructure,
         functionalGroups: normalizedFunctionalGroups,

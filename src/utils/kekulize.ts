@@ -197,7 +197,7 @@ export function kekulize(molecule: Molecule): Molecule {
   }
 
   for (const k of fusionBonds) {
-    const [a1, a2] = k.split("-").map(Number);
+    const [, _a2] = k.split("-").map(Number);
     for (const bond of mutableBonds) {
       if (bondKey(bond.atom1, bond.atom2) === k) {
         bond.type = BondType.SINGLE;

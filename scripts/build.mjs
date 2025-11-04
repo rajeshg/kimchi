@@ -12,7 +12,7 @@ console.log("🔨 Building openchem...\n");
 console.log("Cleaning dist directory...");
 try {
   rmSync(distDir, { recursive: true, force: true });
-} catch (e) {
+} catch (_e) {
   // ignore
 }
 
@@ -71,7 +71,7 @@ for (const file of distFiles) {
   ) {
     try {
       rmSync(filePath, { recursive: true, force: true });
-    } catch (e) {
+    } catch (_e) {
       // ignore
     }
   }

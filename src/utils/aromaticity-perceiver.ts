@@ -120,7 +120,7 @@ function hasExocyclicDoubleBondToElectronegativeFromBonds(
   return false;
 }
 
-function ringHasExocyclicDoubleBond(
+function _ringHasExocyclicDoubleBond(
   ring: number[],
   atoms: Atom[],
   bonds: Bond[],
@@ -146,7 +146,7 @@ function countPiElectronsRDKit(
   ringAtoms: Set<number>,
   atomBonds: Bond[],
   originalAromaticFlags: Record<number, boolean>,
-  allAtomsWereAromatic: boolean,
+  _allAtomsWereAromatic: boolean,
 ): number {
   const bondCount = atomBonds.length;
 
@@ -407,12 +407,13 @@ function perceiveAromaticityMutable(
   mg?: MoleculeGraph,
 ): void {
   const mol: Molecule = { atoms: atoms as Atom[], bonds: bonds as Bond[] };
-  const graph = mg || new MoleculeGraph(mol);
+  const _graph = mg || new MoleculeGraph(mol);
 
   const allRings = findAllCycles(atoms as Atom[], bonds as Bond[], 7);
 
   // IMPORTANT: Cache the rings in the graph to avoid recomputation in enrichMolecule
   if (mg) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (mg as any)._sssr = allRings;
   }
 

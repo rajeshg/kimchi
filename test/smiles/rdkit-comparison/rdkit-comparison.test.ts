@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { parseSMILES, generateSMILES } from "index";
+import { parseSMILES } from "index";
 // RDKit's module export typing is not callable in this environment; cast to any where used
 
 // Initialize RDKit once for the entire test file

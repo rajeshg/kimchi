@@ -4,6 +4,7 @@ import {
   ExecutionPhase,
   ImmutableNamingContext,
 } from "../../immutable-context";
+import type { ContextState } from "../../immutable-context";
 import { validateNumbering } from "./helpers";
 import { generateChainName } from "../parent-chain-selection-layer";
 
@@ -81,14 +82,14 @@ export const NUMBERING_COMPLETE_RULE: IUPACRule = {
           false,
         );
         updatedParent = { ...parentStructure, name: newName };
-      } catch (err) {
+      } catch (_err) {
         // If name generation fails, keep existing name
         updatedParent = parentStructure;
       }
     }
 
     return context.withStateUpdate(
-      (state: any) => ({
+      (state: ContextState) => ({
         ...state,
         numberingComplete: true,
         numberingValidation: validationResult,

@@ -1,5 +1,7 @@
 import type { IUPACRule } from "../../types";
 import { BLUE_BOOK_RULES, RulePriority } from "../../types";
+import type { RingSystem } from "../../types";
+import type { Molecule } from "types";
 import { ExecutionPhase } from "../../immutable-context";
 import { classifyRingSystems } from "../../../utils/ring-analysis";
 import { generateRingLocants } from "./helpers";
@@ -26,7 +28,9 @@ export const P2_4_SPIRO_COMPOUNDS_RULE: IUPACRule = {
       return false;
     }
     // Check if any ring system contains multiple rings (spiro)
-    return candidateRings.some((rs: any) => rs.rings && rs.rings.length > 1);
+    return candidateRings.some(
+      (rs: RingSystem) => rs.rings && rs.rings.length > 1,
+    );
   },
   action: (context) => {
     const candidateRings = context.getState().candidateRings;
@@ -74,7 +78,7 @@ export const P2_4_SPIRO_COMPOUNDS_RULE: IUPACRule = {
  */
 function generateSpiroPolycyclicName(
   spiroRings: number[][],
-  molecule: any,
+  molecule: Molecule,
 ): string | null {
   // Use the engine's own naming function
   const { generateSpiroName } = require("../../naming/iupac-rings/index");

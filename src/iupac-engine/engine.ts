@@ -4,14 +4,14 @@ import type {
   Layer,
   NamingResult,
   NomenclatureMethod,
+  ParentStructure,
+  FunctionalGroup,
 } from "./types";
 import { ImmutableNamingContext, ExecutionPhase } from "./immutable-context";
 import { LAYER_ORDER, LAYER_DEFINITIONS } from "./layer-config";
-import {
-  OPSINNameGenerator,
-  getSharedNameGenerator,
-} from "./opsin-name-generator";
-import { analyzeRings } from "src/utils/ring-analysis";
+import { getSharedNameGenerator } from "./opsin-name-generator";
+import { analyzeRings, getAromaticRings } from "src/utils/ring-analysis";
+import type { RingInfo } from "src/utils/ring-analysis";
 
 /**
  * Core rule engine for IUPAC name generation
@@ -73,8 +73,8 @@ export class RuleEngine {
 
       // Generate final name
       return this.generateFinalName(context);
-    } catch (error) {
-      return this.generateFallbackName(context, error);
+    } catch (_error) {
+      return this.generateFallbackName(context, _error);
     }
   }
 
@@ -123,8 +123,8 @@ export class RuleEngine {
 
       const result = this.generateFinalName(context);
       return { result, context };
-    } catch (error) {
-      const result = this.generateFallbackName(context, error);
+    } catch (_error) {
+      const result = this.generateFallbackName(context, _error);
       return { result, context };
     }
   }
@@ -184,7 +184,7 @@ export class RuleEngine {
    */
   private checkLayerDependencies(
     layer: Layer,
-    context: ImmutableNamingContext,
+    _context: ImmutableNamingContext,
   ): boolean {
     if (!layer.dependencies || layer.dependencies.length === 0) {
       return true;
@@ -213,14 +213,14 @@ export class RuleEngine {
         try {
           updatedContext = rule.action(updatedContext);
           // Optionally, track executed rules in trace/history
-        } catch (error) {
+        } catch (_error) {
           // Optionally, add conflict to trace/history using withConflict
           updatedContext = updatedContext.withConflict(
             {
               ruleId: rule.id,
               conflictType: "state_inconsistency",
-              description: `Rule ${rule.id} failed: ${error instanceof Error ? error.message : "Unknown error"}`,
-              context: { error, rule },
+              description: `Rule ${rule.id} failed: ${_error instanceof Error ? _error.message : "Unknown error"}`,
+              context: { error: _error, rule },
             },
             rule.id,
             rule.name,
@@ -247,7 +247,7 @@ export class RuleEngine {
     // Check rule conditions
     try {
       return rule.conditions(context);
-    } catch (error) {
+    } catch (_error) {
       // If rule conditions fail, still allow execution for demo
       return true;
     }
@@ -316,10 +316,10 @@ export class RuleEngine {
     const parent = context.getState().parentStructure;
     if (
       parent &&
-      typeof (parent as any).assembledName === "string" &&
-      (parent as any).assembledName.length > 0
+      typeof parent.assembledName === "string" &&
+      parent.assembledName.length > 0
     ) {
-      return (parent as any).assembledName;
+      return parent.assembledName;
     }
 
     // Prefer parent structure name if available
@@ -328,10 +328,14 @@ export class RuleEngine {
     }
 
     // Check for rings as fallback
-    const ringInfo: any = analyzeRings(context.getState().molecule);
+    const ringInfo: RingInfo = analyzeRings(context.getState().molecule);
     if (ringInfo.rings.length > 0) {
       const ringSize = ringInfo.rings[0]!.length;
-      if (ringInfo.isAromatic[0]) {
+      const aromaticRings = getAromaticRings(
+        ringInfo.rings,
+        context.getState().molecule.atoms,
+      );
+      if (aromaticRings.length > 0) {
         const aromaticNames: { [key: number]: string } = {
           5: "cyclopentadiene",
           6: "benzene",
@@ -350,13 +354,15 @@ export class RuleEngine {
   /**
    * Build chain name
    */
-  private buildChainName(parent: any): string {
+  private buildChainName(
+    parent: ParentStructure & { functionalGroups?: FunctionalGroup[] },
+  ): string {
     const length = parent.chain?.length || 0;
     const functionalGroups = parent.functionalGroups || [];
 
     if (functionalGroups.length > 0) {
       // Has functional groups
-      const group = functionalGroups[0];
+      const group = functionalGroups[0]!;
       const baseName = this.getChainBaseName(length);
       return `${group.prefix || ""}${baseName}${group.suffix || ""}`;
     } else {
@@ -368,7 +374,7 @@ export class RuleEngine {
   /**
    * Build ring name
    */
-  private buildRingName(parent: any): string {
+  private buildRingName(parent: ParentStructure): string {
     const size = parent.ring?.size || 0;
     return this.getRingBaseName(size);
   }
@@ -485,7 +491,7 @@ export class RuleEngine {
    */
   private buildCarboxylicAcidName(
     context: ImmutableNamingContext,
-    group: any,
+    _group: FunctionalGroup,
   ): string {
     const carbonCount = context
       .getState()
@@ -512,7 +518,7 @@ export class RuleEngine {
    */
   private buildAlcoholName(
     context: ImmutableNamingContext,
-    group: any,
+    _group: FunctionalGroup,
   ): string {
     const carbonCount = context
       .getState()
@@ -537,7 +543,10 @@ export class RuleEngine {
   /**
    * Build ketone name
    */
-  private buildKetoneName(context: ImmutableNamingContext, group: any): string {
+  private buildKetoneName(
+    context: ImmutableNamingContext,
+    _group: FunctionalGroup,
+  ): string {
     const carbonCount = context
       .getState()
       .molecule.atoms.filter((a) => a.symbol === "C").length;
@@ -561,7 +570,10 @@ export class RuleEngine {
   /**
    * Build amine name
    */
-  private buildAmineName(context: ImmutableNamingContext, group: any): string {
+  private buildAmineName(
+    context: ImmutableNamingContext,
+    _group: FunctionalGroup,
+  ): string {
     const carbonCount = context
       .getState()
       .molecule.atoms.filter((a) => a.symbol === "C").length;
@@ -620,11 +632,11 @@ export class RuleEngine {
    */
   private generateFallbackName(
     context: ImmutableNamingContext,
-    error: any,
+    _error: unknown,
   ): NamingResult {
     return {
       name: "Error: Unable to generate IUPAC name",
-      method: "substitutive" as any,
+      method: "substitutive" as NomenclatureMethod,
       parentStructure: context.getState().parentStructure!,
       functionalGroups: context.getState().functionalGroups,
       locants: [],

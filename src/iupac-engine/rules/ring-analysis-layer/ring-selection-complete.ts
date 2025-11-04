@@ -1,5 +1,7 @@
 import type { IUPACRule } from "../../types";
 import { RulePriority, RingSystemType } from "../../types";
+import type { RingSystem } from "../../types";
+import type { Atom, Bond } from "types";
 import { ExecutionPhase } from "../../immutable-context";
 import { analyzeRings } from "../../../utils/ring-analysis";
 import { generateBaseCyclicName } from "../../naming/iupac-rings/index";
@@ -105,9 +107,12 @@ export const RING_SELECTION_COMPLETE_RULE: IUPACRule = {
     // Check if multiple rings are connected (forming a polycyclic system)
     if (candidateRings.length > 1) {
       // Check if any two rings are connected by bonds
-      const areRingsConnected = (ring1: any, ring2: any): boolean => {
-        const ring1AtomIds = new Set(ring1.atoms.map((a: any) => a.id));
-        const ring2AtomIds = new Set(ring2.atoms.map((a: any) => a.id));
+      const areRingsConnected = (
+        ring1: RingSystem,
+        ring2: RingSystem,
+      ): boolean => {
+        const ring1AtomIds = new Set(ring1.atoms.map((a: Atom) => a.id));
+        const ring2AtomIds = new Set(ring2.atoms.map((a: Atom) => a.id));
 
         for (const bond of molecule.bonds) {
           const a1InRing1 = ring1AtomIds.has(bond.atom1);
@@ -129,7 +134,7 @@ export const RING_SELECTION_COMPLETE_RULE: IUPACRule = {
           j < candidateRings.length && !hasConnectedRings;
           j++
         ) {
-          if (areRingsConnected(candidateRings[i], candidateRings[j])) {
+          if (areRingsConnected(candidateRings[i]!, candidateRings[j]!)) {
             hasConnectedRings = true;
           }
         }
@@ -143,8 +148,8 @@ export const RING_SELECTION_COMPLETE_RULE: IUPACRule = {
         }
 
         // Create a merged parent structure that includes all connected rings
-        const allAtoms = new Set<any>();
-        const allBonds = new Set<any>();
+        const allAtoms = new Set<Atom>();
+        const allBonds = new Set<Bond>();
 
         for (const ring of candidateRings) {
           for (const atom of ring.atoms) {
@@ -162,8 +167,8 @@ export const RING_SELECTION_COMPLETE_RULE: IUPACRule = {
 
         // Collect heteroatoms with proper structure
         const heteroatoms = atomsArray
-          .filter((a: any) => a.symbol !== "C" && a.symbol !== "H")
-          .map((a: any, idx: number) => ({
+          .filter((a: Atom) => a.symbol !== "C" && a.symbol !== "H")
+          .map((a: Atom, idx: number) => ({
             atom: a,
             type: a.symbol,
             locant: idx + 1,
@@ -172,7 +177,7 @@ export const RING_SELECTION_COMPLETE_RULE: IUPACRule = {
         const parentRing = {
           atoms: atomsArray,
           bonds: bondsArray,
-          rings: candidateRings.flatMap((r: any) => r.rings || []),
+          rings: candidateRings.flatMap((r: RingSystem) => r.rings || []),
           size: allAtoms.size,
           heteroatoms: heteroatoms,
           type: RingSystemType.AROMATIC, // Will be determined properly by naming logic

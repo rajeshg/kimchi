@@ -1,7 +1,6 @@
 import type { IUPACRule } from "../../types";
 import { BLUE_BOOK_RULES, RulePriority } from "../../types";
 import {
-  normalizeCitationName,
   canonicalizeCitationList,
   compareCitationArrays,
 } from "../../utils/citation-normalizer";

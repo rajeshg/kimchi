@@ -85,7 +85,7 @@ class IUPACRuleEngine {
   private loadRules(): RulesData {
     if (this.cachedRules) return this.cachedRules;
 
-    const rulesData = rules as any;
+    const rulesData = rules as RulesData;
     this.cachedRules = {
       alkanes: rulesData.alkanes || {},
       alkaneStemComponents: rulesData.alkaneStemComponents || {

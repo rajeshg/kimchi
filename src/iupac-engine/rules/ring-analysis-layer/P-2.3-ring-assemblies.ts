@@ -1,6 +1,8 @@
 import type { IUPACRule } from "../../types";
 import { BLUE_BOOK_RULES, RulePriority } from "../../types";
 import { ExecutionPhase } from "../../immutable-context";
+import type { RingSystem } from "../../types";
+import type { Molecule } from "../../../../types";
 import { classifyRingSystems } from "../../../utils/ring-analysis";
 import { generateRingLocants } from "./helpers";
 
@@ -27,7 +29,7 @@ export const P2_3_RING_ASSEMBLIES_RULE: IUPACRule = {
       console.log(
         "[P-2.3 CONDITION] candidateRings:",
         JSON.stringify(
-          candidateRings?.map((rs: any) => ({
+          candidateRings?.map((rs: RingSystem) => ({
             rings: rs.rings?.length,
             atoms: rs.atoms?.length,
           })),
@@ -54,7 +56,7 @@ export const P2_3_RING_ASSEMBLIES_RULE: IUPACRule = {
     }
     // Check if any ring system contains multiple rings (bridged/fused)
     const hasMultipleRings = candidateRings.some(
-      (rs: any) => rs.rings && rs.rings.length > 1,
+      (rs: RingSystem) => rs.rings && rs.rings.length > 1,
     );
     if (process.env.VERBOSE) {
       console.log("[P-2.3 CONDITION] hasMultipleRings:", hasMultipleRings);
@@ -123,7 +125,7 @@ export const P2_3_RING_ASSEMBLIES_RULE: IUPACRule = {
  */
 function generateBridgedPolycyclicName(
   bridgedRings: number[][],
-  molecule: any,
+  molecule: Molecule,
 ): { name: string; vonBaeyerNumbering?: Map<number, number> } | null {
   // Use the engine's own naming function
   const {

@@ -2,6 +2,7 @@ import type { IUPACRule } from "../../types";
 import { RulePriority } from "../../types";
 import type { ImmutableNamingContext } from "../../immutable-context";
 import { ExecutionPhase } from "../../immutable-context";
+import type { Bond, Atom } from "types";
 
 /**
  * Rule: P-25.1 - Aromatic Parent Structures
@@ -28,13 +29,13 @@ export const P_25_1_AROMATIC_PARENTS: IUPACRule = {
       return context;
     }
     const aromaticAtoms = new Set<number>();
-    state.molecule.bonds.forEach((bond: any) => {
+    state.molecule.bonds.forEach((bond: Bond) => {
       if (bond.type === "aromatic") {
         aromaticAtoms.add(bond.atom1);
         aromaticAtoms.add(bond.atom2);
       }
     });
-    state.molecule.atoms.forEach((atom: any) => {
+    state.molecule.atoms.forEach((atom: Atom) => {
       if (atom.aromatic) {
         aromaticAtoms.add(atom.id);
       }

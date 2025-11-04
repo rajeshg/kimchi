@@ -16,7 +16,7 @@ interface RingSystem {
   type: "isolated" | "fused" | "spiro" | "bridged" | "connected";
 }
 
-function getBondLength(
+function _getBondLength(
   atom1: Atom,
   atom2: Atom,
   defaultLength: number,
@@ -31,7 +31,7 @@ function getIdealAngle(atom: Atom, neighbors: number[]): number {
   return Math.PI / 2;
 }
 
-function computeForces(
+function _computeForces(
   coords: MoleculeCoordinates,
   molecule: Molecule,
   bondLength: number,
@@ -333,12 +333,6 @@ export function layoutFusedRings(
       const c1 = coords.get(a1!)!;
       const c2 = coords.get(a2!)!;
 
-      const idx1 = ring.indexOf(a1!);
-      const idx2 = ring.indexOf(a2!);
-
-      const ringSize = ring.length;
-      const interiorAngle = ((ringSize - 2) * Math.PI) / ringSize;
-
       const idealRingCoords = layoutRing(ring, bondLength);
       const idealC1 = idealRingCoords.get(a1!)!;
       const idealC2 = idealRingCoords.get(a2!)!;
@@ -400,7 +394,7 @@ function layoutChain(
   bondLength: number,
 ): MoleculeCoordinates {
   const n = molecule.atoms.length;
-  const coords: MoleculeCoordinates = new Array(n);
+  const coords: MoleculeCoordinates = Array(n);
   const visited = new Set<number>();
 
   const degrees = molecule.atoms.map(
@@ -713,7 +707,7 @@ export function generateCoordinates(
       fixedAtomIds,
       options,
     );
-  } catch (err) {
+  } catch (_err) {
     throw new Error("Webcola coordinate engine is required but not available.");
   }
 
@@ -869,7 +863,6 @@ function generateCoordinatesDefault(
             const nnCoord = newSystemCoords.get(newNeighborId)!;
             const vNewX = nnCoord.x - newSystemAtomCoord.x;
             const vNewY = nnCoord.y - newSystemAtomCoord.y;
-            const vNewLen = Math.sqrt(vNewX * vNewX + vNewY * vNewY) || 1;
             const angleNew = Math.atan2(vNewY, vNewX);
             // We want the neighbor vector to point roughly opposite the outgoing dir so the new system
             // extends outwards from the shared atom. Therefore add PI to dir angle.
@@ -920,7 +913,7 @@ function generateCoordinatesDefault(
     }
   }
 
-  const coords: MoleculeCoordinates = new Array(n);
+  const coords: MoleculeCoordinates = Array(n);
   for (let i = 0; i < n; i++) {
     const atomId = molecule.atoms[i]!.id;
     if (ringCoords.has(atomId)) {
@@ -1072,8 +1065,6 @@ function generateCoordinatesDefault(
       queue.push({ id: neighborId, parentId: id, angle: childAngle });
     }
   }
-
-  const ringAtomSet = new Set(ringCoords.keys());
 
   return coords;
 }

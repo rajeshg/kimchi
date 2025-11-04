@@ -4,7 +4,7 @@
  * Undirected graph with support for node and edge data.
  */
 
-export class Graph<TNode = any, TEdge = any> {
+export class Graph<TNode = unknown, TEdge = unknown> {
   private nodes = new Map<number, TNode>();
   private edges = new Map<string, { from: number; to: number; data: TEdge }>();
   private adjacency = new Map<number, Set<number>>();

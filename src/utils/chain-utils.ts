@@ -1,5 +1,5 @@
 import type { Molecule } from "types";
-import type { Chain, MultipleBond, Bond, Atom } from "types";
+import type { Chain, MultipleBond, Bond } from "types";
 
 /**
  * Get neighboring atom indices for a given atom in a molecule.

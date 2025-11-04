@@ -281,7 +281,7 @@ describe(`RDKit Bulk Comparison (${EXPECTED_COUNT} SMILES)`, () => {
     const parseFailures: string[] = [];
     const generationFailures: string[] = [];
 
-    function tryCallMolFormula(mol: any, RDKit: any): string | null {
+    function tryCallMolFormula(mol: any, _RDKit: any): string | null {
       if (!mol) return null;
       // RDKit may not expose a direct formula method; use get_smiles() and parse
       if (typeof mol.get_smiles === "function") {
@@ -427,7 +427,7 @@ describe(`RDKit Bulk Comparison (${EXPECTED_COUNT} SMILES)`, () => {
       if (rdFormula) {
         // Normalize components (salts/multi-component) and whitespace before comparing
         const norm = (f: string) =>
-          f.replace(/\s+/g, "").split(/[\.]/).filter(Boolean).sort().join(".");
+          f.replace(/\s+/g, "").split(/[.]/).filter(Boolean).sort().join(".");
         if (norm(rdFormula) !== norm(ourFormulas)) {
           generationFailures.push(
             `${smiles} (formula mismatch) our:${ourFormulas} rdkit:${rdFormula}`,

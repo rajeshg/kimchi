@@ -1,4 +1,5 @@
 import type { Molecule } from "../../types";
+import type { Atom, Bond, MultipleBond } from "types";
 
 /**
  * Generate a unique ID for a molecule based on its structure
@@ -21,6 +22,13 @@ import type {
   ParentStructure,
   RuleConflict,
 } from "./types";
+
+interface RawSubstituent {
+  position: string;
+  type: string;
+  size: number;
+  name: string;
+}
 
 /**
  * Immutable context state interface
@@ -175,12 +183,14 @@ export class ImmutableNamingContext {
         findMainChain,
         findSubstituents,
       } = require("./naming/iupac-chains");
-      const main = findMainChain(molecule as any) as number[];
+      const main = findMainChain(molecule) as number[];
       const candidates: Chain[] = [];
       if (main && main.length >= 2) {
-        const atoms = main.map((idx) => molecule.atoms[idx]) as any[];
-        const bonds: any[] = [];
-        const multipleBonds: any[] = [];
+        const atoms = main
+          .map((idx) => molecule.atoms[idx])
+          .filter(Boolean) as Atom[];
+        const bonds: Bond[] = [];
+        const multipleBonds: MultipleBond[] = [];
         for (let i = 0; i < main.length - 1; i++) {
           const a = main[i]!;
           const b = main[i + 1]!;
@@ -193,7 +203,7 @@ export class ImmutableNamingContext {
             bonds.push(bond);
             if (bond.type !== "single") {
               multipleBonds.push({
-                atoms: [molecule.atoms[a], molecule.atoms[b]],
+                atoms: [molecule.atoms[a]!, molecule.atoms[b]!],
                 bond,
                 type: bond.type === "double" ? "double" : "triple",
                 locant: i + 1,
@@ -201,15 +211,16 @@ export class ImmutableNamingContext {
             }
           }
         }
-        const subsRaw = findSubstituents(molecule as any, main as number[]);
-        const substituents = subsRaw.map((s: any) => {
+        const subsRaw = findSubstituents(molecule, main as number[]);
+        const substituents = (subsRaw as RawSubstituent[]).map((s) => {
           if (process.env.VERBOSE) {
             console.log(
-              `[immutable-context] Creating substituent: name="${s.name}", type="${s.type}", position="${s.position}", atoms=${JSON.stringify(s.atoms)}`,
+              `[immutable-context] Creating substituent: name="${s.name}", type="${s.type}", position="${s.position}", size=${s.size}`,
             );
           }
           return {
-            atoms: s.atoms || [],
+            atoms: [],
+            bonds: [],
             type: s.name,
             locant: parseInt(s.position, 10),
             isPrincipal: false,
@@ -226,7 +237,7 @@ export class ImmutableNamingContext {
         });
       }
       initialState.candidateChains = candidates;
-    } catch (err) {
+    } catch (_err) {
       // ignore and leave candidateChains empty
     }
 
@@ -426,19 +437,30 @@ export class ImmutableNamingContext {
     phase: ExecutionPhase,
     description: string,
   ): ImmutableNamingContext {
+    const beforeState = this.state;
     const confidenceChange = newConfidence - this.state.confidence;
+    const afterState = {
+      ...beforeState,
+      confidence: Math.max(0, Math.min(1, newConfidence)),
+    };
 
-    return this.withStateUpdate(
-      (state) => ({
-        ...state,
-        confidence: Math.max(0, Math.min(1, newConfidence)),
-      }),
+    const trace: RuleExecutionTrace = {
       ruleId,
       ruleName,
       blueBookSection,
       phase,
+      timestamp: new Date(),
+      beforeState,
+      afterState,
       description,
-    );
+      confidenceChange,
+      conflicts: [],
+    };
+
+    const newState = Object.freeze({ ...afterState });
+    const newHistory = [...this.history, trace];
+
+    return new ImmutableNamingContext(newState, newHistory);
   }
 
   /**

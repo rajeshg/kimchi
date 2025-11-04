@@ -75,8 +75,6 @@ function renderSingleMolecule(
   molecule: Molecule,
   options: SVGRendererOptions = {},
 ): SVGRenderResult {
-  let mol = molecule;
-
   molecule = assignStereoBondsFromChirality(molecule);
 
   const shouldKekulize = options.kekulize !== false;
@@ -178,7 +176,7 @@ function renderSingleMolecule(
   // Apply constrained multi-pass snapping while respecting fused ring layouts.
   try {
     snapBondAngles(coords, molecule, undefined, 3, fusedRingIds);
-  } catch (e) {
+  } catch (_e) {
     // defensive: if snapping fails, continue with original coords
   }
 
@@ -194,7 +192,7 @@ function renderSingleMolecule(
   const bondLineWidth = options.bondLineWidth ?? 2;
   const fontSize = options.fontSize ?? 16;
   const fontFamily = options.fontFamily ?? "sans-serif";
-  const atomColors = { ...DEFAULT_COLORS, ...(options.atomColors ?? {}) };
+  const atomColors = { ...DEFAULT_COLORS, ...options.atomColors };
   const showStereoBonds = options.showStereoBonds ?? true;
 
   const [tx, ty] = createCoordinateTransforms(
@@ -212,7 +210,7 @@ function renderSingleMolecule(
     .map((c) => ({ x: tx(c.x), y: ty(c.y) }));
 
   // Prepare SVG-space coords array for helpers (one entry per atom index)
-  const svgCoords: Array<{ x: number; y: number } | undefined> = new Array(
+  const svgCoords: Array<{ x: number; y: number } | undefined> = Array(
     coords.length,
   );
   for (let i = 0; i < coords.length; i++) {
@@ -247,7 +245,7 @@ function renderSingleMolecule(
       fontSize,
       bondLineWidth,
     );
-  } catch (e) {
+  } catch (_e) {
     labelOffsets = new Map();
   }
 
@@ -271,7 +269,7 @@ function renderSingleMolecule(
         }
       }
     }
-  } catch (e) {
+  } catch (_e) {
     // ignore
   }
 
@@ -391,7 +389,7 @@ function renderSingleMolecule(
     );
     const qc = `<!-- layout-quality: total=${quality.total.toFixed(3)} angle=${quality.components.angle.toFixed(3)} length=${quality.components.length.toFixed(3)} atomOverlap=${quality.components.atomOverlap.toFixed(3)} labelOverlap=${quality.components.labelOverlap.toFixed(3)} -->\n`;
     svg += qc;
-  } catch (e) {
+  } catch (_e) {
     // ignore
   }
 
@@ -760,7 +758,7 @@ function renderMultipleMolecules(
   const bondLineWidth = options.bondLineWidth ?? 2;
   const fontSize = options.fontSize ?? 16;
   const fontFamily = options.fontFamily ?? "sans-serif";
-  const atomColors = { ...DEFAULT_COLORS, ...(options.atomColors ?? {}) };
+  const atomColors = { ...DEFAULT_COLORS, ...options.atomColors };
   const showStereoBonds = options.showStereoBonds ?? true;
 
   const vbPadding = Math.max(8, Math.min(padding, 40));
@@ -823,7 +821,7 @@ function renderMultipleMolecules(
           }
         }
       }
-    } catch (e) {
+    } catch (_e) {
       // ignore
     }
 

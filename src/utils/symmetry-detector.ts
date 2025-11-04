@@ -1,4 +1,4 @@
-import type { Atom, Bond, Molecule } from "types";
+import type { Bond, Molecule } from "types";
 import { BondType, StereoType } from "types";
 import { getBondsForAtom, getOtherAtomId } from "./bond-utils";
 import { MoleculeGraph } from "./molecular-graph";

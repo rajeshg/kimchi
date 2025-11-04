@@ -6,5 +6,5 @@ import type { Molecule } from "../../types";
 
 export interface BaseContext {
   molecule: Molecule;
-  getState(): any;
+  getState(): unknown;
 }

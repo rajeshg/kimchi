@@ -7,22 +7,22 @@ describe("Comprehensive SMILES Tests", () => {
     it("handles negatively charged oxygen with explicit H", () => {
       const result = parseSMILES("[OH-]");
       expect(result.errors).toHaveLength(0);
-      expect(result.molecules[0]!.atoms[0]!!.charge).toBe(-1);
-      expect(result.molecules[0]!.atoms[0]!!.hydrogens).toBe(1);
+      expect(result.molecules[0]!.atoms[0]!.charge).toBe(-1);
+      expect(result.molecules[0]!.atoms[0]!.hydrogens).toBe(1);
     });
 
     it("handles negatively charged oxygen without explicit H", () => {
       const result = parseSMILES("[O-]C");
       expect(result.errors).toHaveLength(0);
-      expect(result.molecules[0]!.atoms[0]!!.charge).toBe(-1);
-      expect(result.molecules[0]!.atoms[0]!!.hydrogens).toBe(0);
+      expect(result.molecules[0]!.atoms[0]!.charge).toBe(-1);
+      expect(result.molecules[0]!.atoms[0]!.hydrogens).toBe(0);
     });
 
     it("handles positively charged nitrogen NH4+", () => {
       const result = parseSMILES("[NH4+]");
       expect(result.errors).toHaveLength(0);
-      expect(result.molecules[0]!.atoms[0]!!.charge).toBe(1);
-      expect(result.molecules[0]!.atoms[0]!!.hydrogens).toBe(4);
+      expect(result.molecules[0]!.atoms[0]!.charge).toBe(1);
+      expect(result.molecules[0]!.atoms[0]!.hydrogens).toBe(4);
     });
 
     it("handles carboxylate anion", () => {
@@ -47,7 +47,7 @@ describe("Comprehensive SMILES Tests", () => {
     it("handles multiple charges", () => {
       const result = parseSMILES("[O--]");
       expect(result.errors).toHaveLength(0);
-      expect(result.molecules[0]!.atoms[0]!!.charge).toBe(-2);
+      expect(result.molecules[0]!.atoms[0]!.charge).toBe(-2);
     });
 
     it("handles carbocation", () => {
@@ -69,19 +69,19 @@ describe("Comprehensive SMILES Tests", () => {
     it("handles double bonds", () => {
       const result = parseSMILES("C=C");
       expect(result.errors).toHaveLength(0);
-      expect(result.molecules[0]!!.bonds![0]!.type).toBe(BondType.DOUBLE);
+      expect(result.molecules[0]!.bonds![0]!.type).toBe(BondType.DOUBLE);
     });
 
     it("handles triple bonds", () => {
       const result = parseSMILES("C#C");
       expect(result.errors).toHaveLength(0);
-      expect(result.molecules[0]!!.bonds![0]!.type).toBe(BondType.TRIPLE);
+      expect(result.molecules[0]!.bonds![0]!.type).toBe(BondType.TRIPLE);
     });
 
     it("handles quadruple bonds", () => {
       const result = parseSMILES("C$C");
       expect(result.errors).toHaveLength(0);
-      expect(result.molecules[0]!!.bonds![0]!.type).toBe(BondType.QUADRUPLE);
+      expect(result.molecules[0]!.bonds![0]!.type).toBe(BondType.QUADRUPLE);
     });
 
     it("handles aromatic bonds", () => {
@@ -95,8 +95,8 @@ describe("Comprehensive SMILES Tests", () => {
     it("handles mixed bond types", () => {
       const result = parseSMILES("C=CC#N");
       expect(result.errors).toHaveLength(0);
-      expect(result.molecules[0]!!.bonds![0]!.type).toBe(BondType.DOUBLE);
-      expect(result.molecules[0]!!.bonds![2]!.type).toBe(BondType.TRIPLE);
+      expect(result.molecules[0]!.bonds![0]!.type).toBe(BondType.DOUBLE);
+      expect(result.molecules[0]!.bonds![2]!.type).toBe(BondType.TRIPLE);
     });
   });
 
@@ -282,7 +282,7 @@ describe("Comprehensive SMILES Tests", () => {
     it("handles deuterium", () => {
       const result = parseSMILES("[2H]C");
       expect(result.errors).toHaveLength(0);
-      expect(result.molecules[0]!.atoms[0]!!.isotope).toBe(2);
+      expect(result.molecules[0]!.atoms[0]!.isotope).toBe(2);
     });
 
     it("handles explicit hydrogen atoms", () => {
@@ -296,13 +296,13 @@ describe("Comprehensive SMILES Tests", () => {
       // Deuterium
       const result2 = parseSMILES("[2H][2H]");
       expect(result2.errors).toHaveLength(0);
-      expect(result2.molecules[0]!.atoms[0]!!.isotope).toBe(2);
-      expect(result2.molecules[0]!.atoms[1]!!.isotope).toBe(2);
+      expect(result2.molecules[0]!.atoms[0]!.isotope).toBe(2);
+      expect(result2.molecules[0]!.atoms[1]!.isotope).toBe(2);
 
       // Tritium
       const result3 = parseSMILES("[3H]C");
       expect(result3.errors).toHaveLength(0);
-      expect(result3.molecules[0]!.atoms[0]!!.isotope).toBe(3);
+      expect(result3.molecules[0]!.atoms[0]!.isotope).toBe(3);
 
       // Charged hydrogen
       const result4 = parseSMILES("[H+]");
@@ -312,20 +312,20 @@ describe("Comprehensive SMILES Tests", () => {
       // Deuterium ion
       const result5 = parseSMILES("[2H+]");
       expect(result5.errors).toHaveLength(0);
-      expect(result5.molecules[0]!.atoms[0]!!.isotope).toBe(2);
+      expect(result5.molecules[0]!.atoms[0]!.isotope).toBe(2);
       expect(result5.molecules[0]!.atoms[0]!.charge).toBe(1);
     });
 
     it("handles carbon-13", () => {
       const result = parseSMILES("[13C]C");
       expect(result.errors).toHaveLength(0);
-      expect(result.molecules[0]!.atoms[0]!!.isotope).toBe(13);
+      expect(result.molecules[0]!.atoms[0]!.isotope).toBe(13);
     });
 
     it("handles isotopes with charges", () => {
       const result = parseSMILES("[18OH-]");
       expect(result.errors).toHaveLength(0);
-      expect(result.molecules[0]!.atoms[0]!!.isotope).toBe(18);
+      expect(result.molecules[0]!.atoms[0]!.isotope).toBe(18);
       expect(result.molecules[0]!.atoms[0]!.charge).toBe(-1);
     });
   });
@@ -575,7 +575,7 @@ describe("Comprehensive SMILES Tests", () => {
       const result4 = parseSMILES("[13CH3+:5]");
       expect(result4.errors).toHaveLength(0);
       expect(result4.molecules[0]!.atoms[0]!.atomClass).toBe(5);
-      expect(result4.molecules[0]!.atoms[0]!!.isotope).toBe(13);
+      expect(result4.molecules[0]!.atoms[0]!.isotope).toBe(13);
       expect(result4.molecules[0]!.atoms[0]!.charge).toBe(1);
     });
 
@@ -654,9 +654,9 @@ describe("Comprehensive SMILES Tests", () => {
     it("handles isotopes with atom classes", () => {
       const result = parseSMILES("[13C:1][12C:2]");
       expect(result.errors).toHaveLength(0);
-      expect(result.molecules[0]!.atoms[0]!!.isotope).toBe(13);
+      expect(result.molecules[0]!.atoms[0]!.isotope).toBe(13);
       expect(result.molecules[0]!.atoms[0]!.atomClass).toBe(1);
-      expect(result.molecules[0]!.atoms[1]!!.isotope).toBe(12);
+      expect(result.molecules[0]!.atoms[1]!.isotope).toBe(12);
       expect(result.molecules[0]!.atoms[1]!.atomClass).toBe(2);
     });
 
@@ -725,9 +725,7 @@ describe("Comprehensive SMILES Tests", () => {
 
     it("handles invalid aromaticity - non-aromatic element", () => {
       const result = parseSMILES("f1ccccc1");
-      const fluorine = result.molecules[0]!?.atoms.find(
-        (a) => a.symbol === "F",
-      );
+      const fluorine = result.molecules[0]?.atoms.find((a) => a.symbol === "F");
       expect(fluorine).toBeDefined();
       expect(fluorine?.aromatic).toBe(false);
     });
@@ -880,7 +878,7 @@ describe("Comprehensive SMILES Tests", () => {
       const result = parseSMILES("[2*]");
       expect(result.errors).toHaveLength(0);
       expect(result.molecules[0]!.atoms[0]!.symbol).toBe("*");
-      expect(result.molecules[0]!.atoms[0]!!.isotope).toBe(2);
+      expect(result.molecules[0]!.atoms[0]!.isotope).toBe(2);
     });
 
     it("handles wildcard with atom class", () => {

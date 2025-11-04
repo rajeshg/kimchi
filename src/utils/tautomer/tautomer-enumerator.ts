@@ -1,5 +1,6 @@
-import type { Molecule, Atom, Bond } from "types";
+import type { Molecule, Atom, Bond, ParseError } from "types";
 import { matchSMARTS } from "src/matchers/smarts-matcher";
+import type { Match, AtomMatch } from "src/types/smarts-types";
 import tautomerRules, {
   type TautomerRule,
 } from "src/utils/tautomer/tautomer-rules";
@@ -63,7 +64,6 @@ export function enumerateTautomers(
 ): TautomerResult[] {
   const maxTautomers = opts.maxTautomers ?? 256;
   const maxTransforms = opts.maxTransforms ?? 1024;
-  const removeStereo = opts.removeStereo ?? true;
   const phases = opts.phases ?? [1, 2, 3];
   const maxPerPhase = opts.maxPerPhase ?? 512;
 
@@ -159,11 +159,11 @@ export function enumerateTautomers(
             "") as string;
           if (!pattern) continue;
           const res = matchSMARTS(pattern, baseMol, { maxMatches: Infinity });
-          let matches = [] as any[];
+          let matches: Match[] = [];
           if (res.success) {
-            matches = res.matches as any[];
+            matches = res.matches;
           } else if (rule.id === "imine-enamine") {
-            const manualMatches: any[] = [];
+            const manualMatches: Match[] = [];
             for (const b of baseMol.bonds) {
               if (!b) continue;
               if (b.type !== BondType.DOUBLE) continue;
@@ -175,17 +175,23 @@ export function enumerateTautomers(
               if (!a1 || !a2) continue;
               if (a1.symbol === "N" && a2.symbol === "C") {
                 manualMatches.push({
-                  atoms: [{ moleculeIndex: a1Idx }, { moleculeIndex: a2Idx }],
+                  atoms: [
+                    { moleculeIndex: a1Idx, patternIndex: 0 },
+                    { moleculeIndex: a2Idx, patternIndex: 1 },
+                  ],
                 });
               } else if (a2.symbol === "N" && a1.symbol === "C") {
                 manualMatches.push({
-                  atoms: [{ moleculeIndex: a2Idx }, { moleculeIndex: a1Idx }],
+                  atoms: [
+                    { moleculeIndex: a2Idx, patternIndex: 0 },
+                    { moleculeIndex: a1Idx, patternIndex: 1 },
+                  ],
                 });
               }
             }
             if (manualMatches.length > 0) matches = manualMatches;
           } else if (!res.success && rule.id === "amide-imidol") {
-            const manualMatches: any[] = [];
+            const manualMatches: Match[] = [];
             for (let aIdx = 0; aIdx < baseMol.atoms.length; aIdx++) {
               const a = baseMol.atoms[aIdx];
               if (!a || a.symbol !== "N") continue;
@@ -211,15 +217,21 @@ export function enumerateTautomers(
                 if (hasCarbonyl)
                   manualMatches.push({
                     atoms: [
-                      { moleculeIndex: aIdx },
-                      { moleculeIndex: otherIdx },
+                      { moleculeIndex: aIdx, patternIndex: 0 },
+                      { moleculeIndex: otherIdx, patternIndex: 1 },
                     ],
                   });
               }
             }
-            if (manualMatches.length > 0) matches = manualMatches;
+            if (manualMatches.length > 0) {
+              if (debugTautomer)
+                console.debug(
+                  `[tautomer] nitro fallback found ${manualMatches.length} manualMatches`,
+                );
+              matches = manualMatches;
+            }
           } else if (!res.success && rule.id === "nitro-aci-nitro") {
-            const manualMatches: any[] = [];
+            const manualMatches: Match[] = [];
             for (let i = 0; i < baseMol.atoms.length; i++) {
               const a = baseMol.atoms[i];
               if (!a || a.symbol !== "N") continue;
@@ -234,7 +246,9 @@ export function enumerateTautomers(
                 })
                 .filter((oa) => oa && oa.symbol === "O");
               if (oxyNeighbors.length >= 2)
-                manualMatches.push({ atoms: [{ moleculeIndex: i }] });
+                manualMatches.push({
+                  atoms: [{ moleculeIndex: i, patternIndex: 0 }],
+                });
             }
             if (manualMatches.length > 0) {
               if (debugTautomer)
@@ -253,7 +267,7 @@ export function enumerateTautomers(
 
             const newMol = cloneMolecule(baseMol);
             const matchedAtomIndices: number[] = (match.atoms || []).map(
-              (am: any) => am.moleculeIndex,
+              (am: AtomMatch) => am.moleculeIndex,
             );
             const atomAt = (idx: number) => newMol.atoms[idx];
             let mutatedMol: Molecule | null = null;
@@ -399,14 +413,14 @@ export function enumerateTautomers(
                                   ...baseRuleIds,
                                   rule.id,
                                 ]);
-                                const errors: any[] = [];
+                                const errors: ParseError[] = [];
                                 try {
                                   validateValences(
                                     finalMol.atoms,
                                     finalMol.bonds,
-                                    errors as any,
+                                    errors,
                                   );
-                                } catch (e) {}
+                                } catch (_e) {}
                                 if (errors && errors.length > 0) continue;
                                 const smiles = generateSMILES(finalMol);
                                 if (!seen.has(smiles)) {
@@ -625,14 +639,10 @@ export function enumerateTautomers(
                   // Add to localQueue immediately so all single imidol forms are generated
                   const withHydrogens = computeImplicitHydrogens(mutatedMol);
                   const finalMol = enrichMolecule(withHydrogens);
-                  const errors: any[] = [];
+                  const errors: ParseError[] = [];
                   try {
-                    validateValences(
-                      finalMol.atoms,
-                      finalMol.bonds,
-                      errors as any,
-                    );
-                  } catch (e) {}
+                    validateValences(finalMol.atoms, finalMol.bonds, errors);
+                  } catch (_e) {}
                   if (errors && errors.length > 0) continue;
                   const smiles = generateSMILES(finalMol);
                   if (!seen.has(smiles)) {
@@ -733,10 +743,10 @@ export function enumerateTautomers(
               );
             }
 
-            const errors: any[] = [];
+            const errors: ParseError[] = [];
             try {
-              validateValences(finalMol.atoms, finalMol.bonds, errors as any);
-            } catch (e) {}
+              validateValences(finalMol.atoms, finalMol.bonds, errors);
+            } catch (_e) {}
             if (errors && errors.length > 0) {
               if (debugTautomer)
                 console.debug(
@@ -754,10 +764,10 @@ export function enumerateTautomers(
                 fpKey = Array.from(fp)
                   .map((b) => b.toString(16).padStart(2, "0"))
                   .join("");
-              } catch (e) {
+              } catch (_e) {
                 if (debugTautomer)
                   console.debug(
-                    `[tautomer] fingerprinting failed: ${String(e)}`,
+                    `[tautomer] fingerprinting failed: ${String(_e)}`,
                   );
                 fpKey = null;
               }
@@ -972,7 +982,7 @@ export function enumerateTautomers(
               }
             }
           }
-        } catch (err) {
+        } catch (_err) {
           continue;
         }
       }
