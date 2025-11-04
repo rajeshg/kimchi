@@ -10,6 +10,7 @@ export interface Substituent {
   type: string;
   size: number;
   name: string;
+  atoms?: number[]; // Optional atom indices for deduplication
 }
 
 /**

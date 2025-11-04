@@ -186,11 +186,10 @@ export class ImmutableNamingContext {
         const subsRaw = findSubstituents(molecule as any, main as number[]);
         const substituents = subsRaw.map((s: any) => {
           if (process.env.VERBOSE) {
-            console.log(`[immutable-context] Creating substituent: name="${s.name}", type="${s.type}", position="${s.position}"`);
+            console.log(`[immutable-context] Creating substituent: name="${s.name}", type="${s.type}", position="${s.position}", atoms=${JSON.stringify(s.atoms)}`);
           }
           return { 
-            atoms: [], 
-            bonds: [], 
+            atoms: s.atoms || [], 
             type: s.name, 
             locant: parseInt(s.position, 10), 
             isPrincipal: false,

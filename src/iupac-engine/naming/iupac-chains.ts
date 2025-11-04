@@ -1212,7 +1212,7 @@ export function findSubstituents(molecule: Molecule, mainChain: number[]): Subst
   }
   // Special handling for ether functional groups
   // After regular substituents are found, check for ether oxygens that connect to carbon chains
-  const etherGroups = functionalGroups.filter(fg => fg.name === 'ether' && fg.atoms && fg.atoms.length === 1);
+  const etherGroups = functionalGroups.filter(fg => (fg.name === 'ether' || fg.type === 'alkoxy') && fg.atoms && fg.atoms.length === 1);
   for (const etherGroup of etherGroups) {
     const oxygenIdx = etherGroup.atoms![0]!;
     
@@ -1282,6 +1282,7 @@ export function findSubstituents(molecule: Molecule, mainChain: number[]): Subst
         type: 'functional',
         size: substituentAtoms.size,
         name: alkoxyName,
+        atoms: Array.from(substituentAtoms), // Include atoms for deduplication
       });
     }
   }

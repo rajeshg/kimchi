@@ -1057,6 +1057,9 @@ function buildSubstitutiveName(parentStructure: any, functionalGroups: any[]): s
   // Check parent substituent names for complex substituents
   // CRITICAL: Only filter if FG name appears in a COMPLEX substituent (length > 10)
   // This avoids false positives like filtering "oxy" from "hydroxy"
+  if (process.env.VERBOSE) {
+    console.log(`[buildSubstitutiveName] parentSubstituentNames for FG filtering:`, parentSubstituentNames);
+  }
   for (const fgSub of fgSubstituentFilteredByAtoms) {
     // GUARD: Validate fgSub structure
     if (!fgSub || typeof fgSub !== 'object') continue;
@@ -1067,7 +1070,44 @@ function buildSubstitutiveName(parentStructure: any, functionalGroups: any[]): s
     // GUARD: Validate fgType is a string
     if (typeof fgType !== 'string') continue;
     
+    if (process.env.VERBOSE) {
+      console.log(`[buildSubstitutiveName] Checking FG type="${fgType}", prefix="${fgPrefix}" against parent subs`);
+    }
+    
+    // Special handling for alkoxy groups: check by atom overlap instead of name matching
+    // because alkoxy FG name is generic "alkoxy" but parent substituent name is specific (e.g., "methoxy", "ethoxy", "2,2-dimethylpropoxy")
+    if (fgType === 'alkoxy' && fgSub.atoms && Array.isArray(fgSub.atoms) && fgSub.atoms.length > 0) {
+      // Extract oxygen atom ID from functional group
+      const fgAtomIds = new Set<number>();
+      for (const atom of fgSub.atoms) {
+        const atomId = (atom && typeof atom === 'object' && 'id' in atom) ? atom.id : atom;
+        if (typeof atomId === 'number') {
+          fgAtomIds.add(atomId);
+        }
+      }
+      
+      // Check if any parent substituent contains this oxygen atom
+      for (const parentSub of parentSubstituents) {
+        if (parentSub.atoms && Array.isArray(parentSub.atoms)) {
+          const parentSubAtomIds = new Set<number>(parentSub.atoms);
+          const hasOverlap = Array.from(fgAtomIds).some(atomId => parentSubAtomIds.has(atomId));
+          if (hasOverlap) {
+            fgTypesToFilter.add(fgType);
+            if (process.env.VERBOSE) {
+              console.log(`[buildSubstitutiveName] FG type "${fgType}" (atoms: ${Array.from(fgAtomIds)}) overlaps with parent substituent "${parentSub.name || parentSub.type}" (atoms: ${Array.from(parentSubAtomIds)})`);
+            }
+            break;
+          }
+        }
+      }
+      continue; // Skip name-based matching for alkoxy groups
+    }
+    
     for (const parentSubName of parentSubstituentNames) {
+      if (process.env.VERBOSE) {
+        console.log(`[buildSubstitutiveName]   Comparing "${fgType}" with parentSubName="${parentSubName}" (length=${parentSubName.length})`);
+        console.log(`[buildSubstitutiveName]   includes check: ${parentSubName.includes(fgType)}, length check: ${parentSubName.length > 10}`);
+      }
       // CRITICAL: Length threshold (> 10) prevents simple false positive matches
       // e.g., "oxy" in "hydroxy" vs "oxy" in "2,2-dimethylpropylsulfonylsulfinyl"
       if (parentSubName.length > 10 && (parentSubName.includes(fgType) || (fgPrefix && parentSubName.includes(fgPrefix)))) {
