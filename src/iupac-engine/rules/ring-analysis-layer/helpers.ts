@@ -266,6 +266,30 @@ export function generateRingName(
     }
   }
 
+  // Check for 3-membered heterocycles with one unsaturation (azirine, oxirene)
+  if (type !== "aromatic" && totalHetero === 1 && size === 3) {
+    const ringIndices = atoms.map((atom) => atom.id);
+    const doubleBondsInRing = (ringSystem.bonds || []).filter((bond) => {
+      const isInRing =
+        ringIndices.includes(bond.atom1) && ringIndices.includes(bond.atom2);
+      return isInRing && bond.type === BondType.DOUBLE;
+    });
+
+    // Azirine: 3-membered ring with 1 nitrogen and exactly 1 double bond (C=N)
+    if (hasNitrogen === 1 && doubleBondsInRing.length === 1) {
+      const doubleBond = doubleBondsInRing[0]!;
+      const atom1 = atoms.find((a) => a.id === doubleBond.atom1);
+      const atom2 = atoms.find((a) => a.id === doubleBond.atom2);
+      // Check if double bond involves nitrogen
+      if (
+        (atom1?.symbol === "N" || atom2?.symbol === "N") &&
+        (atom1?.symbol === "C" || atom2?.symbol === "C")
+      ) {
+        return "azirine";
+      }
+    }
+  }
+
   // Check for saturated heterocycles (3-6 membered rings with one heteroatom)
   if (type !== "aromatic" && totalHetero === 1) {
     // Check if saturated (no double bonds in ring)

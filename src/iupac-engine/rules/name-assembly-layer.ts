@@ -62,6 +62,43 @@ type StructuralSubstituentOrFunctionalGroup =
  */
 
 /**
+ * Get multiplicative prefix for a given count
+ * @param count - Number of identical groups
+ * @param useComplex - If true, use bis/tris for complex substituents
+ * @returns The multiplicative prefix (e.g., "di", "tri", "bis", "tris")
+ */
+function getMultiplicativePrefix(count: number, useComplex = false): string {
+  if (useComplex) {
+    const complexPrefixes: { [key: number]: string } = {
+      2: "bis",
+      3: "tris",
+      4: "tetrakis",
+      5: "pentakis",
+      6: "hexakis",
+      7: "heptakis",
+      8: "octakis",
+      9: "nonakis",
+      10: "decakis",
+    };
+    return complexPrefixes[count] || `${count}-kis`;
+  }
+
+  const prefixes: { [key: number]: string } = {
+    2: "di",
+    3: "tri",
+    4: "tetra",
+    5: "penta",
+    6: "hexa",
+    7: "hepta",
+    8: "octa",
+    9: "nona",
+    10: "deca",
+  };
+
+  return prefixes[count] || `${count}-`;
+}
+
+/**
  * Traverse the molecular graph from a sulfur atom to collect all connected atoms
  * that are part of the substituent (excluding the main chain).
  *
@@ -1220,6 +1257,115 @@ function buildAlkylGroupName(
   return name;
 }
 
+/**
+ * Detect N-substituents on amine/imine nitrogen atoms
+ * Returns a prefix string like "N-methyl" or "N,N-dimethyl" or empty string
+ */
+function detectNSubstituents(
+  principalGroup: FunctionalGroup,
+  parentStructure: ParentStructureExtended,
+  molecule: Molecule,
+): string {
+  // For imine groups (e.g., azirine), the principal group atoms contain the C=N carbon
+  // We need to find the amine nitrogen bonded to this carbon
+  if (!principalGroup.atoms || principalGroup.atoms.length === 0) {
+    return "";
+  }
+
+  if (!molecule || !molecule.atoms || !molecule.bonds) {
+    return "";
+  }
+
+  // Find the amine nitrogen attached to the imine carbon
+  // For imine: principalGroup.atoms[0] is the C=N carbon
+  const imineCarbonId = principalGroup.atoms[0]?.id;
+  if (imineCarbonId === undefined) {
+    return "";
+  }
+
+  // Find nitrogen bonded to the imine carbon with a single bond
+  let amineNitrogenId: number | undefined;
+  for (const bond of molecule.bonds) {
+    if (bond.type !== "single") continue;
+    let potentialNitrogenId: number | undefined;
+    if (bond.atom1 === imineCarbonId) {
+      potentialNitrogenId = bond.atom2;
+    } else if (bond.atom2 === imineCarbonId) {
+      potentialNitrogenId = bond.atom1;
+    }
+
+    if (potentialNitrogenId !== undefined) {
+      const potentialNitrogen = molecule.atoms.find(
+        (a: Atom) => a.id === potentialNitrogenId,
+      );
+      if (potentialNitrogen?.symbol === "N" && !potentialNitrogen.isInRing) {
+        amineNitrogenId = potentialNitrogenId;
+        break;
+      }
+    }
+  }
+
+  if (amineNitrogenId === undefined) {
+    return "";
+  }
+
+  // Find all carbon substituents on the amine nitrogen
+  const nSubstituents: Array<{ name: string; carbon: Atom }> = [];
+  for (const bond of molecule.bonds) {
+    if (bond.type !== "single") continue;
+    let carbonId: number | undefined;
+    if (bond.atom1 === amineNitrogenId) {
+      carbonId = bond.atom2;
+    } else if (bond.atom2 === amineNitrogenId) {
+      carbonId = bond.atom1;
+    }
+
+    if (carbonId !== undefined) {
+      const carbon = molecule.atoms.find((a: Atom) => a.id === carbonId);
+      // Check if it's a carbon and not the imine carbon
+      if (carbon?.symbol === "C" && carbonId !== imineCarbonId) {
+        // For now, assume it's a methyl group (simple alkyl)
+        // TODO: Handle longer alkyl chains (ethyl, propyl, etc.)
+        nSubstituents.push({ name: "methyl", carbon });
+      }
+    }
+  }
+
+  if (nSubstituents.length === 0) {
+    return "";
+  }
+
+  // Format N-substituents
+  // Single substituent: "N-methyl"
+  // Two identical: "N,N-dimethyl"
+  // Two different: "N-ethyl-N-methyl" (alphabetical)
+  if (nSubstituents.length === 1) {
+    return `N-${nSubstituents[0]!.name}`;
+  }
+
+  // Check if all substituents are identical
+  const firstSubName = nSubstituents[0]!.name;
+  const allIdentical = nSubstituents.every((sub) => sub.name === firstSubName);
+
+  if (allIdentical) {
+    // Use di-, tri-, etc. prefix
+    const multipliers: { [key: number]: string } = {
+      2: "di",
+      3: "tri",
+      4: "tetra",
+    };
+    const multiplier = multipliers[nSubstituents.length] || `${nSubstituents.length}`;
+    const nLocants = new Array(nSubstituents.length).fill("N").join(",");
+    return `${nLocants}-${multiplier}${firstSubName}`;
+  }
+
+  // Different substituents - alphabetize and format as N-sub1-N-sub2
+  const sortedNames = nSubstituents
+    .map((sub) => sub.name)
+    .sort((a, b) => a.localeCompare(b));
+  return sortedNames.map((name) => `N-${name}`).join("-");
+}
+
 function buildSubstitutiveName(
   parentStructure: ParentStructureExtended,
   functionalGroups: FunctionalGroup[],
@@ -1419,6 +1565,24 @@ function buildSubstitutiveName(
         parentRingAtomIds.has(atomId),
       );
       if (hasOverlap) {
+        // EXCEPTION: For unsaturated heterocycles (azirine, oxirene), the imine/enol
+        // functional group IS part of the ring but should NOT be filtered out
+        // because it contributes the suffix (e.g., "azirin-2-amine")
+        const parentRingName = parentStructure.assembledName || "";
+        const isUnsaturatedHeterocycle =
+          parentRingName.endsWith("irine") || parentRingName.endsWith("irene");
+        const isImineOrEnol =
+          fgSub.type === "imine" || fgSub.type === "enol";
+
+        if (isUnsaturatedHeterocycle && isImineOrEnol && fgSub.isPrincipal) {
+          if (process.env.VERBOSE) {
+            console.log(
+              `[buildSubstitutiveName] KEEPING principal FG "${fgSub.type}" despite overlap - unsaturated heterocycle "${parentRingName}" requires suffix`,
+            );
+          }
+          return true; // Keep this functional group for suffix
+        }
+
         if (process.env.VERBOSE) {
           console.log(
             `[buildSubstitutiveName] Filtering out FG "${fgSub.type}" (atoms: ${fgAtomIds}) - overlaps with parent ring atoms (ring: ${Array.from(parentRingAtomIds)})`,
@@ -2381,11 +2545,24 @@ function buildSubstitutiveName(
         const hasRingYlGroup =
           /\w+(olan|olane|etane|irane|azol|thiazol)-\d+-yl/.test(subName);
 
+        // Check for compound substituents that contain another substituent within them
+        // Examples: methylsulfanyl, ethylthio, phenylsulfanyl, methylsulfonyl, trimethylsilyloxy
+        // These need bis/tris because they're composed of two parts (e.g., methyl + sulfanyl)
+        // Pattern: any substituent ending in sulfanyl/sulfonyl/sulfinyl/thio/oxy/amino/phosphanyl
+        // that has more than just the suffix (e.g., not just "oxy" alone, but "methyloxy")
+        const hasCompoundSubstituent = /(sulfanyl|sulfonyl|sulfinyl|phosphanyl)$/.test(
+          subName,
+        ) || 
+        (/^(methyl|ethyl|propyl|butyl|pentyl|hexyl|heptyl|octyl|phenyl|benzyl|trimethylsilyl|triethylsilyl|dimethyl|diethyl)(oxy|thio|amino)$/.test(
+          subName,
+        ));
+
         // Determine if this substituent needs ANY wrapping (brackets or parentheses)
         const needsWrapping =
           hasNestedParentheses ||
           hasComplexYlGroup ||
           hasRingYlGroup ||
+          hasCompoundSubstituent ||
           /\d+,\d+/.test(subName);
 
         // Add multiplicative prefix if there are multiple identical substituents
@@ -2824,6 +3001,9 @@ function buildSubstitutiveName(
       } else if (name.endsWith("irane")) {
         // 3-membered heterocycles (oxirane, azirane, thiirane) → "iran"
         name = name.replace(/irane$/, "iran");
+      } else if (name.endsWith("irine")) {
+        // 3-membered unsaturated heterocycles (azirine, oxirene) → "irin"
+        name = name.replace(/irine$/, "irin");
       } else if (name.endsWith("idine")) {
         // N-heterocycles (pyrrolidine, azetidine, piperidine) → "idin"
         name = name.replace(/idine$/, "idin");
@@ -2881,7 +3061,12 @@ function buildSubstitutiveName(
       const needsLocant = fgLocant !== undefined && fgLocant !== null;
 
       // Functional groups that never need locant when at position 1 on a chain (terminal groups)
-      const terminalGroups = ["amide", "carboxylic_acid", "aldehyde", "nitrile"];
+      const terminalGroups = [
+        "amide",
+        "carboxylic_acid",
+        "aldehyde",
+        "nitrile",
+      ];
       const isTerminalGroup = terminalGroups.includes(principalGroup.type);
 
       // Omit locant for:
@@ -2892,13 +3077,378 @@ function buildSubstitutiveName(
       // 2. Terminal groups (amide, carboxylic acid, aldehyde, nitrile) at position 1, regardless of chain length
       //    e.g., "hexanal" not "hexan-1-al", "heptanoic acid" not "heptan-1-oic acid"
       const shouldOmitLocant =
-        (chainLength <= 2 && fgLocant === 1 && parentStructure.type === "chain") ||
+        (chainLength <= 2 &&
+          fgLocant === 1 &&
+          parentStructure.type === "chain") ||
         (isTerminalGroup && fgLocant === 1 && parentStructure.type === "chain");
 
       if (process.env.VERBOSE) {
         console.log(
           `[needsLocant calc] principalGroup.type="${principalGroup.type}", fgLocant=${fgLocant}, type=${parentStructure.type}, chainLength=${chainLength}, needsLocant=${needsLocant}, isTerminalGroup=${isTerminalGroup}, shouldOmitLocant=${shouldOmitLocant}`,
         );
+      }
+
+      // Check for N-substituents on amine groups (for imine/amine)
+      // These will be merged with other substituents for alphabetization
+      let nSubstituentsPrefix = "";
+      const nSubstituentEntries: Array<{ locant: string; name: string }> = [];
+      
+      if (
+        (principalGroup.type === "imine" ||
+          principalGroup.type === "amine") &&
+        principalGroup.suffix === "amine"
+      ) {
+        nSubstituentsPrefix = detectNSubstituents(
+          principalGroup,
+          parentStructure,
+          molecule,
+        );
+        if (process.env.VERBOSE && nSubstituentsPrefix) {
+          console.log(
+            `[buildSubstitutiveName] N-substituents detected: ${nSubstituentsPrefix}`,
+          );
+        }
+
+        // Parse N-substituent string to extract locants and base name
+        // Examples: "N-methyl", "N,N-dimethyl", "N-ethyl-N-methyl"
+        if (nSubstituentsPrefix) {
+          // Match patterns like "N-methyl", "N,N-dimethyl", etc.
+          // Pattern 1: N,N-dimethyl → locants ["N", "N"], name "dimethyl"
+          const multipleIdenticalMatch = nSubstituentsPrefix.match(/^(N(?:,N)+)-(.+)$/);
+          if (multipleIdenticalMatch && multipleIdenticalMatch[1] && multipleIdenticalMatch[2]) {
+            const locantsPart = multipleIdenticalMatch[1]; // "N,N"
+            const namePart = multipleIdenticalMatch[2]; // "dimethyl"
+            const locants = locantsPart.split(","); // ["N", "N"]
+            nSubstituentEntries.push({
+              locant: locants.join(","),
+              name: namePart,
+            });
+          } else {
+            // Pattern 2: N-methyl or N-ethyl-N-methyl (different substituents)
+            // Split by "-N-" to get individual N-substituents
+            const parts = nSubstituentsPrefix.split(/-N-/);
+            for (const part of parts) {
+              // Remove leading "N-" if present
+              const cleanPart = part.startsWith("N-") ? part.substring(2) : part;
+              if (cleanPart) {
+                nSubstituentEntries.push({
+                  locant: "N",
+                  name: cleanPart,
+                });
+              }
+            }
+          }
+
+          if (process.env.VERBOSE) {
+            console.log(
+              `[buildSubstitutiveName] Parsed N-substituents:`,
+              JSON.stringify(nSubstituentEntries),
+            );
+          }
+        }
+      }
+
+      // Merge N-substituents with existing substituents and re-sort alphabetically
+      if (nSubstituentEntries.length > 0) {
+        if (process.env.VERBOSE) {
+          console.log(
+            `[buildSubstitutiveName] Merging N-substituents with existing name: "${name}"`,
+          );
+        }
+
+        // Extract parent name and suffix from current name
+        // The name structure is: [substituents][parent]
+        // At this point, the suffix has NOT been added yet (that happens later)
+        // Note: The parent name might have lost its trailing 'e' when joined (e.g., "azirine" → "azirin")
+        
+        // Find where the parent name starts in the assembled name
+        // Try both the full parent name and without trailing 'e'
+        const fullParentName =
+          parentStructure.assembledName || parentStructure.name || "";
+        let parentName = fullParentName;
+        let parentIndex = name.indexOf(parentName);
+        
+        // If not found, try without trailing 'e' (common when joining)
+        if (parentIndex === -1 && parentName.endsWith("e")) {
+          const parentWithoutE = parentName.slice(0, -1);
+          parentIndex = name.indexOf(parentWithoutE);
+          if (parentIndex !== -1) {
+            parentName = parentWithoutE;
+          }
+        }
+        
+        if (parentIndex !== -1) {
+          // Extract the substituent portion (everything before parent)
+          const substituentPortion = name.substring(0, parentIndex);
+          const parentPortion = name.substring(parentIndex);
+          
+          if (process.env.VERBOSE) {
+            console.log(
+              `[buildSubstitutiveName] substituentPortion: "${substituentPortion}", parentPortion: "${parentPortion}"`,
+            );
+          }
+          
+          // Parse existing substituent parts from the substituent portion
+          // Strategy: split on hyphens that come BEFORE a locant (digit or letter at start)
+          // BUT preserve parts within parentheses/brackets
+          // Example: "3-methyl-3-(propan-2-ylsulfanyl)" → ["3-methyl", "3-(propan-2-ylsulfanyl)"]
+          const existingParts: string[] = [];
+          if (substituentPortion) {
+            // Remove trailing hyphen if present
+            let remaining = substituentPortion.replace(/-$/, "");
+            
+            // Parse parts by finding split points:
+            // A split point is a hyphen that is:
+            // 1. NOT inside parentheses/brackets (depth = 0)
+            // 2. Followed by a digit or capital letter (indicating start of new locant)
+            // 3. NOT followed by another hyphen
+            const splitPoints: number[] = [];
+            let depth = 0;
+            for (let i = 0; i < remaining.length; i++) {
+              const char = remaining[i];
+              if (char === "(" || char === "[") {
+                depth++;
+              } else if (char === ")" || char === "]") {
+                depth--;
+              } else if (
+                char === "-" &&
+                depth === 0 &&
+                i + 1 < remaining.length
+              ) {
+                const nextChar = remaining[i + 1];
+                // Check if next char is a digit (for locants like "3-") or letter (for "N-")
+                // But NOT if it's a lowercase letter right after a digit-hyphen (that's part of the name)
+                if (nextChar) {
+                  const isStartOfNewPart =
+                    /\d/.test(nextChar) || (nextChar === "N" && (i === 0 || remaining[i - 1] === "-"));
+                  if (isStartOfNewPart) {
+                    splitPoints.push(i);
+                  }
+                }
+              }
+            }
+            
+            // Extract parts based on split points
+            let lastIdx = 0;
+            for (const splitIdx of splitPoints) {
+              existingParts.push(remaining.substring(lastIdx, splitIdx));
+              lastIdx = splitIdx + 1; // Skip the hyphen
+            }
+            // Add the last part
+            if (lastIdx < remaining.length) {
+              existingParts.push(remaining.substring(lastIdx));
+            }
+            
+            // If no split points found, treat entire string as one part
+            if (splitPoints.length === 0 && remaining.length > 0) {
+              existingParts.push(remaining);
+            }
+          }
+          
+          if (process.env.VERBOSE) {
+            console.log(
+              `[buildSubstitutiveName] Existing substituent parts:`,
+              JSON.stringify(existingParts),
+            );
+          }
+          
+          // Add N-substituent parts
+          for (const entry of nSubstituentEntries) {
+            const nPart = `${entry.locant}-${entry.name}`;
+            existingParts.push(nPart);
+          }
+          
+          if (process.env.VERBOSE) {
+            console.log(
+              `[buildSubstitutiveName] All parts before grouping:`,
+              JSON.stringify(existingParts),
+            );
+          }
+          
+          // Group substituents with the same base name
+          // E.g., "3-methyl" and "N,N-dimethyl" should combine to "N,N,3-trimethyl"
+          const substituentGroups = new Map<string, string[]>();
+          for (const part of existingParts) {
+            // Parse part into locants and name
+            // Format: "locants-name" e.g. "3-methyl" or "N,N-dimethyl" or "3-(propan-2-ylsulfanyl)"
+            const hyphenIdx = part.indexOf("-");
+            if (hyphenIdx === -1) continue;
+            
+            const locantsStr = part.substring(0, hyphenIdx);
+            let name = part.substring(hyphenIdx + 1);
+            
+            // Strip multiplicative prefix from name to get base name
+            const stripMultiplicativePrefix = (n: string): string => {
+              const prefixes = [
+                "nona", // Check longer prefixes first
+                "octa",
+                "hepta",
+                "hexa",
+                "penta",
+                "tetra",
+                "tri",
+                "di",
+              ];
+              for (const prefix of prefixes) {
+                if (n.startsWith(prefix)) {
+                  return n.slice(prefix.length);
+                }
+              }
+              return n;
+            };
+            
+            let baseName = stripMultiplicativePrefix(name);
+            
+            // Strip outer parentheses from base name if present
+            // E.g., "(propan-2-ylsulfanyl)" becomes "propan-2-ylsulfanyl"
+            while (baseName.startsWith("(") && baseName.endsWith(")")) {
+              baseName = baseName.slice(1, -1);
+            }
+            
+            // Split locants by comma
+            const locants = locantsStr.split(",");
+            
+            if (!substituentGroups.has(baseName)) {
+              substituentGroups.set(baseName, []);
+            }
+            substituentGroups.get(baseName)!.push(...locants);
+          }
+          
+          if (process.env.VERBOSE) {
+            console.log(
+              `[buildSubstitutiveName] Substituent groups:`,
+              JSON.stringify(Array.from(substituentGroups.entries())),
+            );
+          }
+          
+          // Rebuild parts from groups
+          const groupedParts: string[] = [];
+          for (const [baseName, locants] of substituentGroups.entries()) {
+            // Sort locants: N comes first, then numbers
+            locants.sort((a, b) => {
+              if (a === "N" && b !== "N") return -1;
+              if (a !== "N" && b === "N") return 1;
+              if (a === "N" && b === "N") return 0;
+              return Number.parseInt(a, 10) - Number.parseInt(b, 10);
+            });
+            
+            const locantsStr = locants.join(",");
+            const count = locants.length;
+            
+            // Add multiplicative prefix if count > 1
+            const getMultiplicativePrefix = (n: number): string => {
+              const prefixes = ["", "", "di", "tri", "tetra", "penta", "hexa", "hepta", "octa", "nona", "deca"];
+              return prefixes[n] || `${n}-`;
+            };
+            
+            const prefix = count > 1 ? getMultiplicativePrefix(count) : "";
+            const fullName = prefix + baseName;
+            
+            groupedParts.push(`${locantsStr}-${fullName}`);
+          }
+          
+          if (process.env.VERBOSE) {
+            console.log(
+              `[buildSubstitutiveName] Grouped parts before sorting:`,
+              JSON.stringify(groupedParts),
+            );
+          }
+          
+          // Sort alphabetically (same logic as substituent sorting)
+          groupedParts.sort((a, b) => {
+            // Extract name after locants: "2,2-dichloro" → "dichloro" or "N,N-dimethyl" → "dimethyl"
+            const extractAfterLocants = (part: string): string => {
+              // Split by hyphen and take everything after first part (which is the locant)
+              const parts = part.split("-");
+              return parts.length > 1 ? parts.slice(1).join("-") : part;
+            };
+            
+            const aName = extractAfterLocants(a);
+            const bName = extractAfterLocants(b);
+            
+            // Strip multiplicative prefixes for comparison
+            const stripMultiplicativePrefix = (name: string): string => {
+              const prefixes = [
+                "di",
+                "tri",
+                "tetra",
+                "penta",
+                "hexa",
+                "hepta",
+                "octa",
+                "nona",
+                "deca",
+              ];
+              for (const prefix of prefixes) {
+                if (name.startsWith(prefix)) {
+                  return name.slice(prefix.length);
+                }
+              }
+              return name;
+            };
+            
+            // Strip leading/trailing parentheses and brackets for alphabetization
+            const stripDelimiters = (name: string): string => {
+              let result = name;
+              while (
+                (result.startsWith("(") && result.endsWith(")")) ||
+                (result.startsWith("[") && result.endsWith("]"))
+              ) {
+                result = result.slice(1, -1);
+              }
+              return result;
+            };
+            
+            let aBase = stripMultiplicativePrefix(aName);
+            let bBase = stripMultiplicativePrefix(bName);
+            
+            // Strip delimiters for alphabetization
+            aBase = stripDelimiters(aBase);
+            bBase = stripDelimiters(bBase);
+            
+            return aBase.localeCompare(bBase);
+          });
+          
+          if (process.env.VERBOSE) {
+            console.log(
+              `[buildSubstitutiveName] Grouped parts after sorting:`,
+              JSON.stringify(groupedParts),
+            );
+          }
+          
+          // Rebuild name with sorted and grouped substituents
+          // Check if the last substituent ends with a connector (like -yl) that should attach directly to parent
+          if (groupedParts.length > 0) {
+            // Extract the last substituent's name (after locants)
+            const lastPart = groupedParts[groupedParts.length - 1]!;
+            const lastHyphenIdx = lastPart.lastIndexOf("-");
+            const lastSubstName = lastHyphenIdx >= 0 ? lastPart.substring(lastHyphenIdx + 1) : lastPart;
+            
+            // If last substituent ends with a connector suffix, attach directly without hyphen
+            const connectorSuffixes = ["yl", "ylidene", "ylidyne", "ylium"];
+            const endsWithConnector = connectorSuffixes.some(suffix => lastSubstName.endsWith(suffix));
+            
+            if (endsWithConnector && groupedParts.length === 1) {
+              // Single substituent ending with connector: attach directly
+              name = lastPart + parentPortion;
+            } else if (endsWithConnector && groupedParts.length > 1) {
+              // Multiple substituents, last one ending with connector
+              const allButLast = groupedParts.slice(0, -1).join("-");
+              name = allButLast + "-" + lastPart + parentPortion;
+            } else {
+              // Normal case: all substituents joined with hyphens
+              name = groupedParts.join("-") + "-" + parentPortion;
+            }
+          } else {
+            name = parentPortion;
+          }
+          
+          if (process.env.VERBOSE) {
+            console.log(
+              `[buildSubstitutiveName] Rebuilt name with N-substituents: "${name}"`,
+            );
+          }
+        }
       }
 
       if (needsLocant && fgLocant && !shouldOmitLocant) {
@@ -2916,42 +3466,6 @@ function buildSubstitutiveName(
   }
 
   return name;
-}
-
-function getMultiplicativePrefix(
-  count: number,
-  isComplex: boolean = false,
-): string {
-  // For complex substituents (those with internal locants), use bis/tris/tetrakis
-  // For simple substituents, use di/tri/tetra
-  if (isComplex) {
-    const complexPrefixes: { [key: number]: string } = {
-      2: "bis",
-      3: "tris",
-      4: "tetrakis",
-      5: "pentakis",
-      6: "hexakis",
-      7: "heptakis",
-      8: "octakis",
-      9: "nonakis",
-      10: "decakis",
-    };
-    return complexPrefixes[count] || `${count}-`;
-  }
-
-  const prefixes: { [key: number]: string } = {
-    2: "di",
-    3: "tri",
-    4: "tetra",
-    5: "penta",
-    6: "hexa",
-    7: "hepta",
-    8: "octa",
-    9: "nona",
-    10: "deca",
-  };
-
-  return prefixes[count] || `${count}-`;
 }
 
 function validateIUPACName(

@@ -156,7 +156,56 @@ export function generateAromaticRingName(
 
     // Check for triazine and tetrazine first (3-4 nitrogens)
     if (totalNitrogenCount === 4) return "tetrazine";
-    if (totalNitrogenCount === 3) return "triazine";
+    if (totalNitrogenCount === 3) {
+      // Determine triazine isomer by nitrogen positions
+      const nitrogenIndices: number[] = [];
+      for (let i = 0; i < ring.length; i++) {
+        const atomIdx = ring[i];
+        const atom =
+          atomIdx !== undefined ? molecule.atoms[atomIdx] : undefined;
+        if (atom && atom.symbol === "N") {
+          nitrogenIndices.push(i + 1); // 1-based position
+        }
+      }
+
+      if (nitrogenIndices.length === 3) {
+        // Sort positions
+        nitrogenIndices.sort((a, b) => a - b);
+
+        // Calculate gaps between consecutive nitrogens (with wraparound)
+        const gap1 = nitrogenIndices[1]! - nitrogenIndices[0]!;
+        const gap2 = nitrogenIndices[2]! - nitrogenIndices[1]!;
+        const gap3 = ringSize - nitrogenIndices[2]! + nitrogenIndices[0]!;
+
+        if (process.env.VERBOSE) {
+          console.log(
+            "[VERBOSE] Triazine nitrogen positions:",
+            nitrogenIndices,
+            "gaps:",
+            [gap1, gap2, gap3],
+          );
+        }
+
+        // Determine isomer type:
+        // 1,2,3-triazine: consecutive (gaps: 1,1,4)
+        // 1,2,4-triazine: two adjacent, one separated (gaps: 1,2,3)
+        // 1,3,5-triazine: evenly spaced (gaps: 2,2,2)
+        const sortedGaps = [gap1, gap2, gap3].sort((a, b) => a - b);
+
+        if (sortedGaps[0] === 1 && sortedGaps[1] === 1) {
+          return "1,2,3-triazine";
+        }
+        if (sortedGaps[0] === 1 && sortedGaps[1] === 2) {
+          return "1,2,4-triazine";
+        }
+        if (sortedGaps[0] === 2 && sortedGaps[1] === 2) {
+          return "1,3,5-triazine";
+        }
+      }
+
+      // Fallback if we can't determine
+      return "triazine";
+    }
 
     // Check for single heteroatom cases
     if (heteroAtoms.length === 1) {

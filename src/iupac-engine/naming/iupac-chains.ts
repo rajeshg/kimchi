@@ -332,10 +332,28 @@ export function findMainChain(molecule: Molecule): number[] {
     });
   };
 
+  // Helper function to check if any detected functional group requires heteroatom chains
+  // Only amines and certain heteroatom parents (like thiazole, pyridine) need heteroatoms in the parent chain
+  const requiresHeteroatomChains = (): boolean => {
+    for (const fg of functionalGroups) {
+      const lowerName = fg.name.toLowerCase();
+      // Amines need nitrogen in the parent chain (e.g., "ethanamine")
+      if (lowerName.includes("amine")) {
+        return true;
+      }
+      // Add other cases here if needed (e.g., phosphines, arsines, etc.)
+    }
+    return false;
+  };
+
   // STRATEGY: First evaluate all chains (carbon and hetero) for functional group priority.
   // Then select candidates based on priority + carbon count.
   // This ensures chains with high-priority functional groups (like amines) are not
   // excluded just because they have different carbon counts than pure carbon chains.
+  //
+  // IMPORTANT: Only include heteroatom chains for functional groups that require them
+  // (like amines where N is part of the parent). For esters, ketones, alcohols, etc.,
+  // heteroatoms should be treated as substituents, not part of the main chain.
 
   // Step 1: Compute functional group priorities for ALL chains
   const allChains: number[][] = [];
@@ -347,11 +365,14 @@ export function findMainChain(molecule: Molecule): number[] {
     allPriorities.push(getChainFunctionalGroupPriority(c, molecule));
   }
 
-  // Add all hetero chains (excluding halogens)
-  for (const c of atomChains) {
-    if (!containsHalogen(c)) {
-      allChains.push(c);
-      allPriorities.push(getChainFunctionalGroupPriority(c, molecule));
+  // Add all hetero chains ONLY if a functional group requires heteroatom chains
+  // (e.g., amines need nitrogen in the parent chain)
+  if (requiresHeteroatomChains()) {
+    for (const c of atomChains) {
+      if (!containsHalogen(c)) {
+        allChains.push(c);
+        allPriorities.push(getChainFunctionalGroupPriority(c, molecule));
+      }
     }
   }
 
@@ -1895,7 +1916,7 @@ export function findSubstituents(
     // Traverse through FG atoms to find non-FG, non-chain atoms beyond the sulfur bridge
     const visited = new Set<number>(chainSet);
     const sulfurBridge: number[] = []; // Track FG atoms in the bridge
-    const substituentStarts: number[] = []; // Track where substituents start
+    const sulfurToSubstituentStarts = new Map<number, number[]>(); // Map each sulfur to its substituents
     const queue: number[] = [sulfurIdx];
     visited.add(sulfurIdx);
     sulfurBridge.push(sulfurIdx);
@@ -1915,27 +1936,43 @@ export function findSubstituents(
         if (neighbor >= 0) {
           visited.add(neighbor);
 
-          // If neighbor is FG atom, continue traversing
-          if (fgAtomIds.has(neighbor)) {
-            const neighborAtom = molecule.atoms[neighbor];
-            // Only traverse through S atoms in the bridge (not O atoms)
+          const neighborAtom = molecule.atoms[neighbor];
+          // If neighbor is a sulfur atom, add it to the bridge
+          if (neighborAtom && neighborAtom.symbol === "S") {
+            queue.push(neighbor);
+            sulfurBridge.push(neighbor);
+          } else if (fgAtomIds.has(neighbor)) {
+            // If neighbor is FG atom (not S), continue traversing only if it's S
+            // This should not happen since we already handled S above
+            // But keep for safety
             if (neighborAtom && neighborAtom.symbol === "S") {
               queue.push(neighbor);
               sulfurBridge.push(neighbor);
             }
           } else {
-            // Found a non-FG, non-chain atom - this is the start of a substituent
-            substituentStarts.push(neighbor);
+            // Found a non-FG, non-chain, non-sulfur atom - this is the start of a substituent
+            // Track which sulfur it's attached to
+            if (!sulfurToSubstituentStarts.has(current)) {
+              sulfurToSubstituentStarts.set(current, []);
+            }
+            sulfurToSubstituentStarts.get(current)!.push(neighbor);
           }
         }
       }
     }
 
-    if (substituentStarts.length === 0) continue; // No substituent found
+    if (sulfurToSubstituentStarts.size === 0) continue; // No substituent found
 
     // Normalize sulfur bridge order: put chain-attached sulfur first
     // This ensures consistent naming regardless of BFS traversal order
     if (sulfurBridge.length === 2) {
+      if (process.env.VERBOSE) {
+        console.log(
+          "[DEBUG normalize] Before normalization: sulfurBridge =",
+          sulfurBridge,
+        );
+      }
+
       const s0AttachedToChain = molecule.bonds.some(
         (b) =>
           (b.atom1 === sulfurBridge[0]! || b.atom2 === sulfurBridge[0]!) &&
@@ -1947,16 +1984,33 @@ export function findSubstituents(
           chainSet.has(b.atom1 === sulfurBridge[1]! ? b.atom2 : b.atom1),
       );
 
+      if (process.env.VERBOSE) {
+        console.log(
+          "[DEBUG normalize] s0AttachedToChain:",
+          s0AttachedToChain,
+          "s1AttachedToChain:",
+          s1AttachedToChain,
+        );
+      }
+
       // Swap if needed so that sulfurBridge[0] is always the one attached to chain
       if (!s0AttachedToChain && s1AttachedToChain) {
         [sulfurBridge[0], sulfurBridge[1]] = [
           sulfurBridge[1]!,
           sulfurBridge[0]!,
         ];
+
+        if (process.env.VERBOSE) {
+          console.log(
+            "[DEBUG normalize] After swap: sulfurBridge =",
+            sulfurBridge,
+          );
+        }
       }
     }
 
     // Collect all atoms in the substituent(s) beyond the sulfur bridge
+    // Only collect from non-chain sulfur atoms (sulfurBridge[1] onwards)
     const substituentAtoms = new Set<number>();
     const substVisited = new Set<number>([...chainSet, ...sulfurBridge]);
 
@@ -1965,6 +2019,31 @@ export function findSubstituents(
       if (molecule.atoms[fgAtom]?.symbol === "O") {
         substVisited.add(fgAtom);
       }
+    }
+
+    // Only collect substituents from non-chain sulfur atoms
+    const nonChainSulfurs = sulfurBridge.slice(1);
+    const substituentStarts: number[] = [];
+    for (const sulfur of nonChainSulfurs) {
+      const starts = sulfurToSubstituentStarts.get(sulfur) || [];
+      substituentStarts.push(...starts);
+    }
+
+    if (process.env.VERBOSE) {
+      console.log(
+        "[DEBUG sulfur bridge] sulfurBridge:",
+        sulfurBridge,
+        "nonChainSulfurs:",
+        nonChainSulfurs,
+      );
+      console.log(
+        "[DEBUG sulfur bridge] sulfurToSubstituentStarts:",
+        sulfurToSubstituentStarts,
+      );
+      console.log(
+        "[DEBUG sulfur bridge] substituentStarts:",
+        substituentStarts,
+      );
     }
 
     for (const startAtom of substituentStarts) {
@@ -2155,48 +2234,85 @@ export function findSubstituents(
       // Determine the functional group types
       const s0Type =
         functionalGroups.find((g) => g.atoms && g.atoms.includes(s0))?.name ||
-        "sulfur";
+        "sulfanyl";
       const s1Type =
         functionalGroups.find((g) => g.atoms && g.atoms.includes(s1))?.name ||
-        "sulfur";
+        "sulfanyl";
+
+      // Count oxygen atoms attached to each sulfur
+      const s0OxygenCount = molecule.bonds.filter(
+        (b) =>
+          (b.atom1 === s0 || b.atom2 === s0) &&
+          molecule.atoms[b.atom1 === s0 ? b.atom2 : b.atom1]?.symbol === "O",
+      ).length;
+      const s1OxygenCount = molecule.bonds.filter(
+        (b) =>
+          (b.atom1 === s1 || b.atom2 === s1) &&
+          molecule.atoms[b.atom1 === s1 ? b.atom2 : b.atom1]?.symbol === "O",
+      ).length;
 
       if (process.env.VERBOSE) {
-        console.log("[DEBUG] s0Type:", s0Type, "s1Type:", s1Type);
+        console.log(
+          "[DEBUG] s0Type:",
+          s0Type,
+          `(${s0OxygenCount} O)`,
+          "s1Type:",
+          s1Type,
+          `(${s1OxygenCount} O)`,
+        );
       }
 
-      // Order: substituent-side FG first, then chain-side FG
-      // If s0 is attached to substituent, name is: s0Type-s1Type
-      // If s1 is attached to substituent, name is: s1Type-s0Type
-      if (s0AttachedToSubst) {
+      // Order by oxidation state: higher oxygen count (higher oxidation) comes first
+      // This follows IUPAC priority for naming oxidized sulfur compounds
+      if (s0OxygenCount > s1OxygenCount) {
+        // s0 has more oxygens, name it first
         if (process.env.VERBOSE) {
           console.log(
-            "[DEBUG] Pushing order: s0Type, s1Type (s0 attached to substituent)",
+            "[DEBUG] Pushing order: s0Type, s1Type (s0 has more oxygens)",
           );
         }
         fgNames.push(s0Type, s1Type);
-      } else if (s1AttachedToSubst) {
+      } else if (s1OxygenCount > s0OxygenCount) {
+        // s1 has more oxygens, name it first
         if (process.env.VERBOSE) {
           console.log(
-            "[DEBUG] Pushing order: s1Type, s0Type (s1 attached to substituent)",
+            "[DEBUG] Pushing order: s1Type, s0Type (s1 has more oxygens)",
           );
         }
         fgNames.push(s1Type, s0Type);
       } else {
-        // Fallback: use original chain attachment logic
-        if (s0AttachedToChain) {
+        // Equal oxygen counts: use substituent attachment as tiebreaker
+        if (s1AttachedToSubst) {
           if (process.env.VERBOSE) {
             console.log(
-              "[DEBUG] Pushing order: s1Type, s0Type (fallback: s0 attached to chain)",
+              "[DEBUG] Pushing order: s1Type, s0Type (equal O, s1 attached to subst)",
             );
           }
           fgNames.push(s1Type, s0Type);
-        } else {
+        } else if (s0AttachedToSubst) {
           if (process.env.VERBOSE) {
             console.log(
-              "[DEBUG] Pushing order: s0Type, s1Type (fallback: s1 attached to chain)",
+              "[DEBUG] Pushing order: s0Type, s1Type (equal O, s0 attached to subst)",
             );
           }
           fgNames.push(s0Type, s1Type);
+        } else {
+          // Final fallback: use chain attachment
+          if (s0AttachedToChain) {
+            if (process.env.VERBOSE) {
+              console.log(
+                "[DEBUG] Pushing order: s0Type, s1Type (equal O, s0 attached to chain)",
+              );
+            }
+            fgNames.push(s0Type, s1Type);
+          } else {
+            if (process.env.VERBOSE) {
+              console.log(
+                "[DEBUG] Pushing order: s1Type, s0Type (equal O, s1 attached to chain)",
+              );
+            }
+            fgNames.push(s1Type, s0Type);
+          }
         }
       }
     } else if (sulfurBridge.length === 1) {
@@ -3147,14 +3263,16 @@ function nameComplexAlkoxySubstituent(
   }
 
   // Combine tail + linker with proper locant and parentheses
-  // Format: "1-(2-methylbutoxy)ethoxy" where the tail is attached at position 1 of the linker
+  // Format depends on linker length:
+  // - Single carbon linker (methoxy): "(tailName)methoxy" - no locant needed
+  // - Multi-carbon linker (ethoxy, propoxy): "1-(tailName)ethoxy" - needs locant
   if (tailName && tailName !== "oxy") {
     // If tailName is already in format "1-(...)", flatten it for concatenation while preserving the inner "1-"
     // This prevents excessive nesting like "1-(1-(ethoxy)ethoxy)" and instead produces "1-ethoxyethoxy"
     let cleanedTailName = tailName;
     if (process.env.VERBOSE) {
       console.log(
-        `[nameComplexAlkoxySubstituent] Before cleaning: tailName="${tailName}"`,
+        `[nameComplexAlkoxySubstituent] Before cleaning: tailName="${tailName}", linkerCarbons.length=${linkerCarbons.length}`,
       );
     }
     if (tailName.startsWith("1-(")) {
@@ -3189,12 +3307,27 @@ function nameComplexAlkoxySubstituent(
         }
       }
     }
-    // After flattening, if cleanedTailName already starts with "1-", we should concatenate directly
-    // Example: "1-ethoxyethoxy" + "methoxy" → "1-ethoxyethoxymethoxy"
-    // NOT "1-(1-ethoxyethoxy)methoxy"
-    const result = cleanedTailName.startsWith("1-")
-      ? `${cleanedTailName}${linkerName}` // Already flattened, just append
-      : `1-(${cleanedTailName})${linkerName}`; // Not flattened, needs wrapper
+    
+    // Determine if we need a locant based on linker length
+    // Single-carbon linker (methoxy): no locant needed - only one possible attachment point
+    // Multi-carbon linker (ethoxy, propoxy, etc.): needs locant to specify position
+    let result: string;
+    if (linkerCarbons.length === 1) {
+      // Methoxy linker - format: "tailNamemethoxy" (direct concatenation)
+      // No locant or parentheses needed since there's only one carbon
+      // Per IUPAC: concatenate ether substituents directly for clarity
+      // Example: "2-methylbutan-2-yloxy" + "methoxy" → "2-methylbutan-2-yloxymethoxy"
+      result = `${cleanedTailName}${linkerName}`;
+    } else {
+      // Multi-carbon linker - format: "1-(tailName)linkerName" or "cleanedTailName + linkerName"
+      // After flattening, if cleanedTailName already starts with "1-", we should concatenate directly
+      // Example: "1-ethoxyethoxy" + "ethoxy" → "1-ethoxyethoxyethoxy"
+      // NOT "1-(1-ethoxyethoxy)ethoxy"
+      result = cleanedTailName.startsWith("1-")
+        ? `${cleanedTailName}${linkerName}` // Already flattened, just append
+        : `1-(${cleanedTailName})${linkerName}`; // Not flattened, needs wrapper with locant
+    }
+    
     if (process.env.VERBOSE) {
       console.log(`[nameComplexAlkoxySubstituent] Returning: "${result}"`);
     }
@@ -3205,8 +3338,8 @@ function nameComplexAlkoxySubstituent(
 }
 
 /**
- * Build the longest carbon chain starting from a given carbon within a set of atoms
- * This explores ALL possible paths to find the true longest chain
+ * Build the longest carbon chain passing through a given carbon within a set of atoms
+ * This explores ALL possible paths through the attachment point to find the true longest chain
  */
 function buildLongestChainFrom(
   molecule: Molecule,
@@ -3262,7 +3395,7 @@ function buildLongestChainFrom(
     }
   }
 
-  // Try starting from each possible neighbor of startCarbon to find longest chain
+  // Get all carbon neighbors of startCarbon
   const startNeighbors: number[] = [];
   for (const bond of molecule.bonds) {
     if (
@@ -3286,20 +3419,64 @@ function buildLongestChainFrom(
     );
   }
 
-  // Try building chain from each direction
+  // NEW APPROACH: Try all pairs of neighbors to find chains passing THROUGH startCarbon
+  // This handles cases like CH3-C(CH3)2-CH2-CH3 where we need C-C-C-C not C-C-C
+  if (startNeighbors.length >= 2) {
+    // Try all pairs of starting directions (chain from neighbor1 through startCarbon to neighbor2)
+    for (let i = 0; i < startNeighbors.length; i++) {
+      const neighbor1 = startNeighbors[i];
+      if (neighbor1 === undefined) continue;
+
+      for (let j = 0; j < startNeighbors.length; j++) {
+        if (i === j) continue;
+        const neighbor2 = startNeighbors[j];
+        if (neighbor2 === undefined) continue;
+
+        if (process.env.VERBOSE) {
+          console.log(
+            `  [buildLongestChainFrom] Trying chain from ${neighbor1} through ${startCarbon} to ${neighbor2}`,
+          );
+        }
+
+        // Build chain in direction 1 (from neighbor1, away from startCarbon)
+        const visited1 = new Set<number>([startCarbon, neighbor1]);
+        const path1 = [startCarbon, neighbor1];
+        dfs(neighbor1, path1, visited1);
+
+        // Now extend in the opposite direction (from startCarbon towards neighbor2)
+        // We need to reverse path1 and then extend in direction 2
+        const reversedPath1 = [...path1].reverse(); // Now ends with startCarbon
+        const visited2 = new Set<number>(visited1);
+        visited2.add(neighbor2);
+        const fullPath = [...reversedPath1, neighbor2]; // startCarbon is at reversedPath1[length-1]
+
+        // Continue exploring from neighbor2
+        dfs(neighbor2, fullPath, visited2);
+
+        if (fullPath.length > longestChain.length) {
+          longestChain = [...fullPath];
+          if (process.env.VERBOSE) {
+            console.log(
+              `    [buildLongestChainFrom] Updated with bidirectional chain: [${longestChain.join(",")}]`,
+            );
+          }
+        }
+      }
+    }
+  }
+
+  // Also try single-direction chains (original behavior for cases with only 1 neighbor)
   for (const firstNeighbor of startNeighbors) {
     if (process.env.VERBOSE) {
       console.log(
-        `  [buildLongestChainFrom] Trying chain starting from neighbor ${firstNeighbor}`,
+        `  [buildLongestChainFrom] Trying single-direction chain from ${firstNeighbor}`,
       );
     }
     const visited = new Set<number>([startCarbon, firstNeighbor]);
-    const path = [startCarbon, firstNeighbor]; // Changed: startCarbon first (attachment point)
+    const path = [startCarbon, firstNeighbor];
 
-    // Explore from the firstNeighbor direction using DFS
     dfs(firstNeighbor, path, visited);
 
-    // Check if this path is longest
     if (path.length > longestChain.length) {
       longestChain = [...path];
     }

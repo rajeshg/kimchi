@@ -343,6 +343,12 @@ export class OPSINFunctionalGroupDetector {
         finder: this.findAminePattern.bind(this),
       },
       {
+        pattern: "C=N(ring)",
+        name: "imine",
+        priority: 11,
+        finder: this.findImineInRingPattern.bind(this),
+      },
+      {
         pattern: "RSR",
         name: "thioether",
         priority: 11.5,
@@ -405,6 +411,7 @@ export class OPSINFunctionalGroupDetector {
               "[CX3](=O)[CX4]": "one",
               "[OX2H]": "ol",
               "[NX3][CX4]": "amine",
+              "C=N(ring)": "amine",
               "C(=O)O": "oate",
               "C(=O)S": "thioate",
               "C(=O)N": "amide",
@@ -418,6 +425,7 @@ export class OPSINFunctionalGroupDetector {
             const defaultPrefixes: Record<string, string> = {
               "[OX2H]": "hydroxy",
               "[NX3][CX4]": "amino",
+              "C=N(ring)": "imino",
               "[CX3](=O)[CX4]": "oxo",
               "C(=O)[OX2H1]": "carboxy",
               "C(=O)S": "sulfanylformyl",
@@ -948,6 +956,50 @@ export class OPSINFunctionalGroupDetector {
         (carbonSingleBonds.length >= 1 || hydrogenBonds.length >= 1)
       ) {
         return [atom.id];
+      }
+    }
+    return [];
+  }
+
+  private findImineInRingPattern(
+    atoms: readonly Atom[],
+    bonds: readonly Bond[],
+    rings?: readonly (readonly number[])[],
+  ): number[] {
+    // Look for C=N imine bonds within rings (e.g., azirine)
+    // For azirine: the C=N bond should get the -amine suffix
+    if (process.env.VERBOSE) {
+      console.log(`[findImineInRingPattern] Called with ${rings?.length || 0} rings`);
+    }
+    if (!rings || rings.length === 0) return [];
+
+    for (const ring of rings) {
+      if (process.env.VERBOSE) {
+        console.log(`[findImineInRingPattern] Checking ring: [${ring.join(", ")}]`);
+      }
+      // Check for C=N double bond within this ring
+      for (const bond of bonds) {
+        if (bond.type !== "double") continue;
+
+        const atom1 = atoms[bond.atom1];
+        const atom2 = atoms[bond.atom2];
+        if (!atom1 || !atom2) continue;
+
+        // Check if this is a C=N bond
+        const isImineInRing =
+          ((atom1.symbol === "C" && atom2.symbol === "N") ||
+            (atom1.symbol === "N" && atom2.symbol === "C")) &&
+          ring.includes(bond.atom1) &&
+          ring.includes(bond.atom2);
+
+        if (isImineInRing) {
+          // Return the carbon atom of the C=N bond (the one that gets the -amine suffix)
+          const carbonAtom = atom1.symbol === "C" ? atom1 : atom2;
+          if (process.env.VERBOSE) {
+            console.log(`[findImineInRingPattern] Found C=N bond: ${bond.atom1}=${bond.atom2}, returning carbon atom ${carbonAtom.id}`);
+          }
+          return [carbonAtom.id];
+        }
       }
     }
     return [];
@@ -1583,31 +1635,34 @@ export class OPSINFunctionalGroupDetector {
   private findPyrrolidinePattern(
     atoms: readonly Atom[],
     bonds: readonly Bond[],
+    rings?: readonly (readonly number[])[],
   ): number[] {
     // N1CCC1 = azetidide = 4-membered saturated nitrogen ring
     // Must be exactly 4 atoms: 1 N + 3 C
     // Must be NON-aromatic (saturated)
-    return this.findSpecificNitrogenRing(atoms, bonds, 4, false);
+    return this.findSpecificNitrogenRing(atoms, bonds, 4, false, rings);
   }
 
   private findPiperidinePattern(
     atoms: readonly Atom[],
     bonds: readonly Bond[],
+    rings?: readonly (readonly number[])[],
   ): number[] {
     // N1CCCC1 = piperidine = 5-membered saturated nitrogen ring
     // Must be exactly 5 atoms: 1 N + 4 C
     // Must be NON-aromatic (saturated)
-    return this.findSpecificNitrogenRing(atoms, bonds, 5, false);
+    return this.findSpecificNitrogenRing(atoms, bonds, 5, false, rings);
   }
 
   private findPiperazinePattern(
     atoms: readonly Atom[],
     bonds: readonly Bond[],
+    rings?: readonly (readonly number[])[],
   ): number[] {
     // N1CCCCC1 = piperazine = 6-membered saturated nitrogen ring
     // Must be exactly 6 atoms: 1 N + 5 C
     // Must be NON-aromatic (saturated)
-    return this.findSpecificNitrogenRing(atoms, bonds, 6, false);
+    return this.findSpecificNitrogenRing(atoms, bonds, 6, false, rings);
   }
 
   private findAnilinePattern(
@@ -1702,9 +1757,11 @@ export class OPSINFunctionalGroupDetector {
     bonds: readonly Bond[],
     ringSize: number,
     aromatic: boolean,
+    rings?: readonly (readonly number[])[],
   ): number[] {
     // Detect nitrogen rings with specific size and aromaticity
     // This avoids false positives like detecting thiazole (5-membered aromatic) as azetidide (4-membered saturated)
+    // or detecting azirine (3-membered) as azetidide (4-membered)
     for (let i = 0; i < atoms.length; i++) {
       const atom = atoms[i];
       if (!atom || atom.symbol !== "N") continue;
@@ -1717,21 +1774,13 @@ export class OPSINFunctionalGroupDetector {
       if (!aromatic && atom.aromatic) continue;
 
       // Check if any of the rings containing this nitrogen has the correct size
-      // We need to check the actual ring size from the molecule's rings array
-      // For now, check carbon neighbors as a heuristic
-      const carbonNeighbors = bonds.filter(
-        (bond) =>
-          (bond.atom1 === atom.id || bond.atom2 === atom.id) &&
-          this.getBondedAtom(bond, atom.id, atoms)?.symbol === "C",
-      );
-
-      // For a nitrogen ring of size N, the nitrogen should have exactly 2 neighbors in the ring
-      // And there should be (N-1) carbons in the ring
-      // Simplified check: at least 2 carbon neighbors
-      if (carbonNeighbors.length >= 2) {
-        // Additional check: ensure ring size matches
-        // This is a simplified check - we would need the full ring structure to be precise
-        return [atom.id];
+      if (rings && atom.ringIds) {
+        for (const ringId of atom.ringIds) {
+          const ring = rings[ringId];
+          if (ring && ring.length === ringSize) {
+            return [atom.id];
+          }
+        }
       }
     }
     return [];

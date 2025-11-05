@@ -30,7 +30,7 @@ describe("Heterocycle IUPAC Names", () => {
 
     it("triazine (1,3,5-triazine)", () => {
       const result = generateIUPACNameFromSMILES("c1ncncn1");
-      expect(result.name).toBe("triazine");
+      expect(result.name).toBe("1,3,5-triazine");
     });
   });
 

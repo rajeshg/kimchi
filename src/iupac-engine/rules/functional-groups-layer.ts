@@ -347,6 +347,11 @@ export const FUNCTIONAL_GROUP_PRIORITY_RULE: IUPACRule = {
       mol,
     );
 
+    // Mark the selected principal group with isPrincipal flag
+    if (principalGroup) {
+      principalGroup.isPrincipal = true;
+    }
+
     if (process.env.VERBOSE) {
       console.log(
         "[FUNCTIONAL_GROUP_PRIORITY_RULE] Selected principalGroup:",
@@ -354,6 +359,7 @@ export const FUNCTIONAL_GROUP_PRIORITY_RULE: IUPACRule = {
           type: principalGroup.type,
           priority: principalGroup.priority,
           locants: principalGroup.locants,
+          isPrincipal: principalGroup.isPrincipal,
         },
       );
       console.log(

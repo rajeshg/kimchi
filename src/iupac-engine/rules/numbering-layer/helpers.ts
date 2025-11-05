@@ -1170,7 +1170,108 @@ export function findRingStartingPosition(
     }
   }
 
+  if (process.env.VERBOSE) {
+    console.log(
+      `[findRingStartingPosition] Single heteroatom check: heteroatomIndex=${heteroatomIndex}, ring.atoms.length=${ring.atoms.length}, ring.atoms=[${ring.atoms.map((a: Atom) => `${a.id}:${a.symbol}`).join(", ")}]`,
+    );
+  }
+
   if (heteroatomIndex >= 0 && molecule) {
+    // Special case: For 3-membered rings with one heteroatom
+    // IUPAC rules place the heteroatom at position 1 (lowest locant)
+    // This applies to azirines, oxiranes, etc.
+    if (ring.atoms.length === 3) {
+      if (process.env.VERBOSE) {
+        console.log(
+          `[findRingStartingPosition] 3-membered ring detected with heteroatom at index ${heteroatomIndex}`,
+        );
+      }
+      // Reorder so heteroatom is FIRST (position 1)
+      if (heteroatomIndex === 1) {
+        // Heteroatom is in middle, rotate to make it first
+        ring.atoms = [ring.atoms[1]!, ring.atoms[2]!, ring.atoms[0]!] as Atom[];
+        if (process.env.VERBOSE) {
+          console.log(
+            `[Ring Numbering] 3-membered ring: rotated to place heteroatom at position 1: [${ring.atoms.map((a: Atom) => a.id).join(", ")}]`,
+          );
+        }
+      } else if (heteroatomIndex === 2) {
+        // Heteroatom is last, rotate to make it first
+        ring.atoms = [ring.atoms[2]!, ring.atoms[0]!, ring.atoms[1]!] as Atom[];
+        if (process.env.VERBOSE) {
+          console.log(
+            `[Ring Numbering] 3-membered ring: rotated to place heteroatom at position 1: [${ring.atoms.map((a: Atom) => a.id).join(", ")}]`,
+          );
+        }
+      }
+      // If heteroatomIndex === 0, it's already at position 1
+      
+      // Now determine direction (CW or CCW) based on double bonds and substituents
+      // Position 1 is ring.atoms[0] (heteroatom), position 2 is ring.atoms[1], position 3 is ring.atoms[2]
+      const heteroAtom = ring.atoms[0]!; // Heteroatom at position 1
+      const pos2Atom = ring.atoms[1]!;
+      const pos3Atom = ring.atoms[2]!;
+      
+      // For azirines: check if there's a C=N double bond to determine numbering direction
+      // The double bond should have the lowest possible locants (e.g., 2-3 for 2H-azirine)
+      let hasDoubleAt2_3 = false;
+      let hasDoubleAt1_2 = false;
+      let hasDoubleAt1_3 = false;
+      
+      for (const bond of molecule.bonds) {
+        if (bond.type === "double") {
+          if ((bond.atom1 === pos2Atom.id && bond.atom2 === pos3Atom.id) ||
+              (bond.atom2 === pos2Atom.id && bond.atom1 === pos3Atom.id)) {
+            hasDoubleAt2_3 = true;
+          }
+          if ((bond.atom1 === heteroAtom.id && bond.atom2 === pos2Atom.id) ||
+              (bond.atom2 === heteroAtom.id && bond.atom1 === pos2Atom.id)) {
+            hasDoubleAt1_2 = true;
+          }
+          if ((bond.atom1 === heteroAtom.id && bond.atom2 === pos3Atom.id) ||
+              (bond.atom2 === heteroAtom.id && bond.atom1 === pos3Atom.id)) {
+            hasDoubleAt1_3 = true;
+          }
+        }
+      }
+      
+      // If we need to reverse to get the double bond at 2-3 instead of 1-2, do it
+      // But for now, let's check substituent positions to determine direction
+      // Count substituents at each carbon position (excluding heteroatom)
+      const ringAtomIds = new Set(ring.atoms.map((a) => a.id));
+      let pos2SubCount = 0;
+      let pos3SubCount = 0;
+      
+      for (const bond of molecule.bonds) {
+        if (bond.atom1 === pos2Atom.id && !ringAtomIds.has(bond.atom2)) {
+          pos2SubCount++;
+        } else if (bond.atom2 === pos2Atom.id && !ringAtomIds.has(bond.atom1)) {
+          pos2SubCount++;
+        } else if (bond.atom1 === pos3Atom.id && !ringAtomIds.has(bond.atom2)) {
+          pos3SubCount++;
+        } else if (bond.atom2 === pos3Atom.id && !ringAtomIds.has(bond.atom1)) {
+          pos3SubCount++;
+        }
+      }
+      
+      // If position 2 has more substituents than position 3, we might need to reverse
+      // to give the substituted carbon the lower locant (position 2 vs position 3)
+      // However, for azirines, we want the imine carbon at position 2
+      // So we should reverse if the double bond is at 1-2 or 1-3 instead of 2-3
+      if ((hasDoubleAt1_2 || hasDoubleAt1_3) && !hasDoubleAt2_3) {
+        // Reverse to move double bond to 2-3 position
+        ring.atoms = [heteroAtom, pos3Atom, pos2Atom] as Atom[];
+        if (process.env.VERBOSE) {
+          console.log(
+            `[Ring Numbering] 3-membered ring: reversed to place double bond at positions 2-3: [${ring.atoms.map((a: Atom) => a.id).join(", ")}]`,
+          );
+        }
+      }
+      
+      return 1; // Start numbering from position 1
+    }
+    
+    // For larger rings, use the standard heteroatom-first numbering
     // Found heteroatom - now determine best numbering direction
     const result = findOptimalRingNumberingFromHeteroatom(
       ring,

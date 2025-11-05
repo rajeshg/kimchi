@@ -656,6 +656,22 @@ function getHeterocyclicName(
     return "diaziridine";
   }
 
+  // Check for 3-membered unsaturated heterocycles (azirine, oxirene) BEFORE saturation check
+  if (ringSize === 3 && totalHetero === 1 && ringDoubleBonds === 1) {
+    // Azirine: 3-membered ring with 1 nitrogen and exactly 1 double bond
+    if (hasNitrogen === 1) {
+      return "azirine";
+    }
+    // Oxirene: 3-membered ring with 1 oxygen and exactly 1 double bond
+    if (hasOxygen === 1) {
+      return "oxirene";
+    }
+    // Thiirene: 3-membered ring with 1 sulfur and exactly 1 double bond
+    if (hasSulfur === 1) {
+      return "thiirene";
+    }
+  }
+
   // Only name simple heterocycles (one heteroatom, saturated)
   if (totalHetero === 0 || totalHetero > 1) return null;
 

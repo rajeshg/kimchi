@@ -130,8 +130,13 @@ export const INITIAL_STRUCTURE_ANALYSIS_RULE: IUPACRule = {
         });
       }
 
-      return context.withUpdatedCandidates(
-        candidates,
+      // Preserve candidateRings while updating candidateChains
+      return context.withStateUpdate(
+        (state: ContextState) => ({
+          ...state,
+          candidateChains: candidates,
+          candidateRings: state.candidateRings || ringSystems,
+        }),
         "init-structure-analysis",
         "Initial Structure Analysis",
         BLUE_BOOK_RULES.P44_3_1,

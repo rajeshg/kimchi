@@ -334,6 +334,38 @@ export const RING_SELECTION_COMPLETE_RULE: IUPACRule = {
       );
     }
 
+    // Re-select principal group after filtering
+    // When a ring is the parent, functional groups on side chains are excluded.
+    // We need to promote the highest priority remaining functional group to principal.
+    if (filteredFunctionalGroups.length > 0) {
+      // First, clear all isPrincipal flags
+      for (const fg of filteredFunctionalGroups) {
+        fg.isPrincipal = false;
+      }
+
+      // Find the highest priority functional group
+      let maxPriority = -1;
+      let principalGroup = null;
+
+      for (const fg of filteredFunctionalGroups) {
+        const priority = fg.priority || 0;
+        if (priority > maxPriority) {
+          maxPriority = priority;
+          principalGroup = fg;
+        }
+      }
+
+      // Mark the highest priority group as principal
+      if (principalGroup) {
+        principalGroup.isPrincipal = true;
+        if (process.env.VERBOSE) {
+          console.log(
+            `[ring-selection-complete] Re-selected principal group after filtering: ${principalGroup.type} (priority ${maxPriority})`,
+          );
+        }
+      }
+    }
+
     return context
       .withParentStructure(
         parentStructure,

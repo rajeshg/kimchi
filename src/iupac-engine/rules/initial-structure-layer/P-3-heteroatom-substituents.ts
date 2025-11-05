@@ -928,7 +928,36 @@ function getRingSubstituentName(
         } else if (chainIndices.length === 2) {
           return "ethylsulfanyl";
         } else if (chainIndices.length === 3) {
-          return "propylsulfanyl";
+          // Check if it's branched (isopropyl) or linear (propyl)
+          // For isopropyl: one carbon is bonded to two other carbons in the chain
+          let isBranched = false;
+          for (const carbonIdx of chainIndices) {
+            let carbonBondCount = 0;
+            for (const otherIdx of chainIndices) {
+              if (carbonIdx === otherIdx) continue;
+              // Check if there's a bond between carbonIdx and otherIdx
+              for (const bond of molecule.bonds) {
+                if (
+                  (bond.atom1 === carbonIdx && bond.atom2 === otherIdx) ||
+                  (bond.atom2 === carbonIdx && bond.atom1 === otherIdx)
+                ) {
+                  carbonBondCount++;
+                  break;
+                }
+              }
+            }
+            // If this carbon is bonded to 2 other carbons in the chain, it's branched
+            if (carbonBondCount === 2) {
+              isBranched = true;
+              break;
+            }
+          }
+          
+          if (isBranched) {
+            return "propan-2-ylsulfanyl";
+          } else {
+            return "propylsulfanyl";
+          }
         } else if (chainIndices.length > 0) {
           // For longer chains, use generic alkylsulfanyl
           const baseName = getParentChainName(chainIndices.length);
