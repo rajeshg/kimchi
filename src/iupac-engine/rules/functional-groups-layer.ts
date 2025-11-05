@@ -113,6 +113,154 @@ function buildAcyloxyName(chainLength: number): string {
 }
 
 /**
+ * Expand a ketone functional group to include the complete acyl substituent chain.
+ *
+ * For ketones that are part of acyl substituents (R-C(=O)-), we need to include
+ * all atoms in the R group to prevent fragmentation during parent chain selection.
+ *
+ * Detection criteria:
+ * - Ketone carbonyl carbon has exactly 2 carbon neighbors (excluding C=O oxygen)
+ * - One neighbor is on the main chain (has more connections to rest of molecule)
+ * - Other neighbor is the acyl chain (traverse to collect all carbons/branches)
+ *
+ * Example: CC(C)CC(=O)- (3-methylbutanoyl)
+ * - Carbonyl at C4: neighbors are C3 (acyl chain start) and C6 (main chain)
+ * - Traverse from C3 to collect: C0, C1, C2, C3 (full branched acyl group)
+ * - Result: ketone atoms = [C4, O5, C0, C1, C2, C3] (all marked as functional group)
+ *
+ * @param mol - The molecule containing the ketone
+ * @param ketoneAtomIndices - Original ketone atom indices [carbonyl C, O]
+ * @returns Expanded atom indices including full acyl chain, or original if not an acyl substituent
+ */
+function expandKetoneToAcylGroup(
+  mol: Molecule,
+  ketoneAtomIndices: number[],
+): number[] {
+  // Ketone detection gives us [carbonyl C, O]
+  if (ketoneAtomIndices.length < 2) return ketoneAtomIndices;
+
+  const carbonylIdx = ketoneAtomIndices[0];
+  const oxygenIdx = ketoneAtomIndices[1];
+
+  // Guard against undefined indices
+  if (carbonylIdx === undefined || oxygenIdx === undefined) {
+    return ketoneAtomIndices;
+  }
+
+  // Find all carbon neighbors of the carbonyl carbon (excluding oxygen)
+  const carbonNeighbors: number[] = [];
+  for (const bond of mol.bonds) {
+    if (bond.type !== "single") continue;
+    if (bond.atom1 !== carbonylIdx && bond.atom2 !== carbonylIdx) continue;
+
+    const otherIdx = bond.atom1 === carbonylIdx ? bond.atom2 : bond.atom1;
+    if (otherIdx === oxygenIdx) continue; // Skip the C=O oxygen
+
+    const otherAtom = mol.atoms[otherIdx];
+    if (otherAtom?.symbol === "C") {
+      carbonNeighbors.push(otherIdx);
+    }
+  }
+
+  // If carbonyl has 0 or 1 carbon neighbors, it's not a substitutable ketone (e.g., aldehyde or terminal ketone)
+  // If it has 2+ carbon neighbors, it's an internal ketone - check if it's an acyl substituent
+  if (carbonNeighbors.length !== 2) {
+    return ketoneAtomIndices; // Not an acyl substituent pattern
+  }
+
+  // Determine which neighbor is the "acyl chain" vs "main chain"
+  // Heuristic: the neighbor with fewer total connections is likely the acyl chain
+  // (main chain typically has more connectivity to rest of molecule)
+  const neighbor1Idx = carbonNeighbors[0];
+  const neighbor2Idx = carbonNeighbors[1];
+
+  // Guard against undefined neighbors
+  if (neighbor1Idx === undefined || neighbor2Idx === undefined) {
+    return ketoneAtomIndices;
+  }
+
+  const neighbor1Connections = mol.bonds.filter(
+    (b) => b.atom1 === neighbor1Idx || b.atom2 === neighbor1Idx,
+  ).length;
+  const neighbor2Connections = mol.bonds.filter(
+    (b) => b.atom1 === neighbor2Idx || b.atom2 === neighbor2Idx,
+  ).length;
+
+  let acylChainStart: number;
+
+  // If connections are unequal, use connection count heuristic
+  if (neighbor1Connections !== neighbor2Connections) {
+    acylChainStart =
+      neighbor1Connections < neighbor2Connections ? neighbor1Idx : neighbor2Idx;
+  } else {
+    // Tie-breaker: count chain length from each neighbor (BFS)
+    const getChainLength = (startIdx: number, excludeIdx: number): number => {
+      const visited = new Set<number>([excludeIdx]);
+      const queue = [startIdx];
+      visited.add(startIdx);
+      let count = 0;
+
+      while (queue.length > 0) {
+        const currentIdx = queue.shift()!;
+        count++;
+
+        for (const bond of mol.bonds) {
+          if (bond.atom1 !== currentIdx && bond.atom2 !== currentIdx) continue;
+          const otherIdx = bond.atom1 === currentIdx ? bond.atom2 : bond.atom1;
+          if (visited.has(otherIdx)) continue;
+          const otherAtom = mol.atoms[otherIdx];
+          if (otherAtom?.symbol === "C") {
+            visited.add(otherIdx);
+            queue.push(otherIdx);
+          }
+        }
+      }
+
+      return count;
+    };
+
+    const neighbor1ChainLength = getChainLength(neighbor1Idx, carbonylIdx);
+    const neighbor2ChainLength = getChainLength(neighbor2Idx, carbonylIdx);
+
+    if (neighbor1ChainLength === neighbor2ChainLength) {
+      return ketoneAtomIndices;
+    }
+
+    // Shorter chain is likely the acyl substituent
+    acylChainStart =
+      neighbor1ChainLength < neighbor2ChainLength ? neighbor1Idx : neighbor2Idx;
+  }
+
+  // BFS traversal from acyl chain start, away from carbonyl
+  const visited = new Set<number>([carbonylIdx, oxygenIdx]);
+  const acylAtoms: number[] = [];
+  const queue = [acylChainStart];
+  visited.add(acylChainStart);
+
+  while (queue.length > 0) {
+    const currentIdx = queue.shift()!;
+    acylAtoms.push(currentIdx);
+
+    for (const bond of mol.bonds) {
+      if (bond.atom1 !== currentIdx && bond.atom2 !== currentIdx) continue;
+
+      const otherIdx = bond.atom1 === currentIdx ? bond.atom2 : bond.atom1;
+      if (visited.has(otherIdx)) continue;
+
+      const otherAtom = mol.atoms[otherIdx];
+      // Include all carbons and branches in the acyl chain
+      if (otherAtom?.symbol === "C") {
+        visited.add(otherIdx);
+        queue.push(otherIdx);
+      }
+    }
+  }
+
+  // Return expanded atom list: [carbonyl C, O, ...acyl chain atoms]
+  return [carbonylIdx, oxygenIdx, ...acylAtoms];
+}
+
+/**
  * Rule: Principal Group Priority Detection
  *
  * Implements Blue Book Table 5.1 - Order of seniority of classes
@@ -170,8 +318,25 @@ export const FUNCTIONAL_GROUP_PRIORITY_RULE: IUPACRule = {
           .toString()
           .toLowerCase();
         const type = rawName.replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "");
+
         // d.atoms contains atom indices (numbers), convert to Atom objects
-        const atomIndices = d.atoms || [];
+        let atomIndices = d.atoms || [];
+
+        // For ketones, expand to include full acyl substituent chain if applicable
+        // This prevents fragmentation of branched acyl groups like 3-methylbutanoyl
+        if (type === "ketone") {
+          const expandedIndices = expandKetoneToAcylGroup(mol, atomIndices);
+          if (expandedIndices.length > atomIndices.length) {
+            atomIndices = expandedIndices;
+            if (process.env.VERBOSE) {
+              console.log(
+                `[FUNCTIONAL_GROUP_PRIORITY_RULE] Expanded ketone atoms from ${d.atoms?.length || 0} to ${expandedIndices.length}:`,
+                expandedIndices,
+              );
+            }
+          }
+        }
+
         const atoms = atomIndices
           .map((idx: number) => mol.atoms[idx])
           .filter((a: Atom | undefined): a is Atom => a !== undefined);
@@ -284,7 +449,14 @@ export const FUNCTIONAL_GROUP_PRIORITY_RULE: IUPACRule = {
             }
 
             // Preserve atoms if available (e.g., alcohol detection stores carbon instead of oxygen)
-            if (matchingPrevious.atoms && matchingPrevious.atoms.length > 0) {
+            // BUT: for ketones, if we expanded the atom list to include acyl chains, don't preserve
+            const wasExpanded =
+              type === "ketone" && atoms.length > (d.atoms?.length || 0);
+            if (
+              matchingPrevious.atoms &&
+              matchingPrevious.atoms.length > 0 &&
+              !wasExpanded
+            ) {
               preservedAtoms = matchingPrevious.atoms;
               if (process.env.VERBOSE) {
                 console.log(
@@ -294,12 +466,18 @@ export const FUNCTIONAL_GROUP_PRIORITY_RULE: IUPACRule = {
                   ),
                 );
               }
+            } else if (wasExpanded && process.env.VERBOSE) {
+              console.log(
+                `[FUNCTIONAL_GROUP_PRIORITY_RULE] NOT preserving atoms for ${type} because we expanded from ${d.atoms?.length} to ${atoms.length}`,
+              );
             }
 
             // Preserve locants if explicitly set (e.g., alcohol detection sets carbon atom ID)
+            // BUT: for expanded ketones, use only carbonyl carbon as locant
             if (
               matchingPrevious.locants &&
-              matchingPrevious.locants.length > 0
+              matchingPrevious.locants.length > 0 &&
+              !wasExpanded
             ) {
               preservedLocants = matchingPrevious.locants;
               if (process.env.VERBOSE) {
@@ -346,11 +524,6 @@ export const FUNCTIONAL_GROUP_PRIORITY_RULE: IUPACRule = {
       functionalGroups,
       mol,
     );
-
-    // Mark the selected principal group with isPrincipal flag
-    if (principalGroup) {
-      principalGroup.isPrincipal = true;
-    }
 
     if (process.env.VERBOSE) {
       console.log(
@@ -452,6 +625,13 @@ export const FUNCTIONAL_GROUP_PRIORITY_RULE: IUPACRule = {
               g.type === principalGroup.type &&
               g.priority === principalGroup.priority
             ) {
+              if (process.env.VERBOSE) {
+                console.log('[FUNCTIONAL_GROUP_PRIORITY_RULE] Marking as principal:', {
+                  type: g.type,
+                  priority: g.priority,
+                  locants: g.locants,
+                });
+              }
               return {
                 ...g,
                 isPrincipal: true,
@@ -1947,6 +2127,8 @@ export const LACTONE_TO_KETONE_RULE: IUPACRule = {
     }
 
     // Mark all functional groups of the principal type as principal
+    // IMPORTANT: Only update isPrincipal for groups matching the new principal type
+    // Leave other groups' isPrincipal status unchanged (don't reset to false)
     const finalFunctionalGroups = newPrincipalGroup
       ? updatedFunctionalGroups.map((g) => {
           if (
@@ -1955,7 +2137,7 @@ export const LACTONE_TO_KETONE_RULE: IUPACRule = {
           ) {
             return { ...g, isPrincipal: true };
           }
-          return { ...g, isPrincipal: false };
+          return g; // Keep existing isPrincipal status
         })
       : updatedFunctionalGroups;
 

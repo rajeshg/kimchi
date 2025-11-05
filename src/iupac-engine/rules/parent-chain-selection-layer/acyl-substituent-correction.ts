@@ -74,7 +74,9 @@ export const ACYL_SUBSTITUENT_CORRECTION_RULE: IUPACRule = {
 
     const mainChain = parentStructure.chain?.atoms || [];
     // Build a set of atom IDs in the main chain
-    const chainSet = new Set(mainChain.map((a) => (typeof a === "number" ? a : a.id)));
+    const chainSet = new Set(
+      mainChain.map((a) => (typeof a === "number" ? a : a.id)),
+    );
 
     if (process.env.VERBOSE) {
       console.log(
@@ -84,7 +86,10 @@ export const ACYL_SUBSTITUENT_CORRECTION_RULE: IUPACRule = {
 
     // Filter ketones and check if they're on the main chain
     const ketoneGroups = functionalGroups.filter(
-      (fg) => (fg.name === "ketone" || fg.type === "ketone") && fg.atoms && fg.atoms.length >= 2,
+      (fg) =>
+        (fg.name === "ketone" || fg.type === "ketone") &&
+        fg.atoms &&
+        fg.atoms.length >= 2,
     );
 
     if (process.env.VERBOSE) {
@@ -102,7 +107,7 @@ export const ACYL_SUBSTITUENT_CORRECTION_RULE: IUPACRule = {
       if (process.env.VERBOSE) {
         console.log(
           `[ACYL_SUBSTITUENT_CORRECTION action] Ketone atoms:`,
-          ketoneGroup.atoms.map(a => `${a.id}:${a.symbol}`).join(", ")
+          ketoneGroup.atoms.map((a) => `${a.id}:${a.symbol}`).join(", "),
         );
       }
 

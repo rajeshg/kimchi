@@ -4,11 +4,11 @@ import { RuleEngine } from "../../../src/iupac-engine/engine";
 
 /**
  * Test suite for acyl substituent detection and naming
- * 
+ *
  * Acyl groups (R-C(=O)-) are ketones that branch off the main chain.
  * They should be named as substituents (e.g., "acetyl", "2-methylpropanoyl")
  * rather than being counted as principal ketones in the parent chain.
- * 
+ *
  * Rule reference: P-62.2.1.1 - Acyl groups as substituents
  * Implementation: acyl-substituent-correction.ts + name-assembly-layer.ts
  */
@@ -25,8 +25,10 @@ describe("Acyl Substituent Detection and Naming", () => {
 
       const mol = result.molecules[0]!;
       const iupacResult = engine.generateName(mol);
-      
-      expect(iupacResult.name).toBe("7-methyl-5-(2-methylpropanoyl)octane-2,6-dione");
+
+      expect(iupacResult.name).toBe(
+        "7-methyl-5-(2-methylpropanoyl)octane-2,6-dione",
+      );
     });
 
     it("should identify simple acetyl as acyl substituent without parentheses", () => {
@@ -37,7 +39,7 @@ describe("Acyl Substituent Detection and Naming", () => {
 
       const mol = result.molecules[0]!;
       const iupacResult = engine.generateName(mol);
-      
+
       // Acetyl is simple, so no parentheses needed
       expect(iupacResult.name).toContain("acetyl");
       expect(iupacResult.name).not.toContain("(acetyl)");
@@ -52,7 +54,7 @@ describe("Acyl Substituent Detection and Naming", () => {
 
       const mol = result.molecules[0]!;
       const iupacResult = engine.generateName(mol);
-      
+
       // Propanoyl is unbranched, so no parentheses needed
       expect(iupacResult.name).toContain("propanoyl");
       expect(iupacResult.name).not.toContain("(propanoyl)");
@@ -69,7 +71,7 @@ describe("Acyl Substituent Detection and Naming", () => {
 
       const mol = result.molecules[0]!;
       const iupacResult = engine.generateName(mol);
-      
+
       // Branched acyl with "2-methyl" locant needs parentheses
       expect(iupacResult.name).toContain("(2-methylpropanoyl)");
       expect(iupacResult.name).not.toContain(" 2-methylpropanoyl"); // No space before, must be wrapped
@@ -82,7 +84,7 @@ describe("Acyl Substituent Detection and Naming", () => {
 
       const mol = result.molecules[0]!;
       const iupacResult = engine.generateName(mol);
-      
+
       // Simple acetyl should not have parentheses
       expect(iupacResult.name).toContain("acetyl");
       expect(iupacResult.name).not.toContain("(acetyl)");
@@ -98,13 +100,13 @@ describe("Acyl Substituent Detection and Naming", () => {
 
       const mol = result.molecules[0]!;
       const iupacResult = engine.generateName(mol);
-      
+
       // Should have at least one (2-methylpropanoyl) with parentheses
       expect(iupacResult.name).toContain("(2-methylpropanoyl)");
-      
+
       // Full expected name
       expect(iupacResult.name).toBe(
-        "6-acetyl-2,8-dimethyl-4-(2-methylpropanoyl)nonane-3,7-dione"
+        "6-acetyl-2,8-dimethyl-4-(2-methylpropanoyl)nonane-3,7-dione",
       );
     });
   });
@@ -118,7 +120,7 @@ describe("Acyl Substituent Detection and Naming", () => {
 
       const mol = result.molecules[0]!;
       const iupacResult = engine.generateName(mol);
-      
+
       // Should be "dione" (2 ketones) not "trione" (3 ketones)
       expect(iupacResult.name).toContain("dione");
       expect(iupacResult.name).not.toContain("trione");
@@ -132,7 +134,7 @@ describe("Acyl Substituent Detection and Naming", () => {
 
       const mol = result.molecules[0]!;
       const iupacResult = engine.generateName(mol);
-      
+
       // Should be named as ketone (one), not as acyl substituent
       expect(iupacResult.name).toContain("one");
       expect(iupacResult.name).not.toContain("oyl"); // No "oyl" ending
@@ -150,18 +152,20 @@ describe("Acyl Substituent Detection and Naming", () => {
 
       const mol = result.molecules[0]!;
       const iupacResult = engine.generateName(mol);
-      
+
       // Currently generates: "5-acetyl-7-ethylnonane-2,6-dione"
       // Ideally should be: "5-(2-ethylbutanoyl)heptane-2,6-dione"
       // But this requires deeper structural recognition improvements
-      
+
       // For now, just verify it doesn't crash and produces a valid name
       expect(iupacResult.name).toBeTruthy();
       expect(iupacResult.name.length).toBeGreaterThan(0);
-      
+
       // Document current behavior
       console.log(`  Current output: ${iupacResult.name}`);
-      console.log(`  Note: Complex branched acyl groups are a known limitation`);
+      console.log(
+        `  Note: Complex branched acyl groups are a known limitation`,
+      );
     });
   });
 });

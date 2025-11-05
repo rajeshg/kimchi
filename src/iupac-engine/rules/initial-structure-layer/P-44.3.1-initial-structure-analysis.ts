@@ -62,7 +62,20 @@ export const INITIAL_STRUCTURE_ANALYSIS_RULE: IUPACRule = {
         findMainChain,
         findSubstituents,
       } = require("../../naming/iupac-chains");
-      const mainChain = findMainChain(molecule);
+
+      // Pass functional groups from context if available (includes expanded acyl groups)
+      const functionalGroups = context.getState().functionalGroups;
+      if (process.env.VERBOSE) {
+        console.log(
+          `[P-44.3.1] Passing ${functionalGroups.length} functional groups to findMainChain`,
+        );
+        functionalGroups.forEach((fg, i) => {
+          console.log(
+            `[P-44.3.1]   FG ${i}: name="${fg.name}", atoms=[${fg.atoms.join(",")}]`,
+          );
+        });
+      }
+      const mainChain = findMainChain(molecule, functionalGroups);
       console.log(
         `[initial-structure-layer] findMainChain returned: ${mainChain?.join(",") || "empty"}`,
       );

@@ -336,33 +336,40 @@ export const RING_SELECTION_COMPLETE_RULE: IUPACRule = {
 
     // Re-select principal group after filtering
     // When a ring is the parent, functional groups on side chains are excluded.
-    // We need to promote the highest priority remaining functional group to principal.
+    // We need to promote ALL functional groups with the highest priority to principal.
+    // For example, if there are 3 alcohols on the ring, ALL 3 should be marked as principal
+    // to generate "-1,3,5-triol" multiplicative suffix.
     if (filteredFunctionalGroups.length > 0) {
       // First, clear all isPrincipal flags
       for (const fg of filteredFunctionalGroups) {
         fg.isPrincipal = false;
       }
 
-      // Find the highest priority functional group
+      // Find the highest priority value among remaining functional groups
       let maxPriority = -1;
-      let principalGroup = null;
-
       for (const fg of filteredFunctionalGroups) {
         const priority = fg.priority || 0;
         if (priority > maxPriority) {
           maxPriority = priority;
-          principalGroup = fg;
         }
       }
 
-      // Mark the highest priority group as principal
-      if (principalGroup) {
-        principalGroup.isPrincipal = true;
-        if (process.env.VERBOSE) {
-          console.log(
-            `[ring-selection-complete] Re-selected principal group after filtering: ${principalGroup.type} (priority ${maxPriority})`,
-          );
+      // Mark ALL functional groups with the highest priority as principal
+      // This ensures that multiple identical groups (e.g., 3 alcohols) all get isPrincipal=true
+      const principalGroups = [];
+      for (const fg of filteredFunctionalGroups) {
+        const priority = fg.priority || 0;
+        if (priority === maxPriority) {
+          fg.isPrincipal = true;
+          principalGroups.push(fg);
         }
+      }
+
+      if (process.env.VERBOSE) {
+        console.log(
+          `[ring-selection-complete] Re-selected ${principalGroups.length} principal group(s) after filtering:`,
+          principalGroups.map(fg => `${fg.type} (priority ${maxPriority})`),
+        );
       }
     }
 

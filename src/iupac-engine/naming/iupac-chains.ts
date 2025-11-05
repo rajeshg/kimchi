@@ -156,9 +156,27 @@ function countDirectFunctionalGroupAttachments(
   return count;
 }
 
-export function findMainChain(molecule: Molecule): number[] {
-  // Detect functional groups first to exclude their atoms from the parent chain
-  const functionalGroups = getSharedDetector().detectFunctionalGroups(molecule);
+export function findMainChain(
+  molecule: Molecule,
+  predetectedFunctionalGroups?: Array<{
+    name?: string;
+    type?: string;
+    atoms?: (number | { id: number })[];
+  }>,
+): number[] {
+  // Use pre-detected functional groups if available (they may have expanded atoms for acyl groups)
+  // Otherwise detect them fresh from the molecule
+  const rawFunctionalGroups =
+    predetectedFunctionalGroups ||
+    getSharedDetector().detectFunctionalGroups(molecule);
+
+  // Normalize functional groups to ensure atoms are number arrays
+  const functionalGroups = rawFunctionalGroups.map((fg) => ({
+    name: fg.name || fg.type || "",
+    type: fg.type || fg.name || "",
+    atoms: (fg.atoms || []).map((a) => (typeof a === "number" ? a : a.id)),
+  }));
+
   const excludedAtomIds = new Set<number>();
 
   // Collect atom IDs that should be excluded from the parent chain
@@ -3518,7 +3536,7 @@ function nameComplexAlkoxySubstituent(
         }
       }
     }
-    
+
     // Determine if we need a locant based on linker length
     // Single-carbon linker (methoxy): no locant needed - only one possible attachment point
     // Multi-carbon linker (ethoxy, propoxy, etc.): needs locant to specify position
@@ -3538,7 +3556,7 @@ function nameComplexAlkoxySubstituent(
         ? `${cleanedTailName}${linkerName}` // Already flattened, just append
         : `1-(${cleanedTailName})${linkerName}`; // Not flattened, needs wrapper with locant
     }
-    
+
     if (process.env.VERBOSE) {
       console.log(`[nameComplexAlkoxySubstituent] Returning: "${result}"`);
     }

@@ -110,6 +110,7 @@ export const P14_3_PRINCIPAL_GROUP_NUMBERING_RULE: IUPACRule = {
           principalIdx++;
           return {
             ...group,
+            locant: locant,
             locants: [locant],
           };
         }

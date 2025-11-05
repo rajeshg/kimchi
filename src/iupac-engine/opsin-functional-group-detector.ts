@@ -969,13 +969,17 @@ export class OPSINFunctionalGroupDetector {
     // Look for C=N imine bonds within rings (e.g., azirine)
     // For azirine: the C=N bond should get the -amine suffix
     if (process.env.VERBOSE) {
-      console.log(`[findImineInRingPattern] Called with ${rings?.length || 0} rings`);
+      console.log(
+        `[findImineInRingPattern] Called with ${rings?.length || 0} rings`,
+      );
     }
     if (!rings || rings.length === 0) return [];
 
     for (const ring of rings) {
       if (process.env.VERBOSE) {
-        console.log(`[findImineInRingPattern] Checking ring: [${ring.join(", ")}]`);
+        console.log(
+          `[findImineInRingPattern] Checking ring: [${ring.join(", ")}]`,
+        );
       }
       // Check for C=N double bond within this ring
       for (const bond of bonds) {
@@ -996,7 +1000,9 @@ export class OPSINFunctionalGroupDetector {
           // Return the carbon atom of the C=N bond (the one that gets the -amine suffix)
           const carbonAtom = atom1.symbol === "C" ? atom1 : atom2;
           if (process.env.VERBOSE) {
-            console.log(`[findImineInRingPattern] Found C=N bond: ${bond.atom1}=${bond.atom2}, returning carbon atom ${carbonAtom.id}`);
+            console.log(
+              `[findImineInRingPattern] Found C=N bond: ${bond.atom1}=${bond.atom2}, returning carbon atom ${carbonAtom.id}`,
+            );
           }
           return [carbonAtom.id];
         }

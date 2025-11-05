@@ -952,7 +952,7 @@ function getRingSubstituentName(
               break;
             }
           }
-          
+
           if (isBranched) {
             return "propan-2-ylsulfanyl";
           } else {

@@ -12,6 +12,55 @@ import type { Molecule } from "../../../../types";
  */
 
 /**
+ * Helper function to check if a functional group is on a ring.
+ * For alcohols/ethers/etc., the FG atoms are heteroatoms (O, N, S),
+ * but we need to check if the CARBON bearing the FG is in the ring.
+ */
+function isFunctionalGroupOnRing(
+  fg: { type?: string; atoms?: unknown[] },
+  molecule: Molecule,
+  ringAtomIndices: Set<number>,
+): boolean {
+  const fgAtoms = fg.atoms || [];
+  
+  // Convert FG atoms to indices
+  const fgAtomIndices = fgAtoms
+    .map((atom: any) => molecule.atoms.findIndex((a) => a === atom))
+    .filter((idx) => idx !== -1);
+
+  // Check each FG atom
+  for (const fgAtomIdx of fgAtomIndices) {
+    const fgAtom = molecule.atoms[fgAtomIdx];
+    if (!fgAtom) continue;
+
+    // If the FG atom itself is in the ring (e.g., nitrogen in pyridine)
+    if (ringAtomIndices.has(fgAtomIdx)) {
+      return true;
+    }
+
+    // For heteroatoms (O, N, S in alcohols, ethers, amines, etc.),
+    // check if the bonded carbon is in the ring
+    if (fgAtom.symbol !== "C") {
+      for (const bond of molecule.bonds) {
+        const bondedIdx =
+          bond.atom1 === fgAtomIdx
+            ? bond.atom2
+            : bond.atom2 === fgAtomIdx
+              ? bond.atom1
+              : -1;
+
+        if (bondedIdx !== -1 && ringAtomIndices.has(bondedIdx)) {
+          // The carbon bonded to this heteroatom is in the ring
+          return true;
+        }
+      }
+    }
+  }
+
+  return false;
+}
+
+/**
  * Helper function to check if a functional group is attached to a ring system
  * either directly or through a short carbon chain.
  */
@@ -145,9 +194,21 @@ export const P44_1_1_PRINCIPAL_CHARACTERISTIC_GROUPS_RULE: IUPACRule = {
           .map((atom) => molecule.atoms.findIndex((a) => a === atom))
           .filter((idx) => idx !== -1);
 
-        // IMPORTANT: Check if FG atoms are part of a ring FIRST
-        // If they are, they should NOT be counted as chain functional groups
-        const hasAtomInRing = (fg.atoms || []).some((atom) => atom.isInRing);
+        // IMPORTANT: Check if FG is on a ring structure FIRST
+        // Build ring atom indices set
+        const allRingAtomIndices = new Set<number>();
+        const rings = state.candidateRings || [];
+        for (const ring of rings) {
+          for (const atom of ring.atoms) {
+            const atomIdx = molecule.atoms.findIndex((a) => a === atom);
+            if (atomIdx !== -1) {
+              allRingAtomIndices.add(atomIdx);
+            }
+          }
+        }
+        
+        // Check if this FG is on a ring (considering carbon bearing the FG for alcohols/ethers)
+        const isOnRing = isFunctionalGroupOnRing(fg, molecule, allRingAtomIndices);
 
         // Check if FG atom is in chain
         const hasAtomInChain = fgAtomIndices.some((atomIdx) =>
@@ -157,7 +218,7 @@ export const P44_1_1_PRINCIPAL_CHARACTERISTIC_GROUPS_RULE: IUPACRule = {
         // Check if FG atom is attached to chain (directly or through short carbon bridge)
         // BUT only if it's not already part of a ring
         const isAttachedToChain =
-          !hasAtomInRing &&
+          !isOnRing &&
           !hasAtomInChain &&
           isFunctionalGroupAttachedToRing(
             fgAtomIndices,
@@ -167,7 +228,7 @@ export const P44_1_1_PRINCIPAL_CHARACTERISTIC_GROUPS_RULE: IUPACRule = {
 
         if (process.env.VERBOSE) {
           console.log(
-            `[P-44.1.1]   FG ${fg.type} atoms ${fgAtomIndices}: hasAtomInRing=${hasAtomInRing}, hasAtomInChain=${hasAtomInChain}, isAttachedToChain=${isAttachedToChain}`,
+            `[P-44.1.1]   FG ${fg.type} atoms ${fgAtomIndices}: isOnRing=${isOnRing}, hasAtomInChain=${hasAtomInChain}, isAttachedToChain=${isAttachedToChain}`,
           );
         }
 
@@ -215,27 +276,27 @@ export const P44_1_1_PRINCIPAL_CHARACTERISTIC_GROUPS_RULE: IUPACRule = {
           continue;
         }
 
-        // Convert fg.atoms (Atom objects) to atom indices
+        // Check if FG is on a ring (considering carbon bearing the FG for alcohols/ethers)
+        const isOnRing = isFunctionalGroupOnRing(fg, molecule, ringAtomIndices);
+
+        // Convert fg.atoms (Atom objects) to atom indices for attachment checking
         const fgAtomIndices = (fg.atoms || [])
           .map((atom) => molecule.atoms.findIndex((a) => a === atom))
           .filter((idx) => idx !== -1);
 
-        // Check if FG is in ring or attached to ring (directly or through short carbon bridge)
-        const hasAtomInRing = fgAtomIndices.some((atomIdx) =>
-          ringAtomIndices.has(atomIdx),
-        );
+        // Check if FG is attached to ring (directly or through short carbon bridge)
         const isAttachedToRing =
-          !hasAtomInRing &&
+          !isOnRing &&
           isFunctionalGroupAttachedToRing(
             fgAtomIndices,
             ringAtomIndices,
             molecule,
           );
 
-        if (hasAtomInRing || isAttachedToRing) {
+        if (isOnRing || isAttachedToRing) {
           ringFGCount++;
           if (process.env.VERBOSE) {
-            console.log(`[P-44.1.1] Counted ring FG: ${fg.type}`);
+            console.log(`[P-44.1.1] Counted ring FG: ${fg.type} (isOnRing=${isOnRing}, isAttachedToRing=${isAttachedToRing})`);
           }
         }
       }
