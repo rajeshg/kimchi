@@ -361,6 +361,18 @@ export class OPSINFunctionalGroupDetector {
         finder: this.findSulfinylPattern.bind(this),
       },
       {
+        pattern: "P(=O)",
+        name: "phosphoryl",
+        priority: 11.8,
+        finder: this.findPhosphorylPattern.bind(this),
+      },
+      {
+        pattern: "P",
+        name: "phosphanyl",
+        priority: 11.9,
+        finder: this.findPhosphanylPattern.bind(this),
+      },
+      {
         pattern: "ROR",
         name: "ether",
         priority: 12,
@@ -400,6 +412,8 @@ export class OPSINFunctionalGroupDetector {
               "SC#N": "thiocyanate",
               "S(=O)(=O)": "sulfonyl",
               "S(=O)": "sulfinyl",
+              "P(=O)": "phosphoryl",
+              P: "phosphanyl",
             };
             const defaultPrefixes: Record<string, string> = {
               "[OX2H]": "hydroxy",
@@ -410,6 +424,8 @@ export class OPSINFunctionalGroupDetector {
               "SC#N": "thiocyano",
               "S(=O)(=O)": "sulfonyl",
               "S(=O)": "sulfinyl",
+              "P(=O)": "phosphoryl",
+              P: "phosphanyl",
             };
             this.functionalGroups.set(check.pattern, {
               name: check.name,
@@ -1303,6 +1319,89 @@ export class OPSINFunctionalGroupDetector {
       }
     }
     return [];
+  }
+
+  private findPhosphorylPattern(
+    atoms: readonly Atom[],
+    bonds: readonly Bond[],
+  ): number[] {
+    // Look for phosphorus with exactly 1 double bond to oxygen: -P(=O)-
+    for (let i = 0; i < atoms.length; i++) {
+      const atom = atoms[i];
+      if (!atom || atom.symbol !== "P") continue;
+
+      const doubleBonds = bonds.filter(
+        (bond) =>
+          (bond.atom1 === atom.id || bond.atom2 === atom.id) &&
+          bond.type === "double",
+      );
+
+      const oxygenDoubleBonds = doubleBonds.filter(
+        (bond) => this.getBondedAtom(bond, atom.id, atoms)?.symbol === "O",
+      );
+
+      // Must have exactly 1 double bond to oxygen for phosphoryl
+      if (oxygenDoubleBonds.length === 1) {
+        return [atom.id];
+      }
+    }
+    return [];
+  }
+
+  private findPhosphanylPattern(
+    atoms: readonly Atom[],
+    bonds: readonly Bond[],
+  ): number[] {
+    // Look for phosphorus without double bonds to oxygen (not phosphoryl)
+    // This is a trivalent or higher valent phosphorus substituent: -PR2, -PR3, etc.
+    const phosphanylAtoms: number[] = [];
+
+    // Don't detect phosphanyl if phosphorus should be a heteroatom parent
+    // Criteria for heteroatom parent: single P atom with only C/H substituents (no other heteroatoms)
+    const phosphorusAtoms = atoms.filter((a) => a?.symbol === "P");
+    if (phosphorusAtoms.length === 1) {
+      const pAtom = phosphorusAtoms[0];
+      if (!pAtom) return [];
+      const pBonds = bonds.filter(
+        (b) => b.atom1 === pAtom.id || b.atom2 === pAtom.id,
+      );
+      const neighbors = pBonds
+        .map((b) => this.getBondedAtom(b, pAtom.id, atoms))
+        .filter((a): a is Atom => a !== undefined);
+
+      // If all neighbors are C or H, this is likely a heteroatom parent (e.g., methylphosphine)
+      const allCarbonOrHydrogen = neighbors.every(
+        (a) => a.symbol === "C" || a.symbol === "H",
+      );
+      if (allCarbonOrHydrogen) {
+        return []; // Don't detect as phosphanyl - let heteroatom parent rule handle it
+      }
+    }
+
+    for (let i = 0; i < atoms.length; i++) {
+      const atom = atoms[i];
+      if (!atom || atom.symbol !== "P") continue;
+
+      // Exclude if it's in a ring (heterocyclic phosphorus)
+      if (atom.isInRing) {
+        continue;
+      }
+
+      // Check if it has any double bonds to oxygen
+      const hasPhosphoryl = bonds.some((bond) => {
+        if (bond.atom1 !== atom.id && bond.atom2 !== atom.id) return false;
+        if (bond.type !== "double") return false;
+        const bondedAtom = this.getBondedAtom(bond, atom.id, atoms);
+        return bondedAtom?.symbol === "O";
+      });
+
+      // Only match if it's NOT a phosphoryl group (no P=O)
+      if (!hasPhosphoryl) {
+        phosphanylAtoms.push(atom.id);
+      }
+    }
+
+    return phosphanylAtoms;
   }
 
   private findAldehydePattern(

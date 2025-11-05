@@ -2148,6 +2148,10 @@ const FUNCTIONAL_GROUP_PRIORITIES: Record<string, number> = {
   isocyanate: 84,
   sulfoxide: 83,
   sulfide: 82,
+  sulfinyl: 81,
+  sulfanyl: 80,
+  phosphoryl: 79,
+  phosphanyl: 78,
 };
 
 /**

@@ -43,10 +43,11 @@ function shouldExcludeAtomFromChain(
     return symbol === "O";
   }
 
-  // For amines: don't exclude nitrogen (it can be part of parent chain in heterocycles)
-  // but for simple amines, nitrogen is typically a substituent
+  // For amines: DON'T exclude nitrogen from parent chain
+  // Nitrogen should be included in the parent chain for molecules named as "...amine"
+  // e.g., "ethanamine" has N-C-C parent chain, not just C-C
   if (lowerName.includes("amine") || lowerName === "amino") {
-    return symbol === "N";
+    return false; // Don't exclude nitrogen - it should be in the parent chain
   }
 
   // For ethers: exclude oxygen only
@@ -221,7 +222,91 @@ export function findMainChain(molecule: Molecule): number[] {
   // Consider both carbon-only parent candidates and hetero-containing parent candidates.
   // Find all longest carbon-only chains and all longest heavy-atom chains (non-hydrogen).
   const carbonChains = findAllCarbonChains(molecule, excludedAtomIds);
-  const atomChains = findAllAtomChains(molecule, excludedAtomIds);
+  let atomChains = findAllAtomChains(molecule, excludedAtomIds);
+
+  // Special handling for amines: construct parent chains as [nitrogen] + [longest carbon chain]
+  // Example: CN(C)CC should give chain [1,3,4] (N-C-C = ethanamine), not [0,1,3,4] or [2,1,3,4]
+  const amineGroups = functionalGroups.filter((fg) => fg.name === "amine");
+  if (process.env.VERBOSE) {
+    console.log(
+      `[findMainChain] Found ${amineGroups.length} amine groups, atomChains.length=${atomChains.length}`,
+    );
+  }
+  if (amineGroups.length > 0) {
+    const amineNitrogens = new Set(amineGroups.flatMap((fg) => fg.atoms || []));
+    if (process.env.VERBOSE) {
+      console.log(
+        `[findMainChain] Amine nitrogen atoms: ${Array.from(amineNitrogens).join(",")}`,
+      );
+    }
+
+    // For each amine nitrogen, construct chains as [N] + [carbon-only chain from N]
+    const amineChains: number[][] = [];
+    for (const nIdx of amineNitrogens) {
+      // Get all carbon neighbors of this nitrogen (excluding hydrogens and excluded atoms)
+      const carbonNeighbors = molecule.bonds
+        .filter((b) => b.atom1 === nIdx || b.atom2 === nIdx)
+        .map((b) => (b.atom1 === nIdx ? b.atom2 : b.atom1))
+        .filter(
+          (idx) =>
+            molecule.atoms[idx]?.symbol === "C" && !excludedAtomIds.has(idx),
+        );
+
+      if (process.env.VERBOSE) {
+        console.log(
+          `[findMainChain] Nitrogen ${nIdx} has ${carbonNeighbors.length} carbon neighbors: ${carbonNeighbors.join(",")}`,
+        );
+      }
+
+      if (carbonNeighbors.length === 0) {
+        // Just nitrogen, no carbon chain (e.g., methylamine = NH2-CH3 where N has no carbon chain)
+        // Actually, wait - for methylamine, the carbon IS attached. But if we had just NH3, we'd have no chain.
+        // For now, if there are no carbon neighbors, just use [N] as the chain
+        amineChains.push([nIdx]);
+        continue;
+      }
+
+      // For each carbon neighbor, find the longest carbon-only chain starting from that carbon
+      // (excluding the nitrogen itself from the chain search)
+      const excludeWithN = new Set([...excludedAtomIds, nIdx]);
+
+      for (const carbonStart of carbonNeighbors) {
+        // Find all carbon-only chains starting from this carbon
+        const chainsFromCarbon = findAllCarbonChainsFromStart(
+          molecule,
+          carbonStart,
+          excludeWithN,
+        );
+
+        if (process.env.VERBOSE) {
+          console.log(
+            `[findMainChain]   From carbon ${carbonStart}: found ${chainsFromCarbon.length} carbon chains`,
+          );
+        }
+
+        // Prepend nitrogen to each carbon chain to form [N, C, C, ...]
+        for (const carbonChain of chainsFromCarbon) {
+          const fullChain = [nIdx, ...carbonChain];
+          amineChains.push(fullChain);
+          if (process.env.VERBOSE) {
+            console.log(
+              `[findMainChain]     Amine chain: [${fullChain.join(",")}]`,
+            );
+          }
+        }
+      }
+    }
+
+    // Replace atomChains with amine-specific chains
+    if (amineChains.length > 0) {
+      if (process.env.VERBOSE) {
+        console.log(
+          `[findMainChain] Replacing atomChains with ${amineChains.length} amine-specific chains`,
+        );
+      }
+      atomChains = amineChains;
+    }
+  }
 
   if (process.env.VERBOSE) {
     console.log(
@@ -247,33 +332,110 @@ export function findMainChain(molecule: Molecule): number[] {
     });
   };
 
-  // If we have at least one carbon-only chain, use its carbon-length as primary
-  // basis for candidate selection. Otherwise, fall back to heavy-atom chains.
-  const candidates: number[][] = [];
-  if (maxCarbonLen >= 1) {
-    // take all carbon-only chains of the max carbon length
-    for (const c of carbonChains)
-      if (c.length === maxCarbonLen) candidates.push(c);
-    // also include hetero-containing chains that have the same number of carbons
-    // BUT exclude any chains containing halogens (F, Cl, Br, I) - they must be substituents
-    for (const c of atomChains) {
+  // STRATEGY: First evaluate all chains (carbon and hetero) for functional group priority.
+  // Then select candidates based on priority + carbon count.
+  // This ensures chains with high-priority functional groups (like amines) are not
+  // excluded just because they have different carbon counts than pure carbon chains.
+
+  // Step 1: Compute functional group priorities for ALL chains
+  const allChains: number[][] = [];
+  const allPriorities: number[] = [];
+
+  // Add all carbon-only chains
+  for (const c of carbonChains) {
+    allChains.push(c);
+    allPriorities.push(getChainFunctionalGroupPriority(c, molecule));
+  }
+
+  // Add all hetero chains (excluding halogens)
+  for (const c of atomChains) {
+    if (!containsHalogen(c)) {
+      allChains.push(c);
+      allPriorities.push(getChainFunctionalGroupPriority(c, molecule));
+    }
+  }
+
+  if (allChains.length === 0) return [];
+
+  if (process.env.VERBOSE) {
+    console.log("[findMainChain] All chain priorities:");
+    allChains.forEach((c, i) => {
       const carbonCount = c.filter(
         (idx) => molecule.atoms[idx] && molecule.atoms[idx].symbol === "C",
       ).length;
-      if (carbonCount === maxCarbonLen && !containsHalogen(c))
-        candidates.push(c);
-    }
-  } else {
-    // no carbon chains found; pick longest heavy-atom chains
-    // BUT exclude any chains containing halogens
-    const maxAtomLen = atomChains.length
-      ? Math.max(...atomChains.map((c) => c.length))
-      : 0;
-    if (maxAtomLen < 1) return [];
-    for (const c of atomChains) {
-      if (c.length === maxAtomLen && !containsHalogen(c)) candidates.push(c);
+      console.log(
+        `  Chain [${c}]: priority=${allPriorities[i]}, carbons=${carbonCount}, length=${c.length}`,
+      );
+    });
+  }
+
+  // Step 2: Find the highest functional group priority
+  const maxPriority = Math.max(...allPriorities);
+
+  // Step 3: Filter to chains with highest priority
+  const highPriorityChains: number[][] = [];
+  for (let i = 0; i < allChains.length; i++) {
+    if (allPriorities[i] === maxPriority) {
+      highPriorityChains.push(allChains[i]!);
     }
   }
+
+  if (process.env.VERBOSE) {
+    console.log(
+      `[findMainChain] Filtered to ${highPriorityChains.length} chains with maxPriority=${maxPriority}`,
+    );
+  }
+
+  // Step 4: Among chains with highest priority, select by carbon count
+  const candidates: number[][] = [];
+  if (maxPriority > 0) {
+    // If we have functional groups, prefer chains with most carbons among high-priority chains
+    const maxCarbonInPriority = Math.max(
+      ...highPriorityChains.map(
+        (c) =>
+          c.filter(
+            (idx) => molecule.atoms[idx] && molecule.atoms[idx].symbol === "C",
+          ).length,
+      ),
+    );
+    for (const c of highPriorityChains) {
+      const carbonCount = c.filter(
+        (idx) => molecule.atoms[idx] && molecule.atoms[idx].symbol === "C",
+      ).length;
+      if (carbonCount === maxCarbonInPriority) {
+        candidates.push(c);
+      }
+    }
+  } else {
+    // No functional groups: prefer pure carbon chains if available
+    if (maxCarbonLen >= 1) {
+      // Take all carbon-only chains with maxCarbonLen
+      for (const c of carbonChains) {
+        if (c.length === maxCarbonLen) candidates.push(c);
+      }
+      // If no carbon-only chains at maxCarbonLen, fall back to hetero chains
+      if (candidates.length === 0) {
+        const maxAtomLen = atomChains.length
+          ? Math.max(...atomChains.map((c) => c.length))
+          : 0;
+        for (const c of atomChains) {
+          if (c.length === maxAtomLen && !containsHalogen(c))
+            candidates.push(c);
+        }
+      }
+    } else {
+      // No carbon chains at all: use longest hetero chains
+      const maxAtomLen = atomChains.length
+        ? Math.max(...atomChains.map((c) => c.length))
+        : 0;
+      if (maxAtomLen < 1) return [];
+      for (const c of atomChains) {
+        if (c.length === maxAtomLen && !containsHalogen(c)) candidates.push(c);
+      }
+    }
+  }
+
+  if (candidates.length === 0) return [];
 
   // Always evaluate orientation, even for single candidates, to ensure lowest locants
   // (Removed early return that prevented orientation check)
@@ -809,6 +971,51 @@ export function getChainFunctionalGroupPriority(
         ) {
           best = Math.max(best, 3);
         }
+        // Check for phosphonic acid: C-P(=O)(OH)2 (carbon bonded to phosphorus with =O and -OH groups)
+        if (nat.symbol === "P" && b.type === BondType.SINGLE) {
+          let hasDoubleO = false;
+          let hasOH = false;
+          for (const pb of molecule.bonds) {
+            if (pb.atom1 !== neigh && pb.atom2 !== neigh) continue;
+            const pNeigh = pb.atom1 === neigh ? pb.atom2 : pb.atom1;
+            const pnat = molecule.atoms[pNeigh];
+            if (!pnat) continue;
+            if (pnat.symbol === "O") {
+              if (pb.type === BondType.DOUBLE) hasDoubleO = true;
+              if (
+                pb.type === BondType.SINGLE &&
+                pnat.hydrogens &&
+                pnat.hydrogens > 0
+              )
+                hasOH = true;
+            }
+          }
+          if (hasDoubleO && hasOH) {
+            best = Math.max(best, 6); // phosphonic acid priority
+          }
+        }
+      }
+    }
+
+    // Amine detection: nitrogen in chain bonded to carbons (primary, secondary, tertiary amines)
+    // Amines have similar priority to alcohols (priority = 3)
+    if (atom.symbol === "N") {
+      // Check if this nitrogen is bonded to carbon(s) - indicating an amine
+      let hasCarbonBond = false;
+      for (const b of molecule.bonds) {
+        if (b.atom1 !== idx && b.atom2 !== idx) continue;
+        const neigh = b.atom1 === idx ? b.atom2 : b.atom1;
+        const nat = molecule.atoms[neigh];
+        if (!nat) continue;
+        if (nat.symbol === "C" && b.type === BondType.SINGLE) {
+          hasCarbonBond = true;
+          break;
+        }
+      }
+      // Only count as amine if it has C-N single bond and is not part of higher-priority groups
+      // (nitro groups and isocyanates are already detected above with higher priority)
+      if (hasCarbonBond && best < 4) {
+        best = Math.max(best, 3); // Same priority as alcohols
       }
     }
   }
@@ -1091,6 +1298,105 @@ function findAllCarbonChains(
   // All paths produced by dfsLimited are valid by construction (adjacent atoms),
   // but ensure ordering is kept and only return unique ordered chains.
   return found.filter((chain) => chain.length >= 2);
+}
+
+/**
+ * Find all maximum-length carbon-only chains starting from a specific carbon atom.
+ * This is used for amine parent chain construction where we want [N] + [longest carbon chain from N].
+ */
+function findAllCarbonChainsFromStart(
+  molecule: Molecule,
+  startAtom: number,
+  excludedAtomIds: Set<number> = new Set(),
+): number[][] {
+  const carbonIndices = molecule.atoms
+    .map((atom, idx) => ({ atom, idx }))
+    .filter(({ atom, idx }) => atom.symbol === "C" && !excludedAtomIds.has(idx))
+    .map(({ idx }) => idx);
+
+  if (carbonIndices.length === 0) return [];
+  if (!carbonIndices.includes(startAtom)) return [];
+
+  const adjList = new Map<number, number[]>();
+  for (const idx of carbonIndices) adjList.set(idx, []);
+
+  for (const bond of molecule.bonds) {
+    if (
+      molecule.atoms[bond.atom1]?.symbol === "C" &&
+      molecule.atoms[bond.atom2]?.symbol === "C" &&
+      !excludedAtomIds.has(bond.atom1) &&
+      !excludedAtomIds.has(bond.atom2)
+    ) {
+      adjList.get(bond.atom1)?.push(bond.atom2);
+      adjList.get(bond.atom2)?.push(bond.atom1);
+    }
+  }
+
+  // Find longest path starting from startAtom
+  let longestPath: number[] = [];
+  const dfsFindLongest = (
+    node: number,
+    visited: Set<number>,
+    path: number[],
+  ): void => {
+    if (path.length > longestPath.length) longestPath = [...path];
+    const neighbors = adjList.get(node) ?? [];
+    for (const neighbor of neighbors) {
+      if (!visited.has(neighbor)) {
+        visited.add(neighbor);
+        path.push(neighbor);
+        dfsFindLongest(neighbor, visited, path);
+        path.pop();
+        visited.delete(neighbor);
+      }
+    }
+  };
+
+  const visited = new Set<number>([startAtom]);
+  dfsFindLongest(startAtom, visited, [startAtom]);
+
+  const targetLength = longestPath.length;
+  if (targetLength < 1) return [];
+
+  // Special case: single atom
+  if (targetLength === 1) {
+    return [[startAtom]];
+  }
+
+  // Find all paths of maximum length starting from startAtom
+  const found: number[][] = [];
+  const seen = new Set<string>();
+
+  function dfsLimited(
+    current: number,
+    visited: Set<number>,
+    path: number[],
+  ): void {
+    if (path.length === targetLength) {
+      const key = path.join(",");
+      if (!seen.has(key)) {
+        seen.add(key);
+        found.push([...path]);
+      }
+      return;
+    }
+
+    const neighbors = adjList.get(current) ?? [];
+    for (const neighbor of neighbors) {
+      if (!visited.has(neighbor)) {
+        visited.add(neighbor);
+        path.push(neighbor);
+        dfsLimited(neighbor, visited, path);
+        path.pop();
+        visited.delete(neighbor);
+      }
+    }
+  }
+
+  const visitedStart = new Set<number>([startAtom]);
+  dfsLimited(startAtom, visitedStart, [startAtom]);
+
+  return found.filter((chain) => chain.length >= 1);
 }
 
 function isBetterLocants(a: number[], b: number[]): boolean {
@@ -2125,6 +2431,356 @@ export function nameAlkylSulfanylSubstituent(
     // Saturated - use "yl" suffix
     return `${baseName}ylsulfanyl`;
   }
+}
+
+/**
+ * Helper function to name phosphoryl substituents (P=O with substituents)
+ * For example: P(=O)(C3H7)(OC8H15) → "cyclooctyloxy(propyl)phosphoryl"
+ */
+export function namePhosphorylSubstituent(
+  molecule: Molecule,
+  substituentAtoms: Set<number>,
+  phosphorusAtomIdx: number,
+): string {
+  if (process.env.VERBOSE) {
+    console.log(
+      `[namePhosphorylSubstituent] phosphorus=${phosphorusAtomIdx}, substituentAtoms=${Array.from(substituentAtoms).join(",")}`,
+    );
+  }
+
+  // Find all atoms bonded to phosphorus (excluding the P=O oxygen)
+  const pAtom = molecule.atoms[phosphorusAtomIdx];
+  if (!pAtom) return "phosphoryl";
+
+  const substituentsOnP: number[] = [];
+  for (const bond of molecule.bonds) {
+    let otherAtom = -1;
+    if (bond.atom1 === phosphorusAtomIdx) {
+      otherAtom = bond.atom2;
+    } else if (bond.atom2 === phosphorusAtomIdx) {
+      otherAtom = bond.atom1;
+    } else {
+      continue;
+    }
+
+    // Skip the P=O oxygen (double bond to oxygen)
+    const otherAtomObj = molecule.atoms[otherAtom];
+    if (otherAtomObj?.symbol === "O" && bond.type === "double") {
+      continue;
+    }
+
+    // Include this substituent
+    if (substituentAtoms.has(otherAtom)) {
+      substituentsOnP.push(otherAtom);
+    }
+  }
+
+  if (process.env.VERBOSE) {
+    console.log(
+      `[namePhosphorylSubstituent] substituentsOnP=${substituentsOnP.join(",")}`,
+    );
+  }
+
+  if (substituentsOnP.length === 0) {
+    return "phosphoryl"; // Just P=O
+  }
+
+  // Name each substituent attached to phosphorus
+  const substituentNames: string[] = [];
+  for (const subAtomIdx of substituentsOnP) {
+    const subAtom = molecule.atoms[subAtomIdx];
+    if (!subAtom) continue;
+
+    // Collect all atoms in this substituent branch
+    const branchAtoms = new Set<number>();
+    const visited = new Set<number>([phosphorusAtomIdx]);
+    const stack = [subAtomIdx];
+
+    while (stack.length > 0) {
+      const current = stack.pop()!;
+      if (visited.has(current)) continue;
+      visited.add(current);
+      branchAtoms.add(current);
+
+      for (const bond of molecule.bonds) {
+        const next =
+          bond.atom1 === current
+            ? bond.atom2
+            : bond.atom2 === current
+              ? bond.atom1
+              : -1;
+        if (next !== -1 && !visited.has(next) && substituentAtoms.has(next)) {
+          stack.push(next);
+        }
+      }
+    }
+
+    // Determine the name for this branch
+    let branchName = "";
+
+    if (subAtom.symbol === "O") {
+      // Alkoxy substituent: -O-R
+      const carbonAtoms = Array.from(branchAtoms).filter(
+        (idx) => molecule.atoms[idx]?.symbol === "C",
+      );
+
+      if (carbonAtoms.length === 0) {
+        branchName = "hydroxy"; // Just -OH
+      } else {
+        // Find carbon attached to oxygen
+        let carbonAttachedToO = -1;
+        for (const bond of molecule.bonds) {
+          if (bond.atom1 === subAtomIdx && carbonAtoms.includes(bond.atom2)) {
+            carbonAttachedToO = bond.atom2;
+            break;
+          }
+          if (bond.atom2 === subAtomIdx && carbonAtoms.includes(bond.atom1)) {
+            carbonAttachedToO = bond.atom1;
+            break;
+          }
+        }
+
+        if (carbonAttachedToO !== -1) {
+          // Check for cyclic structures
+          const carbonAtom = molecule.atoms[carbonAttachedToO];
+          if (carbonAtom?.aromatic) {
+            // Phenoxy or other aromatic oxy
+            const ringContainingCarbon = molecule.rings?.find((ring) =>
+              ring.includes(carbonAttachedToO),
+            );
+            if (ringContainingCarbon && ringContainingCarbon.length === 6) {
+              branchName = "phenoxy";
+            } else {
+              branchName = "aryloxy";
+            }
+          } else {
+            // Check if it's part of a ring
+            const ringContainingCarbon = molecule.rings?.find((ring) =>
+              ring.includes(carbonAttachedToO),
+            );
+            if (ringContainingCarbon) {
+              const ringSize = ringContainingCarbon.length;
+              if (ringSize === 8) {
+                branchName = "cyclooctyloxy";
+              } else if (ringSize === 6) {
+                branchName = "cyclohexyloxy";
+              } else if (ringSize === 5) {
+                branchName = "cyclopentyloxy";
+              } else {
+                branchName = `cyclo${getAlkaneBaseName(ringSize)}yloxy`;
+              }
+            } else {
+              // Aliphatic alkoxy
+              const carbonCount = carbonAtoms.length;
+              if (carbonCount === 1) branchName = "methoxy";
+              else if (carbonCount === 2) branchName = "ethoxy";
+              else if (carbonCount === 3) branchName = "propoxy";
+              else if (carbonCount === 4) branchName = "butoxy";
+              else branchName = `${getAlkaneBaseName(carbonCount)}oxy`;
+            }
+          }
+        }
+      }
+    } else if (subAtom.symbol === "C") {
+      // Alkyl substituent: -R
+      const carbonAtoms = Array.from(branchAtoms).filter(
+        (idx) => molecule.atoms[idx]?.symbol === "C",
+      );
+
+      // Check for phenyl group
+      if (subAtom.aromatic) {
+        const ringContainingCarbon = molecule.rings?.find((ring) =>
+          ring.includes(subAtomIdx),
+        );
+        if (ringContainingCarbon && ringContainingCarbon.length === 6) {
+          const allCarbons = ringContainingCarbon.every(
+            (atomId: number) => molecule.atoms[atomId]?.symbol === "C",
+          );
+          if (allCarbons) {
+            branchName = "phenyl";
+          }
+        }
+      }
+
+      if (!branchName) {
+        // Aliphatic alkyl
+        const carbonCount = carbonAtoms.length;
+        if (carbonCount === 1) branchName = "methyl";
+        else if (carbonCount === 2) branchName = "ethyl";
+        else if (carbonCount === 3) branchName = "propyl";
+        else if (carbonCount === 4) branchName = "butyl";
+        else branchName = getAlkylName(carbonCount);
+      }
+    } else if (subAtom.symbol === "S") {
+      // Thio substituent: -S-R
+      branchName = "sulfanyl";
+    } else {
+      branchName = subAtom.symbol.toLowerCase();
+    }
+
+    if (branchName) {
+      substituentNames.push(branchName);
+    }
+  }
+
+  if (substituentNames.length === 0) {
+    return "phosphoryl";
+  }
+
+  // Sort substituent names alphabetically
+  substituentNames.sort();
+
+  // Format as "(substituent1)(substituent2)phosphoryl"
+  const formattedNames = substituentNames.map((name) => `(${name})`).join("");
+  return `${formattedNames}phosphoryl`;
+}
+
+/**
+ * Helper function to name phosphanyl substituents (P with substituents, no P=O)
+ * For example: P(C6H5)2 → "diphenylphosphanyl"
+ */
+export function namePhosphanylSubstituent(
+  molecule: Molecule,
+  substituentAtoms: Set<number>,
+  phosphorusAtomIdx: number,
+): string {
+  if (process.env.VERBOSE) {
+    console.log(
+      `[namePhosphanylSubstituent] phosphorus=${phosphorusAtomIdx}, substituentAtoms=${Array.from(substituentAtoms).join(",")}`,
+    );
+  }
+
+  // Find all atoms bonded to phosphorus
+  const pAtom = molecule.atoms[phosphorusAtomIdx];
+  if (!pAtom) return "phosphanyl";
+
+  const substituentsOnP: number[] = [];
+  for (const bond of molecule.bonds) {
+    let otherAtom = -1;
+    if (bond.atom1 === phosphorusAtomIdx) {
+      otherAtom = bond.atom2;
+    } else if (bond.atom2 === phosphorusAtomIdx) {
+      otherAtom = bond.atom1;
+    } else {
+      continue;
+    }
+
+    // Include this substituent
+    if (substituentAtoms.has(otherAtom)) {
+      substituentsOnP.push(otherAtom);
+    }
+  }
+
+  if (process.env.VERBOSE) {
+    console.log(
+      `[namePhosphanylSubstituent] substituentsOnP=${substituentsOnP.join(",")}`,
+    );
+  }
+
+  if (substituentsOnP.length === 0) {
+    return "phosphanyl"; // Just P
+  }
+
+  // Count substituent types (group identical ones)
+  const substituentGroups = new Map<string, number>();
+
+  for (const subAtomIdx of substituentsOnP) {
+    const subAtom = molecule.atoms[subAtomIdx];
+    if (!subAtom) continue;
+
+    // Collect all atoms in this substituent branch
+    const branchAtoms = new Set<number>();
+    const visited = new Set<number>([phosphorusAtomIdx]);
+    const stack = [subAtomIdx];
+
+    while (stack.length > 0) {
+      const current = stack.pop()!;
+      if (visited.has(current)) continue;
+      visited.add(current);
+      branchAtoms.add(current);
+
+      for (const bond of molecule.bonds) {
+        const next =
+          bond.atom1 === current
+            ? bond.atom2
+            : bond.atom2 === current
+              ? bond.atom1
+              : -1;
+        if (next !== -1 && !visited.has(next) && substituentAtoms.has(next)) {
+          stack.push(next);
+        }
+      }
+    }
+
+    // Determine the name for this branch
+    let branchName = "";
+
+    if (subAtom.symbol === "C") {
+      // Alkyl substituent: -R
+      const carbonAtoms = Array.from(branchAtoms).filter(
+        (idx) => molecule.atoms[idx]?.symbol === "C",
+      );
+
+      // Check for phenyl group
+      if (subAtom.aromatic) {
+        const ringContainingCarbon = molecule.rings?.find((ring) =>
+          ring.includes(subAtomIdx),
+        );
+        if (ringContainingCarbon && ringContainingCarbon.length === 6) {
+          const allCarbons = ringContainingCarbon.every(
+            (atomId: number) => molecule.atoms[atomId]?.symbol === "C",
+          );
+          if (allCarbons) {
+            branchName = "phenyl";
+          }
+        }
+      }
+
+      if (!branchName) {
+        // Aliphatic alkyl
+        const carbonCount = carbonAtoms.length;
+        if (carbonCount === 1) branchName = "methyl";
+        else if (carbonCount === 2) branchName = "ethyl";
+        else if (carbonCount === 3) branchName = "propyl";
+        else if (carbonCount === 4) branchName = "butyl";
+        else branchName = getAlkylName(carbonCount);
+      }
+    } else if (subAtom.symbol === "O") {
+      branchName = "oxy";
+    } else {
+      branchName = subAtom.symbol.toLowerCase();
+    }
+
+    if (branchName) {
+      substituentGroups.set(
+        branchName,
+        (substituentGroups.get(branchName) || 0) + 1,
+      );
+    }
+  }
+
+  if (substituentGroups.size === 0) {
+    return "phosphanyl";
+  }
+
+  // Build the name with multiplicative prefixes
+  const parts: string[] = [];
+  for (const [name, count] of substituentGroups.entries()) {
+    if (count === 1) {
+      parts.push(name);
+    } else if (count === 2) {
+      parts.push(`di${name}`);
+    } else if (count === 3) {
+      parts.push(`tri${name}`);
+    } else if (count === 4) {
+      parts.push(`tetra${name}`);
+    } else {
+      parts.push(`${getGreekNumeral(count)}${name}`);
+    }
+  }
+
+  // Format as "diphenylphosphanyl" or "methylethylphosphanyl"
+  return `${parts.join("")}phosphanyl`;
 }
 
 /**

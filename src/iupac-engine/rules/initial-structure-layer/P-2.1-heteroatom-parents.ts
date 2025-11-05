@@ -128,7 +128,107 @@ export const P2_1_HETEROATOM_PARENT_HYDRIDE_RULE: IUPACRule = {
     }
 
     // Must match the expected valence for the hydride
-    return totalValence === hydrideDef.valence;
+    if (totalValence !== hydrideDef.valence) {
+      if (process.env.VERBOSE) console.log("P-2.1: Valence mismatch");
+      return false;
+    }
+
+    // Additional check: Don't select heteroatom parent if there are higher-priority
+    // functional groups present (like amines, alcohols, etc.)
+    // This prevents phosphorus/sulfur substituents from being chosen as parent
+    const hasNitrogen = molecule.atoms.some((a) => a.symbol === "N");
+    const heavyAtomCount = molecule.atoms.filter(
+      (a) => a.symbol !== "H",
+    ).length;
+
+    if (process.env.VERBOSE) {
+      console.log(
+        `P-2.1: hasNitrogen=${hasNitrogen}, heavyAtomCount=${heavyAtomCount}`,
+      );
+    }
+
+    // Don't select P/As/Sb/Bi as parent if molecule has nitrogen (amines take precedence)
+    if (
+      (heteroatom.symbol === "P" ||
+        heteroatom.symbol === "As" ||
+        heteroatom.symbol === "Sb" ||
+        heteroatom.symbol === "Bi") &&
+      hasNitrogen
+    ) {
+      if (process.env.VERBOSE)
+        console.log("P-2.1: Nitrogen present - amine takes precedence");
+      return false;
+    }
+
+    // Don't select heteroatom parent for complex molecules (>10 heavy atoms)
+    // These should be handled by chain-based nomenclature
+    if (heavyAtomCount > 10) {
+      if (process.env.VERBOSE)
+        console.log("P-2.1: Molecule too complex for heteroatom parent");
+      return false;
+    }
+
+    // Additional check: Don't select P/As/Sb/Bi as parent if there are significant carbon chains
+    // Simple alkyl phosphines (methyl-, ethyl-, propylphosphine) should use P as parent
+    // But complex molecules with long chains or functional groups should use carbon chain as parent
+    if (
+      heteroatom.symbol === "P" ||
+      heteroatom.symbol === "As" ||
+      heteroatom.symbol === "Sb" ||
+      heteroatom.symbol === "Bi"
+    ) {
+      const carbonNeighbors = molecule.bonds
+        .filter(
+          (bond) =>
+            bond.atom1 === heteroatomIndex || bond.atom2 === heteroatomIndex,
+        )
+        .map((bond) =>
+          bond.atom1 === heteroatomIndex ? bond.atom2 : bond.atom1,
+        )
+        .filter((idx) => molecule.atoms[idx]?.symbol === "C");
+
+      // For each carbon neighbor, check if it forms a chain
+      for (const carbonIdx of carbonNeighbors) {
+        // Count carbons in the chain starting from this carbon (excluding heteroatom)
+        const visited = new Set<number>([heteroatomIndex]);
+        const queue = [carbonIdx];
+        let chainLength = 0;
+
+        while (queue.length > 0) {
+          const current = queue.shift()!;
+          if (visited.has(current)) continue;
+          visited.add(current);
+
+          if (molecule.atoms[current]?.symbol === "C") {
+            chainLength++;
+            // Add carbon neighbors to queue
+            molecule.bonds
+              .filter(
+                (bond) => bond.atom1 === current || bond.atom2 === current,
+              )
+              .map((bond) => (bond.atom1 === current ? bond.atom2 : bond.atom1))
+              .filter(
+                (idx) =>
+                  !visited.has(idx) && molecule.atoms[idx]?.symbol === "C",
+              )
+              .forEach((idx) => queue.push(idx));
+          }
+        }
+
+        // If any carbon neighbor leads to a chain of 5+ carbons, use carbon chain as parent
+        // This allows methylphosphine, ethylphosphine, propylphosphine, butylphosphine
+        // but uses carbon chain as parent for longer chains
+        if (chainLength >= 5) {
+          if (process.env.VERBOSE)
+            console.log(
+              `P-2.1: Long carbon chain (${chainLength} carbons) attached - not selecting P as parent`,
+            );
+          return false;
+        }
+      }
+    }
+
+    return true;
   },
   action: (context: ImmutableNamingContext) => {
     const molecule = context.getState().molecule;

@@ -12,7 +12,11 @@ import type { NamingSubstituent } from "../naming/iupac-types";
 import type { Molecule, Atom } from "types";
 import { buildEsterName } from "../utils/ester-naming";
 import { buildAmideName } from "../utils/amide-naming";
-import { nameAlkylSulfanylSubstituent } from "../naming/iupac-chains";
+import {
+  nameAlkylSulfanylSubstituent,
+  namePhosphorylSubstituent,
+  namePhosphanylSubstituent,
+} from "../naming/iupac-chains";
 
 /**
  * Extended ParentStructure type with assembly-phase properties
@@ -613,14 +617,19 @@ export const NAME_ASSEMBLY_COMPLETE_RULE: IUPACRule = {
 
 function buildChainName(
   parentStructure: ParentStructure,
-  _functionalGroups: FunctionalGroup[],
+  functionalGroups: FunctionalGroup[],
 ): string {
   const chain = parentStructure.chain;
   if (!chain) {
     return parentStructure.name || "unknown-chain";
   }
 
-  const length = chain.length;
+  // For amines, count only carbons in the chain (nitrogen is not counted in parent name)
+  const principalGroup = functionalGroups.find((g) => g.isPrincipal);
+  const isAmine = principalGroup?.type === "amine";
+  const length = isAmine
+    ? chain.atoms.filter((a) => a.symbol === "C").length
+    : chain.length;
 
   // Base chain name
   const chainNames = [
@@ -2023,6 +2032,234 @@ function buildSubstitutiveName(
           }
         }
 
+        // Convert phosphoryl to proper phosphoryl substituent name
+        if (
+          subName &&
+          (subName === "phosphoryl" || subName.includes("-phosphoryl"))
+        ) {
+          const locantMatch = subName.match(/^(\d+)-/);
+          const locantPrefix = locantMatch ? locantMatch[1] + "-" : "";
+
+          let named = false;
+          if ("atoms" in sub && sub.atoms && sub.atoms.length > 0) {
+            const firstAtom = sub.atoms[0];
+            if (typeof firstAtom === "object" && "symbol" in firstAtom) {
+              const atoms = sub.atoms as Atom[];
+              const phosphorusAtom = atoms.find(
+                (atom: Atom) => atom.symbol === "P",
+              );
+              if (phosphorusAtom) {
+                const phosphorusIdx = molecule.atoms.findIndex(
+                  (a: Atom) => a.id === phosphorusAtom.id,
+                );
+                if (phosphorusIdx !== -1) {
+                  const mainChainAtomIds = new Set<number>();
+                  if (parentStructure.chain?.atoms) {
+                    for (const chainAtom of parentStructure.chain.atoms) {
+                      mainChainAtomIds.add(chainAtom.id);
+                    }
+                  }
+                  if (parentStructure.ring?.atoms) {
+                    for (const ringAtom of parentStructure.ring.atoms) {
+                      mainChainAtomIds.add(ringAtom.id);
+                    }
+                  }
+
+                  const mainChainAtomIndices = new Set<number>();
+                  for (const atomId of mainChainAtomIds) {
+                    const idx = molecule.atoms.findIndex(
+                      (a: Atom) => a.id === atomId,
+                    );
+                    if (idx !== -1) mainChainAtomIndices.add(idx);
+                  }
+
+                  const substituentAtomIndices = collectSubstituentAtoms(
+                    molecule,
+                    phosphorusIdx,
+                    mainChainAtomIndices,
+                  );
+
+                  const baseName = namePhosphorylSubstituent(
+                    molecule,
+                    substituentAtomIndices,
+                    phosphorusIdx,
+                  );
+                  subName = locantPrefix + baseName;
+                  named = true;
+
+                  if (process.env.VERBOSE) {
+                    console.log(
+                      `[PHOSPHORYL NAMING] Named phosphoryl as: ${subName} (phosphorus at ${phosphorusIdx})`,
+                    );
+                  }
+                }
+              }
+            } else if (typeof firstAtom === "number") {
+              const atomIndices = sub.atoms as number[];
+              const phosphorusIdx = atomIndices.find(
+                (idx: number) => molecule.atoms[idx]?.symbol === "P",
+              );
+              if (phosphorusIdx !== undefined) {
+                const mainChainAtomIndices = new Set<number>();
+                if (parentStructure.chain?.atoms) {
+                  for (const chainAtom of parentStructure.chain.atoms) {
+                    const idx = molecule.atoms.findIndex(
+                      (a: Atom) => a.id === chainAtom.id,
+                    );
+                    if (idx !== -1) mainChainAtomIndices.add(idx);
+                  }
+                }
+                if (parentStructure.ring?.atoms) {
+                  for (const ringAtom of parentStructure.ring.atoms) {
+                    const idx = molecule.atoms.findIndex(
+                      (a: Atom) => a.id === ringAtom.id,
+                    );
+                    if (idx !== -1) mainChainAtomIndices.add(idx);
+                  }
+                }
+
+                const substituentAtomIndices = collectSubstituentAtoms(
+                  molecule,
+                  phosphorusIdx,
+                  mainChainAtomIndices,
+                );
+
+                const baseName = namePhosphorylSubstituent(
+                  molecule,
+                  substituentAtomIndices,
+                  phosphorusIdx,
+                );
+                subName = locantPrefix + baseName;
+                named = true;
+
+                if (process.env.VERBOSE) {
+                  console.log(
+                    `[PHOSPHORYL NAMING] Named phosphoryl as: ${subName} (phosphorus at ${phosphorusIdx})`,
+                  );
+                }
+              }
+            }
+          }
+
+          if (!named) {
+            subName = "phosphoryl";
+          }
+        }
+
+        // Convert phosphanyl to proper phosphanyl substituent name
+        if (
+          subName &&
+          (subName === "phosphanyl" || subName.includes("-phosphanyl"))
+        ) {
+          const locantMatch = subName.match(/^(\d+)-/);
+          const locantPrefix = locantMatch ? locantMatch[1] + "-" : "";
+
+          let named = false;
+          if ("atoms" in sub && sub.atoms && sub.atoms.length > 0) {
+            const firstAtom = sub.atoms[0];
+            if (typeof firstAtom === "object" && "symbol" in firstAtom) {
+              const atoms = sub.atoms as Atom[];
+              const phosphorusAtom = atoms.find(
+                (atom: Atom) => atom.symbol === "P",
+              );
+              if (phosphorusAtom) {
+                const phosphorusIdx = molecule.atoms.findIndex(
+                  (a: Atom) => a.id === phosphorusAtom.id,
+                );
+                if (phosphorusIdx !== -1) {
+                  const mainChainAtomIds = new Set<number>();
+                  if (parentStructure.chain?.atoms) {
+                    for (const chainAtom of parentStructure.chain.atoms) {
+                      mainChainAtomIds.add(chainAtom.id);
+                    }
+                  }
+                  if (parentStructure.ring?.atoms) {
+                    for (const ringAtom of parentStructure.ring.atoms) {
+                      mainChainAtomIds.add(ringAtom.id);
+                    }
+                  }
+
+                  const mainChainAtomIndices = new Set<number>();
+                  for (const atomId of mainChainAtomIds) {
+                    const idx = molecule.atoms.findIndex(
+                      (a: Atom) => a.id === atomId,
+                    );
+                    if (idx !== -1) mainChainAtomIndices.add(idx);
+                  }
+
+                  const substituentAtomIndices = collectSubstituentAtoms(
+                    molecule,
+                    phosphorusIdx,
+                    mainChainAtomIndices,
+                  );
+
+                  const baseName = namePhosphanylSubstituent(
+                    molecule,
+                    substituentAtomIndices,
+                    phosphorusIdx,
+                  );
+                  subName = locantPrefix + baseName;
+                  named = true;
+
+                  if (process.env.VERBOSE) {
+                    console.log(
+                      `[PHOSPHANYL NAMING] Named phosphanyl as: ${subName} (phosphorus at ${phosphorusIdx})`,
+                    );
+                  }
+                }
+              }
+            } else if (typeof firstAtom === "number") {
+              const atomIndices = sub.atoms as number[];
+              const phosphorusIdx = atomIndices.find(
+                (idx: number) => molecule.atoms[idx]?.symbol === "P",
+              );
+              if (phosphorusIdx !== undefined) {
+                const mainChainAtomIndices = new Set<number>();
+                if (parentStructure.chain?.atoms) {
+                  for (const chainAtom of parentStructure.chain.atoms) {
+                    const idx = molecule.atoms.findIndex(
+                      (a: Atom) => a.id === chainAtom.id,
+                    );
+                    if (idx !== -1) mainChainAtomIndices.add(idx);
+                  }
+                }
+                if (parentStructure.ring?.atoms) {
+                  for (const ringAtom of parentStructure.ring.atoms) {
+                    const idx = molecule.atoms.findIndex(
+                      (a: Atom) => a.id === ringAtom.id,
+                    );
+                    if (idx !== -1) mainChainAtomIndices.add(idx);
+                  }
+                }
+
+                const substituentAtomIndices = collectSubstituentAtoms(
+                  molecule,
+                  phosphorusIdx,
+                  mainChainAtomIndices,
+                );
+
+                const baseName = namePhosphanylSubstituent(
+                  molecule,
+                  substituentAtomIndices,
+                  phosphorusIdx,
+                );
+                subName = locantPrefix + baseName;
+                named = true;
+
+                if (process.env.VERBOSE) {
+                  console.log(
+                    `[PHOSPHANYL NAMING] Named phosphanyl as: ${subName} (phosphorus at ${phosphorusIdx})`,
+                  );
+                }
+              }
+            }
+          }
+
+          if (!named) {
+            subName = "phosphanyl";
+          }
+        }
+
         if (subName) {
           // Check if assembledName already includes locants (e.g., "4-methoxy")
           const alreadyHasLocants =
@@ -2110,7 +2347,17 @@ function buildSubstitutiveName(
 
         const needsLocant =
           !isSingleStructuralSubstituentOnly && !isSimpleTerminalHalogen;
-        const locantStr = needsLocant ? locants.join(",") + "-" : "";
+
+        // For amines, replace numeric position "1" with "N" if position 1 is nitrogen
+        const isAmine = principalFG?.type === "amine";
+        const firstAtomIsNitrogen =
+          isAmine && parentStructure.chain?.atoms?.[0]?.symbol === "N";
+        const locantList = needsLocant
+          ? locants.map((loc) =>
+              firstAtomIsNitrogen && loc === 1 ? "N" : String(loc),
+            )
+          : [];
+        const locantStr = needsLocant ? locantList.join(",") + "-" : "";
 
         // Check if substituent name contains nested parentheses
         // Per IUPAC P-14.4: square brackets are used for complex substituents with nested structure
@@ -2617,33 +2864,53 @@ function buildSubstitutiveName(
       }
 
       // Add locant if present and not position 1 on a chain
-      // For chain structures: amide, carboxylic acid, nitrile at position 1 never need locant (e.g., "butanamide" not "butan-1-amide")
+      // For chain structures: amide, carboxylic acid, aldehyde, nitrile at position 1 never need locant
+      // (e.g., "butanamide" not "butan-1-amide", "hexanal" not "hexan-1-al", "heptanenitrile" not "heptan-1-nitrile")
       // According to IUPAC nomenclature, locants should always be included for principal functional groups
       // including alcohols at position 1 (e.g., "pentan-1-ol" not "pentanol")
       // Exception: very simple cases like "ethanol" may omit the locant by common usage
       const _parentName =
         parentStructure.assembledName || parentStructure.name || "";
+
+      // For amines, count only carbons in the chain (nitrogen is not counted)
+      const isAmine = principalGroup.type === "amine";
       const chainLength =
-        parentStructure.chain?.length || parentStructure.size || 0;
+        isAmine && parentStructure.chain?.atoms
+          ? parentStructure.chain.atoms.filter((a) => a.symbol === "C").length
+          : parentStructure.chain?.length || parentStructure.size || 0;
       const needsLocant = fgLocant !== undefined && fgLocant !== null;
 
-      // Omit locant for C1 and C2 chains with functional groups at position 1
-      // C1: methanol (not methan-1-ol)
-      // C2: ethanol (not ethan-1-ol), ethene (not eth-1-ene)
-      // C3+: propan-1-ol, prop-1-ene (locant required)
+      // Functional groups that never need locant when at position 1 on a chain (terminal groups)
+      const terminalGroups = ["amide", "carboxylic_acid", "aldehyde", "nitrile"];
+      const isTerminalGroup = terminalGroups.includes(principalGroup.type);
+
+      // Omit locant for:
+      // 1. C1 and C2 chains with functional groups at position 1
+      //    C1: methanol (not methan-1-ol), methanamine (not methan-1-amine)
+      //    C2: ethanol (not ethan-1-ol), ethanamine (not ethan-1-amine), ethene (not eth-1-ene)
+      //    C3+: propan-1-ol, propan-1-amine, prop-1-ene (locant required)
+      // 2. Terminal groups (amide, carboxylic acid, aldehyde, nitrile) at position 1, regardless of chain length
+      //    e.g., "hexanal" not "hexan-1-al", "heptanoic acid" not "heptan-1-oic acid"
       const shouldOmitLocant =
-        chainLength <= 2 && fgLocant === 1 && parentStructure.type === "chain";
+        (chainLength <= 2 && fgLocant === 1 && parentStructure.type === "chain") ||
+        (isTerminalGroup && fgLocant === 1 && parentStructure.type === "chain");
 
       if (process.env.VERBOSE) {
         console.log(
-          `[needsLocant calc] fgLocant=${fgLocant}, type=${parentStructure.type}, chainLength=${chainLength}, needsLocant=${needsLocant}, shouldOmitLocant=${shouldOmitLocant}`,
+          `[needsLocant calc] principalGroup.type="${principalGroup.type}", fgLocant=${fgLocant}, type=${parentStructure.type}, chainLength=${chainLength}, needsLocant=${needsLocant}, isTerminalGroup=${isTerminalGroup}, shouldOmitLocant=${shouldOmitLocant}`,
         );
       }
 
       if (needsLocant && fgLocant && !shouldOmitLocant) {
         name += `-${fgLocant}-${principalGroup.suffix}`;
       } else {
-        name += principalGroup.suffix;
+        // For nitrile suffix, we need to add 'e' before it (hexane + nitrile = hexanenitrile)
+        // For other suffixes starting with vowels, the 'e' is already dropped (hexan + al = hexanal)
+        if (principalGroup.suffix === "nitrile") {
+          name += "e" + principalGroup.suffix;
+        } else {
+          name += principalGroup.suffix;
+        }
       }
     }
   }
@@ -2756,8 +3023,13 @@ function applyFinalFormatting(name: string): string {
 
   // IUPAC names should be lowercase unless they start with a locant
   // Don't capitalize the first letter - IUPAC names are lowercase
-  // Exception: If the name starts with a capital letter already (e.g., from a proper name), keep it
-  formatted = formatted.charAt(0).toLowerCase() + formatted.slice(1);
+  // Exception: If the name starts with "N" as a locant (e.g., "N,N-dimethylethanamine" or "N-methylethanamine"), keep it uppercase
+  if (
+    formatted.charAt(0) !== "N" ||
+    (!formatted.startsWith("N,") && !formatted.startsWith("N-"))
+  ) {
+    formatted = formatted.charAt(0).toLowerCase() + formatted.slice(1);
+  }
 
   // Post-cleanup: if a hydroxy substituent is present as a locant (e.g., "1-hydroxy")
   // but the name already contains the corresponding "-1-ol" suffix, remove the redundant "1-hydroxy".
