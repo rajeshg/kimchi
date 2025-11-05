@@ -32,6 +32,21 @@ export function getAlkylName(carbonCount: number): string {
   return `C${carbonCount}alkyl`;
 }
 
+export function getAlkanoylName(carbonCount: number): string {
+  // Special cases for common acyl groups
+  if (carbonCount === 1) return "formyl"; // H-C(=O)-
+  if (carbonCount === 2) return "acetyl"; // CH3-C(=O)- (also "ethanoyl")
+
+  // For 3+ carbons: get alkane name and replace 'ane' with 'anoyl'
+  const alkaneName = ruleEngine.getAlkaneName(carbonCount);
+  if (alkaneName) {
+    return alkaneName.replace(/ane$/, "anoyl");
+  }
+
+  // Fallback for unmapped carbon counts
+  return `C${carbonCount}acyl`;
+}
+
 export function combineName(baseName: string, functionalGroup: string): string {
   // Use rule engine for vowel elision
   return ruleEngine.applyVowelElision(baseName, functionalGroup);

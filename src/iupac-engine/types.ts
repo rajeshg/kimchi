@@ -244,4 +244,5 @@ export const BLUE_BOOK_RULES = {
   P2_5: "P-2.5", // Fused ring systems
 
   P14_4: "P-14.4", // Numbering for substituents
+  P62_2_1_1: "P-62.2.1.1", // Acyl groups as substituents
 } as const;

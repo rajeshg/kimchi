@@ -2,6 +2,7 @@ import type { Molecule, Atom, Bond } from "types";
 import { BondType } from "types";
 import {
   getAlkaneBaseName,
+  getAlkanoylName,
   getAlkylName,
   getGreekNumeral,
 } from "./iupac-helpers";
@@ -2351,6 +2352,216 @@ export function findSubstituents(
       type: "functional",
       size: substituentAtoms.size + sulfurBridge.length,
       name: fullName,
+    });
+  }
+
+  // Special handling for ketone groups NOT on the main chain - these are acyl substituents
+  // Pattern: R-C(=O)- where the C is not in mainChain
+  const ketoneGroups = functionalGroups.filter(
+    (fg) => fg.name === "ketone" && fg.atoms && fg.atoms.length >= 2,
+  );
+
+  for (const ketoneGroup of ketoneGroups) {
+    // ketoneGroup.atoms should be [carbonylCarbon, oxygen]
+    const carbonylCarbonIdx = ketoneGroup.atoms!.find(
+      (atomIdx) => molecule.atoms[atomIdx]?.symbol === "C",
+    );
+    const oxygenIdx = ketoneGroup.atoms!.find(
+      (atomIdx) => molecule.atoms[atomIdx]?.symbol === "O",
+    );
+
+    if (carbonylCarbonIdx === undefined || oxygenIdx === undefined) continue;
+
+    // Check if carbonyl carbon is in the main chain
+    if (chainSet.has(carbonylCarbonIdx)) {
+      // This ketone is on the main chain, not an acyl substituent
+      continue;
+    }
+
+    // Find which main chain carbon this acyl group is attached to
+    let attachedToChainAt = -1;
+    let chainCarbonIdx = -1;
+
+    for (const bond of molecule.bonds) {
+      if (
+        bond.atom1 === carbonylCarbonIdx ||
+        bond.atom2 === carbonylCarbonIdx
+      ) {
+        const otherAtom =
+          bond.atom1 === carbonylCarbonIdx ? bond.atom2 : bond.atom1;
+        const otherAtomObj = molecule.atoms[otherAtom];
+
+        // Skip the oxygen (that's the C=O bond)
+        if (otherAtom === oxygenIdx) continue;
+
+        if (otherAtomObj && chainSet.has(otherAtom)) {
+          chainCarbonIdx = otherAtom;
+          attachedToChainAt = mainChain.indexOf(otherAtom);
+          break;
+        }
+      }
+    }
+
+    if (attachedToChainAt < 0) continue; // Not attached to main chain
+
+    // Now traverse from carbonylCarbon to collect all atoms in the acyl group
+    // Exclude: the oxygen, the chain atoms, and any other FG heteroatoms
+    const acylAtoms = new Set<number>();
+    acylAtoms.add(carbonylCarbonIdx);
+    acylAtoms.add(oxygenIdx); // Include oxygen for completeness
+
+    const visited = new Set<number>(chainSet);
+    visited.add(oxygenIdx); // Don't traverse through oxygen
+    const stack = [carbonylCarbonIdx];
+    visited.add(carbonylCarbonIdx);
+
+    while (stack.length > 0) {
+      const current = stack.pop()!;
+
+      for (const bond of molecule.bonds) {
+        let neighbor = -1;
+        if (bond.atom1 === current && !visited.has(bond.atom2)) {
+          neighbor = bond.atom2;
+        } else if (bond.atom2 === current && !visited.has(bond.atom1)) {
+          neighbor = bond.atom1;
+        }
+
+        if (neighbor >= 0) {
+          visited.add(neighbor);
+          acylAtoms.add(neighbor);
+          stack.push(neighbor);
+        }
+      }
+    }
+
+    // Name the acyl group
+    // Count carbons (excluding oxygen)
+    const acylCarbons = Array.from(acylAtoms).filter(
+      (idx) => molecule.atoms[idx]?.symbol === "C",
+    );
+    const carbonCount = acylCarbons.length;
+
+    if (process.env.VERBOSE) {
+      console.log(
+        `[findSubstituents] Acyl group detected: carbonyl C=${carbonylCarbonIdx}, attached to chain at ${chainCarbonIdx} (position ${attachedToChainAt + 1}), ${carbonCount} carbons`,
+      );
+    }
+
+    // Build acyl name
+    let acylName = "";
+
+    if (carbonCount === 1) {
+      // Just C=O: formyl
+      acylName = "formyl";
+    } else if (carbonCount === 2) {
+      // C-C(=O): acetyl (ethanoyl)
+      acylName = "acetyl";
+    } else {
+      // Need to determine the structure of the acyl group
+      // For now, use simple alkanoyl naming
+      // TODO: Handle branching (e.g., "2-methylpropanoyl")
+
+      // Find the longest carbon chain from carbonyl carbon
+      const acylCarbonSet = new Set(acylCarbons);
+      let longestChain: number[] = [];
+
+      // Simple DFS to find longest path
+      const dfs = (
+        current: number,
+        path: number[],
+        visited: Set<number>,
+      ): void => {
+        if (path.length > longestChain.length) {
+          longestChain = [...path];
+        }
+
+        for (const bond of molecule.bonds) {
+          let neighbor = -1;
+          if (bond.atom1 === current && !visited.has(bond.atom2)) {
+            neighbor = bond.atom2;
+          } else if (bond.atom2 === current && !visited.has(bond.atom1)) {
+            neighbor = bond.atom1;
+          }
+
+          if (neighbor >= 0 && acylCarbonSet.has(neighbor)) {
+            visited.add(neighbor);
+            path.push(neighbor);
+            dfs(neighbor, path, visited);
+            path.pop();
+            visited.delete(neighbor);
+          }
+        }
+      };
+
+      const visitedDfs = new Set<number>([carbonylCarbonIdx]);
+      dfs(carbonylCarbonIdx, [carbonylCarbonIdx], visitedDfs);
+
+      const chainLength = longestChain.length;
+
+      // Check for branching
+      const hasBranching = acylCarbons.length > chainLength;
+
+      if (hasBranching && chainLength <= 4) {
+        // Handle common branched patterns
+        // For example: CC(C)C(=O) -> "2-methylpropanoyl"
+
+        // Find branch points (carbons with >2 carbon neighbors in acyl group)
+        const branchInfo: Array<{ carbon: number; position: number }> = [];
+
+        for (let i = 0; i < longestChain.length; i++) {
+          const carbonIdx = longestChain[i]!;
+          const carbonNeighbors = molecule.bonds
+            .filter(
+              (b) =>
+                (b.atom1 === carbonIdx || b.atom2 === carbonIdx) &&
+                b.type === "single",
+            )
+            .map((b) => (b.atom1 === carbonIdx ? b.atom2 : b.atom1))
+            .filter((idx) => acylCarbonSet.has(idx) && idx !== oxygenIdx);
+
+          // Count how many are in the main chain
+          const inChainCount = carbonNeighbors.filter((idx) =>
+            longestChain.includes(idx),
+          ).length;
+
+          if (carbonNeighbors.length > inChainCount) {
+            // This carbon has branches
+            branchInfo.push({ carbon: carbonIdx, position: i + 1 });
+          }
+        }
+
+        if (branchInfo.length > 0) {
+          // Build name with branches
+          const branchNames: string[] = [];
+          for (const branch of branchInfo) {
+            // For now, assume methyl branches
+            branchNames.push(`${branch.position}-methyl`);
+          }
+
+          const baseName = getAlkanoylName(chainLength);
+          acylName = `${branchNames.join("-")}${baseName}`;
+        } else {
+          acylName = getAlkanoylName(chainLength);
+        }
+      } else {
+        acylName = getAlkanoylName(chainLength);
+      }
+    }
+
+    const position = (attachedToChainAt + 1).toString();
+
+    if (process.env.VERBOSE) {
+      console.log(
+        `[findSubstituents] Acyl substituent at position ${position}: ${acylName}`,
+      );
+    }
+
+    substituents.push({
+      position: position,
+      type: "functional",
+      size: acylAtoms.size,
+      name: acylName,
+      atoms: Array.from(acylAtoms), // Include atoms for deduplication
     });
   }
 
