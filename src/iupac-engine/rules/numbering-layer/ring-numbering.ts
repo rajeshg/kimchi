@@ -55,6 +55,14 @@ export const RING_NUMBERING_RULE: IUPACRule = {
           `[Ring Numbering] Using von Baeyer numbering:`,
           Array.from(parentStructure.vonBaeyerNumbering.entries()),
         );
+        console.log(
+          `[Ring Numbering - ENTRY] Functional groups on entry:`,
+        );
+        for (const fg of state.functionalGroups || []) {
+          console.log(
+            `  FG "${fg.type}": atoms.length=${fg.atoms?.length}, atoms=[${fg.atoms?.map((a: Atom) => a.id).join(", ")}]`,
+          );
+        }
       }
 
       const originalNumbering = parentStructure.vonBaeyerNumbering;
@@ -63,17 +71,33 @@ export const RING_NUMBERING_RULE: IUPACRule = {
       const ringAtomIds = new Set(Array.from(originalNumbering.keys()));
 
       // Helper function to get locants for a given numbering scheme
+      // Returns { principal, substituent, all } locant sets
       const getLocants = (atomIdToPosition: Map<number, number>) => {
-        const locants: number[] = [];
+        const principalLocants: number[] = [];
+        const substituentLocants: number[] = [];
 
         // Collect locants from functional groups
         for (const fg of functionalGroups) {
+          const fgLocants: number[] = [];
+
+          if (process.env.VERBOSE) {
+            console.log(
+              `[Ring Numbering - DEBUG ENTRY] FG "${fg.type}": atoms.length=${fg.atoms?.length}, atoms=[${fg.atoms?.map((a: Atom) => a.id).join(", ")}]`,
+            );
+          }
+
           if (fg.atoms && fg.atoms.length > 0) {
-            for (const groupAtom of fg.atoms) {
+            // For ketones, only use the carbonyl carbon (first atom) for locant calculation
+            // to avoid counting the oxygen which would create duplicate locants
+            const atomsToProcess = fg.type === "ketone" && fg.atoms[0] !== undefined
+              ? [fg.atoms[0]]
+              : fg.atoms;
+            
+            for (const groupAtom of atomsToProcess) {
               const groupAtomId =
                 typeof groupAtom === "object" ? groupAtom.id : groupAtom;
               if (atomIdToPosition.has(groupAtomId)) {
-                locants.push(atomIdToPosition.get(groupAtomId)!);
+                fgLocants.push(atomIdToPosition.get(groupAtomId)!);
               } else {
                 const bonds = molecule.bonds.filter(
                   (bond: Bond) =>
@@ -85,12 +109,33 @@ export const RING_NUMBERING_RULE: IUPACRule = {
                   if (ringAtomIds.has(otherAtomId)) {
                     const position = atomIdToPosition.get(otherAtomId);
                     if (position !== undefined) {
-                      locants.push(position);
+                      fgLocants.push(position);
                       break;
                     }
                   }
                 }
               }
+            }
+          }
+
+          // For ring systems, use only the minimum locant for each functional group
+          // to avoid inflating the locant set with all ring atoms
+          let fgRepresentativeLocant: number | undefined;
+          if (fgLocants.length > 0) {
+            fgRepresentativeLocant = Math.min(...fgLocants);
+            if (process.env.VERBOSE) {
+              console.log(
+                `[Ring Numbering - DEBUG] FG "${fg.type}" (isPrincipal=${fg.isPrincipal}): fgLocants=[${fgLocants.join(", ")}], representative=${fgRepresentativeLocant}`,
+              );
+            }
+          }
+
+          // Separate principal and non-principal functional group locants
+          if (fgRepresentativeLocant !== undefined) {
+            if (fg.isPrincipal) {
+              principalLocants.push(fgRepresentativeLocant);
+            } else {
+              substituentLocants.push(fgRepresentativeLocant);
             }
           }
         }
@@ -107,15 +152,24 @@ export const RING_NUMBERING_RULE: IUPACRule = {
               if (otherAtom && otherAtom.symbol !== "H") {
                 const position = atomIdToPosition.get(atomId);
                 if (position !== undefined) {
-                  locants.push(position);
+                  substituentLocants.push(position);
                 }
               }
             }
           }
         }
 
-        locants.sort((a, b) => a - b);
-        return locants;
+        principalLocants.sort((a, b) => a - b);
+        substituentLocants.sort((a, b) => a - b);
+        const allLocants = [...principalLocants, ...substituentLocants].sort(
+          (a, b) => a - b,
+        );
+
+        return {
+          principal: principalLocants,
+          substituent: substituentLocants,
+          all: allLocants,
+        };
       };
 
       // Generate reversed numbering (n -> maxPos - n + 1)
@@ -131,36 +185,76 @@ export const RING_NUMBERING_RULE: IUPACRule = {
 
       if (process.env.VERBOSE) {
         console.log(
-          `[Ring Numbering] Original locants: [${originalLocants.join(", ")}]`,
+          `[Ring Numbering] Original principal locants: [${originalLocants.principal.join(", ")}]`,
         );
         console.log(
-          `[Ring Numbering] Reversed locants: [${reversedLocants.join(", ")}]`,
+          `[Ring Numbering] Reversed principal locants: [${reversedLocants.principal.join(", ")}]`,
+        );
+        console.log(
+          `[Ring Numbering] Original substituent locants: [${originalLocants.substituent.join(", ")}]`,
+        );
+        console.log(
+          `[Ring Numbering] Reversed substituent locants: [${reversedLocants.substituent.join(", ")}]`,
         );
       }
 
       // Choose the numbering with the lowest set of locants
+      // Priority 1: Principal group locants
+      // Priority 2: Substituent locants
       let chosenNumbering = originalNumbering;
-      for (
-        let i = 0;
-        i < Math.min(originalLocants.length, reversedLocants.length);
-        i++
-      ) {
-        if (reversedLocants[i]! < originalLocants[i]!) {
+      let decision = "";
+
+      // First compare principal group locants
+      const maxPrincipalLen = Math.max(
+        originalLocants.principal.length,
+        reversedLocants.principal.length,
+      );
+      let principalDecided = false;
+
+      for (let i = 0; i < maxPrincipalLen; i++) {
+        const origLoc = originalLocants.principal[i] ?? Infinity;
+        const revLoc = reversedLocants.principal[i] ?? Infinity;
+
+        if (revLoc < origLoc) {
           chosenNumbering = reversedNumbering;
-          if (process.env.VERBOSE) {
-            console.log(
-              `[Ring Numbering] Choosing reversed numbering (lower locant at position ${i})`,
-            );
-          }
+          decision = `reversed numbering (lower principal locant at position ${i}: ${revLoc} < ${origLoc})`;
+          principalDecided = true;
           break;
-        } else if (originalLocants[i]! < reversedLocants[i]!) {
-          if (process.env.VERBOSE) {
-            console.log(
-              `[Ring Numbering] Choosing original numbering (lower locant at position ${i})`,
-            );
-          }
+        } else if (origLoc < revLoc) {
+          decision = `original numbering (lower principal locant at position ${i}: ${origLoc} < ${revLoc})`;
+          principalDecided = true;
           break;
         }
+      }
+
+      // If principal groups are tied, compare substituent locants
+      if (!principalDecided) {
+        const maxSubLen = Math.max(
+          originalLocants.substituent.length,
+          reversedLocants.substituent.length,
+        );
+
+        for (let i = 0; i < maxSubLen; i++) {
+          const origLoc = originalLocants.substituent[i] ?? Infinity;
+          const revLoc = reversedLocants.substituent[i] ?? Infinity;
+
+          if (revLoc < origLoc) {
+            chosenNumbering = reversedNumbering;
+            decision = `reversed numbering (lower substituent locant at position ${i}: ${revLoc} < ${origLoc})`;
+            break;
+          } else if (origLoc < revLoc) {
+            decision = `original numbering (lower substituent locant at position ${i}: ${origLoc} < ${revLoc})`;
+            break;
+          }
+        }
+
+        if (!decision) {
+          decision = "original numbering (all locants tied)";
+        }
+      }
+
+      if (process.env.VERBOSE) {
+        console.log(`[Ring Numbering] Choosing ${decision}`);
       }
 
       const atomIdToPosition = chosenNumbering;
@@ -178,7 +272,13 @@ export const RING_NUMBERING_RULE: IUPACRule = {
           const attachedRingPositions: number[] = [];
 
           if (fg.atoms && fg.atoms.length > 0) {
-            for (const groupAtom of fg.atoms) {
+            // For ketones, only use the carbonyl carbon (first atom) for locant calculation
+            // to avoid counting the oxygen which would create duplicate locants
+            const atomsToProcess = fg.type === "ketone" && fg.atoms[0] !== undefined
+              ? [fg.atoms[0]]
+              : fg.atoms;
+            
+            for (const groupAtom of atomsToProcess) {
               const groupAtomId =
                 typeof groupAtom === "object" ? groupAtom.id : groupAtom;
               // Check if this functional group atom is itself in the ring
@@ -313,7 +413,13 @@ export const RING_NUMBERING_RULE: IUPACRule = {
         const attachedRingPositions: number[] = [];
 
         if (fg.atoms && fg.atoms.length > 0) {
-          for (const groupAtom of fg.atoms) {
+          // For ketones, only use the carbonyl carbon (first atom) for locant calculation
+          // to avoid counting the oxygen which would create duplicate locants
+          const atomsToProcess = fg.type === "ketone" && fg.atoms[0] !== undefined
+            ? [fg.atoms[0]]
+            : fg.atoms;
+          
+          for (const groupAtom of atomsToProcess) {
             // Handle both object format (with .id) and direct ID format
             const groupAtomId =
               typeof groupAtom === "object" ? groupAtom.id : groupAtom;

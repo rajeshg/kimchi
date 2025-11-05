@@ -147,6 +147,12 @@ function expandKetoneToAcylGroup(
     return ketoneAtomIndices;
   }
 
+  // Do not expand ketones that are part of ring systems
+  const carbonylAtom = mol.atoms[carbonylIdx];
+  if (carbonylAtom?.isInRing) {
+    return ketoneAtomIndices;
+  }
+
   // Find all carbon neighbors of the carbonyl carbon (excluding oxygen)
   const carbonNeighbors: number[] = [];
   for (const bond of mol.bonds) {
@@ -450,12 +456,16 @@ export const FUNCTIONAL_GROUP_PRIORITY_RULE: IUPACRule = {
 
             // Preserve atoms if available (e.g., alcohol detection stores carbon instead of oxygen)
             // BUT: for ketones, if we expanded the atom list to include acyl chains, don't preserve
+            // ALSO: for ketones, don't preserve if previous detection had different atom count (e.g., LACTONE_TO_KETONE only stores carbonyl C)
             const wasExpanded =
               type === "ketone" && atoms.length > (d.atoms?.length || 0);
+            const isDifferentAtomCount =
+              type === "ketone" && matchingPrevious.atoms?.length !== atoms.length;
             if (
               matchingPrevious.atoms &&
               matchingPrevious.atoms.length > 0 &&
-              !wasExpanded
+              !wasExpanded &&
+              !isDifferentAtomCount
             ) {
               preservedAtoms = matchingPrevious.atoms;
               if (process.env.VERBOSE) {
@@ -626,11 +636,14 @@ export const FUNCTIONAL_GROUP_PRIORITY_RULE: IUPACRule = {
               g.priority === principalGroup.priority
             ) {
               if (process.env.VERBOSE) {
-                console.log('[FUNCTIONAL_GROUP_PRIORITY_RULE] Marking as principal:', {
-                  type: g.type,
-                  priority: g.priority,
-                  locants: g.locants,
-                });
+                console.log(
+                  "[FUNCTIONAL_GROUP_PRIORITY_RULE] Marking as principal:",
+                  {
+                    type: g.type,
+                    priority: g.priority,
+                    locants: g.locants,
+                  },
+                );
               }
               return {
                 ...g,

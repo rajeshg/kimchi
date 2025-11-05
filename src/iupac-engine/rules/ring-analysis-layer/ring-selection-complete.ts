@@ -368,7 +368,7 @@ export const RING_SELECTION_COMPLETE_RULE: IUPACRule = {
       if (process.env.VERBOSE) {
         console.log(
           `[ring-selection-complete] Re-selected ${principalGroups.length} principal group(s) after filtering:`,
-          principalGroups.map(fg => `${fg.type} (priority ${maxPriority})`),
+          principalGroups.map((fg) => `${fg.type} (priority ${maxPriority})`),
         );
       }
     }

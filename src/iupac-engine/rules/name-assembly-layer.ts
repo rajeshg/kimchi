@@ -333,21 +333,40 @@ export const MULTIPLICATIVE_PREFIXES_RULE: IUPACRule = {
     }
 
     if (process.env.VERBOSE) {
-      console.log('[MULTIPLICATIVE_PREFIXES_RULE] Input functionalGroups:', functionalGroups.map(g => ({ type: g.type, isPrincipal: g.isPrincipal, locants: g.locants })));
+      console.log(
+        "[MULTIPLICATIVE_PREFIXES_RULE] Input functionalGroups:",
+        functionalGroups.map((g) => ({
+          type: g.type,
+          isPrincipal: g.isPrincipal,
+          locants: g.locants,
+        })),
+      );
     }
 
     // IMPORTANT: Do NOT aggregate principal groups here!
     // Principal group aggregation (e.g., multiple alcohols → diol) is handled
     // by buildSubstitutiveName() which needs to receive ALL individual principal groups.
     // This rule should only handle non-principal substituents (e.g., multiple methyl groups).
-    
+
     // Separate principal groups from non-principal substituents
-    const principalGroups = functionalGroups.filter((group: FunctionalGroup) => group.isPrincipal);
-    const nonPrincipalGroups = functionalGroups.filter((group: FunctionalGroup) => !group.isPrincipal);
+    const principalGroups = functionalGroups.filter(
+      (group: FunctionalGroup) => group.isPrincipal,
+    );
+    const nonPrincipalGroups = functionalGroups.filter(
+      (group: FunctionalGroup) => !group.isPrincipal,
+    );
 
     if (process.env.VERBOSE) {
-      console.log('[MULTIPLICATIVE_PREFIXES_RULE] principalGroups:', principalGroups.length, principalGroups.map(g => ({ type: g.type, locants: g.locants })));
-      console.log('[MULTIPLICATIVE_PREFIXES_RULE] nonPrincipalGroups:', nonPrincipalGroups.length, nonPrincipalGroups.map(g => ({ type: g.type, locants: g.locants })));
+      console.log(
+        "[MULTIPLICATIVE_PREFIXES_RULE] principalGroups:",
+        principalGroups.length,
+        principalGroups.map((g) => ({ type: g.type, locants: g.locants })),
+      );
+      console.log(
+        "[MULTIPLICATIVE_PREFIXES_RULE] nonPrincipalGroups:",
+        nonPrincipalGroups.length,
+        nonPrincipalGroups.map((g) => ({ type: g.type, locants: g.locants })),
+      );
     }
 
     // Group identical non-principal types for multiplicative prefixes (di-methyl, tri-chloro, etc.)
@@ -863,18 +882,20 @@ function buildFunctionalClassName(
 
   // For esters, count total number of ester groups to detect diesters
   if (functionalGroup.type === "ester") {
-    const esterCount = functionalGroups.filter((g) => g.type === "ester").length;
-    
+    const esterCount = functionalGroups.filter(
+      (g) => g.type === "ester",
+    ).length;
+
     if (process.env.VERBOSE) {
       console.log("[buildFunctionalClassName] esterCount:", esterCount);
     }
-    
+
     // Set multiplicity on the functional group for diester handling
     const esterGroupWithMultiplicity = {
       ...functionalGroup,
       multiplicity: esterCount,
     };
-    
+
     return buildEsterName(
       parentStructure,
       esterGroupWithMultiplicity,
@@ -1434,8 +1455,98 @@ function buildSubstitutiveName(
   let name = "";
 
   // Add substituents from functional groups (excluding principal group)
+  // Also filter out ketones that are already represented as acyl substituents
+  // in the parent structure (e.g., "acetyl", "2-methylpropanoyl")
   const fgStructuralSubstituents: FunctionalGroupExtended[] =
-    functionalGroups.filter((group) => !group.isPrincipal);
+    functionalGroups.filter((group) => {
+      // Exclude principal groups
+      if (group.isPrincipal) {
+        return false;
+      }
+
+      // For non-principal ketones, check if they're already represented as acyl substituents
+      if (group.type === "ketone" && !group.isPrincipal) {
+        // Get the ketone's carbonyl carbon atom
+        const carbonylCarbon = group.atoms?.find((atom) => atom.symbol === "C");
+        const ketoneLocant = group.locant ?? group.locants?.[0];
+
+        if (process.env.VERBOSE) {
+          console.log(
+            `[ACYL FILTER] Checking ketone: locant=${ketoneLocant}, carbonylCarbon=${carbonylCarbon?.id}`,
+          );
+        }
+
+        if (!carbonylCarbon) {
+          return true; // Keep if we can't determine the carbon
+        }
+
+        // Check if this ketone is already in parent substituents as an acyl group
+        const parentSubs = parentStructure.substituents || [];
+
+        if (process.env.VERBOSE) {
+          console.log(
+            `[ACYL FILTER] Checking ${parentSubs.length} parent substituents`,
+          );
+        }
+
+        const isAlreadyAcyl = parentSubs.some((sub) => {
+          // Check if substituent is an acyl group (ends with "yl" and contains acyl patterns)
+          // Examples: "acetyl", "propanoyl", "2-methylpropanoyl", "benzoyl"
+          const subType = sub.type || "";
+          const subName = sub.name || "";
+
+          if (process.env.VERBOSE) {
+            console.log(
+              `[ACYL FILTER]   sub: type=${subType}, name=${subName}, locant=${"locant" in sub ? sub.locant : "N/A"}`,
+            );
+          }
+
+          // Acyl groups end with "yl" but NOT simple alkyl groups
+          // Check for common acyl patterns: "acetyl", "propanoyl", "butanoyl", "benzoyl", etc.
+          const isAcylGroup =
+            (subType.endsWith("yl") || subName.endsWith("yl")) &&
+            (subType.includes("oyl") ||
+              subName.includes("oyl") ||
+              subType === "acetyl" ||
+              subName === "acetyl" ||
+              subType === "formyl" ||
+              subName === "formyl");
+
+          if (!isAcylGroup) {
+            return false;
+          }
+
+          // Check if the locant matches
+          const subLocant = "locant" in sub ? sub.locant : undefined;
+
+          if (process.env.VERBOSE) {
+            console.log(
+              `[ACYL FILTER]     Acyl sub "${subType || subName}" at locant ${subLocant}, ketone at ${ketoneLocant}, match=${subLocant === ketoneLocant}`,
+            );
+          }
+
+          if (subLocant === ketoneLocant) {
+            console.log(
+              `[buildSubstitutiveName] Filtering out ketone at locant ${ketoneLocant} - already represented as acyl substituent "${subType || subName}"`,
+            );
+            return true;
+          }
+
+          return false;
+        });
+
+        if (process.env.VERBOSE) {
+          console.log(
+            `[ACYL FILTER] isAlreadyAcyl=${isAlreadyAcyl}, returning ${!isAlreadyAcyl}`,
+          );
+        }
+
+        // Filter out if already represented as acyl
+        return !isAlreadyAcyl;
+      }
+
+      return true;
+    });
 
   // Find principal functional group atoms to exclude from substituents
   const principalFG = functionalGroups.find((group) => group.isPrincipal);
@@ -2931,28 +3042,30 @@ function buildSubstitutiveName(
 
   // Add principal functional group suffix
   // Aggregate multiple principal groups of the same type into a single multiplicative group
-  const allPrincipalGroups = functionalGroups.filter((group) => group.isPrincipal);
-  
+  const allPrincipalGroups = functionalGroups.filter(
+    (group) => group.isPrincipal,
+  );
+
   let principalGroup: FunctionalGroup | undefined;
   if (allPrincipalGroups.length > 1) {
     // Multiple principal groups of same type → create multiplicative group
     const firstGroup = allPrincipalGroups[0];
     if (!firstGroup) {
-      throw new Error('Expected at least one principal group');
+      throw new Error("Expected at least one principal group");
     }
     const locants = allPrincipalGroups
-      .map(g => g.locant)
+      .map((g) => g.locant)
       .filter((loc): loc is number => loc !== undefined)
       .sort((a, b) => a - b);
-    
+
     principalGroup = {
       ...firstGroup,
       multiplicity: allPrincipalGroups.length,
       isMultiplicative: true,
-      locantString: locants.join(','),
-      locants: locants
+      locantString: locants.join(","),
+      locants: locants,
     };
-    
+
     if (process.env.VERBOSE) {
       console.log(
         `[buildSubstitutiveName] Aggregated ${allPrincipalGroups.length} principal groups into multiplicative group:`,
@@ -2962,7 +3075,7 @@ function buildSubstitutiveName(
   } else {
     principalGroup = allPrincipalGroups[0];
   }
-  
+
   if (process.env.VERBOSE) {
     console.log(
       "[buildSubstitutiveName] principalGroup:",

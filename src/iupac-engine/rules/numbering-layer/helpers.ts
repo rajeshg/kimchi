@@ -306,6 +306,23 @@ export function getPrincipalGroupLocantFromSet(
         ? functionalGroupAtom
         : functionalGroupAtom.id;
 
+    // For rings with von Baeyer numbering (bicyclo/tricyclo systems),
+    // use the numbering map directly instead of ring.atoms positions
+    if (parentStructure.vonBaeyerNumbering) {
+      const locant = parentStructure.vonBaeyerNumbering.get(atomId);
+      if (locant !== undefined) {
+        if (process.env.VERBOSE) {
+          console.log(
+            "[getPrincipalGroupLocantFromSet] von Baeyer - atomId:",
+            atomId,
+            "locant:",
+            locant,
+          );
+        }
+        return locant;
+      }
+    }
+
     // parentStructure.ring should have the atoms in numbered order
     const ring = parentStructure.ring;
     if (ring && ring.atoms) {
