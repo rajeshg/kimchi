@@ -18,6 +18,11 @@ import {
   namePhosphanylSubstituent,
 } from "../naming/iupac-chains";
 import { getGreekNumeral } from "../naming/iupac-helpers";
+import {
+  getSimpleMultiplier,
+  getComplexMultiplier,
+} from "../adapters/opsin-adapter";
+import type { OPSINService } from "../services/opsin-service";
 
 /**
  * Extended ParentStructure type with assembly-phase properties
@@ -68,7 +73,19 @@ type StructuralSubstituentOrFunctionalGroup =
  * @param useComplex - If true, use bis/tris for complex substituents
  * @returns The multiplicative prefix (e.g., "di", "tri", "bis", "tris")
  */
-function getMultiplicativePrefix(count: number, useComplex = false): string {
+function getMultiplicativePrefix(
+  count: number,
+  useComplex = false,
+  opsinService?: OPSINService,
+): string {
+  // If OPSIN service provided, use adapter (preferred)
+  if (opsinService) {
+    return useComplex
+      ? getComplexMultiplier(count, opsinService)
+      : getSimpleMultiplier(count, opsinService);
+  }
+
+  // Fallback to hardcoded maps (backward compatibility)
   if (useComplex) {
     const complexPrefixes: { [key: number]: string } = {
       2: "bis",
@@ -413,7 +430,8 @@ export const MULTIPLICATIVE_PREFIXES_RULE: IUPACRule = {
       if (groups.length > 1) {
         // Multiple identical groups - apply prefix
         const count = groups.length;
-        const prefix = getMultiplicativePrefix(count);
+        const opsinService = context.getOPSIN();
+        const prefix = getMultiplicativePrefix(count, false, opsinService);
         const firstGroup = groups[0];
         if (!firstGroup) continue;
 

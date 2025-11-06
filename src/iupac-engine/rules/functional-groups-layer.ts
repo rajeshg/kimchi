@@ -4,6 +4,7 @@ import type { ImmutableNamingContext } from "../immutable-context";
 import { ExecutionPhase, NomenclatureMethod } from "../immutable-context";
 import type { Molecule, Atom, Bond } from "../../../types";
 import type { OPSINFunctionalGroupDetector } from "../opsin-functional-group-detector";
+import { getAcyloxyNameFromOPSIN } from "../adapters/opsin-adapter";
 
 // Type for OPSIN detector return values (atoms are indices)
 type DetectedFunctionalGroup = {
@@ -97,26 +98,7 @@ function findAcylChain(mol: Molecule, carbonylCarbon: number): number[] {
   return chain;
 }
 
-/**
- * Build acyloxy name from chain length.
- * Examples: 1 → "formyloxy", 2 → "acetoxy", 3 → "propanoyloxy", 4 → "butanoyloxy"
- */
-function buildAcyloxyName(chainLength: number): string {
-  const prefixes: Record<number, string> = {
-    1: "formyloxy", // HC(=O)O-
-    2: "acetoxy", // CH3C(=O)O- (common name, preferred over "ethanoyloxy")
-    3: "propanoyloxy", // CH3CH2C(=O)O-
-    4: "butanoyloxy", // CH3CH2CH2C(=O)O-
-    5: "pentanoyloxy",
-    6: "hexanoyloxy",
-    7: "heptanoyloxy",
-    8: "octanoyloxy",
-    9: "nonanoyloxy",
-    10: "decanoyloxy",
-  };
 
-  return prefixes[chainLength] || `C${chainLength}anoyloxy`;
-}
 
 /**
  * Expand a ketone functional group to include the complete acyl substituent chain.
@@ -773,7 +755,8 @@ export const FUNCTIONAL_GROUP_PRIORITY_RULE: IUPACRule = {
         const chainLength = acylChainAtoms.length;
 
         // Build acyloxy name: "butanoyloxy" for 4-carbon chain
-        const acyloxyName = buildAcyloxyName(chainLength);
+        const opsinService = context.getOPSIN();
+        const acyloxyName = getAcyloxyNameFromOPSIN(chainLength, opsinService);
 
         if (process.env.VERBOSE) {
           console.log(
