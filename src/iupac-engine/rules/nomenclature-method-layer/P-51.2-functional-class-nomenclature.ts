@@ -59,6 +59,7 @@ export const P51_2_FUNCTIONAL_CLASS_RULE: IUPACRule = {
       "nitrile",
       "thioester",
       "thiocyanate", // thiocyanate functional group
+      "borane", // borane functional group
     ];
 
     const shouldApply = functionalGroups.some((group: FunctionalGroup) =>

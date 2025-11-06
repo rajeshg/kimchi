@@ -33,6 +33,9 @@ const HETEROATOM_PARENT_HYDRIDES: Record<
   string,
   { name: string; valence: number }
 > = {
+  // Group 13: borane family
+  B: { name: "borane", valence: 3 },
+
   // Group 14: silane family
   Si: { name: "silane", valence: 4 },
   Ge: { name: "germane", valence: 4 },

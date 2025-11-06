@@ -23,18 +23,19 @@ export const RING_SELECTION_COMPLETE_RULE: IUPACRule = {
   blueBookReference: "P-44.2 - Ring system seniority",
   priority: RulePriority.FIVE,
   conditions: (context) => {
-    const candidateRings = context.getState().candidateRings;
+    const state = context.getState();
+    const candidateRings = state.candidateRings;
     if (
       !candidateRings ||
       candidateRings.length === 0 ||
-      context.getState().parentStructure
+      state.parentStructure
     ) {
       return false;
     }
 
     // P-2.1 has priority: check if there's a heteroatom parent candidate
     // Heteroatom parents: Si, Ge, Sn, Pb (valence 4), P, As, Sb, Bi (valence 3)
-    const molecule = context.getState().molecule;
+    const molecule = state.molecule;
     const HETEROATOM_HYDRIDES = ["Si", "Ge", "Sn", "Pb", "P", "As", "Sb", "Bi"];
     const EXPECTED_VALENCE: Record<string, number> = {
       Si: 4,
@@ -79,6 +80,37 @@ export const RING_SELECTION_COMPLETE_RULE: IUPACRule = {
         // Heteroatom parent is present - let P-2.1 handle it
         if (process.env.VERBOSE)
           console.log("Ring selection: deferring to P-2.1 heteroatom parent");
+        return false;
+      }
+    }
+
+    // P-44.4 criterion: If there are candidate chains, check size comparison
+    // Don't select ring if a longer acyclic chain exists
+    const candidateChains = state.candidateChains;
+    if (process.env.VERBOSE) {
+      console.log(
+        `[ring-selection-complete conditions] candidateChains count: ${candidateChains?.length || 0}`
+      );
+    }
+    if (candidateChains && candidateChains.length > 0) {
+      const ring = candidateRings[0]!;
+      const ringSize = ring.size || (ring.atoms ? ring.atoms.length : 0);
+      
+      const longestChain = candidateChains[0]!;
+      const chainLength = longestChain.atoms ? longestChain.atoms.length : 0;
+      
+      if (process.env.VERBOSE) {
+        console.log(
+          `[ring-selection-complete conditions] Comparing: Chain (${chainLength} atoms) vs Ring (${ringSize} atoms)`
+        );
+      }
+      
+      if (chainLength > ringSize) {
+        if (process.env.VERBOSE) {
+          console.log(
+            `[ring-selection-complete conditions] Chain > Ring: deferring to chain selection`
+          );
+        }
         return false;
       }
     }

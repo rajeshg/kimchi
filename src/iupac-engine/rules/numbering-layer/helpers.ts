@@ -1080,6 +1080,82 @@ export function compareLocantSets(a: number[], b: number[]): number {
   return a.length - b.length;
 }
 
+function detectAndNumberTriazine(
+  ring: RingSystem,
+  heteroatomIndices: number[],
+): { atoms: Atom[]; start: number } | null {
+  if (ring.atoms.length !== 6 || heteroatomIndices.length !== 3) {
+    return null;
+  }
+
+  const nCount = ring.atoms.filter((a) => a.symbol === "N").length;
+  const cCount = ring.atoms.filter((a) => a.symbol === "C").length;
+  
+  if (nCount !== 3 || cCount !== 3) {
+    return null;
+  }
+
+  // Triazine has 3 nitrogens and 3 carbons in a 6-membered ring
+  // We need to determine if it's 1,2,4-triazine based on connectivity
+  // In 1,2,4-triazine: positions 1,2,4 are N; positions 3,5,6 are C
+  // Pattern: N-N-C-N-C-C
+
+  // Try all starting positions and both directions to find the 1,2,4-triazine pattern
+  for (let startIdx = 0; startIdx < ring.atoms.length; startIdx++) {
+    // Try clockwise
+    const cwAtoms = [
+      ...ring.atoms.slice(startIdx),
+      ...ring.atoms.slice(0, startIdx),
+    ] as Atom[];
+    
+    if (
+      cwAtoms[0]?.symbol === "N" &&
+      cwAtoms[1]?.symbol === "N" &&
+      cwAtoms[2]?.symbol === "C" &&
+      cwAtoms[3]?.symbol === "N" &&
+      cwAtoms[4]?.symbol === "C" &&
+      cwAtoms[5]?.symbol === "C"
+    ) {
+      if (process.env.VERBOSE) {
+        console.log(
+          `[detectAndNumberTriazine] Found 1,2,4-triazine pattern (CW) starting at index ${startIdx}`,
+        );
+        console.log(
+          `[detectAndNumberTriazine] Reordered atoms: [${cwAtoms.map((a) => `${a.id}:${a.symbol}`).join(", ")}]`,
+        );
+      }
+      return { atoms: cwAtoms, start: 1 };
+    }
+
+    // Try counterclockwise
+    const atom = ring.atoms[startIdx]!;
+    const before = ring.atoms.slice(0, startIdx).reverse() as Atom[];
+    const after = ring.atoms.slice(startIdx + 1).reverse() as Atom[];
+    const ccwAtoms = [atom, ...after, ...before] as Atom[];
+    
+    if (
+      ccwAtoms[0]?.symbol === "N" &&
+      ccwAtoms[1]?.symbol === "N" &&
+      ccwAtoms[2]?.symbol === "C" &&
+      ccwAtoms[3]?.symbol === "N" &&
+      ccwAtoms[4]?.symbol === "C" &&
+      ccwAtoms[5]?.symbol === "C"
+    ) {
+      if (process.env.VERBOSE) {
+        console.log(
+          `[detectAndNumberTriazine] Found 1,2,4-triazine pattern (CCW) starting at index ${startIdx}`,
+        );
+        console.log(
+          `[detectAndNumberTriazine] Reordered atoms: [${ccwAtoms.map((a) => `${a.id}:${a.symbol}`).join(", ")}]`,
+        );
+      }
+      return { atoms: ccwAtoms, start: 1 };
+    }
+  }
+
+  return null;
+}
+
 export function findRingStartingPosition(
   ring: RingSystem,
   molecule?: Molecule,
@@ -1094,8 +1170,28 @@ export function findRingStartingPosition(
     }
   }
 
-  // If multiple heteroatoms, find arrangement that gives lowest heteroatom locants
+  // If multiple heteroatoms, first check for named heterocycles with canonical numbering
   if (heteroatomIndices.length > 1 && molecule) {
+    // Special case: Triazines have fixed numbering (1,2,4-triazine, etc.)
+    const triazineArrangement = detectAndNumberTriazine(ring, heteroatomIndices);
+    if (triazineArrangement) {
+      const oldAtoms = ring.atoms.map((a: Atom) => a.id);
+      ring.atoms = triazineArrangement.atoms;
+      if (process.env.VERBOSE) {
+        console.log(
+          `[findRingStartingPosition] BEFORE triazine numbering: ring.atoms = [${oldAtoms.join(", ")}]`,
+        );
+        console.log(
+          `[findRingStartingPosition] AFTER triazine numbering: ring.atoms = [${ring.atoms.map((a: Atom) => a.id).join(", ")}]`,
+        );
+        console.log(
+          `[Ring Numbering] Applied canonical 1,2,4-triazine numbering: [${ring.atoms.map((a: Atom) => `${a.id}:${a.symbol}`).join(", ")}]`,
+        );
+      }
+      return triazineArrangement.start;
+    }
+
+    // General case: find arrangement that gives lowest heteroatom locants
     let bestArrangement: { atoms: Atom[]; start: number } | null = null;
     let bestHeteroatomLocants: number[] = [];
 

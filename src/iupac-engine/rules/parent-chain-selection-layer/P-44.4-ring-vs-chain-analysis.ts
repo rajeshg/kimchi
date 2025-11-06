@@ -46,11 +46,40 @@ export const P44_4_RING_VS_CHAIN_IN_CHAIN_ANALYSIS_RULE: IUPACRule = {
   action: (context: ImmutableNamingContext) => {
     const state = context.getState() as ContextState;
     const candidateRings = state.candidateRings;
+    const candidateChains = state.candidateChains;
+    
     if (!candidateRings || candidateRings.length === 0) return context;
-    // Choose the first (already filtered) ring candidate as parent
+    if (!candidateChains || candidateChains.length === 0) return context;
+    
+    // Get the largest ring size (number of atoms in ring)
     const ring = candidateRings[0]!;
+    const ringSize = ring.size || (ring.atoms ? ring.atoms.length : 0);
+    
+    // Get the longest chain length
+    const longestChain = candidateChains[0]!;
+    const chainLength = longestChain.atoms ? longestChain.atoms.length : 0;
+    
+    // P-44.4 criterion: Compare lengths first
+    // Prefer the larger structure (more atoms)
+    // If ring has fewer atoms than the longest acyclic chain, prefer the chain
+    if (chainLength > ringSize) {
+      if (process.env.VERBOSE) {
+        console.log(
+          `[P-44.4] Chain (${chainLength} atoms) > Ring (${ringSize} atoms): selecting chain as parent`
+        );
+      }
+      // Don't select ring - let chain selection rules handle it
+      return context;
+    }
+    
+    // Ring is equal or larger: prefer ring per P-44.4
+    if (process.env.VERBOSE) {
+      console.log(
+        `[P-44.4] Ring (${ringSize} atoms) >= Chain (${chainLength} atoms): selecting ring as parent`
+      );
+    }
+    
     // Generate a simple ring name (aromatic vs aliphatic)
-    const size = ring.size || (ring.atoms ? ring.atoms.length : 0);
     const type =
       ring.type ||
       (ring.atoms && ring.atoms.some((a) => a.aromatic)
@@ -63,7 +92,7 @@ export const P44_4_RING_VS_CHAIN_IN_CHAIN_ANALYSIS_RULE: IUPACRule = {
         5: "cyclopentadiene",
         7: "cycloheptatriene",
       };
-      name = aromaticNames[size] || `aromatic-${size}-membered`;
+      name = aromaticNames[ringSize] || `aromatic-${ringSize}-membered`;
     } else {
       const ringNames: { [key: number]: string } = {
         3: "cyclopropane",
@@ -73,7 +102,7 @@ export const P44_4_RING_VS_CHAIN_IN_CHAIN_ANALYSIS_RULE: IUPACRule = {
         7: "cycloheptane",
         8: "cyclooctane",
       };
-      name = ringNames[size] || `cyclo${size}ane`;
+      name = ringNames[ringSize] || `cyclo${ringSize}ane`;
     }
     const locants =
       ring && ring.atoms ? ring.atoms.map((_, idx: number) => idx + 1) : [];
@@ -105,7 +134,7 @@ export const P44_4_RING_VS_CHAIN_IN_CHAIN_ANALYSIS_RULE: IUPACRule = {
       "Ring vs Chain Selection (chain-analysis)",
       BLUE_BOOK_RULES.P44_4,
       ExecutionPhase.PARENT_STRUCTURE,
-      "Selected ring system as parent structure over chain (chain-analysis placement)",
+      `Selected ring (${ringSize} atoms) as parent over chain (${chainLength} atoms)`,
     );
   },
 };

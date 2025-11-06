@@ -2582,6 +2582,7 @@ function isFunctionalClassPreferred(
     "thioester",
     "thiocyanate",
     "amide",
+    "borane",
   ];
 
   return functionalClassPreferred.includes(principalGroup.type);

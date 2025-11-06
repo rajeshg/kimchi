@@ -379,6 +379,12 @@ export class OPSINFunctionalGroupDetector {
         finder: this.findPhosphanylPattern.bind(this),
       },
       {
+        pattern: "B",
+        name: "borane",
+        priority: 11.95,
+        finder: this.findBoranePattern.bind(this),
+      },
+      {
         pattern: "ROR",
         name: "ether",
         priority: 12,
@@ -421,6 +427,7 @@ export class OPSINFunctionalGroupDetector {
               "S(=O)": "sulfinyl",
               "P(=O)": "phosphoryl",
               P: "phosphanyl",
+              B: "borane",
             };
             const defaultPrefixes: Record<string, string> = {
               "[OX2H]": "hydroxy",
@@ -434,6 +441,7 @@ export class OPSINFunctionalGroupDetector {
               "S(=O)": "sulfinyl",
               "P(=O)": "phosphoryl",
               P: "phosphanyl",
+              B: "boryl",
             };
             this.functionalGroups.set(check.pattern, {
               name: check.name,
@@ -489,6 +497,28 @@ export class OPSINFunctionalGroupDetector {
           } else if (check.pattern === "C(=O)S" && atomsMatched.length > 3) {
             // Special case: For thioesters, create one functional group per C=O-S triple
             // atomsMatched contains triples: [C1, O_carbonyl1, S1, C2, O_carbonyl2, S2, ...]
+            for (let i = 0; i < atomsMatched.length; i += 3) {
+              detectedGroups.push({
+                type: check.pattern,
+                name: fgEntry?.name || check.name,
+                suffix: fgEntry?.suffix || "",
+                prefix: fgEntry?.prefix || undefined,
+                priority: fgEntry?.priority || check.priority,
+                atoms: [
+                  atomsMatched[i]!,
+                  atomsMatched[i + 1]!,
+                  atomsMatched[i + 2]!,
+                ],
+                pattern: check.pattern,
+              });
+              // Claim these atoms
+              claimedAtoms.add(atomsMatched[i]!);
+              claimedAtoms.add(atomsMatched[i + 1]!);
+              claimedAtoms.add(atomsMatched[i + 2]!);
+            }
+          } else if (check.pattern === "C(=O)N" && atomsMatched.length > 3) {
+            // Special case: For amides, create one functional group per C=O-N triple
+            // atomsMatched contains triples: [C1, O_carbonyl1, N1, C2, O_carbonyl2, N2, ...]
             for (let i = 0; i < atomsMatched.length; i += 3) {
               detectedGroups.push({
                 type: check.pattern,
@@ -1198,7 +1228,9 @@ export class OPSINFunctionalGroupDetector {
     bonds: readonly Bond[],
     rings?: readonly (readonly number[])[],
   ): number[] {
-    // Look for carbonyl carbon (C=O) bonded to nitrogen
+    const allAmides: number[] = [];
+    
+    // Look for all carbonyl carbons (C=O) bonded to nitrogen
     for (let i = 0; i < atoms.length; i++) {
       const atom = atoms[i];
       if (!atom || atom.symbol !== "C") continue;
@@ -1252,10 +1284,11 @@ export class OPSINFunctionalGroupDetector {
           }
         }
 
-        return [atom.id, oxygen.id, nitrogen.id];
+        // Add this amide as a triple: [C, O, N]
+        allAmides.push(atom.id, oxygen.id, nitrogen.id);
       }
     }
-    return [];
+    return allAmides;
   }
 
   private isHeterocycleWithCarbonyl(
@@ -1460,6 +1493,44 @@ export class OPSINFunctionalGroupDetector {
     }
 
     return phosphanylAtoms;
+  }
+
+  private findBoranePattern(
+    atoms: readonly Atom[],
+    bonds: readonly Bond[],
+  ): number[] {
+    // Look for boron atoms with only C/H neighbors (trialkylborane, dialkylborane, etc.)
+    // Borane functional class nomenclature: R₃B → trialkylborane
+    const boraneAtoms: number[] = [];
+
+    for (let i = 0; i < atoms.length; i++) {
+      const atom = atoms[i];
+      if (!atom || atom.symbol !== "B") continue;
+
+      // Exclude if it's in a ring (heterocyclic boron)
+      if (atom.isInRing) {
+        continue;
+      }
+
+      // Get all neighbors of boron
+      const bBonds = bonds.filter(
+        (b) => b.atom1 === atom.id || b.atom2 === atom.id,
+      );
+      const neighbors = bBonds
+        .map((b) => this.getBondedAtom(b, atom.id, atoms))
+        .filter((a): a is Atom => a !== undefined);
+
+      // Borane should have only C or H neighbors (no heteroatoms like O, N, etc.)
+      const allCarbonOrHydrogen = neighbors.every(
+        (a) => a.symbol === "C" || a.symbol === "H",
+      );
+
+      if (allCarbonOrHydrogen && neighbors.length > 0) {
+        boraneAtoms.push(atom.id);
+      }
+    }
+
+    return boraneAtoms;
   }
 
   private findAldehydePattern(

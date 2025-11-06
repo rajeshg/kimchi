@@ -700,6 +700,8 @@ function findAllAtomChains(
     }
   }
 
+  // Use iterative deepening to find the true maximum chain length.
+  // Start with DFS estimate as lower bound, then try increasingly longer chains.
   const longest = ((): number[] => {
     let longestPath: number[] = [];
     const dfs = (node: number, visited: Set<number>, path: number[]): void => {
@@ -722,53 +724,72 @@ function findAllAtomChains(
     return longestPath;
   })();
 
-  const targetLength = longest.length;
-  if (targetLength < 1) return [];
+  let minLength = longest.length;
+  if (minLength < 1) return [];
 
   // Special case: single atom (no bonds)
-  if (targetLength === 1) {
+  if (minLength === 1) {
     return atomIndices.map((idx) => [idx]);
   }
 
-  const found: number[][] = [];
-  const seen = new Set<string>();
+  // Iterative deepening: try lengths minLength, minLength+1, minLength+2, ...
+  // until no chains are found at target length.
+  let maxConfirmedLength = minLength;
+  let allChainsAtMaxLength: number[][] = [];
 
-  function dfsLimited(
-    current: number,
-    visited: Set<number>,
-    path: number[],
-  ): void {
-    if (path.length === targetLength) {
-      const forward = path.join(",");
-      const reversed = [...path].slice().reverse().join(",");
-      const key = forward < reversed ? forward : reversed;
-      if (!seen.has(key)) {
-        seen.add(key);
-        const canonical =
-          forward < reversed ? [...path] : [...path].slice().reverse();
-        found.push(canonical);
+  for (
+    let targetLength = minLength;
+    targetLength <= atomIndices.length;
+    targetLength++
+  ) {
+    const found: number[][] = [];
+    const seen = new Set<string>();
+
+    function dfsLimited(
+      current: number,
+      visited: Set<number>,
+      path: number[],
+    ): void {
+      if (path.length === targetLength) {
+        const forward = path.join(",");
+        const reversed = [...path].slice().reverse().join(",");
+        const key = forward < reversed ? forward : reversed;
+        if (!seen.has(key)) {
+          seen.add(key);
+          const canonical =
+            forward < reversed ? [...path] : [...path].slice().reverse();
+          found.push(canonical);
+        }
+        return;
       }
-      return;
+
+      const neighbors = adjList.get(current) ?? [];
+      for (const neighbor of neighbors) {
+        if (!visited.has(neighbor)) {
+          visited.add(neighbor);
+          path.push(neighbor);
+          dfsLimited(neighbor, visited, path);
+          path.pop();
+          visited.delete(neighbor);
+        }
+      }
     }
 
-    const neighbors = adjList.get(current) ?? [];
-    for (const neighbor of neighbors) {
-      if (!visited.has(neighbor)) {
-        visited.add(neighbor);
-        path.push(neighbor);
-        dfsLimited(neighbor, visited, path);
-        path.pop();
-        visited.delete(neighbor);
-      }
+    for (const startAtom of atomIndices) {
+      const visited = new Set<number>([startAtom]);
+      dfsLimited(startAtom, visited, [startAtom]);
+    }
+
+    if (found.length > 0) {
+      maxConfirmedLength = targetLength;
+      allChainsAtMaxLength = found;
+    } else {
+      // No chains found at this length, stop searching
+      break;
     }
   }
 
-  for (const startAtom of atomIndices) {
-    const visited = new Set<number>([startAtom]);
-    dfsLimited(startAtom, visited, [startAtom]);
-  }
-
-  return found.filter((chain) => chain.length >= 2);
+  return allChainsAtMaxLength.filter((chain) => chain.length >= 2);
 }
 
 // Return small integer priority for principal functional group found on chain
@@ -1261,10 +1282,8 @@ function findAllCarbonChains(
     }
   }
 
-  // Instead of enumerating every simple path (which explodes combinatorially),
-  // first determine the maximum chain length and only search for chains of that length.
-  // We compute this using the adjacency list we just built (which respects excludedAtomIds)
-  // rather than calling findLongestCarbonChain which would include excluded atoms.
+  // Use iterative deepening to find the true maximum chain length.
+  // Start with DFS estimate as lower bound, then try increasingly longer chains.
   let longestPath: number[] = [];
   const dfsFindLongest = (
     node: number,
@@ -1287,57 +1306,72 @@ function findAllCarbonChains(
     const visited = new Set<number>([startAtom]);
     dfsFindLongest(startAtom, visited, [startAtom]);
   }
-  const targetLength = longestPath.length;
-  if (targetLength < 1) return [];
+  let minLength = longestPath.length;
+  if (minLength < 1) return [];
 
   // Special case: single atom (no bonds)
-  if (targetLength === 1) {
+  if (minLength === 1) {
     return carbonIndices.map((idx) => [idx]);
   }
 
-  const found: number[][] = [];
-  const seen = new Set<string>();
+  // Iterative deepening: try lengths minLength, minLength+1, minLength+2, ...
+  // until no chains are found at target length.
+  let maxConfirmedLength = minLength;
+  let allChainsAtMaxLength: number[][] = [];
 
-  function dfsLimited(
-    current: number,
-    visited: Set<number>,
-    path: number[],
-  ): void {
-    if (path.length === targetLength) {
-      // de-duplicate chains by canonical orientation (path vs reversed)
-      const forward = path.join(",");
-      const reversed = [...path].slice().reverse().join(",");
-      const key = forward < reversed ? forward : reversed;
-      if (!seen.has(key)) {
-        seen.add(key);
-        // store the chain in its canonical orientation (lexicographically smaller)
-        const canonical =
-          forward < reversed ? [...path] : [...path].slice().reverse();
-        found.push(canonical);
+  for (
+    let targetLength = minLength;
+    targetLength <= carbonIndices.length;
+    targetLength++
+  ) {
+    const found: number[][] = [];
+    const seen = new Set<string>();
+
+    function dfsLimited(
+      current: number,
+      visited: Set<number>,
+      path: number[],
+    ): void {
+      if (path.length === targetLength) {
+        const forward = path.join(",");
+        const reversed = [...path].slice().reverse().join(",");
+        const key = forward < reversed ? forward : reversed;
+        if (!seen.has(key)) {
+          seen.add(key);
+          const canonical =
+            forward < reversed ? [...path] : [...path].slice().reverse();
+          found.push(canonical);
+        }
+        return;
       }
-      return;
+
+      const neighbors = adjList.get(current) ?? [];
+      for (const neighbor of neighbors) {
+        if (!visited.has(neighbor)) {
+          visited.add(neighbor);
+          path.push(neighbor);
+          dfsLimited(neighbor, visited, path);
+          path.pop();
+          visited.delete(neighbor);
+        }
+      }
     }
 
-    const neighbors = adjList.get(current) ?? [];
-    for (const neighbor of neighbors) {
-      if (!visited.has(neighbor)) {
-        visited.add(neighbor);
-        path.push(neighbor);
-        dfsLimited(neighbor, visited, path);
-        path.pop();
-        visited.delete(neighbor);
-      }
+    for (const startAtom of carbonIndices) {
+      const visited = new Set<number>([startAtom]);
+      dfsLimited(startAtom, visited, [startAtom]);
+    }
+
+    if (found.length > 0) {
+      maxConfirmedLength = targetLength;
+      allChainsAtMaxLength = found;
+    } else {
+      // No chains found at this length, stop searching
+      break;
     }
   }
 
-  for (const startAtom of carbonIndices) {
-    const visited = new Set<number>([startAtom]);
-    dfsLimited(startAtom, visited, [startAtom]);
-  }
-
-  // All paths produced by dfsLimited are valid by construction (adjacent atoms),
-  // but ensure ordering is kept and only return unique ordered chains.
-  return found.filter((chain) => chain.length >= 2);
+  return allChainsAtMaxLength.filter((chain) => chain.length >= 2);
 }
 
 /**

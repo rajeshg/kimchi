@@ -16,7 +16,11 @@ import {
   nameAlkylSulfanylSubstituent,
   namePhosphorylSubstituent,
   namePhosphanylSubstituent,
+  findSubstituents,
+  classifySubstituent,
+  generateSubstitutedName,
 } from "../naming/iupac-chains";
+import { getGreekNumeral } from "../naming/iupac-helpers";
 
 /**
  * Extended ParentStructure type with assembly-phase properties
@@ -869,7 +873,8 @@ function buildFunctionalClassName(
     (group) =>
       group.type === "ester" ||
       group.type === "amide" ||
-      group.type === "thiocyanate",
+      group.type === "thiocyanate" ||
+      group.type === "borane",
   );
 
   if (process.env.VERBOSE) {
@@ -915,6 +920,8 @@ function buildFunctionalClassName(
       );
     case "thiocyanate":
       return buildThiocyanateName(parentStructure, functionalGroups);
+    case "borane":
+      return buildBoraneName(parentStructure, functionalGroups, molecule);
     default:
       return buildSubstitutiveName(parentStructure, functionalGroups, molecule);
   }
@@ -1307,6 +1314,837 @@ function buildAlkylGroupName(
   }
 
   return name;
+}
+
+function buildBoraneName(
+  parentStructure: ParentStructureExtended,
+  functionalGroups: FunctionalGroup[],
+  molecule: Molecule,
+): string {
+  // Borane functional class nomenclature: [alkyl1]-[alkyl2]-[alkyl3]borane
+  // Example: B(CC)(CC)C(=C(CC)COC)CC → diethyl-[4-(methoxymethyl)hex-3-en-3-yl]borane
+
+  if (process.env.VERBOSE) {
+    console.log(
+      "[buildBoraneName] parentStructure:",
+      JSON.stringify(parentStructure, null, 2),
+    );
+    console.log(
+      "[buildBoraneName] functionalGroups:",
+      functionalGroups.map((g: FunctionalGroup) => ({
+        type: g.type,
+        atoms: g.atoms?.map((a) => (typeof a === "object" ? a.id : a)),
+      })),
+    );
+  }
+
+  // Find the borane functional group (boron atom)
+  const boraneGroup = functionalGroups.find((g) => g.type === "borane");
+  if (!boraneGroup || !boraneGroup.atoms || boraneGroup.atoms.length === 0) {
+    if (process.env.VERBOSE) {
+      console.log("[buildBoraneName] No borane group found, using substitutive");
+    }
+    return buildSubstitutiveName(parentStructure, functionalGroups, molecule);
+  }
+
+  const firstAtom = boraneGroup.atoms[0];
+  if (!firstAtom) {
+    if (process.env.VERBOSE) {
+      console.log("[buildBoraneName] No boron atom in group, using substitutive");
+    }
+    return buildSubstitutiveName(parentStructure, functionalGroups, molecule);
+  }
+
+  const boronAtom =
+    typeof firstAtom === "object"
+      ? firstAtom
+      : molecule.atoms[firstAtom];
+  if (!boronAtom) {
+    if (process.env.VERBOSE) {
+      console.log("[buildBoraneName] No boron atom found, using substitutive");
+    }
+    return buildSubstitutiveName(parentStructure, functionalGroups, molecule);
+  }
+
+  const boronIdx = molecule.atoms.indexOf(boronAtom);
+
+  if (process.env.VERBOSE) {
+    console.log("[buildBoraneName] boronIdx:", boronIdx);
+  }
+
+  // Find all bonds to boron (should be 3 for BR₃)
+  const bondsToBoron = molecule.bonds.filter(
+    (bond) => bond.atom1 === boronIdx || bond.atom2 === boronIdx,
+  );
+
+  if (process.env.VERBOSE) {
+    console.log(
+      "[buildBoraneName] bondsToBoron:",
+      bondsToBoron.map((b) => `${b.atom1}-${b.atom2}`),
+    );
+  }
+
+  // For each bond, trace the substituent and name it as an alkyl group
+  const substituentNames: string[] = [];
+
+  for (const bond of bondsToBoron) {
+    const substituentAtomIdx = bond.atom1 === boronIdx ? bond.atom2 : bond.atom1;
+    const substituentAtom = molecule.atoms[substituentAtomIdx];
+
+    if (!substituentAtom) continue;
+
+    if (process.env.VERBOSE) {
+      console.log(
+        `[buildBoraneName] Tracing substituent from atom ${substituentAtomIdx} (${substituentAtom.symbol})`,
+      );
+    }
+
+    // Collect all atoms in this substituent (excluding boron)
+    const substituentAtoms = new Set<number>();
+    const visited = new Set<number>([boronIdx]);
+    const stack = [substituentAtomIdx];
+
+    while (stack.length > 0) {
+      const current = stack.pop()!;
+      if (visited.has(current)) continue;
+      visited.add(current);
+      substituentAtoms.add(current);
+
+      // Add neighbors (excluding boron)
+      for (const b of molecule.bonds) {
+        const next = b.atom1 === current ? b.atom2 : b.atom2 === current ? b.atom1 : -1;
+        if (next !== -1 && !visited.has(next)) {
+          stack.push(next);
+        }
+      }
+    }
+
+    if (process.env.VERBOSE) {
+      console.log(
+        `[buildBoraneName] Substituent ${substituentAtomIdx}: ${Array.from(substituentAtoms).join(",")}`,
+      );
+    }
+
+    // Name this substituent as an alkyl group
+    const alkylName = nameBoranylSubstituent(
+      molecule,
+      substituentAtoms,
+      substituentAtomIdx,
+    );
+
+    if (process.env.VERBOSE) {
+      console.log(
+        `[buildBoraneName] Named substituent ${substituentAtomIdx} as: ${alkylName}`,
+      );
+    }
+
+    substituentNames.push(alkylName);
+  }
+
+  if (process.env.VERBOSE) {
+    console.log("[buildBoraneName] substituentNames:", substituentNames);
+  }
+
+  // Group identical substituents and add multiplicity prefixes
+  const substituentGroups = new Map<string, number>();
+  for (const name of substituentNames) {
+    substituentGroups.set(name, (substituentGroups.get(name) || 0) + 1);
+  }
+
+  if (process.env.VERBOSE) {
+    console.log(
+      "[buildBoraneName] substituentGroups:",
+      Array.from(substituentGroups.entries()),
+    );
+  }
+
+  // Sort substituent groups alphabetically
+  const sortedGroups = Array.from(substituentGroups.entries()).sort((a, b) =>
+    a[0].localeCompare(b[0]),
+  );
+
+  // Build the name
+  const substituentParts: string[] = [];
+  for (const [name, count] of sortedGroups) {
+    if (count > 1) {
+      const prefix = getMultiplicativePrefix(count, name.includes("-"));
+      substituentParts.push(`${prefix}${name}`);
+    } else {
+      substituentParts.push(name);
+    }
+  }
+
+  const finalName = substituentParts.join("-") + "borane";
+
+  if (process.env.VERBOSE) {
+    console.log("[buildBoraneName] finalName:", finalName);
+  }
+
+  return finalName;
+}
+
+/**
+ * Helper function to name substituents on boron atoms for borane functional class nomenclature
+ * Handles sophisticated compounds with proper IUPAC naming
+ */
+function nameBoranylSubstituent(
+  molecule: Molecule,
+  substituentAtoms: Set<number>,
+  rootAtomIdx: number,
+): string {
+  if (process.env.VERBOSE) {
+    console.log(
+      `[nameBoranylSubstituent] rootAtom=${rootAtomIdx}, substituentAtoms=${Array.from(substituentAtoms).join(",")}`,
+    );
+  }
+
+  // Get carbon count
+  const carbonAtoms = Array.from(substituentAtoms).filter(
+    (idx) => molecule.atoms[idx]?.symbol === "C",
+  );
+
+  if (carbonAtoms.length === 0) {
+    return ""; // No carbons
+  }
+
+  // Check if this is a simple saturated alkyl group (no heteroatoms, no multiple bonds)
+  const hasHeteroatoms = Array.from(substituentAtoms).some(
+    (idx) => {
+      const sym = molecule.atoms[idx]?.symbol;
+      return sym !== "C" && sym !== "H";
+    },
+  );
+
+  const hasMultipleBonds = molecule.bonds
+    .filter((b) => substituentAtoms.has(b.atom1) && substituentAtoms.has(b.atom2))
+    .some((b) => b.type !== "single");
+
+  const hasBranching = carbonAtoms.some((atomIdx) => {
+    const carbonNeighbors = molecule.bonds.filter(
+      (b) =>
+        ((b.atom1 === atomIdx && substituentAtoms.has(b.atom2)) ||
+          (b.atom2 === atomIdx && substituentAtoms.has(b.atom1))) &&
+        (molecule.atoms[b.atom1]?.symbol === "C" ||
+          molecule.atoms[b.atom2]?.symbol === "C"),
+    );
+    return carbonNeighbors.length > 2;
+  });
+
+  // Simple linear alkyl group
+  if (!hasHeteroatoms && !hasMultipleBonds && !hasBranching) {
+    const alkylNames: Record<number, string> = {
+      1: "methyl",
+      2: "ethyl",
+      3: "propyl",
+      4: "butyl",
+      5: "pentyl",
+      6: "hexyl",
+      7: "heptyl",
+      8: "octyl",
+    };
+
+    const name = alkylNames[carbonAtoms.length];
+    if (name) {
+      if (process.env.VERBOSE) {
+        console.log(`[nameBoranylSubstituent] Simple alkyl: ${name}`);
+      }
+      return name;
+    }
+  }
+
+  // Complex substituent - apply full IUPAC naming
+  const substituentName = nameComplexBoranylSubstituent(
+    molecule,
+    substituentAtoms,
+    rootAtomIdx,
+  );
+
+  if (process.env.VERBOSE) {
+    console.log(`[nameBoranylSubstituent] Complex name: ${substituentName}`);
+  }
+
+  return substituentName;
+}
+
+/**
+ * Name a complex substituent attached to boron using full IUPAC nomenclature
+ * Returns names like "[4-(methoxymethyl)hex-3-en-3-yl]" or "[2-methylpropyl]"
+ */
+function nameComplexBoranylSubstituent(
+  molecule: Molecule,
+  substituentAtoms: Set<number>,
+  rootAtomIdx: number,
+): string {
+  // Find the longest carbon chain from the root
+  const chain = findLongestCarbonChainFromRoot(
+    molecule,
+    rootAtomIdx,
+    substituentAtoms,
+  );
+
+  if (chain.length === 0) {
+    return "yl";
+  }
+
+  if (process.env.VERBOSE) {
+    console.log(
+      `[nameComplexBoranylSubstituent] Chain from root ${rootAtomIdx}: ${chain.join(",")}`,
+    );
+  }
+
+  // Build chain set for substituent detection
+  const chainSet = new Set(chain);
+
+  // Detect double/triple bonds along the chain
+  const multipleBonds: Array<{ position: number; type: "double" | "triple" }> =
+    [];
+
+  for (let i = 0; i < chain.length - 1; i++) {
+    const atom1 = chain[i]!;
+    const atom2 = chain[i + 1]!;
+    const bond = molecule.bonds.find(
+      (b) =>
+        (b.atom1 === atom1 && b.atom2 === atom2) ||
+        (b.atom1 === atom2 && b.atom2 === atom1),
+    );
+
+    if (bond?.type === "double") {
+      multipleBonds.push({ position: i + 1, type: "double" });
+    } else if (bond?.type === "triple") {
+      multipleBonds.push({ position: i + 1, type: "triple" });
+    }
+  }
+
+  // Find all substituents on the chain
+  const substituents = findSubstituentsOnChain(
+    molecule,
+    chain,
+    substituentAtoms,
+  );
+
+  if (process.env.VERBOSE) {
+    console.log(
+      `[nameComplexBoranylSubstituent] Found ${substituents.length} substituents:`,
+      substituents,
+    );
+  }
+
+  // Build the base name
+  const chainLength = chain.length;
+  const baseNames: Record<number, string> = {
+    1: "meth",
+    2: "eth",
+    3: "prop",
+    4: "but",
+    5: "pent",
+    6: "hex",
+    7: "hept",
+    8: "oct",
+    9: "non",
+    10: "dec",
+  };
+
+  let baseName = baseNames[chainLength] || `C${chainLength}`;
+
+  // Build the full name with unsaturation and substituents
+  let nameParts: string[] = [];
+
+  // Add substituents (sorted and grouped)
+  if (substituents.length > 0) {
+    const grouped = groupSubstituents(substituents);
+    nameParts.push(formatSubstituentGroups(grouped));
+  }
+
+  // Add base name with unsaturation
+  if (multipleBonds.length > 0) {
+    const doubleBonds = multipleBonds.filter((b) => b.type === "double");
+    const tripleBonds = multipleBonds.filter((b) => b.type === "triple");
+
+    let unsatPart = baseName;
+
+    if (doubleBonds.length > 0) {
+      const positions = doubleBonds.map((b) => b.position).join(",");
+      const multiplier =
+        doubleBonds.length === 1
+          ? ""
+          : doubleBonds.length === 2
+            ? "di"
+            : doubleBonds.length === 3
+              ? "tri"
+              : getGreekNumeral(doubleBonds.length);
+      unsatPart = `${baseName}-${positions}-${multiplier}en`;
+    }
+
+    if (tripleBonds.length > 0) {
+      const positions = tripleBonds.map((b) => b.position).join(",");
+      const multiplier =
+        tripleBonds.length === 1
+          ? ""
+          : tripleBonds.length === 2
+            ? "di"
+            : tripleBonds.length === 3
+              ? "tri"
+              : getGreekNumeral(tripleBonds.length);
+      unsatPart = `${unsatPart}-${positions}-${multiplier}yn`;
+    }
+
+    nameParts.push(unsatPart);
+  } else {
+    nameParts.push(baseName);
+  }
+
+  // Add "yl" suffix (attachment point is always position 1)
+  const fullName = nameParts.join("") + "-1-yl";
+
+  // Wrap in brackets for complex substituents
+  if (substituents.length > 0 || multipleBonds.length > 0) {
+    return `[${fullName}]`;
+  }
+
+  return fullName;
+}
+
+/**
+ * Find the longest carbon chain starting from a specific root atom within a set of atoms
+ */
+function findLongestCarbonChainFromRoot(
+  molecule: Molecule,
+  rootIdx: number,
+  allowedAtoms: Set<number>,
+): number[] {
+  // First, use DFS to get an initial estimate of the longest chain length
+  let estimatedMaxLength = 0;
+
+  function estimateDfs(
+    currentIdx: number,
+    currentChain: number[],
+    visited: Set<number>,
+  ): void {
+    const currentAtom = molecule.atoms[currentIdx];
+    if (!currentAtom || currentAtom.symbol !== "C") return;
+    if (!allowedAtoms.has(currentIdx)) return;
+
+    visited.add(currentIdx);
+    currentChain.push(currentIdx);
+
+    if (currentChain.length > estimatedMaxLength) {
+      estimatedMaxLength = currentChain.length;
+    }
+
+    // Try extending to carbon neighbors
+    for (const bond of molecule.bonds) {
+      let nextIdx = -1;
+      if (bond.atom1 === currentIdx) nextIdx = bond.atom2;
+      else if (bond.atom2 === currentIdx) nextIdx = bond.atom1;
+
+      if (
+        nextIdx !== -1 &&
+        !visited.has(nextIdx) &&
+        allowedAtoms.has(nextIdx)
+      ) {
+        const nextAtom = molecule.atoms[nextIdx];
+        if (nextAtom?.symbol === "C") {
+          estimateDfs(nextIdx, currentChain, visited);
+        }
+      }
+    }
+
+    currentChain.pop();
+    visited.delete(currentIdx);
+  }
+
+  estimateDfs(rootIdx, [], new Set());
+
+  // Now use iterative deepening to find all chains at maximum length
+  const allChains: number[][] = [];
+
+  function findChainsOfLength(
+    currentIdx: number,
+    currentChain: number[],
+    visited: Set<number>,
+    targetLength: number,
+  ): void {
+    const currentAtom = molecule.atoms[currentIdx];
+    if (!currentAtom || currentAtom.symbol !== "C") return;
+    if (!allowedAtoms.has(currentIdx)) return;
+
+    visited.add(currentIdx);
+    currentChain.push(currentIdx);
+
+    // If we've reached the target length, record this chain
+    if (currentChain.length === targetLength) {
+      allChains.push([...currentChain]);
+    } else if (currentChain.length < targetLength) {
+      // Continue searching
+      for (const bond of molecule.bonds) {
+        let nextIdx = -1;
+        if (bond.atom1 === currentIdx) nextIdx = bond.atom2;
+        else if (bond.atom2 === currentIdx) nextIdx = bond.atom1;
+
+        if (
+          nextIdx !== -1 &&
+          !visited.has(nextIdx) &&
+          allowedAtoms.has(nextIdx)
+        ) {
+          const nextAtom = molecule.atoms[nextIdx];
+          if (nextAtom?.symbol === "C") {
+            findChainsOfLength(nextIdx, currentChain, visited, targetLength);
+          }
+        }
+      }
+    }
+
+    currentChain.pop();
+    visited.delete(currentIdx);
+  }
+
+  // Try to find chains of increasing length starting from the DFS estimate
+  let confirmedMaxLength = estimatedMaxLength;
+  for (
+    let targetLength = estimatedMaxLength;
+    targetLength <= allowedAtoms.size;
+    targetLength++
+  ) {
+    allChains.length = 0; // Clear previous results
+    findChainsOfLength(rootIdx, [], new Set(), targetLength);
+
+    if (allChains.length > 0) {
+      confirmedMaxLength = targetLength;
+    } else {
+      // No chains of this length found, so previous length was maximum
+      break;
+    }
+  }
+
+  // Return the first chain at maximum length (or re-run to get it if needed)
+  if (allChains.length > 0 && allChains[0]!.length === confirmedMaxLength) {
+    return allChains[0]!;
+  }
+
+  // Re-run for confirmed max length to get a chain
+  allChains.length = 0;
+  findChainsOfLength(rootIdx, [], new Set(), confirmedMaxLength);
+  return allChains.length > 0 ? allChains[0]! : [];
+}
+
+/**
+ * Find substituents on a chain (including complex ether substituents)
+ */
+function findSubstituentsOnChain(
+  molecule: Molecule,
+  chain: number[],
+  allowedAtoms: Set<number>,
+): Array<{ position: number; name: string; sortKey: string }> {
+  const substituents: Array<{
+    position: number;
+    name: string;
+    sortKey: string;
+  }> = [];
+  const chainSet = new Set(chain);
+
+  for (let i = 0; i < chain.length; i++) {
+    const chainAtomIdx = chain[i]!;
+    const position = i + 1;
+
+    // Find atoms bonded to this chain atom that aren't part of the chain
+    for (const bond of molecule.bonds) {
+      let substituentStartIdx = -1;
+      if (bond.atom1 === chainAtomIdx && !chainSet.has(bond.atom2)) {
+        substituentStartIdx = bond.atom2;
+      } else if (bond.atom2 === chainAtomIdx && !chainSet.has(bond.atom1)) {
+        substituentStartIdx = bond.atom1;
+      }
+
+      if (substituentStartIdx === -1) continue;
+      if (!allowedAtoms.has(substituentStartIdx)) continue;
+
+      const substituentAtom = molecule.atoms[substituentStartIdx];
+      if (!substituentAtom || substituentAtom.symbol === "H") continue;
+
+      // Name this substituent
+      const subName = nameChainSubstituent(
+        molecule,
+        substituentStartIdx,
+        chainAtomIdx,
+        allowedAtoms,
+      );
+
+      if (subName) {
+        substituents.push({
+          position,
+          name: subName,
+          sortKey: subName.replace(/^\d+-/, ""), // Remove locants for alphabetical sorting
+        });
+      }
+    }
+  }
+
+  return substituents;
+}
+
+/**
+ * Name a substituent attached to a chain carbon
+ * Handles alkyl, alkoxy, and other common substituents
+ */
+function nameChainSubstituent(
+  molecule: Molecule,
+  startIdx: number,
+  chainIdx: number,
+  allowedAtoms: Set<number>,
+): string {
+  const atom = molecule.atoms[startIdx];
+  if (!atom) return "";
+
+  // Handle oxygen (ether substituents: -O-R becomes "Roxy")
+  if (atom.symbol === "O") {
+    // Find what's attached to the oxygen (excluding the chain)
+    let carbonIdx = -1;
+    for (const bond of molecule.bonds) {
+      let nextIdx = -1;
+      if (bond.atom1 === startIdx && bond.atom2 !== chainIdx) {
+        nextIdx = bond.atom2;
+      } else if (bond.atom2 === startIdx && bond.atom1 !== chainIdx) {
+        nextIdx = bond.atom1;
+      }
+
+      if (nextIdx !== -1 && allowedAtoms.has(nextIdx)) {
+        const nextAtom = molecule.atoms[nextIdx];
+        if (nextAtom?.symbol === "C") {
+          carbonIdx = nextIdx;
+          break;
+        }
+      }
+    }
+
+    if (carbonIdx === -1) {
+      return "hydroxy"; // -OH
+    }
+
+    // Collect the alkyl group attached to oxygen
+    const alkoxyAtoms = collectConnectedAtomsInSet(
+      molecule,
+      carbonIdx,
+      startIdx,
+      allowedAtoms,
+    );
+    const carbonCount = alkoxyAtoms.filter(
+      (idx) => molecule.atoms[idx]?.symbol === "C",
+    ).length;
+
+    const alkoxyNames: Record<number, string> = {
+      1: "methoxy",
+      2: "ethoxy",
+      3: "propoxy",
+      4: "butoxy",
+    };
+
+    // Check if it's methoxymethyl specifically (CH2-O-CH3 pattern)
+    if (carbonCount === 1) {
+      // This is the -O-CH3 part, but it's attached to another carbon
+      // Need to check if the chain carbon is a CH2
+      const chainAtom = molecule.atoms[chainIdx];
+      if (chainAtom?.symbol === "C") {
+        // Count other carbons attached to chain carbon (excluding the chain itself)
+        const otherCarbons = molecule.bonds.filter((b) => {
+          const otherIdx =
+            b.atom1 === chainIdx ? b.atom2 : b.atom2 === chainIdx ? b.atom1 : -1;
+          if (otherIdx === -1 || otherIdx === startIdx) return false;
+          const otherAtom = molecule.atoms[otherIdx];
+          return otherAtom?.symbol === "C";
+        });
+
+        // If this oxygen is on a -CH2- group, name it as "methoxymethyl"
+        if (otherCarbons.length >= 1) {
+          return "methoxymethyl";
+        }
+      }
+
+      return alkoxyNames[carbonCount] || "alkoxy";
+    }
+
+    return alkoxyNames[carbonCount] || "alkoxy";
+  }
+
+  // Handle carbon substituents (alkyl groups)
+  if (atom.symbol === "C") {
+    const alkylAtoms = collectConnectedAtomsInSet(
+      molecule,
+      startIdx,
+      chainIdx,
+      allowedAtoms,
+    );
+    const carbonCount = alkylAtoms.filter(
+      (idx) => molecule.atoms[idx]?.symbol === "C",
+    ).length;
+
+    // Check for methoxymethyl pattern: -CH2-O-CH3
+    // This occurs when we have a carbon substituent containing an oxygen
+    const hasOxygen = alkylAtoms.some(
+      (idx) => molecule.atoms[idx]?.symbol === "O",
+    );
+
+    if (hasOxygen && carbonCount === 2) {
+      // Check if this is specifically -CH2-O-CH3
+      // startIdx should be a CH2, and it should be connected to O which connects to CH3
+      let oxygenIdx = -1;
+      for (const bond of molecule.bonds) {
+        let nextIdx = -1;
+        if (bond.atom1 === startIdx && bond.atom2 !== chainIdx) {
+          nextIdx = bond.atom2;
+        } else if (bond.atom2 === startIdx && bond.atom1 !== chainIdx) {
+          nextIdx = bond.atom1;
+        }
+
+        if (nextIdx !== -1 && allowedAtoms.has(nextIdx)) {
+          const nextAtom = molecule.atoms[nextIdx];
+          if (nextAtom?.symbol === "O") {
+            oxygenIdx = nextIdx;
+            break;
+          }
+        }
+      }
+
+      if (oxygenIdx !== -1) {
+        // Found oxygen attached to the starting carbon
+        // Check if the oxygen is connected to another carbon (the methyl group)
+        let terminalCarbonIdx = -1;
+        for (const bond of molecule.bonds) {
+          let nextIdx = -1;
+          if (bond.atom1 === oxygenIdx && bond.atom2 !== startIdx) {
+            nextIdx = bond.atom2;
+          } else if (bond.atom2 === oxygenIdx && bond.atom1 !== startIdx) {
+            nextIdx = bond.atom1;
+          }
+
+          if (nextIdx !== -1 && allowedAtoms.has(nextIdx)) {
+            const nextAtom = molecule.atoms[nextIdx];
+            if (nextAtom?.symbol === "C") {
+              terminalCarbonIdx = nextIdx;
+              break;
+            }
+          }
+        }
+
+        if (terminalCarbonIdx !== -1) {
+          // Confirmed: -CH2-O-CH3 pattern
+          return "methoxymethyl";
+        }
+      }
+    }
+
+    // Check for branching to determine if it's iso-, sec-, tert-, etc.
+    const alkylNames: Record<number, string> = {
+      1: "methyl",
+      2: "ethyl",
+      3: "propyl",
+      4: "butyl",
+      5: "pentyl",
+    };
+
+    return alkylNames[carbonCount] || `C${carbonCount}yl`;
+  }
+
+  // Handle other heteroatoms
+  const heteroNames: Record<string, string> = {
+    F: "fluoro",
+    Cl: "chloro",
+    Br: "bromo",
+    I: "iodo",
+    N: "amino",
+    S: "sulfanyl",
+  };
+
+  return heteroNames[atom.symbol] || atom.symbol.toLowerCase();
+}
+
+/**
+ * Collect all atoms connected to a starting atom within an allowed set
+ */
+function collectConnectedAtomsInSet(
+  molecule: Molecule,
+  startIdx: number,
+  excludeIdx: number,
+  allowedAtoms: Set<number>,
+): number[] {
+  const collected = new Set<number>();
+  const stack = [startIdx];
+
+  while (stack.length > 0) {
+    const current = stack.pop()!;
+    if (collected.has(current) || current === excludeIdx) continue;
+    if (!allowedAtoms.has(current)) continue;
+
+    collected.add(current);
+
+    for (const bond of molecule.bonds) {
+      let next = -1;
+      if (bond.atom1 === current) next = bond.atom2;
+      else if (bond.atom2 === current) next = bond.atom1;
+
+      if (
+        next !== -1 &&
+        next !== excludeIdx &&
+        !collected.has(next) &&
+        allowedAtoms.has(next)
+      ) {
+        stack.push(next);
+      }
+    }
+  }
+
+  return Array.from(collected);
+}
+
+/**
+ * Group identical substituents and count them
+ */
+function groupSubstituents(
+  substituents: Array<{ position: number; name: string; sortKey: string }>,
+): Map<string, number[]> {
+  const groups = new Map<string, number[]>();
+
+  for (const sub of substituents) {
+    const positions = groups.get(sub.name) || [];
+    positions.push(sub.position);
+    groups.set(sub.name, positions);
+  }
+
+  return groups;
+}
+
+/**
+ * Format substituent groups with multiplicative prefixes and locants
+ * Returns strings like "2,4-dimethyl-3-ethyl"
+ */
+function formatSubstituentGroups(
+  groups: Map<string, number[]>,
+): string {
+  // Sort groups alphabetically by substituent name
+  const sortedGroups = Array.from(groups.entries()).sort((a, b) =>
+    a[0].localeCompare(b[0]),
+  );
+
+  const parts: string[] = [];
+
+  for (const [name, positions] of sortedGroups) {
+    const sortedPositions = positions.sort((a, b) => a - b);
+    const locants = sortedPositions.join(",");
+    const count = positions.length;
+
+    let prefix = "";
+    if (count === 2) prefix = "di";
+    else if (count === 3) prefix = "tri";
+    else if (count === 4) prefix = "tetra";
+    else if (count > 4) prefix = getGreekNumeral(count);
+
+    if (count === 1) {
+      parts.push(`${locants}-${name}`);
+    } else {
+      parts.push(`${locants}-${prefix}${name}`);
+    }
+  }
+
+  return parts.join("-");
 }
 
 /**
@@ -2760,9 +3598,18 @@ function buildSubstitutiveName(
       const aName = a.split("-").slice(1).join("-");
       const bName = b.split("-").slice(1).join("-");
 
-      // Strip multiplicative prefixes for comparison: "dichloro" → "chloro"
+      // Strip multiplicative prefixes for comparison: "dichloro" → "chloro", "bis(methyl)" → "(methyl)"
       const stripMultiplicativePrefix = (name: string): string => {
         const prefixes = [
+          "bis",
+          "tris",
+          "tetrakis",
+          "pentakis",
+          "hexakis",
+          "heptakis",
+          "octakis",
+          "nonakis",
+          "decakis",
           "di",
           "tri",
           "tetra",

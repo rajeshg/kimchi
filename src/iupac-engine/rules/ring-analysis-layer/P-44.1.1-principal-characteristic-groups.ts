@@ -324,18 +324,20 @@ export const P44_1_1_PRINCIPAL_CHARACTERISTIC_GROUPS_RULE: IUPACRule = {
     }
 
     // If chains have more principal functional groups than rings, select those chains
-    // UNLESS the rings are heterocyclic (contain N, O, S, etc.) - heterocyclic rings should
-    // take priority as they represent integral structural units
+    // UNLESS the rings are heterocyclic AND also have functional groups
+    // (heterocyclic rings with FGs represent integral structural units like pyridines, furans)
     if (maxChainFGCount > ringFGCount) {
       // Check if any ring is heterocyclic (contains non-carbon atoms)
       const hasHeterocyclicRing = rings.some((ring) =>
         ring.atoms.some((atom) => atom.symbol !== "C" && atom.symbol !== "H"),
       );
 
-      if (hasHeterocyclicRing) {
+      // Only preserve heterocyclic rings if they ALSO have functional groups
+      // If ring has no FGs, chain with FGs should win regardless
+      if (hasHeterocyclicRing && ringFGCount > 0) {
         if (process.env.VERBOSE) {
           console.log(
-            "[P-44.1.1] Rings are heterocyclic - preserving rings despite chain having more FGs",
+            "[P-44.1.1] Rings are heterocyclic with FGs - preserving rings despite chain having more FGs",
           );
         }
         // Don't clear rings - let P-44.4 (ring vs chain) decide
