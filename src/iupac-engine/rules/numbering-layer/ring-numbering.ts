@@ -496,6 +496,16 @@ export const RING_NUMBERING_RULE: IUPACRule = {
     );
 
     // Update substituent positions to match the renumbered ring
+    if (process.env.VERBOSE) {
+      console.log(
+        `[ring-numbering] BEFORE remapping - parentStructure.substituents:`,
+        parentStructure.substituents?.map((s) => {
+          const atomId = "position" in s ? Number(s.position) : ("locant" in s ? s.locant : undefined);
+          return `${s.name} at atomId ${atomId}, position/locant ${"position" in s ? s.position : ("locant" in s ? s.locant : "N/A")}`;
+        }),
+      );
+    }
+
     const updatedSubstituents = parentStructure.substituents?.map((sub) => {
       // For NamingSubstituent, position is the original atom ID (as a string)
       // For StructuralSubstituent, locant is the original atom ID (as number)

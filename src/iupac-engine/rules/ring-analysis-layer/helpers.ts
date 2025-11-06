@@ -290,6 +290,47 @@ export function generateRingName(
     }
   }
 
+  // Diaziridine (3-membered ring with 2 nitrogens: N1CN1)
+  // Can have a carbonyl making it diaziridin-3-one (lactam)
+  if (
+    type !== "aromatic" &&
+    size === 3 &&
+    hasNitrogen === 2 &&
+    hasOxygen === 0 &&
+    hasSulfur === 0
+  ) {
+    // Check for exocyclic carbonyl (C=O where C is in ring, O is exocyclic)
+    let hasRingCarbonyl = false;
+    if (molecule) {
+      const ringIndices = atoms.map((atom) => atom.id);
+      for (const bond of molecule.bonds) {
+        if (bond.type === BondType.DOUBLE) {
+          const atom1 = molecule.atoms[bond.atom1];
+          const atom2 = molecule.atoms[bond.atom2];
+          
+          // Check if one atom is a ring carbon and the other is an exocyclic oxygen
+          if (atom1 && atom2) {
+            const atom1InRing = ringIndices.includes(atom1.id);
+            const atom2InRing = ringIndices.includes(atom2.id);
+            
+            if (
+              (atom1InRing && atom1.symbol === "C" && !atom2InRing && atom2.symbol === "O") ||
+              (atom2InRing && atom2.symbol === "C" && !atom1InRing && atom1.symbol === "O")
+            ) {
+              hasRingCarbonyl = true;
+              break;
+            }
+          }
+        }
+      }
+    }
+    
+    if (hasRingCarbonyl) {
+      return "diaziridin-3-one";
+    }
+    return "diaziridine";
+  }
+
   // Check for saturated heterocycles (3-6 membered rings with one heteroatom)
   if (type !== "aromatic" && totalHetero === 1) {
     // Check if saturated (no double bonds in ring)

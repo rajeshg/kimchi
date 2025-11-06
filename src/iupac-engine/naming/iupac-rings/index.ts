@@ -848,6 +848,13 @@ export function findSubstituentsOnMonocyclicRing(
         );
         if (substituentInfo) {
           // Store the ring atom index as position (will be renumbered later)
+          if (process.env.VERBOSE) {
+            console.log(`[findSubstituentsOnMonocyclicRing] Creating substituent:`);
+            console.log(`  Ring atom ID (ringAtomIdx): ${ringAtomIdx}`);
+            console.log(`  Substituent atom ID (substituentAtomIdx): ${substituentAtomIdx}`);
+            console.log(`  Substituent name: ${substituentInfo.name}`);
+            console.log(`  Storing position as: ${ringAtomIdx}`);
+          }
           substituents.push({
             position: String(ringAtomIdx),
             type: substituentInfo.type,

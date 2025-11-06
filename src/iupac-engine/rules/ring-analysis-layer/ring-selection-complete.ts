@@ -84,8 +84,8 @@ export const RING_SELECTION_COMPLETE_RULE: IUPACRule = {
       }
     }
 
-    // P-44.4 criterion: If there are candidate chains, check size comparison
-    // Don't select ring if a longer acyclic chain exists
+    // P-44.1.1 criterion: Check functional group counts BEFORE size comparison
+    // If rings have more functional groups than chains, select ring regardless of size
     const candidateChains = state.candidateChains;
     if (process.env.VERBOSE) {
       console.log(
@@ -99,12 +99,125 @@ export const RING_SELECTION_COMPLETE_RULE: IUPACRule = {
       const longestChain = candidateChains[0]!;
       const chainLength = longestChain.atoms ? longestChain.atoms.length : 0;
       
+      // Count functional groups on rings
+      const functionalGroups = state.functionalGroups || [];
+      const principalFGs = functionalGroups.filter((fg: any) => fg.isPrincipal);
+      
+      // Build ring atom indices set
+      const ringAtomIndices = new Set<number>();
+      for (const r of candidateRings) {
+        for (const atom of r.atoms) {
+          const atomIdx = molecule.atoms.findIndex((a: any) => a === atom);
+          if (atomIdx !== -1) {
+            ringAtomIndices.add(atomIdx);
+          }
+        }
+      }
+      
+      // Count FGs on ring
+      let ringFGCount = 0;
+      for (const fg of principalFGs) {
+        // Get FG atom objects and find their indices
+        const fgAtoms = fg.atoms || [];
+        const fgAtomIndices = fgAtoms
+          .map((atom: any) => {
+            // FG atoms have an 'id' field that matches their index
+            return atom.id !== undefined ? atom.id : molecule.atoms.findIndex((a: any) => a === atom);
+          })
+          .filter((idx: number) => idx !== -1);
+        
+        // Check if FG is in ring or attached to ring
+        let isOnRing = false;
+        for (const fgIdx of fgAtomIndices) {
+          // Check if FG atom is in ring
+          if (ringAtomIndices.has(fgIdx)) {
+            isOnRing = true;
+            break;
+          }
+          
+          // Check if FG atom is bonded to a ring atom
+          for (const bond of molecule.bonds) {
+            const bondedTo = bond.atom1 === fgIdx ? bond.atom2 : bond.atom2 === fgIdx ? bond.atom1 : -1;
+            if (bondedTo !== -1 && ringAtomIndices.has(bondedTo)) {
+              isOnRing = true;
+              break;
+            }
+          }
+          
+          if (isOnRing) break;
+        }
+        
+        if (isOnRing) {
+          ringFGCount++;
+        }
+      }
+      
+      // Count FGs on chain
+      const chainAtomIndices = new Set<number>();
+      for (const atom of longestChain.atoms) {
+        const atomIdx = molecule.atoms.findIndex((a: any) => a === atom);
+        if (atomIdx !== -1) {
+          chainAtomIndices.add(atomIdx);
+        }
+      }
+      
+      let chainFGCount = 0;
+      for (const fg of principalFGs) {
+        // Get FG atom objects and find their indices
+        const fgAtoms = fg.atoms || [];
+        const fgAtomIndices = fgAtoms
+          .map((atom: any) => {
+            // FG atoms have an 'id' field that matches their index
+            return atom.id !== undefined ? atom.id : molecule.atoms.findIndex((a: any) => a === atom);
+          })
+          .filter((idx: number) => idx !== -1);
+        
+        // Check if FG is in chain or attached to chain
+        let isOnChain = false;
+        for (const fgIdx of fgAtomIndices) {
+          // Check if FG atom is in chain
+          if (chainAtomIndices.has(fgIdx)) {
+            isOnChain = true;
+            break;
+          }
+          
+          // Check if FG atom is bonded to a chain atom
+          for (const bond of molecule.bonds) {
+            const bondedTo = bond.atom1 === fgIdx ? bond.atom2 : bond.atom2 === fgIdx ? bond.atom1 : -1;
+            if (bondedTo !== -1 && chainAtomIndices.has(bondedTo)) {
+              isOnChain = true;
+              break;
+            }
+          }
+          
+          if (isOnChain) break;
+        }
+        
+        if (isOnChain) {
+          chainFGCount++;
+        }
+      }
+      
       if (process.env.VERBOSE) {
+        console.log(
+          `[ring-selection-complete conditions] FG count: ring=${ringFGCount}, chain=${chainFGCount}`
+        );
         console.log(
           `[ring-selection-complete conditions] Comparing: Chain (${chainLength} atoms) vs Ring (${ringSize} atoms)`
         );
       }
       
+      // P-44.1.1: If ring has more FGs, select ring regardless of size
+      if (ringFGCount > chainFGCount) {
+        if (process.env.VERBOSE) {
+          console.log(
+            `[ring-selection-complete conditions] Ring has more FGs (${ringFGCount} > ${chainFGCount}): selecting ring`
+          );
+        }
+        return true; // Apply this rule to select the ring
+      }
+      
+      // P-44.4: If FG counts are equal, use size comparison
       if (chainLength > ringSize) {
         if (process.env.VERBOSE) {
           console.log(

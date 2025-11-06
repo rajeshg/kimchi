@@ -4691,6 +4691,55 @@ function determineRingAttachmentPosition(
     );
   }
 
+  // Diaziridine / diaziridin-3-one: 3-membered ring with 2 nitrogens
+  // IUPAC numbering: N=1, N=2, C=3
+  if (ringName === "diaziridine" || ringName === "diaziridin-3-one") {
+    // Find positions of the two nitrogens in the ring
+    const nPositions: number[] = [];
+    for (let i = 0; i < ring.length; i++) {
+      const atom = molecule.atoms[ring[i]!];
+      if (atom?.symbol === "N") {
+        nPositions.push(i);
+      }
+    }
+
+    if (process.env.VERBOSE) {
+      console.log(
+        `[determineRingAttachmentPosition] Diaziridine: N atoms at ring indices ${nPositions.join(", ")}`,
+      );
+    }
+
+    if (nPositions.length === 2) {
+      // IUPAC numbering: first N = 1, second N = 2, C = 3
+      // Check which nitrogen or carbon this is
+      if (posInRing === nPositions[0]) {
+        // First nitrogen
+        if (process.env.VERBOSE) {
+          console.log(
+            `[determineRingAttachmentPosition] Diaziridine: attachment is first N, IUPAC position = 1`,
+          );
+        }
+        return 1;
+      } else if (posInRing === nPositions[1]) {
+        // Second nitrogen
+        if (process.env.VERBOSE) {
+          console.log(
+            `[determineRingAttachmentPosition] Diaziridine: attachment is second N, IUPAC position = 2`,
+          );
+        }
+        return 2;
+      } else {
+        // Carbon
+        if (process.env.VERBOSE) {
+          console.log(
+            `[determineRingAttachmentPosition] Diaziridine: attachment is C, IUPAC position = 3`,
+          );
+        }
+        return 3;
+      }
+    }
+  }
+
   // For thiazole: N=1, C=2, S=3, C=4, C=5
   // Ring array is in traversal order, need to renumber based on heteroatom priority
 

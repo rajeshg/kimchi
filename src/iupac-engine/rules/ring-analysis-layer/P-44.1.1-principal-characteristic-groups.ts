@@ -324,24 +324,80 @@ export const P44_1_1_PRINCIPAL_CHARACTERISTIC_GROUPS_RULE: IUPACRule = {
     }
 
     // If chains have more principal functional groups than rings, select those chains
-    // UNLESS the rings are heterocyclic AND also have functional groups
-    // (heterocyclic rings with FGs represent integral structural units like pyridines, furans)
+    // UNLESS the rings are heterocyclic AND chains don't have high-priority FGs
+    // (heterocyclic rings are senior to amines/alcohols but junior to carboxylic acids/esters per IUPAC P-44.1)
     if (maxChainFGCount > ringFGCount) {
       // Check if any ring is heterocyclic (contains non-carbon atoms)
       const hasHeterocyclicRing = rings.some((ring) =>
         ring.atoms.some((atom) => atom.symbol !== "C" && atom.symbol !== "H"),
       );
 
-      // Only preserve heterocyclic rings if they ALSO have functional groups
-      // If ring has no FGs, chain with FGs should win regardless
-      if (hasHeterocyclicRing && ringFGCount > 0) {
-        if (process.env.VERBOSE) {
-          console.log(
-            "[P-44.1.1] Rings are heterocyclic with FGs - preserving rings despite chain having more FGs",
-          );
+      // IUPAC P-44.1 seniority order: carboxylic_acid (100) > ester (97) > heterocycles > alcohol (90) > amine (89)
+      // Find functional groups on the chains that have more FGs than rings
+      const chainsWithMaxFGs = chainFGCounts.filter(
+        (c) => c.fgCount === maxChainFGCount,
+      );
+      const chainAtomIndicesSet = new Set<number>();
+      for (const c of chainsWithMaxFGs) {
+        for (const atom of c.chain.atoms) {
+          const idx = molecule.atoms.findIndex((a) => a === atom);
+          if (idx !== -1) chainAtomIndicesSet.add(idx);
         }
-        // Don't clear rings - let P-44.4 (ring vs chain) decide
-        return context;
+      }
+
+      // Check if any FG on these chains is carboxylic acid or ester (priority >= 97)
+      const hasHighPriorityFGOnChain = principalFGs.some((fg) => {
+        // Check if FG is on one of the chains with max FG count
+        const fgAtomIndices = (fg.atoms || [])
+          .map((atom) => molecule.atoms.findIndex((a) => a === atom))
+          .filter((idx) => idx !== -1);
+
+        const hasAtomInChain = fgAtomIndices.some((idx) =>
+          chainAtomIndicesSet.has(idx),
+        );
+        const isAttachedToChain = fgAtomIndices.some((atomIdx) => {
+          // Find bonds containing this FG atom
+          const neighbors = molecule.bonds
+            .filter(
+              (b) =>
+                b.atom1 === atomIdx || b.atom2 === atomIdx,
+            )
+            .map((b) =>
+              b.atom1 === atomIdx ? b.atom2 : b.atom1,
+            );
+          // Check if any neighbor is in the chain
+          return neighbors.some((neighborIdx) =>
+            chainAtomIndicesSet.has(neighborIdx),
+          );
+        });
+
+        const isOnChain = hasAtomInChain || isAttachedToChain;
+        const isHighPriority =
+          fg.type === "carboxylic_acid" || fg.type === "ester";
+
+        return isOnChain && isHighPriority;
+      });
+
+      // Heterocycle priority logic:
+      // - If chain has carboxylic acid or ester: chain wins (these are senior to heterocycles)
+      // - If chain has only amines/alcohols: heterocycle wins (heterocycles are senior)
+      if (hasHeterocyclicRing) {
+        if (hasHighPriorityFGOnChain) {
+          if (process.env.VERBOSE) {
+            console.log(
+              "[P-44.1.1] Chain has carboxylic acid or ester - chain wins per IUPAC seniority (carboxylic acid/ester > heterocycles)",
+            );
+          }
+          // Let chain win - fall through to chain selection logic below
+        } else {
+          if (process.env.VERBOSE) {
+            console.log(
+              "[P-44.1.1] Rings are heterocyclic with only low-priority chain FGs - preserving rings per IUPAC seniority (heterocycles > amines/alcohols)",
+            );
+          }
+          // Don't clear rings - heterocycles are senior to amines/alcohols
+          return context;
+        }
       }
 
       const functionalChains = chainFGCounts
