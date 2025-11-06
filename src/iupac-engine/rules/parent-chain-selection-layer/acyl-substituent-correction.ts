@@ -61,7 +61,6 @@ export const ACYL_SUBSTITUENT_CORRECTION_RULE: IUPACRule = {
 
     const parentStructure = context.getState().parentStructure;
     const functionalGroups = context.getState().functionalGroups;
-    const molecule = context.getState().molecule;
 
     if (!parentStructure || parentStructure.type !== "chain") {
       if (process.env.VERBOSE) {

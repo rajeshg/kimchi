@@ -7,11 +7,17 @@ import type {
   ParentStructure,
   FunctionalGroup,
 } from "./types";
-import { ImmutableNamingContext, ExecutionPhase } from "./immutable-context";
+import {
+  ImmutableNamingContext,
+  ExecutionPhase,
+  type ContextServices,
+} from "./immutable-context";
 import { LAYER_ORDER, LAYER_DEFINITIONS } from "./layer-config";
 import { getSharedNameGenerator } from "./opsin-name-generator";
 import { analyzeRings, getAromaticRings } from "src/utils/ring-analysis";
 import type { RingInfo } from "src/utils/ring-analysis";
+import { OPSINService } from "./services/opsin-service";
+import { OPSINFunctionalGroupDetector } from "./opsin-functional-group-detector";
 
 /**
  * Core rule engine for IUPAC name generation
@@ -19,8 +25,14 @@ import type { RingInfo } from "src/utils/ring-analysis";
 export class RuleEngine {
   private rules = new Map<string, IUPACRule>();
   private layers = new Map<string, Layer>();
+  private services: ContextServices;
 
   constructor() {
+    const opsinService = new OPSINService();
+    this.services = {
+      opsin: opsinService,
+      detector: new OPSINFunctionalGroupDetector(opsinService),
+    };
     this.initializeEngine();
   }
 
@@ -28,11 +40,25 @@ export class RuleEngine {
    * Generate IUPAC name for a molecule
    */
   generateName(molecule: Molecule): NamingResult {
-    let context = ImmutableNamingContext.create(molecule);
+    if (process.env.VERBOSE) {
+      console.log(
+        `[ENGINE] generateName() called for molecule with ${molecule.atoms.length} atoms, ${molecule.rings?.length || 0} rings`,
+      );
+      console.log(new Error().stack?.split("\n").slice(1, 6).join("\n"));
+    }
+    let context = ImmutableNamingContext.create(molecule, this.services);
 
     try {
       // Execute layers in order
+      if (process.env.VERBOSE) {
+        console.log(
+          `[ENGINE] Starting layer execution for ${LAYER_ORDER.length} layers`,
+        );
+      }
       for (const layerName of LAYER_ORDER) {
+        if (process.env.VERBOSE) {
+          console.log(`[ENGINE] Executing layer: ${layerName}`);
+        }
         const layer = this.layers.get(layerName);
         if (!layer) {
           throw new Error(`Layer ${layerName} not found`);
@@ -85,7 +111,7 @@ export class RuleEngine {
     result: NamingResult;
     context: ImmutableNamingContext;
   } {
-    let context = ImmutableNamingContext.create(molecule);
+    let context = ImmutableNamingContext.create(molecule, this.services);
 
     try {
       for (const layerName of LAYER_ORDER) {

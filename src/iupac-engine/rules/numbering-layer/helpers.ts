@@ -852,6 +852,62 @@ export function findOptimalRingNumberingFromHeteroatom(
     );
   }
 
+  // Find attachment points of PRINCIPAL functional groups in the ring
+  // These take priority over substituents when determining ring numbering direction
+  const principalFGAttachmentIndices: number[] = [];
+  if (functionalGroups) {
+    for (const fg of functionalGroups) {
+      // Only consider principal functional groups (suffix groups like ester, ketone, etc.)
+      if (!fg.isPrincipal) {
+        continue;
+      }
+
+      if (fg.atoms && fg.atoms.length > 0) {
+        // For each atom in the functional group, find which ring atom it's bonded to
+        for (const groupAtom of fg.atoms) {
+          const groupAtomId =
+            typeof groupAtom === "object" ? groupAtom.id : groupAtom;
+
+          // Check if this functional group atom is itself in the ring
+          const ringIndex = ring.atoms.findIndex((a) => a.id === groupAtomId);
+          if (ringIndex >= 0) {
+            if (!principalFGAttachmentIndices.includes(ringIndex)) {
+              principalFGAttachmentIndices.push(ringIndex);
+            }
+          } else {
+            // This functional group atom is NOT in the ring, so find which ring atom it's bonded to
+            const bonds = molecule.bonds.filter(
+              (bond: Bond) =>
+                bond.atom1 === groupAtomId || bond.atom2 === groupAtomId,
+            );
+
+            for (const bond of bonds) {
+              const otherAtomId =
+                bond.atom1 === groupAtomId ? bond.atom2 : bond.atom1;
+              if (ringAtomIds.has(otherAtomId)) {
+                // Found a ring atom bonded to this principal functional group
+                const ringIndex = ring.atoms.findIndex(
+                  (a) => a.id === otherAtomId,
+                );
+                if (
+                  ringIndex >= 0 &&
+                  !principalFGAttachmentIndices.includes(ringIndex)
+                ) {
+                  principalFGAttachmentIndices.push(ringIndex);
+                  if (process.env.VERBOSE) {
+                    console.log(
+                      `[Heteroatom Ring Numbering] Principal FG ${fg.type} attached to ring index ${ringIndex} (atom ${otherAtomId})`,
+                    );
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
   // Count substituents at each ring position (not just which atoms have substituents)
   const substituentCounts: number[] = Array(ring.atoms.length).fill(0);
 
@@ -933,8 +989,75 @@ export function findOptimalRingNumberingFromHeteroatom(
 
   // IUPAC Priority Order:
   // 1. Heteroatom at position 1 (already ensured)
-  // 2. Functional groups at lowest locants (HIGHEST PRIORITY for direction)
-  // 3. Substituents at lowest locants (tiebreaker if functional group locants are equal)
+  // 2. Principal functional groups (suffix groups) at lowest locants (HIGHEST PRIORITY for direction)
+  // 3. Other functional groups at lowest locants
+  // 4. Substituents at lowest locants (tiebreaker if functional group locants are equal)
+
+  // PRIORITY 1: If there are PRINCIPAL functional groups attached to the ring,
+  // they take highest priority for direction selection
+  if (principalFGAttachmentIndices.length > 0) {
+    if (process.env.VERBOSE) {
+      console.log(
+        `[Heteroatom Ring Numbering] Principal FG attachment indices: [${principalFGAttachmentIndices.join(", ")}]`,
+      );
+    }
+
+    // Direction 1 (clockwise): calculate principal FG attachment locants
+    const principalLocants1 = principalFGAttachmentIndices
+      .map((pos) => {
+        const offset = (pos - heteroatomIndex + ringSize) % ringSize;
+        return offset + 1; // 1-based locant
+      })
+      .sort((a, b) => a - b);
+
+    // Direction 2 (counterclockwise): calculate principal FG attachment locants
+    const principalLocants2 = principalFGAttachmentIndices
+      .map((pos) => {
+        const offset = (heteroatomIndex - pos + ringSize) % ringSize;
+        return offset + 1; // 1-based locant
+      })
+      .sort((a, b) => a - b);
+
+    if (process.env.VERBOSE) {
+      console.log(
+        `[Heteroatom Ring Numbering] Direction 1 (CW) principal FG attachment locants: [${principalLocants1.join(", ")}]`,
+      );
+      console.log(
+        `[Heteroatom Ring Numbering] Direction 2 (CCW) principal FG attachment locants: [${principalLocants2.join(", ")}]`,
+      );
+    }
+
+    // Compare principal FG attachment locants first
+    const principalComparison = compareLocantSets(
+      principalLocants1,
+      principalLocants2,
+    );
+
+    if (principalComparison < 0) {
+      // Direction 1 has better principal FG attachment locants
+      if (process.env.VERBOSE) {
+        console.log(
+          `[Heteroatom Ring Numbering] Choosing direction 1 (clockwise) based on principal FG attachment locants`,
+        );
+      }
+      return heteroatomIndex + 1;
+    } else if (principalComparison > 0) {
+      // Direction 2 has better principal FG attachment locants
+      if (process.env.VERBOSE) {
+        console.log(
+          `[Heteroatom Ring Numbering] Choosing direction 2 (counterclockwise) based on principal FG attachment locants`,
+        );
+      }
+      return -1;
+    }
+
+    // Principal FG attachment locants are equal, fall through to check other criteria
+    if (process.env.VERBOSE) {
+      console.log(
+        `[Heteroatom Ring Numbering] Principal FG attachment locants are equal, checking other functional groups`,
+      );
+    }
+  }
 
   // If there are functional groups in the ring, they take priority for direction selection
   if (functionalGroupRingPositions.length > 0) {
@@ -1090,7 +1213,7 @@ function detectAndNumberTriazine(
 
   const nCount = ring.atoms.filter((a) => a.symbol === "N").length;
   const cCount = ring.atoms.filter((a) => a.symbol === "C").length;
-  
+
   if (nCount !== 3 || cCount !== 3) {
     return null;
   }
@@ -1107,7 +1230,7 @@ function detectAndNumberTriazine(
       ...ring.atoms.slice(startIdx),
       ...ring.atoms.slice(0, startIdx),
     ] as Atom[];
-    
+
     if (
       cwAtoms[0]?.symbol === "N" &&
       cwAtoms[1]?.symbol === "N" &&
@@ -1132,7 +1255,7 @@ function detectAndNumberTriazine(
     const before = ring.atoms.slice(0, startIdx).reverse() as Atom[];
     const after = ring.atoms.slice(startIdx + 1).reverse() as Atom[];
     const ccwAtoms = [atom, ...after, ...before] as Atom[];
-    
+
     if (
       ccwAtoms[0]?.symbol === "N" &&
       ccwAtoms[1]?.symbol === "N" &&
@@ -1173,7 +1296,10 @@ export function findRingStartingPosition(
   // If multiple heteroatoms, first check for named heterocycles with canonical numbering
   if (heteroatomIndices.length > 1 && molecule) {
     // Special case: Triazines have fixed numbering (1,2,4-triazine, etc.)
-    const triazineArrangement = detectAndNumberTriazine(ring, heteroatomIndices);
+    const triazineArrangement = detectAndNumberTriazine(
+      ring,
+      heteroatomIndices,
+    );
     if (triazineArrangement) {
       const oldAtoms = ring.atoms.map((a: Atom) => a.id);
       ring.atoms = triazineArrangement.atoms;
@@ -1418,14 +1544,41 @@ export function findRingStartingPosition(
     // If result is negative, it means we need to reverse the ring (counterclockwise)
     if (result < 0) {
       // Reverse the ring atoms for counterclockwise numbering
-      // CCW from heteroatomIndex means: heteroatom, then previous atoms in reverse, then following atoms in reverse
+      // For original ring [a, b, c, d, e] with heteroatom at index 4 (atom e):
+      // - Clockwise from e: e → a → b → c → d
+      // - Counterclockwise from e: e → d → c → b → a
+      // So we need: [e, ...atoms_before_e_reversed, ...atoms_after_e_reversed]
+      // atoms_before_e = [a,b,c,d] → reversed = [d,c,b,a]
+      // atoms_after_e = [] → reversed = []
+      // Result: [e, d, c, b, a]
+      if (process.env.VERBOSE) {
+        console.log(
+          `[Ring Numbering] BEFORE reversal: ring.atoms = [${ring.atoms.map((a: Atom) => a.id).join(", ")}], heteroatomIndex = ${heteroatomIndex}`,
+        );
+      }
       const heteroAtom = ring.atoms[heteroatomIndex]!;
-      const before = ring.atoms.slice(0, heteroatomIndex).reverse() as Atom[];
-      const after = ring.atoms.slice(heteroatomIndex + 1).reverse() as Atom[];
-      ring.atoms = [heteroAtom, ...before, ...after];
-      console.log(
-        `[Ring Numbering] Reversed ring for counterclockwise numbering: [${ring.atoms.map((a: Atom) => a.id).join(", ")}]`,
-      );
+
+      // To go counterclockwise, we reverse the entire ring and put heteroatom first
+      // Original ring order represents clockwise connectivity
+      // Reversing gives counterclockwise connectivity
+      const allOtherAtoms = [
+        ...ring.atoms.slice(0, heteroatomIndex),
+        ...ring.atoms.slice(heteroatomIndex + 1),
+      ].reverse() as Atom[];
+
+      const newAtoms = [heteroAtom, ...allOtherAtoms];
+
+      if (process.env.VERBOSE) {
+        console.log(
+          `[Ring Numbering] AFTER reversal calculation: newAtoms = [${newAtoms.map((a: Atom) => a.id).join(", ")}]`,
+        );
+      }
+      ring.atoms = newAtoms;
+      if (process.env.VERBOSE) {
+        console.log(
+          `[Ring Numbering] AFTER assignment: ring.atoms = [${ring.atoms.map((a: Atom) => a.id).join(", ")}]`,
+        );
+      }
       return 1; // Heteroatom is now at position 1
     }
 

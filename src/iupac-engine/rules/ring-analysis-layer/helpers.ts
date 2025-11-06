@@ -307,15 +307,21 @@ export function generateRingName(
         if (bond.type === BondType.DOUBLE) {
           const atom1 = molecule.atoms[bond.atom1];
           const atom2 = molecule.atoms[bond.atom2];
-          
+
           // Check if one atom is a ring carbon and the other is an exocyclic oxygen
           if (atom1 && atom2) {
             const atom1InRing = ringIndices.includes(atom1.id);
             const atom2InRing = ringIndices.includes(atom2.id);
-            
+
             if (
-              (atom1InRing && atom1.symbol === "C" && !atom2InRing && atom2.symbol === "O") ||
-              (atom2InRing && atom2.symbol === "C" && !atom1InRing && atom1.symbol === "O")
+              (atom1InRing &&
+                atom1.symbol === "C" &&
+                !atom2InRing &&
+                atom2.symbol === "O") ||
+              (atom2InRing &&
+                atom2.symbol === "C" &&
+                !atom1InRing &&
+                atom1.symbol === "O")
             ) {
               hasRingCarbonyl = true;
               break;
@@ -324,7 +330,7 @@ export function generateRingName(
         }
       }
     }
-    
+
     if (hasRingCarbonyl) {
       return "diaziridin-3-one";
     }

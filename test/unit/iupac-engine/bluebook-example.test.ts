@@ -9,7 +9,19 @@ import { describe, test, expect } from "bun:test";
 import {
   ImmutableNamingContext,
   ExecutionPhase,
+  type ContextServices,
 } from "../../../src/iupac-engine/immutable-context";
+import { OPSINService } from "../../../src/iupac-engine/services/opsin-service";
+import { OPSINFunctionalGroupDetector } from "../../../src/iupac-engine/opsin-functional-group-detector";
+
+// Helper to create test services
+function createTestServices(): ContextServices {
+  const opsin = new OPSINService();
+  return {
+    opsin,
+    detector: new OPSINFunctionalGroupDetector(opsin),
+  };
+}
 
 // Blue Book Example: P-44.3.6 - Chain Selection with Substituents
 // SMILES: CC(C)C(C(C(C)C)C)C
@@ -36,7 +48,7 @@ describe("Blue Book P-44.3.6 Example", () => {
       bonds: [],
     } as any;
 
-    let context = ImmutableNamingContext.create(molecule);
+    let context = ImmutableNamingContext.create(molecule, createTestServices());
 
     console.log("🧪 Blue Book Example: P-44.3.6 Chain Selection");
     console.log("📝 SMILES: CC(C)C(C(C(C)C)C)C");
@@ -124,7 +136,7 @@ describe("Blue Book P-44.3.6 Example", () => {
       bonds: [],
     } as any;
 
-    let context = ImmutableNamingContext.create(molecule);
+    let context = ImmutableNamingContext.create(molecule, createTestServices());
 
     // Apply a series of rule updates
     context = context.withUpdatedCandidates(

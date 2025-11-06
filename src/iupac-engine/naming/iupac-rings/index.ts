@@ -849,9 +849,13 @@ export function findSubstituentsOnMonocyclicRing(
         if (substituentInfo) {
           // Store the ring atom index as position (will be renumbered later)
           if (process.env.VERBOSE) {
-            console.log(`[findSubstituentsOnMonocyclicRing] Creating substituent:`);
+            console.log(
+              `[findSubstituentsOnMonocyclicRing] Creating substituent:`,
+            );
             console.log(`  Ring atom ID (ringAtomIdx): ${ringAtomIdx}`);
-            console.log(`  Substituent atom ID (substituentAtomIdx): ${substituentAtomIdx}`);
+            console.log(
+              `  Substituent atom ID (substituentAtomIdx): ${substituentAtomIdx}`,
+            );
             console.log(`  Substituent name: ${substituentInfo.name}`);
             console.log(`  Storing position as: ${ringAtomIdx}`);
           }
@@ -860,17 +864,23 @@ export function findSubstituentsOnMonocyclicRing(
             type: substituentInfo.type,
             size: substituentInfo.size,
             name: substituentInfo.name,
+            startAtomId: substituentAtomIdx, // Track starting atom for filtering
           });
         }
       }
     }
   }
 
-  // Remove duplicates
+  // Remove duplicates (but keep multiple identical substituents at same position if they have different starting atoms)
   const unique = substituents.filter(
     (s, i, arr) =>
       i ===
-      arr.findIndex((x) => x.position === s.position && x.name === s.name),
+      arr.findIndex(
+        (x) =>
+          x.position === s.position &&
+          x.name === s.name &&
+          x.startAtomId === s.startAtomId,
+      ),
   );
   return unique;
 }
@@ -934,22 +944,37 @@ function nameComplexSubstituent(
     // 2. If it contains numbered positions, preserve them
 
     // Pattern: "2-methylpropan-2-ol" → "2-hydroxypropan-2-yl"
-    if (iupacName.includes("ol")) {
-      // Extract the base name and functional group positions
-      // Example: "2-methylpropan-2-ol" → base="2-methylpropan", position="2", suffix="ol"
-      const olMatch =
-        iupacName.match(/^(.+?)-(\d+)-ol$/) || iupacName.match(/^(.+?)ol$/);
+    // Also handle: "2-hydroxypropane" → "2-hydroxypropan-2-yl"
+    if (iupacName.includes("ol") || iupacName.includes("hydroxy")) {
+      // Case 1: Already has "hydroxy" prefix (e.g., "2-hydroxypropane")
+      // Need to add position to -yl suffix: "2-hydroxypropane" → "2-hydroxypropan-2-yl"
+      const hydroxyMatch = iupacName.match(/^(\d+)-hydroxy(\w+ane?)$/);
+      if (hydroxyMatch) {
+        const position = hydroxyMatch[1]; // "2"
+        let baseName = hydroxyMatch[2]; // "propane"
+        // Ensure baseName ends with "an" not "ane"
+        if (baseName.endsWith("ane")) {
+          baseName = baseName.slice(0, -1); // "propane" → "propan"
+        }
+        iupacName = `${position}-hydroxy${baseName}-${position}-yl`;
+      } else {
+        // Case 2: Has "-ol" suffix (e.g., "propan-2-ol")
+        // Extract the base name and functional group positions
+        // Example: "2-methylpropan-2-ol" → base="2-methylpropan", position="2", suffix="ol"
+        const olMatch =
+          iupacName.match(/^(.+?)-(\d+)-ol$/) || iupacName.match(/^(.+?)ol$/);
 
-      if (olMatch) {
-        if (olMatch.length === 3) {
-          // Has position number: "propan-2-ol"
-          const baseName = olMatch[1]; // "propan"
-          const position = olMatch[2]; // "2"
-          iupacName = `${position}-hydroxy${baseName}-${position}-yl`;
-        } else {
-          // No position number: "propanol"
-          const baseName = olMatch[1]; // "propan"
-          iupacName = `hydroxy${baseName}yl`;
+        if (olMatch) {
+          if (olMatch.length === 3) {
+            // Has position number: "propan-2-ol"
+            const baseName = olMatch[1]; // "propan"
+            const position = olMatch[2]; // "2"
+            iupacName = `${position}-hydroxy${baseName}-${position}-yl`;
+          } else {
+            // No position number: "propanol"
+            const baseName = olMatch[1]; // "propan"
+            iupacName = `hydroxy${baseName}yl`;
+          }
         }
       }
     }
@@ -1006,10 +1031,64 @@ function classifySubstituent(
     (atom) => atom.symbol !== "C" && atom.symbol !== "H",
   ).length;
 
+  // Check for alkoxy groups: -O-R (ether oxygen bonded to alkyl chain)
+  // Pattern: startAtom is oxygen, bonded to carbon chain
+  const startAtom = molecule.atoms[startAtomIdx];
+  if (startAtom?.symbol === "O") {
+    // This is an ether oxygen - check what's bonded to it (excluding ring)
+    const carbonsOnOxygen: number[] = [];
+    for (const bond of molecule.bonds) {
+      if (bond.atom1 === startAtomIdx || bond.atom2 === startAtomIdx) {
+        const otherIdx = bond.atom1 === startAtomIdx ? bond.atom2 : bond.atom1;
+        const otherAtom = molecule.atoms[otherIdx];
+        // Only count carbons that are NOT in the ring (i.e., in the substituent)
+        if (otherAtom?.symbol === "C" && substituentAtoms.has(otherIdx)) {
+          carbonsOnOxygen.push(otherIdx);
+        }
+      }
+    }
+
+    // Alkoxy: oxygen bonded to carbon chain
+    if (carbonsOnOxygen.length === 1 && carbonCount === 1) {
+      // Single carbon: methoxy
+      return { type: "alkoxy", size: 1, name: "methoxy" };
+    } else if (carbonsOnOxygen.length === 1 && carbonCount === 2) {
+      // Two carbons: ethoxy
+      return { type: "alkoxy", size: 2, name: "ethoxy" };
+    } else if (carbonsOnOxygen.length === 1 && carbonCount >= 3) {
+      // Longer chains: propoxy, butoxy, etc.
+      const alkaneNames = [
+        "",
+        "meth",
+        "eth",
+        "prop",
+        "but",
+        "pent",
+        "hex",
+        "hept",
+        "oct",
+        "non",
+        "dec",
+      ];
+      const prefix = alkaneNames[carbonCount] || `C${carbonCount}`;
+      return { type: "alkoxy", size: carbonCount, name: `${prefix}oxy` };
+    }
+  }
+
+  // Check for halogen substituents: -F, -Cl, -Br, -I
+  if (startAtom?.symbol === "F") {
+    return { type: "halogen", size: 0, name: "fluoro" };
+  } else if (startAtom?.symbol === "Cl") {
+    return { type: "halogen", size: 0, name: "chloro" };
+  } else if (startAtom?.symbol === "Br") {
+    return { type: "halogen", size: 0, name: "bromo" };
+  } else if (startAtom?.symbol === "I") {
+    return { type: "halogen", size: 0, name: "iodo" };
+  }
+
   // Check for carboxyl group: -C(=O)OH
   // Pattern: carbon with double-bonded oxygen and hydroxyl group
   if (carbonCount === 1 && atoms.length === 3) {
-    const startAtom = molecule.atoms[startAtomIdx];
     if (startAtom?.symbol === "C") {
       let hasDoubleO = false;
       let hasOH = false;
@@ -1065,47 +1144,162 @@ function classifySubstituent(
       }
     }
     return { type: "alkyl", size: 3, name: "propyl" };
-  } else if (
-    atoms.some((atom) => atom.symbol === "O" && atom.hydrogens === 1)
-  ) {
-    return { type: "functional", size: 1, name: "hydroxy" };
-  } else if (atoms.some((atom) => atom.symbol === "Cl")) {
-    return { type: "halo", size: 1, name: "chloro" };
-  } else if (atoms.some((atom) => atom.symbol === "Br")) {
-    return { type: "halo", size: 1, name: "bromo" };
-  } else if (atoms.some((atom) => atom.symbol === "I")) {
-    return { type: "halo", size: 1, name: "iodo" };
-  }
+  } else if (carbonCount === 4 && atoms.length === 4) {
+    // Check for branched 4-carbon groups: isobutyl, tert-butyl, sec-butyl
+    const startAtom = molecule.atoms[startAtomIdx];
+    if (startAtom?.symbol === "C") {
+      // Count carbon neighbors at attachment point (within substituent)
+      let carbonNeighborsAtStart = 0;
+      const neighborsAtStart: number[] = [];
+      for (const bond of molecule.bonds) {
+        if (bond.atom1 === startAtomIdx || bond.atom2 === startAtomIdx) {
+          const otherIdx =
+            bond.atom1 === startAtomIdx ? bond.atom2 : bond.atom1;
+          const otherAtom = molecule.atoms[otherIdx];
+          if (otherAtom?.symbol === "C" && substituentAtoms.has(otherIdx)) {
+            carbonNeighborsAtStart++;
+            neighborsAtStart.push(otherIdx);
+          }
+        }
+      }
 
-  // Alkoxy groups: -O-R where R is an alkyl chain
-  // Pattern: oxygen (without hydrogen) bonded to carbon chain
-  if (heteroatomCount === 1 && carbonCount >= 1) {
-    const oxygenAtom = atoms.find((atom) => atom.symbol === "O");
-    if (
-      oxygenAtom &&
-      (oxygenAtom.hydrogens === 0 || oxygenAtom.hydrogens === undefined)
-    ) {
-      // This is an alkoxy group: -O-C-...
-      const alkaneNames = [
-        "",
-        "meth",
-        "eth",
-        "prop",
-        "but",
-        "pent",
-        "hex",
-        "hept",
-        "oct",
-        "non",
-        "dec",
-      ];
-      const prefix = alkaneNames[carbonCount] || `C${carbonCount}`;
-      return { type: "alkoxy", size: carbonCount, name: `${prefix}oxy` };
+      // Tert-butyl: attachment point has 3 carbon neighbors in substituent
+      // Structure: C(C)(C)C- where attachment is the central carbon
+      if (carbonNeighborsAtStart === 3) {
+        return { type: "alkyl", size: 4, name: "(2-methylpropan-2-yl)" };
+      }
+
+      // Isobutyl or sec-butyl: attachment point has 1 carbon neighbor
+      if (carbonNeighborsAtStart === 1) {
+        // Check the neighbor's structure
+        const neighborIdx = neighborsAtStart[0];
+        if (neighborIdx !== undefined) {
+          let carbonNeighborsAtSecond = 0;
+          for (const bond of molecule.bonds) {
+            if (bond.atom1 === neighborIdx || bond.atom2 === neighborIdx) {
+              const otherIdx =
+                bond.atom1 === neighborIdx ? bond.atom2 : bond.atom1;
+              const otherAtom = molecule.atoms[otherIdx];
+              if (otherAtom?.symbol === "C" && substituentAtoms.has(otherIdx)) {
+                carbonNeighborsAtSecond++;
+              }
+            }
+          }
+
+          // Isobutyl (2-methylpropyl): CC(C)C- where second carbon has 3 neighbors (2 in sub + 1 back to attachment)
+          // In substituent only: second carbon should have 2 neighbors
+          if (carbonNeighborsAtSecond === 3) {
+            return { type: "alkyl", size: 4, name: "(2-methylpropyl)" };
+          }
+        }
+
+        // If not isobutyl, it's sec-butyl (butan-2-yl): CCC(C)- linear chain with attachment at C2
+        return { type: "alkyl", size: 4, name: "(butan-2-yl)" };
+      }
     }
+    // Default for unbranched 4-carbon chain
+    return { type: "alkyl", size: 4, name: "butyl" };
+  } else if (carbonCount === 5 && atoms.length === 5) {
+    // Check for branched 5-carbon groups: neopentyl, tert-pentyl, isopentyl
+    if (process.env.VERBOSE) {
+      console.log(
+        `[classifySubstituent] 5-carbon group: carbonCount=${carbonCount}, atoms.length=${atoms.length}`,
+      );
+      console.log(
+        `[classifySubstituent] startAtomIdx=${startAtomIdx}, atom symbols:`,
+        atoms.map((a) => a.symbol).join(", "),
+      );
+    }
+    const startAtom = molecule.atoms[startAtomIdx];
+    if (startAtom?.symbol === "C") {
+      // Count carbon neighbors at attachment point (within substituent)
+      let carbonNeighborsAtStart = 0;
+      const neighborsAtStart: number[] = [];
+      for (const bond of molecule.bonds) {
+        if (bond.atom1 === startAtomIdx || bond.atom2 === startAtomIdx) {
+          const otherIdx =
+            bond.atom1 === startAtomIdx ? bond.atom2 : bond.atom1;
+          const otherAtom = molecule.atoms[otherIdx];
+          if (otherAtom?.symbol === "C" && substituentAtoms.has(otherIdx)) {
+            carbonNeighborsAtStart++;
+            neighborsAtStart.push(otherIdx);
+          }
+        }
+      }
+      if (process.env.VERBOSE) {
+        console.log(
+          `[classifySubstituent] carbonNeighborsAtStart=${carbonNeighborsAtStart}`,
+        );
+      }
+
+      // Case 1: Attachment point IS the quaternary center (has 3 carbon neighbors)
+      // Structure: N-C(CH3)2-CH2-CH3 (tert-pentyl attached via quaternary carbon)
+      if (carbonNeighborsAtStart === 3) {
+        if (process.env.VERBOSE) {
+          console.log(
+            `[classifySubstituent] Detected 2-methylbutan-2-yl (attachment is quaternary center)`,
+          );
+        }
+        return { type: "alkyl", size: 5, name: "(2-methylbutan-2-yl)" };
+      }
+
+      // Case 2: Attachment point has 1 carbon neighbor - check for tert-pentyl or isopentyl
+      if (carbonNeighborsAtStart === 1) {
+        const neighborIdx = neighborsAtStart[0];
+        if (neighborIdx !== undefined) {
+          // Count carbon neighbors of the second carbon
+          let carbonNeighborsAtSecond = 0;
+          for (const bond of molecule.bonds) {
+            if (bond.atom1 === neighborIdx || bond.atom2 === neighborIdx) {
+              const otherIdx =
+                bond.atom1 === neighborIdx ? bond.atom2 : bond.atom1;
+              const otherAtom = molecule.atoms[otherIdx];
+              if (otherAtom?.symbol === "C" && substituentAtoms.has(otherIdx)) {
+                carbonNeighborsAtSecond++;
+              }
+            }
+          }
+
+          if (process.env.VERBOSE) {
+            console.log(
+              `[classifySubstituent] carbonNeighborsAtSecond=${carbonNeighborsAtSecond}`,
+            );
+          }
+
+          // Tert-pentyl (2-methylbutan-2-yl): -CC(C)(C)C where second carbon has 4 neighbors
+          // (1 back to attachment + 3 other carbons)
+          if (carbonNeighborsAtSecond === 4) {
+            if (process.env.VERBOSE) {
+              console.log(
+                `[classifySubstituent] Detected tert-pentyl (2-methylbutan-2-yl)`,
+              );
+            }
+            return { type: "alkyl", size: 5, name: "(2-methylbutan-2-yl)" };
+          }
+
+          // Isopentyl (3-methylbutyl): -CCC(C)C where third carbon is branched
+          // Second carbon should have 2 neighbors in substituent
+          if (carbonNeighborsAtSecond === 2) {
+            if (process.env.VERBOSE) {
+              console.log(
+                `[classifySubstituent] Detected isopentyl (3-methylbutyl)`,
+              );
+            }
+            return { type: "alkyl", size: 5, name: "(3-methylbutyl)" };
+          }
+        }
+      }
+    }
+    // Default for unbranched 5-carbon chain
+    if (process.env.VERBOSE) {
+      console.log(`[classifySubstituent] Falling through to default: pentyl`);
+    }
+    return { type: "alkyl", size: 5, name: "pentyl" };
   }
 
   // Complex substituents: multiple carbons with heteroatoms (O, N, S, etc.)
   // These need recursive IUPAC naming
+  // Check this BEFORE simple functional groups to avoid misclassification
   if (carbonCount > 1 && heteroatomCount > 0) {
     if (process.env.VERBOSE) {
       console.log(

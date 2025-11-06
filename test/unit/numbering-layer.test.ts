@@ -2,6 +2,7 @@ import { describe, it, expect } from "bun:test";
 import {
   ImmutableNamingContext,
   ExecutionPhase,
+  type ContextServices,
 } from "src/iupac-engine/immutable-context";
 import {
   P14_2_LOWEST_LOCANT_SET_RULE,
@@ -13,6 +14,17 @@ import type {
   Chain,
 } from "src/iupac-engine/types";
 import type { Atom, Bond } from "types";
+import { OPSINService } from "src/iupac-engine/services/opsin-service";
+import { OPSINFunctionalGroupDetector } from "src/iupac-engine/opsin-functional-group-detector";
+
+// Helper to create test services
+function createTestServices(): ContextServices {
+  const opsin = new OPSINService();
+  return {
+    opsin,
+    detector: new OPSINFunctionalGroupDetector(opsin),
+  };
+}
 
 function makeAtoms(ids: number[]): Atom[] {
   return ids.map(
@@ -76,7 +88,10 @@ describe("P-14 numbering rules", () => {
       makeGroup("alcohol", 3, [2], true),
       makeGroup("methyl", 10, [3], false),
     ];
-    let context = ImmutableNamingContext.create({ atoms: [], bonds: [] });
+    let context = ImmutableNamingContext.create(
+      { atoms: [], bonds: [] },
+      createTestServices(),
+    );
     context = context.withStateUpdate(
       (state) => ({ ...state, parentStructure, functionalGroups }),
       "setup",
@@ -101,7 +116,10 @@ describe("P-14 numbering rules", () => {
       makeGroup("alcohol", 3, [2], true), // Alcohol at atom 2 (position 1 in chain)
       makeGroup("methyl", 10, [3], false),
     ];
-    let context = ImmutableNamingContext.create({ atoms: [], bonds: [] });
+    let context = ImmutableNamingContext.create(
+      { atoms: [], bonds: [] },
+      createTestServices(),
+    );
     context = context.withStateUpdate(
       (state) => ({ ...state, parentStructure, functionalGroups }),
       "setup",
@@ -131,7 +149,10 @@ describe("P-14 numbering rules", () => {
       makeGroup("methyl", 10, [3], false),
       makeGroup("ethyl", 10, [4], false),
     ];
-    let context = ImmutableNamingContext.create({ atoms: [], bonds: [] });
+    let context = ImmutableNamingContext.create(
+      { atoms: [], bonds: [] },
+      createTestServices(),
+    );
     context = context.withStateUpdate(
       (state) => ({ ...state, parentStructure, functionalGroups }),
       "setup",

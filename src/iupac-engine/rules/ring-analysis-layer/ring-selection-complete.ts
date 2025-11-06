@@ -25,11 +25,27 @@ export const RING_SELECTION_COMPLETE_RULE: IUPACRule = {
   conditions: (context) => {
     const state = context.getState();
     const candidateRings = state.candidateRings;
+
+    if (process.env.VERBOSE) {
+      console.log(
+        `[ring-selection-complete conditions] Checking conditions...`,
+      );
+      console.log(`  - candidateRings: ${candidateRings?.length || 0}`);
+      console.log(
+        `  - parentStructure: ${state.parentStructure ? "EXISTS" : "NULL"}`,
+      );
+    }
+
     if (
       !candidateRings ||
       candidateRings.length === 0 ||
       state.parentStructure
     ) {
+      if (process.env.VERBOSE) {
+        console.log(
+          `[ring-selection-complete conditions] FAIL: Missing rings or parent already set`,
+        );
+      }
       return false;
     }
 
@@ -89,43 +105,45 @@ export const RING_SELECTION_COMPLETE_RULE: IUPACRule = {
     const candidateChains = state.candidateChains;
     if (process.env.VERBOSE) {
       console.log(
-        `[ring-selection-complete conditions] candidateChains count: ${candidateChains?.length || 0}`
+        `[ring-selection-complete conditions] candidateChains count: ${candidateChains?.length || 0}`,
       );
     }
     if (candidateChains && candidateChains.length > 0) {
       const ring = candidateRings[0]!;
       const ringSize = ring.size || (ring.atoms ? ring.atoms.length : 0);
-      
+
       const longestChain = candidateChains[0]!;
       const chainLength = longestChain.atoms ? longestChain.atoms.length : 0;
-      
+
       // Count functional groups on rings
       const functionalGroups = state.functionalGroups || [];
-      const principalFGs = functionalGroups.filter((fg: any) => fg.isPrincipal);
-      
+      const principalFGs = functionalGroups.filter((fg) => fg.isPrincipal);
+
       // Build ring atom indices set
       const ringAtomIndices = new Set<number>();
       for (const r of candidateRings) {
         for (const atom of r.atoms) {
-          const atomIdx = molecule.atoms.findIndex((a: any) => a === atom);
+          const atomIdx = molecule.atoms.findIndex((a) => a === atom);
           if (atomIdx !== -1) {
             ringAtomIndices.add(atomIdx);
           }
         }
       }
-      
+
       // Count FGs on ring
       let ringFGCount = 0;
       for (const fg of principalFGs) {
         // Get FG atom objects and find their indices
         const fgAtoms = fg.atoms || [];
         const fgAtomIndices = fgAtoms
-          .map((atom: any) => {
+          .map((atom) => {
             // FG atoms have an 'id' field that matches their index
-            return atom.id !== undefined ? atom.id : molecule.atoms.findIndex((a: any) => a === atom);
+            return atom.id !== undefined
+              ? atom.id
+              : molecule.atoms.findIndex((a) => a === atom);
           })
           .filter((idx: number) => idx !== -1);
-        
+
         // Check if FG is in ring or attached to ring
         let isOnRing = false;
         for (const fgIdx of fgAtomIndices) {
@@ -134,44 +152,51 @@ export const RING_SELECTION_COMPLETE_RULE: IUPACRule = {
             isOnRing = true;
             break;
           }
-          
+
           // Check if FG atom is bonded to a ring atom
           for (const bond of molecule.bonds) {
-            const bondedTo = bond.atom1 === fgIdx ? bond.atom2 : bond.atom2 === fgIdx ? bond.atom1 : -1;
+            const bondedTo =
+              bond.atom1 === fgIdx
+                ? bond.atom2
+                : bond.atom2 === fgIdx
+                  ? bond.atom1
+                  : -1;
             if (bondedTo !== -1 && ringAtomIndices.has(bondedTo)) {
               isOnRing = true;
               break;
             }
           }
-          
+
           if (isOnRing) break;
         }
-        
+
         if (isOnRing) {
           ringFGCount++;
         }
       }
-      
+
       // Count FGs on chain
       const chainAtomIndices = new Set<number>();
       for (const atom of longestChain.atoms) {
-        const atomIdx = molecule.atoms.findIndex((a: any) => a === atom);
+        const atomIdx = molecule.atoms.findIndex((a) => a === atom);
         if (atomIdx !== -1) {
           chainAtomIndices.add(atomIdx);
         }
       }
-      
+
       let chainFGCount = 0;
       for (const fg of principalFGs) {
         // Get FG atom objects and find their indices
         const fgAtoms = fg.atoms || [];
         const fgAtomIndices = fgAtoms
-          .map((atom: any) => {
+          .map((atom) => {
             // FG atoms have an 'id' field that matches their index
-            return atom.id !== undefined ? atom.id : molecule.atoms.findIndex((a: any) => a === atom);
+            return atom.id !== undefined
+              ? atom.id
+              : molecule.atoms.findIndex((a) => a === atom);
           })
           .filter((idx: number) => idx !== -1);
-        
+
         // Check if FG is in chain or attached to chain
         let isOnChain = false;
         for (const fgIdx of fgAtomIndices) {
@@ -180,48 +205,53 @@ export const RING_SELECTION_COMPLETE_RULE: IUPACRule = {
             isOnChain = true;
             break;
           }
-          
+
           // Check if FG atom is bonded to a chain atom
           for (const bond of molecule.bonds) {
-            const bondedTo = bond.atom1 === fgIdx ? bond.atom2 : bond.atom2 === fgIdx ? bond.atom1 : -1;
+            const bondedTo =
+              bond.atom1 === fgIdx
+                ? bond.atom2
+                : bond.atom2 === fgIdx
+                  ? bond.atom1
+                  : -1;
             if (bondedTo !== -1 && chainAtomIndices.has(bondedTo)) {
               isOnChain = true;
               break;
             }
           }
-          
+
           if (isOnChain) break;
         }
-        
+
         if (isOnChain) {
           chainFGCount++;
         }
       }
-      
+
       if (process.env.VERBOSE) {
         console.log(
-          `[ring-selection-complete conditions] FG count: ring=${ringFGCount}, chain=${chainFGCount}`
+          `[ring-selection-complete conditions] FG count: ring=${ringFGCount}, chain=${chainFGCount}`,
         );
         console.log(
-          `[ring-selection-complete conditions] Comparing: Chain (${chainLength} atoms) vs Ring (${ringSize} atoms)`
+          `[ring-selection-complete conditions] Comparing: Chain (${chainLength} atoms) vs Ring (${ringSize} atoms)`,
         );
       }
-      
+
       // P-44.1.1: If ring has more FGs, select ring regardless of size
       if (ringFGCount > chainFGCount) {
         if (process.env.VERBOSE) {
           console.log(
-            `[ring-selection-complete conditions] Ring has more FGs (${ringFGCount} > ${chainFGCount}): selecting ring`
+            `[ring-selection-complete conditions] Ring has more FGs (${ringFGCount} > ${chainFGCount}): selecting ring`,
           );
         }
         return true; // Apply this rule to select the ring
       }
-      
+
       // P-44.4: If FG counts are equal, use size comparison
       if (chainLength > ringSize) {
         if (process.env.VERBOSE) {
           console.log(
-            `[ring-selection-complete conditions] Chain > Ring: deferring to chain selection`
+            `[ring-selection-complete conditions] Chain > Ring: deferring to chain selection`,
           );
         }
         return false;
@@ -414,6 +444,15 @@ export const RING_SELECTION_COMPLETE_RULE: IUPACRule = {
     const functionalGroups = context.getState().functionalGroups || [];
     const ringAtomIds = new Set(parentRing.atoms.map((atom) => atom.id));
 
+    if (process.env.VERBOSE) {
+      console.log(
+        `[ring-selection-complete] Starting FG filtering: ${functionalGroups.length} functional groups`,
+      );
+      functionalGroups.forEach((fg) => {
+        console.log(`  - FG: ${fg.type}, atoms: ${fg.atoms?.join(",")}`);
+      });
+    }
+
     const filteredFunctionalGroups = functionalGroups.filter((fg) => {
       // Check if the functional group atom is in the ring or directly attached to a ring atom
       if (!fg.atoms || fg.atoms.length === 0) return true; // Keep if no atoms specified
@@ -422,7 +461,14 @@ export const RING_SELECTION_COMPLETE_RULE: IUPACRule = {
         const fgAtomId = typeof fgAtom === "object" ? fgAtom.id : fgAtom;
 
         // If FG atom is in ring, keep it
-        if (ringAtomIds.has(fgAtomId)) return true;
+        if (ringAtomIds.has(fgAtomId)) {
+          if (process.env.VERBOSE) {
+            console.log(
+              `[ring-selection-complete] FG ${fg.type} atom ${fgAtomId} is IN RING - keeping`,
+            );
+          }
+          return true;
+        }
 
         // If FG atom is directly bonded to a ring atom, check if it's a simple substituent
         // (not part of a longer side chain)
@@ -431,7 +477,35 @@ export const RING_SELECTION_COMPLETE_RULE: IUPACRule = {
             const otherAtomId =
               bond.atom1 === fgAtomId ? bond.atom2 : bond.atom1;
             if (ringAtomIds.has(otherAtomId)) {
-              // FG atom is directly bonded to ring - but is it part of a side chain?
+              // FG atom is directly bonded to ring
+              // IMPORTANT: Don't exclude terminal functional groups like esters, ketones, aldehydes, carboxylic acids
+              // These are principal groups even if they have non-ring carbons
+              const TERMINAL_FUNCTIONAL_GROUPS = [
+                "ester",
+                "carboxylic_acid",
+                "aldehyde",
+                "ketone",
+                "amide",
+                "acyl_halide",
+                "anhydride",
+                "imide",
+                "thioester",
+                "acyl_cyanide",
+              ];
+
+              const isTerminalFG = TERMINAL_FUNCTIONAL_GROUPS.includes(fg.type);
+
+              if (isTerminalFG) {
+                // Terminal functional groups are always included, even if they have non-ring carbons
+                if (process.env.VERBOSE) {
+                  console.log(
+                    `[ring-selection-complete] Keeping terminal FG ${fg.type} on atom ${fgAtomId}`,
+                  );
+                }
+                return true;
+              }
+
+              // For non-terminal FGs (alcohols, amines, etc.), check if they're part of a side chain
               // Count how many non-ring carbons are bonded to this FG atom
               const nonRingNeighbors = molecule.bonds.filter((b) => {
                 if (b.atom1 === fgAtomId || b.atom2 === fgAtomId) {
@@ -444,7 +518,7 @@ export const RING_SELECTION_COMPLETE_RULE: IUPACRule = {
                 return false;
               }).length;
 
-              // If FG atom has non-ring carbon neighbors, it's part of a side chain
+              // If non-terminal FG atom has non-ring carbon neighbors, it's part of a side chain
               if (nonRingNeighbors > 0) {
                 if (process.env.VERBOSE) {
                   console.log(

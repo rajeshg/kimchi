@@ -35,9 +35,8 @@ async function doInitializeInChIWasm(): Promise<void> {
     const wasmPath = "/dist/third-party/inchi-wasm/inchi_wasm.wasm";
     const response = await fetch(wasmPath);
     const bytes = await response.arrayBuffer();
-    const wasiModule = (await import(
-      "../third-party/inchi-wasm/wasi.esm.js"
-    )) as unknown;
+    const wasiModule =
+      (await import("../third-party/inchi-wasm/wasi.esm.js")) as unknown;
     // @ts-ignore
     const wasi = new wasiModule.default();
     // @ts-ignore
@@ -49,9 +48,8 @@ async function doInitializeInChIWasm(): Promise<void> {
     // Node/Bun: Use fs and WASI
     const { readFileSync } = await import("fs");
     const { join } = await import("path");
-    const wasiModule = (await import(
-      "../third-party/inchi-wasm/wasi.esm.js"
-    )) as unknown;
+    const wasiModule =
+      (await import("../third-party/inchi-wasm/wasi.esm.js")) as unknown;
     // @ts-ignore
     const WASI = wasiModule.default;
 

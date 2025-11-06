@@ -54,9 +54,163 @@ export function buildEsterWithRingAlkylGroup(
   const parentSubstituents =
     (parentStructure as { substituents?: unknown[] }).substituents || [];
 
+  // Filter out substituents that are part of the ester group itself
+  // The ester bridge (O-C(=O)-) can be incorrectly classified as a substituent
+  const esterAtomIds = new Set(esterGroup.atoms.map((atom) => atom.id));
+  const filteredParentSubstituents = parentSubstituents.filter(
+    (sub: unknown) => {
+      const s = sub as { atoms?: { id: number }[]; startAtomId?: number };
+
+      // Check if the starting atom is part of the ester group
+      if (s.startAtomId !== undefined && esterAtomIds.has(s.startAtomId)) {
+        if (process.env.VERBOSE) {
+          console.log(
+            `[buildEsterWithRingAlkylGroup] Filtering out substituent starting with ester atom ${s.startAtomId}:`,
+            s,
+          );
+        }
+        return false;
+      }
+
+      // Also check if any substituent atoms are part of the ester group (backup check)
+      if (s.atoms && s.atoms.length > 0) {
+        const hasEsterAtom = s.atoms.some((atom) => esterAtomIds.has(atom.id));
+        if (hasEsterAtom && process.env.VERBOSE) {
+          console.log(
+            `[buildEsterWithRingAlkylGroup] Filtering out substituent with ester atoms:`,
+            s,
+          );
+        }
+        return !hasEsterAtom;
+      }
+
+      return true;
+    },
+  );
+
+  // Find the ring attachment position (where ester oxygen connects to ring)
+  let ringAttachmentPosition: number | undefined;
+
+  // Find ester oxygen atom (the single-bonded O, not the carbonyl O)
+  // Ester structure: R-O-C(=O)-R'
+  // We want the O atom with degree >= 2 (connected to ring and carbonyl carbon)
+  const esterOxygen = esterGroup.atoms.find((atom) => {
+    const atomId = typeof atom === "number" ? atom : atom.id;
+    const atomObj = molecule.atoms[atomId];
+    return atomObj?.symbol === "O" && (atomObj.degree ?? 0) >= 2;
+  });
+
+  if (process.env.VERBOSE) {
+    console.log("[buildEsterWithRingAlkylGroup] esterOxygen:", esterOxygen);
+    console.log(
+      "[buildEsterWithRingAlkylGroup] parentStructure.ring:",
+      parentStructure.ring,
+    );
+  }
+
+  if (esterOxygen && parentStructure.ring) {
+    const esterOxygenId =
+      typeof esterOxygen === "number" ? esterOxygen : esterOxygen.id;
+    const ringAtomIds = new Set(
+      parentStructure.ring.atoms.map((a: Atom) => a.id),
+    );
+
+    // Create mapping from ring atom ID to IUPAC position
+    // The ring.atoms array is in the canonical order, so position = index + 1
+    const atomIdToPosition = new Map<number, number>();
+    parentStructure.ring.atoms.forEach((atom: Atom, index: number) => {
+      atomIdToPosition.set(atom.id, index + 1);
+    });
+
+    if (process.env.VERBOSE) {
+      console.log(
+        "[buildEsterWithRingAlkylGroup] esterOxygenId:",
+        esterOxygenId,
+      );
+      console.log(
+        "[buildEsterWithRingAlkylGroup] ringAtomIds:",
+        Array.from(ringAtomIds),
+      );
+      console.log(
+        "[buildEsterWithRingAlkylGroup] atomIdToPosition map:",
+        Array.from(atomIdToPosition.entries()),
+      );
+    }
+
+    // Find which ring atom the ester oxygen connects to
+    for (const bond of molecule.bonds) {
+      if (bond.atom1 === esterOxygenId && ringAtomIds.has(bond.atom2)) {
+        // Found connection - look up the position
+        const ringAtomId = bond.atom2;
+
+        if (process.env.VERBOSE) {
+          console.log(
+            "[buildEsterWithRingAlkylGroup] Found bond: ester oxygen",
+            esterOxygenId,
+            "-> ring atom",
+            ringAtomId,
+          );
+        }
+
+        ringAttachmentPosition = atomIdToPosition.get(ringAtomId);
+
+        if (process.env.VERBOSE) {
+          console.log(
+            "[buildEsterWithRingAlkylGroup] Ring atom position from map:",
+            ringAttachmentPosition,
+          );
+        }
+        break;
+      } else if (bond.atom2 === esterOxygenId && ringAtomIds.has(bond.atom1)) {
+        const ringAtomId = bond.atom1;
+
+        if (process.env.VERBOSE) {
+          console.log(
+            "[buildEsterWithRingAlkylGroup] Found bond: ring atom",
+            ringAtomId,
+            "-> ester oxygen",
+            esterOxygenId,
+          );
+        }
+
+        ringAttachmentPosition = atomIdToPosition.get(ringAtomId);
+
+        if (process.env.VERBOSE) {
+          console.log(
+            "[buildEsterWithRingAlkylGroup] Ring atom position from map:",
+            ringAttachmentPosition,
+          );
+        }
+        break;
+      }
+    }
+  }
+
+  if (process.env.VERBOSE) {
+    console.log(
+      "[buildEsterWithRingAlkylGroup] ringAttachmentPosition:",
+      ringAttachmentPosition,
+    );
+  }
+
   // Get functional group substituents (non-ester, as prefixes)
+  // For ring esters, exclude ketones - they should be treated as acyl substituents
+  const ketoneLocants = functionalGroups
+    .filter((fg) => fg.type === "ketone")
+    .map((fg) => fg.locant || (fg.locants && fg.locants[0]) || 0);
+
+  if (process.env.VERBOSE) {
+    console.log("[buildEsterWithRingAlkylGroup] ketoneLocants:", ketoneLocants);
+  }
+
   const fgSubstituents = functionalGroups
-    .filter((fg) => fg.type !== "ester" && fg.type !== "alkoxy" && fg.prefix)
+    .filter(
+      (fg) =>
+        fg.type !== "ester" &&
+        fg.type !== "alkoxy" &&
+        fg.type !== "ketone" && // Exclude ketones from functional group prefixes
+        fg.prefix,
+    )
     .map((fg) => ({
       type: fg.type,
       name: fg.prefix || fg.type,
@@ -64,8 +218,70 @@ export function buildEsterWithRingAlkylGroup(
       prefix: fg.prefix,
     }));
 
+  // Convert ketone substituents to acyl groups
+  // Find alkyl substituents at ketone positions and convert them to acyl
+  const processedParentSubstituents = filteredParentSubstituents.map(
+    (sub: unknown) => {
+      const s = sub as {
+        type: string;
+        name?: string;
+        locant?: number;
+        position?: string;
+        [key: string]: unknown;
+      };
+
+      // Get the position - can be stored as 'position' (string) or 'locant' (number)
+      const subPosition = s.position ? Number(s.position) : s.locant || 0;
+
+      // Check if this substituent is at a ketone position
+      if (ketoneLocants.includes(subPosition)) {
+        // Check if this is an alkyl or alkoxy substituent (ethyl, ethoxy, propyl, etc.)
+        const alkylMatch = s.name?.match(/^(meth|eth|prop|but|pent)(yl|oxy)$/);
+        if (alkylMatch) {
+          // Convert to acyl: ethyl → acetyl, ethoxy → acetyl, propyl → propanoyl, etc.
+          let acylName: string;
+          const baseName = alkylMatch[1]; // meth, eth, prop, etc.
+
+          if (baseName === "meth") {
+            acylName = "formyl";
+          } else if (baseName === "eth") {
+            acylName = "acetyl";
+          } else if (baseName === "prop") {
+            acylName = "propanoyl";
+          } else if (baseName === "but") {
+            acylName = "butanoyl";
+          } else if (baseName === "pent") {
+            acylName = "pentanoyl";
+          } else {
+            // Generic conversion: alkyl base → alkanoyl
+            acylName = baseName + "anoyl";
+          }
+
+          if (process.env.VERBOSE) {
+            console.log(
+              `[buildEsterWithRingAlkylGroup] Converting ${s.name} at position ${subPosition} to ${acylName} (ketone detected)`,
+            );
+          }
+
+          // Create new object with updated properties
+          const result: { [key: string]: unknown } = {};
+          for (const key in s) {
+            result[key] = s[key];
+          }
+          result.type = "acyl";
+          result.name = acylName;
+          // Preserve the position field
+          result.locant = subPosition;
+          return result;
+        }
+      }
+
+      return sub;
+    },
+  );
+
   // Combine all substituents
-  const allSubstituents = [...fgSubstituents, ...parentSubstituents];
+  const allSubstituents = [...fgSubstituents, ...processedParentSubstituents];
 
   if (process.env.VERBOSE) {
     console.log(
@@ -82,11 +298,32 @@ export function buildEsterWithRingAlkylGroup(
     );
   }
 
-  // Sort substituents by locant
+  // Sort substituents alphabetically by name (IUPAC rule), then by locant
   allSubstituents.sort((a, b) => {
-    const aa = a as { locant?: number };
-    const bb = b as { locant?: number };
-    return (aa.locant || 0) - (bb.locant || 0);
+    const aa = a as {
+      type: string;
+      name?: string;
+      locant?: number;
+      position?: string;
+    };
+    const bb = b as {
+      type: string;
+      name?: string;
+      locant?: number;
+      position?: string;
+    };
+    const nameA = aa.name || aa.type;
+    const nameB = bb.name || bb.type;
+
+    // First sort alphabetically by name
+    if (nameA !== nameB) {
+      return nameA.localeCompare(nameB);
+    }
+
+    // If names are the same, sort by locant/position
+    const posA = aa.position ? Number(aa.position) : aa.locant || 0;
+    const posB = bb.position ? Number(bb.position) : bb.locant || 0;
+    return posA - posB;
   });
 
   // Group identical substituents
@@ -95,12 +332,20 @@ export function buildEsterWithRingAlkylGroup(
     { locants: number[]; name: string }
   >();
   for (const sub of allSubstituents) {
-    const s = sub as { type: string; name?: string; locant?: number };
+    const s = sub as {
+      type: string;
+      name?: string;
+      locant?: number;
+      position?: string;
+    };
     const key = s.name || s.type;
+    // Get position from either 'position' (string) or 'locant' (number)
+    const subPosition = s.position ? Number(s.position) : s.locant || 0;
+
     if (!groupedSubstituents.has(key)) {
       groupedSubstituents.set(key, { locants: [], name: key });
     }
-    groupedSubstituents.get(key)!.locants.push(s.locant || 0);
+    groupedSubstituents.get(key)!.locants.push(subPosition);
   }
 
   // Build substituent parts
@@ -115,12 +360,25 @@ export function buildEsterWithRingAlkylGroup(
   // Get ring name
   const ringName = parentStructure.name || "ring";
 
-  // Functional class: ring name ends with -yl suffix
+  // Functional class: ring name ends with -yl suffix with attachment locant
   const ringBaseName = ringName.replace(/e$/, ""); // oxolane → oxolan
-  const alkylGroupName =
-    substituentParts.length > 0
-      ? `${substituentParts.join("-")}-${ringBaseName}-yl`
+  const ringWithLocant =
+    ringAttachmentPosition !== undefined
+      ? `${ringBaseName}-${ringAttachmentPosition}-yl`
       : `${ringBaseName}-yl`;
+  // Assemble the alkyl group name
+  // If the last substituent ends with "-yl", don't add hyphen before ring name
+  let alkylGroupName: string;
+  if (substituentParts.length > 0) {
+    const substituentString = substituentParts.join("-");
+    // Check if the last substituent ends with "yl" (e.g., "propan-2-yl")
+    const needsHyphen = !substituentString.endsWith("yl");
+    alkylGroupName = needsHyphen
+      ? `${substituentString}-${ringWithLocant}`
+      : `${substituentString}${ringWithLocant}`;
+  } else {
+    alkylGroupName = ringWithLocant;
+  }
 
   // Extract the acyl portion (C=O side) length
   const acylLength = getAcylChainLength(esterGroup, molecule);
@@ -166,10 +424,40 @@ export function getAcylChainLength(
   esterGroup: FunctionalGroup,
   molecule: Molecule,
 ): number {
+  if (process.env.VERBOSE) {
+    console.log("[getAcylChainLength] esterGroup.atoms:", esterGroup.atoms);
+    console.log(
+      "[getAcylChainLength] esterGroup.atoms.length:",
+      esterGroup.atoms?.length,
+    );
+  }
+
   if (!esterGroup.atoms || esterGroup.atoms.length < 3) return 1;
 
-  const carbonylCarbon = esterGroup.atoms[0] as unknown as number;
-  const esterOxygen = esterGroup.atoms[2] as unknown as number;
+  // Extract atom IDs from esterGroup.atoms (which may contain Atom objects or numbers)
+  const carbonylCarbon =
+    typeof esterGroup.atoms[0] === "number"
+      ? esterGroup.atoms[0]
+      : (esterGroup.atoms[0] as Atom).id;
+  const esterOxygen =
+    typeof esterGroup.atoms[2] === "number"
+      ? esterGroup.atoms[2]
+      : (esterGroup.atoms[2] as Atom).id;
+
+  if (process.env.VERBOSE) {
+    console.log(
+      "[getAcylChainLength] carbonylCarbon:",
+      carbonylCarbon,
+      "symbol:",
+      molecule.atoms[carbonylCarbon]?.symbol,
+    );
+    console.log(
+      "[getAcylChainLength] esterOxygen:",
+      esterOxygen,
+      "symbol:",
+      molecule.atoms[esterOxygen]?.symbol,
+    );
+  }
 
   // BFS from carbonyl carbon, avoiding ester oxygen
   const visited = new Set<number>();
@@ -207,23 +495,24 @@ export function getAcylChainLength(
 
 /**
  * Convert carbon chain length to alkanoate name
+ * Uses common names where appropriate (e.g., "acetate" instead of "ethanoate")
  */
 export function getAlkanoateName(length: number): string {
-  const prefixes = [
+  const names = [
     "",
-    "meth",
-    "eth",
-    "prop",
-    "but",
-    "pent",
-    "hex",
-    "hept",
-    "oct",
-    "non",
-    "dec",
+    "formate",
+    "acetate",
+    "propanoate",
+    "butanoate",
+    "pentanoate",
+    "hexanoate",
+    "heptanoate",
+    "octanoate",
+    "nonanoate",
+    "decanoate",
   ];
-  if (length < prefixes.length) {
-    return `${prefixes[length]}anoate`;
+  if (length < names.length) {
+    return names[length] || "";
   }
   return `C${length}-alkanoate`;
 }

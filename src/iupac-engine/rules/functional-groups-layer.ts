@@ -2,8 +2,8 @@ import type { IUPACRule, FunctionalGroup } from "../types";
 import { RulePriority } from "../types";
 import type { ImmutableNamingContext } from "../immutable-context";
 import { ExecutionPhase, NomenclatureMethod } from "../immutable-context";
-import { getSharedDetector } from "../opsin-functional-group-detector";
 import type { Molecule, Atom, Bond } from "../../../types";
+import type { OPSINFunctionalGroupDetector } from "../opsin-functional-group-detector";
 
 // Type for OPSIN detector return values (atoms are indices)
 type DetectedFunctionalGroup = {
@@ -37,6 +37,12 @@ type RawFunctionalGroup = {
  *
  * Reference: Blue Book P-44.1 - Principal characteristic group selection
  * https://iupac.qmul.ac.uk/BlueBook/RuleP44.html
+ *
+ * TRACEABILITY NOTE (Phase 2 OPSIN Integration):
+ * All functional group priority lookups now use OPSIN data via context.getDetector().
+ * Trace metadata (lines 316-364) captures the OPSIN pattern used for each detection,
+ * stored in context.state.functionalGroupTrace. This provides full traceability of
+ * which OPSIN rules were applied during functional group detection and prioritization.
  */
 
 /**
@@ -284,7 +290,7 @@ export const FUNCTIONAL_GROUP_PRIORITY_RULE: IUPACRule = {
   action: (context: ImmutableNamingContext) => {
     // Use OPSIN detector directly so we can capture pattern metadata for traceability
     const mol = context.getState().molecule;
-    const detected = getSharedDetector().detectFunctionalGroups(mol);
+    const detected = context.getDetector().detectFunctionalGroups(mol);
 
     // Get previously detected functional groups (from ALCOHOL_DETECTION_RULE, etc.)
     const previousFunctionalGroups = context.getState().functionalGroups || [];
@@ -350,11 +356,9 @@ export const FUNCTIONAL_GROUP_PRIORITY_RULE: IUPACRule = {
         const rawPriority =
           typeof d.priority === "number"
             ? d.priority
-            : getSharedDetector().getFunctionalGroupPriority(
-                d.pattern || d.type,
-              ) ||
-              FUNCTIONAL_GROUP_PRIORITIES[type] ||
-              0;
+            : context
+                .getDetector()
+                .getFunctionalGroupPriority(d.pattern || d.type) || 0;
         const priority = normalizePriority(rawPriority);
 
         traceMeta.push({
@@ -460,7 +464,8 @@ export const FUNCTIONAL_GROUP_PRIORITY_RULE: IUPACRule = {
             const wasExpanded =
               type === "ketone" && atoms.length > (d.atoms?.length || 0);
             const isDifferentAtomCount =
-              type === "ketone" && matchingPrevious.atoms?.length !== atoms.length;
+              type === "ketone" &&
+              matchingPrevious.atoms?.length !== atoms.length;
             if (
               matchingPrevious.atoms &&
               matchingPrevious.atoms.length > 0 &&
@@ -506,7 +511,9 @@ export const FUNCTIONAL_GROUP_PRIORITY_RULE: IUPACRule = {
           bonds: preservedBonds,
           suffix:
             d.suffix ||
-            getSharedDetector().getFunctionalGroupSuffix(d.pattern || d.type) ||
+            context
+              .getDetector()
+              .getFunctionalGroupSuffix(d.pattern || d.type) ||
             undefined,
           prefix: d.prefix || undefined,
           priority,
@@ -529,10 +536,15 @@ export const FUNCTIONAL_GROUP_PRIORITY_RULE: IUPACRule = {
     // sort by priority (higher numeric value = higher priority)
     functionalGroups.sort((a, b) => (b.priority || 0) - (a.priority || 0));
 
-    const principalGroup = selectPrincipalGroup(functionalGroups, mol);
+    const principalGroup = selectPrincipalGroup(
+      functionalGroups,
+      mol,
+      context.getDetector(),
+    );
     const priorityScore = calculateFunctionalGroupPriority(
       functionalGroups,
       mol,
+      context.getDetector(),
     );
 
     if (process.env.VERBOSE) {
@@ -1482,7 +1494,10 @@ function checkIfSimpleEster(
   esters: FunctionalGroup[],
 ): boolean {
   const mol = context.getState().molecule;
-  const allFunctionalGroups = detectAllFunctionalGroups(context);
+  const allFunctionalGroups = detectAllFunctionalGroups(
+    context,
+    context.getDetector(),
+  );
 
   if (process.env.VERBOSE) {
     console.log("[checkIfSimpleEster] Checking ester complexity:", {
@@ -1515,25 +1530,19 @@ function checkIfSimpleEster(
   // Check for higher-priority functional groups that would override ester as principal group
   // Use dynamic comparison with normalized priorities so scales match (engine uses larger numbers
   // for higher priority). Normalize the detector-provided priority to the engine scale.
-  const detector = getSharedDetector();
+  const detector = context.getDetector();
   const rawEsterPriority =
     typeof detector.getFunctionalGroupPriority === "function"
-      ? detector.getFunctionalGroupPriority("ester") ||
-        FUNCTIONAL_GROUP_PRIORITIES.ester ||
-        0
-      : FUNCTIONAL_GROUP_PRIORITIES.ester || 0;
+      ? detector.getFunctionalGroupPriority("ester") || 0
+      : 0;
   const esterPriority = normalizePriority(rawEsterPriority);
   const higherPriorityGroups = allFunctionalGroups.filter(
     (fg) =>
       fg.type !== "ester" &&
       fg.type !== "ether" &&
       fg.type !== "alkoxy" &&
-      (fg.priority ||
-        detector.getFunctionalGroupPriority(fg.type) ||
-        FUNCTIONAL_GROUP_PRIORITIES[
-          fg.type as keyof typeof FUNCTIONAL_GROUP_PRIORITIES
-        ] ||
-        0) > esterPriority,
+      (fg.priority || detector.getFunctionalGroupPriority(fg.type) || 0) >
+        esterPriority,
   );
 
   // Has higher-priority functional groups → use substitutive nomenclature
@@ -2048,6 +2057,10 @@ export const LACTONE_TO_KETONE_RULE: IUPACRule = {
     }
 
     // If we found any lactone carbonyls, ensure they're present as ketone functional groups
+    const detector = context.getDetector();
+    const ketonePriority = normalizePriority(
+      detector.getFunctionalGroupPriority("ketone") || 0,
+    );
     let updatedFunctionalGroups = functionalGroups.slice();
     if (lactoneCarbonIds.size > 0) {
       // Remove any existing ester entries that correspond to these lactones and replace with ketone entries
@@ -2064,7 +2077,7 @@ export const LACTONE_TO_KETONE_RULE: IUPACRule = {
               type: "ketone",
               name: "ketone",
               suffix: "one",
-              priority: FUNCTIONAL_GROUP_PRIORITIES.ketone,
+              priority: ketonePriority,
               atoms: [mol.atoms.find((a) => a.id === carbonylId)].filter(
                 (a): a is Atom => a !== undefined,
               ),
@@ -2092,7 +2105,7 @@ export const LACTONE_TO_KETONE_RULE: IUPACRule = {
             prefix: "oxo",
             atoms: carbonAtom ? [carbonAtom] : [],
             bonds: [],
-            priority: FUNCTIONAL_GROUP_PRIORITIES.ketone,
+            priority: ketonePriority,
             isPrincipal: false,
             locants: carbonAtom ? [carbonAtom.id] : [],
           } as FunctionalGroup);
@@ -2124,8 +2137,17 @@ export const LACTONE_TO_KETONE_RULE: IUPACRule = {
                 const atomId = typeof a === "number" ? a : a?.id;
                 return atomId !== undefined && lactoneCarbonIds.has(atomId);
               }),
-          ) || selectPrincipalGroup(updatedFunctionalGroups, mol)
-        : selectPrincipalGroup(updatedFunctionalGroups, mol);
+          ) ||
+          selectPrincipalGroup(
+            updatedFunctionalGroups,
+            mol,
+            context.getDetector(),
+          )
+        : selectPrincipalGroup(
+            updatedFunctionalGroups,
+            mol,
+            context.getDetector(),
+          );
 
     if (process.env.VERBOSE) {
       console.log(
@@ -2202,9 +2224,9 @@ export const CARBOXYLIC_ACID_RULE: IUPACRule = {
           ...state,
           principalGroup: carboxylicAcids[0],
           functionalGroupPriority:
-            FUNCTIONAL_GROUP_PRIORITIES.carboxylic_acid ||
-            getSharedDetector().getFunctionalGroupPriority("carboxylic_acid") ||
-            0,
+            context
+              .getDetector()
+              .getFunctionalGroupPriority("carboxylic_acid") || 0,
         }),
         "carboxylic-acid-detection",
         "Carboxylic Acid Detection",
@@ -2321,40 +2343,6 @@ export const KETONE_DETECTION_RULE: IUPACRule = {
  */
 // Expanded functional group priority mapping
 // NOTE: The engine uses numeric comparison where a higher numeric value means higher priority.
-// Assign larger numbers to higher-priority functional groups to match comparator semantics.
-const FUNCTIONAL_GROUP_PRIORITIES: Record<string, number> = {
-  // Highest priority groups
-  carboxylic_acid: 100,
-  sulfonic_acid: 99,
-  anhydride: 98,
-  ester: 97,
-
-  // High priority
-  acyl_halide: 96,
-  amide: 95,
-  nitrile: 94,
-  thiocyanate: 93,
-
-  // Medium priority
-  aldehyde: 92,
-  ketone: 91,
-  alcohol: 90,
-  amine: 89,
-
-  // Lower priority
-  ether: 88,
-  halide: 87,
-  nitro: 86,
-  peroxide: 85,
-  isocyanate: 84,
-  sulfoxide: 83,
-  sulfide: 82,
-  sulfinyl: 81,
-  sulfanyl: 80,
-  phosphoryl: 79,
-  phosphanyl: 78,
-};
-
 /**
  * Normalize detector-provided priorities to the engine's static scale.
  * OPSIN/other detectors often return small numbers (e.g., 1..12). The engine
@@ -2379,10 +2367,10 @@ function normalizePriority(p: number): number {
  */
 function detectAllFunctionalGroups(
   context: ImmutableNamingContext | { molecule: Molecule },
+  detector: OPSINFunctionalGroupDetector,
 ): FunctionalGroup[] {
   const mol =
     "getState" in context ? context.getState().molecule : context.molecule;
-  const detector = getSharedDetector();
   const detected = detector.detectFunctionalGroups(mol);
 
   const normalized: FunctionalGroup[] = detected.map(
@@ -2396,9 +2384,7 @@ function detectAllFunctionalGroups(
       const rawPriority2 =
         typeof d.priority === "number"
           ? d.priority
-          : detector.getFunctionalGroupPriority(d.pattern || d.type) ||
-            FUNCTIONAL_GROUP_PRIORITIES[type] ||
-            0;
+          : detector.getFunctionalGroupPriority(d.pattern || d.type) || 0;
       const priority = normalizePriority(rawPriority2);
 
       // Convert atom IDs to Atom objects
@@ -2432,7 +2418,8 @@ function detectAllFunctionalGroups(
  */
 function selectPrincipalGroup(
   functionalGroups: FunctionalGroup[],
-  molecule?: Molecule,
+  molecule: Molecule | undefined,
+  detector: OPSINFunctionalGroupDetector,
 ): FunctionalGroup | undefined {
   if (functionalGroups.length === 0) {
     return undefined;
@@ -2476,7 +2463,7 @@ function selectPrincipalGroup(
           return undefined; // No principal group - all groups are part of substituents
         }
         // Continue with the filtered groups
-        return selectPrincipalGroup(filteredGroups, molecule);
+        return selectPrincipalGroup(filteredGroups, molecule, detector);
       }
 
       // Not bonded - sulfinyl is preferred as principal (original logic)
@@ -2514,25 +2501,16 @@ function selectPrincipalGroup(
 
   // Sort by the assigned priority on the FunctionalGroup object first.
   // After normalization, priorities use the engine scale (HIGHER numeric value = HIGHER priority).
-  // Fall back to the static FUNCTIONAL_GROUP_PRIORITIES table or 0 when missing.
-  const detector = getSharedDetector();
+  // Fall back to OPSIN detector lookup or 0 when missing.
   const sortedGroups = functionalGroups.sort((a, b) => {
     const priorityA =
       typeof a.priority === "number"
         ? a.priority
-        : detector.getFunctionalGroupPriority(a.type) ||
-          FUNCTIONAL_GROUP_PRIORITIES[
-            a.type as keyof typeof FUNCTIONAL_GROUP_PRIORITIES
-          ] ||
-          0;
+        : detector.getFunctionalGroupPriority(a.type) || 0;
     const priorityB =
       typeof b.priority === "number"
         ? b.priority
-        : detector.getFunctionalGroupPriority(b.type) ||
-          FUNCTIONAL_GROUP_PRIORITIES[
-            b.type as keyof typeof FUNCTIONAL_GROUP_PRIORITIES
-          ] ||
-          0;
+        : detector.getFunctionalGroupPriority(b.type) || 0;
     return priorityB - priorityA; // Higher priority number = higher priority (engine convention after normalization)
   });
 
@@ -2544,22 +2522,19 @@ function selectPrincipalGroup(
  */
 function calculateFunctionalGroupPriority(
   functionalGroups: FunctionalGroup[],
-  molecule?: Molecule,
+  molecule: Molecule | undefined,
+  detector: OPSINFunctionalGroupDetector,
 ): number {
   if (functionalGroups.length === 0) {
     return 0;
   }
 
-  const principal = selectPrincipalGroup(functionalGroups, molecule);
+  const principal = selectPrincipalGroup(functionalGroups, molecule, detector);
   if (!principal) return 0;
   // Prefer the priority value stored on the principal FunctionalGroup object
   return typeof principal.priority === "number"
     ? principal.priority
-    : getSharedDetector().getFunctionalGroupPriority(principal.type) ||
-        FUNCTIONAL_GROUP_PRIORITIES[
-          principal.type as keyof typeof FUNCTIONAL_GROUP_PRIORITIES
-        ] ||
-        0;
+    : detector.getFunctionalGroupPriority(principal.type) || 0;
 }
 
 /**
@@ -2622,7 +2597,11 @@ function detectCarboxylicAcids(
             atoms: [carbon, atom1, atom2],
             bonds: [bond, ohBond],
             suffix: "oic acid",
-            priority: FUNCTIONAL_GROUP_PRIORITIES.carboxylic_acid ?? 0,
+            priority: normalizePriority(
+              context
+                .getDetector()
+                .getFunctionalGroupPriority("carboxylic_acid") || 0,
+            ),
             isPrincipal: false,
             locants: [carbon.id],
           });
@@ -2687,7 +2666,9 @@ function detectAlcohols(context: ImmutableNamingContext): RawFunctionalGroup[] {
             bonds: carbonBonds, // Only include the C-O bond
             suffix: "ol",
             prefix: "hydroxy",
-            priority: FUNCTIONAL_GROUP_PRIORITIES.alcohol ?? 0,
+            priority: normalizePriority(
+              context.getDetector().getFunctionalGroupPriority("alcohol") || 0,
+            ),
             isPrincipal: false,
             locants: [carbonId], // Set locant to carbon atom ID
           });
@@ -2732,7 +2713,9 @@ function detectAmines(context: ImmutableNamingContext): RawFunctionalGroup[] {
           bonds: bonds,
           suffix: "amine",
           prefix: "amino",
-          priority: FUNCTIONAL_GROUP_PRIORITIES.amine ?? 0,
+          priority: normalizePriority(
+            context.getDetector().getFunctionalGroupPriority("amine") || 0,
+          ),
           isPrincipal: false,
           locants: [atom.id],
         });
@@ -2779,7 +2762,9 @@ function detectKetones(context: ImmutableNamingContext): RawFunctionalGroup[] {
             bonds: [bond],
             suffix: "one",
             prefix: "oxo",
-            priority: FUNCTIONAL_GROUP_PRIORITIES.ketone ?? 0,
+            priority: normalizePriority(
+              context.getDetector().getFunctionalGroupPriority("ketone") || 0,
+            ),
             isPrincipal: false,
             locants: [carbon.id],
           });

@@ -108,6 +108,25 @@ export const P14_3_PRINCIPAL_GROUP_NUMBERING_RULE: IUPACRule = {
         if (group.isPrincipal && principalIdx < principalLocants.length) {
           const locant = principalLocants[principalIdx]!;
           principalIdx++;
+
+          // If ring numbering has already been applied, preserve the existing locants array
+          // Ring numbering handles multiple principal groups on rings correctly
+          if (
+            parentStructure.ringNumberingApplied &&
+            group.locants &&
+            group.locants.length > 0
+          ) {
+            if (process.env.VERBOSE) {
+              console.log(
+                `[P-14.3] Preserving ring-numbered locants for ${group.type}: ${JSON.stringify(group.locants)}`,
+              );
+            }
+            return {
+              ...group,
+              locant: group.locants[0] ?? locant,
+            };
+          }
+
           return {
             ...group,
             locant: locant,

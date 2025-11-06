@@ -7,8 +7,20 @@ import { IUPACNamer } from "../../../src/iupac-engine/index";
 import {
   ImmutableNamingContext,
   ExecutionPhase,
+  type ContextServices,
 } from "../../../src/iupac-engine/immutable-context";
 import { parseSMILES } from "../../../src/parsers/smiles-parser";
+import { OPSINService } from "../../../src/iupac-engine/services/opsin-service";
+import { OPSINFunctionalGroupDetector } from "../../../src/iupac-engine/opsin-functional-group-detector";
+
+// Helper to create test services
+function createTestServices(): ContextServices {
+  const opsin = new OPSINService();
+  return {
+    opsin,
+    detector: new OPSINFunctionalGroupDetector(opsin),
+  };
+}
 
 describe("Complete IUPAC Rule Engine Implementation", () => {
   test("should demonstrate complete engine architecture", () => {
@@ -49,7 +61,7 @@ describe("Complete IUPAC Rule Engine Implementation", () => {
 
     const molecule = parseResult.molecules[0]!;
 
-    let context = ImmutableNamingContext.create(molecule);
+    let context = ImmutableNamingContext.create(molecule, createTestServices());
 
     // Simulate rule execution with full trace
     context = context.withUpdatedCandidates(

@@ -1,6 +1,9 @@
 import type { Molecule } from "../../types";
 import fs from "fs";
-import { getSharedDetector } from "./opsin-functional-group-detector";
+import {
+  getSharedDetector,
+  type OPSINFunctionalGroupDetector,
+} from "./opsin-functional-group-detector";
 import type { ImmutableNamingContext } from "./immutable-context";
 
 /**
@@ -11,8 +14,10 @@ import type { ImmutableNamingContext } from "./immutable-context";
  */
 export class OPSINNameGenerator {
   private rules: unknown;
+  private detector: OPSINFunctionalGroupDetector;
 
-  constructor() {
+  constructor(detector?: OPSINFunctionalGroupDetector) {
+    this.detector = detector || getSharedDetector();
     this.loadOPSINRules();
   }
 
@@ -55,8 +60,7 @@ export class OPSINNameGenerator {
         : null;
 
     // Detect functional groups using comprehensive OPSIN detector
-    const functionalGroups =
-      getSharedDetector().detectFunctionalGroups(molecule);
+    const functionalGroups = this.detector.detectFunctionalGroups(molecule);
 
     if (functionalGroups.length > 0) {
       // Primary functional group determines the name
@@ -86,7 +90,7 @@ export class OPSINNameGenerator {
     atoms: number[];
     pattern: string;
   }> {
-    return getSharedDetector().detectFunctionalGroups(molecule);
+    return this.detector.detectFunctionalGroups(molecule);
   }
 
   /**

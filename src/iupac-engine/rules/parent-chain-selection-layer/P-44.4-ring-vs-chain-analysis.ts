@@ -47,38 +47,38 @@ export const P44_4_RING_VS_CHAIN_IN_CHAIN_ANALYSIS_RULE: IUPACRule = {
     const state = context.getState() as ContextState;
     const candidateRings = state.candidateRings;
     const candidateChains = state.candidateChains;
-    
+
     if (!candidateRings || candidateRings.length === 0) return context;
     if (!candidateChains || candidateChains.length === 0) return context;
-    
+
     // Get the largest ring size (number of atoms in ring)
     const ring = candidateRings[0]!;
     const ringSize = ring.size || (ring.atoms ? ring.atoms.length : 0);
-    
+
     // Get the longest chain length
     const longestChain = candidateChains[0]!;
     const chainLength = longestChain.atoms ? longestChain.atoms.length : 0;
-    
+
     // P-44.4 criterion: Compare lengths first
     // Prefer the larger structure (more atoms)
     // If ring has fewer atoms than the longest acyclic chain, prefer the chain
     if (chainLength > ringSize) {
       if (process.env.VERBOSE) {
         console.log(
-          `[P-44.4] Chain (${chainLength} atoms) > Ring (${ringSize} atoms): selecting chain as parent`
+          `[P-44.4] Chain (${chainLength} atoms) > Ring (${ringSize} atoms): selecting chain as parent`,
         );
       }
       // Don't select ring - let chain selection rules handle it
       return context;
     }
-    
+
     // Ring is equal or larger: prefer ring per P-44.4
     if (process.env.VERBOSE) {
       console.log(
-        `[P-44.4] Ring (${ringSize} atoms) >= Chain (${chainLength} atoms): selecting ring as parent`
+        `[P-44.4] Ring (${ringSize} atoms) >= Chain (${chainLength} atoms): selecting ring as parent`,
       );
     }
-    
+
     // Generate a simple ring name (aromatic vs aliphatic)
     const type =
       ring.type ||

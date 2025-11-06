@@ -366,9 +366,23 @@ export const P3_2_RING_SUBSTITUENT_RULE: IUPACRule = {
         `[P-3.2] Existing substituents: ${existingSubstituents.length}`,
         existingSubstituents.map(
           (s) =>
-            `${s.name} at position ${"locant" in s ? s.locant : "unknown"}`,
+            `${s.name} at position ${"position" in s ? s.position : "locant" in s ? s.locant : "unknown"}`,
         ),
       );
+      console.log(
+        `[P-3.2] ringNumberingApplied: ${parentStructure.ringNumberingApplied}`,
+      );
+    }
+
+    // If ring numbering has been applied, we MUST preserve the existing substituent positions
+    // because they have been correctly remapped by the ring-numbering layer
+    if (parentStructure.ringNumberingApplied) {
+      if (process.env.VERBOSE) {
+        console.log(
+          `[P-3.2] Ring numbering already applied - preserving existing substituent positions`,
+        );
+      }
+      return context; // No changes needed - positions are correct
     }
 
     // Only preserve substituents that are non-alkyl (e.g., alkoxy, halogen) or complex alkyl names

@@ -6,11 +6,23 @@ import { describe, test, expect } from "bun:test";
 import {
   ImmutableNamingContext,
   ExecutionPhase,
+  type ContextServices,
 } from "../../../src/iupac-engine/immutable-context";
 import {
   FUNCTIONAL_GROUP_CONTRACT,
   ContractValidator,
 } from "../../../src/iupac-engine/contracts/layer-contracts";
+import { OPSINService } from "../../../src/iupac-engine/services/opsin-service";
+import { OPSINFunctionalGroupDetector } from "../../../src/iupac-engine/opsin-functional-group-detector";
+
+// Helper to create test services
+function createTestServices(): ContextServices {
+  const opsin = new OPSINService();
+  return {
+    opsin,
+    detector: new OPSINFunctionalGroupDetector(opsin),
+  };
+}
 
 describe("Improved IUPAC Rule Engine", () => {
   test("should create immutable context with molecule", () => {
@@ -20,7 +32,10 @@ describe("Improved IUPAC Rule Engine", () => {
       bonds: [],
     } as any;
 
-    const context = ImmutableNamingContext.create(molecule);
+    const context = ImmutableNamingContext.create(
+      molecule,
+      createTestServices(),
+    );
 
     expect(context.getState().molecule).toBe(molecule);
     expect(context.getState().confidence).toBe(1.0);
@@ -33,7 +48,10 @@ describe("Improved IUPAC Rule Engine", () => {
       bonds: [],
     } as any;
 
-    const context = ImmutableNamingContext.create(molecule);
+    const context = ImmutableNamingContext.create(
+      molecule,
+      createTestServices(),
+    );
 
     // Update candidate chains with trace
     const chain = {
@@ -71,7 +89,10 @@ describe("Improved IUPAC Rule Engine", () => {
       bonds: [],
     } as any;
 
-    const context = ImmutableNamingContext.create(molecule);
+    const context = ImmutableNamingContext.create(
+      molecule,
+      createTestServices(),
+    );
 
     expect(context.isPhaseComplete(ExecutionPhase.FUNCTIONAL_GROUP)).toBe(
       false,
@@ -100,7 +121,7 @@ describe("Improved IUPAC Rule Engine", () => {
       bonds: [],
     } as any;
 
-    let context = ImmutableNamingContext.create(molecule);
+    let context = ImmutableNamingContext.create(molecule, createTestServices());
 
     // Apply multiple rule updates
     context = context.withUpdatedCandidates(
@@ -154,7 +175,10 @@ describe("Improved IUPAC Rule Engine", () => {
       bonds: [],
     } as any;
 
-    const context = ImmutableNamingContext.create(molecule);
+    const context = ImmutableNamingContext.create(
+      molecule,
+      createTestServices(),
+    );
 
     // Check phase readiness
     expect(
@@ -180,7 +204,10 @@ describe("Improved IUPAC Rule Engine", () => {
       bonds: [],
     } as any;
 
-    const context = ImmutableNamingContext.create(molecule);
+    const context = ImmutableNamingContext.create(
+      molecule,
+      createTestServices(),
+    );
 
     // Add atomic analysis to satisfy functional group contract
     const contextWithAnalysis = context.withStateUpdate(

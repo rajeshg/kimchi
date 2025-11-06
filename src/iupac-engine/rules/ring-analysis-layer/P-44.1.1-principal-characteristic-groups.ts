@@ -25,7 +25,7 @@ function isFunctionalGroupOnRing(
 
   // Convert FG atoms to indices
   const fgAtomIndices = fgAtoms
-    .map((atom: any) => molecule.atoms.findIndex((a) => a === atom))
+    .map((atom) => molecule.atoms.findIndex((a) => a === atom))
     .filter((idx) => idx !== -1);
 
   // Check each FG atom
@@ -358,13 +358,8 @@ export const P44_1_1_PRINCIPAL_CHARACTERISTIC_GROUPS_RULE: IUPACRule = {
         const isAttachedToChain = fgAtomIndices.some((atomIdx) => {
           // Find bonds containing this FG atom
           const neighbors = molecule.bonds
-            .filter(
-              (b) =>
-                b.atom1 === atomIdx || b.atom2 === atomIdx,
-            )
-            .map((b) =>
-              b.atom1 === atomIdx ? b.atom2 : b.atom1,
-            );
+            .filter((b) => b.atom1 === atomIdx || b.atom2 === atomIdx)
+            .map((b) => (b.atom1 === atomIdx ? b.atom2 : b.atom1));
           // Check if any neighbor is in the chain
           return neighbors.some((neighborIdx) =>
             chainAtomIndicesSet.has(neighborIdx),
@@ -379,9 +374,18 @@ export const P44_1_1_PRINCIPAL_CHARACTERISTIC_GROUPS_RULE: IUPACRule = {
       });
 
       // Heterocycle priority logic:
+      // IMPORTANT: This seniority check should ONLY apply when ring also has functional groups.
+      // If chain has MORE functional groups than ring (maxChainFGCount > ringFGCount),
+      // chain should always win regardless of heterocycle status.
+      //
+      // Heterocycle seniority only applies when FG counts are EQUAL:
       // - If chain has carboxylic acid or ester: chain wins (these are senior to heterocycles)
-      // - If chain has only amines/alcohols: heterocycle wins (heterocycles are senior)
-      if (hasHeterocyclicRing) {
+      // - If chain has only amines/alcohols AND ring has FGs: heterocycle wins (heterocycles are senior)
+      if (
+        hasHeterocyclicRing &&
+        ringFGCount > 0 &&
+        maxChainFGCount === ringFGCount
+      ) {
         if (hasHighPriorityFGOnChain) {
           if (process.env.VERBOSE) {
             console.log(
@@ -392,12 +396,16 @@ export const P44_1_1_PRINCIPAL_CHARACTERISTIC_GROUPS_RULE: IUPACRule = {
         } else {
           if (process.env.VERBOSE) {
             console.log(
-              "[P-44.1.1] Rings are heterocyclic with only low-priority chain FGs - preserving rings per IUPAC seniority (heterocycles > amines/alcohols)",
+              "[P-44.1.1] Equal FG count: Rings are heterocyclic with FGs, chain has only low-priority FGs - preserving rings per IUPAC seniority (heterocycles > amines/alcohols)",
             );
           }
-          // Don't clear rings - heterocycles are senior to amines/alcohols
+          // Don't clear rings - heterocycles are senior to amines/alcohols when FG counts are equal
           return context;
         }
+      } else if (process.env.VERBOSE && hasHeterocyclicRing) {
+        console.log(
+          `[P-44.1.1] Chain has MORE FGs than ring (${maxChainFGCount} > ${ringFGCount}) - chain wins regardless of heterocycle status`,
+        );
       }
 
       const functionalChains = chainFGCounts

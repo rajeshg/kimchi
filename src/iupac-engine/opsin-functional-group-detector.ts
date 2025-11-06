@@ -1,26 +1,6 @@
 import type { Atom, Bond, Molecule } from "../../types";
-import fs from "fs";
-
-interface OPSINRuleEntry {
-  name?: string;
-  aliases?: string[];
-  priority?: number;
-  suffix?: string;
-  [key: string]: unknown;
-}
-
-interface OPSINRules {
-  functionalGroups?: Record<string, OPSINRuleEntry>;
-  suffixes?: Record<string, string>;
-  [key: string]: unknown;
-}
-
-interface FunctionalGroupData {
-  name: string;
-  priority?: number;
-  suffix: string;
-  prefix?: string;
-}
+import type { FunctionalGroupData } from "./services/opsin-service";
+import { OPSINService } from "./services/opsin-service";
 
 interface PatternFinderFunction {
   (
@@ -39,210 +19,19 @@ interface PatternFinderFunction {
 export class OPSINFunctionalGroupDetector {
   private matchPatternCache: WeakMap<Molecule, Map<string, number[]>> =
     new WeakMap();
-  private rules: OPSINRules = {};
+  private opsinService: OPSINService;
   private functionalGroups: Map<string, FunctionalGroupData> = new Map();
-  private suffixes: Map<string, string> = new Map();
 
-  constructor() {
-    this.loadOPSINRules();
+  constructor(opsinService: OPSINService) {
+    this.opsinService = opsinService;
+    this.initializeFunctionalGroupsFromService();
   }
 
-  private loadOPSINRules(): void {
-    try {
-      const rulesPath = `${import.meta.dir}/../../opsin-rules.json`;
-      const rulesData = fs.readFileSync(rulesPath, "utf8");
-      this.rules = JSON.parse(rulesData);
-
-      // Build functional groups map for efficient lookup
-      this.functionalGroups = new Map();
-      if (this.rules.functionalGroups) {
-        // Map OPSIN functional group entries into a normalized structure
-        // Priority follows IUPAC Blue Book P-44.1 (lower number = higher priority)
-        const priorityMap: Record<string, number> = {
-          "carboxylic acid": 1,
-          "sulfonic acid": 2,
-          ester: 3,
-          "acid halide": 4,
-          amide: 5,
-          hydrazide: 6,
-          nitrile: 7,
-          cyanohydrin: 7, // OPSIN alias for nitrile (C#N)
-          aldehyde: 8,
-          ketone: 9,
-          alcohol: 10,
-          phenol: 10,
-          amine: 11,
-          ether: 12,
-        };
-
-        for (const [pattern, data] of Object.entries(
-          this.rules.functionalGroups,
-        )) {
-          const entry = data || {};
-
-          // Skip halogens - they are substituents, not functional groups
-          // Halogens are: F, Cl, Br, I
-          if (
-            pattern === "F" ||
-            pattern === "Cl" ||
-            pattern === "Br" ||
-            pattern === "I"
-          ) {
-            continue;
-          }
-
-          // Skip 'S' pattern - we handle thioethers (RSR) in builtin checks
-          if (pattern === "S") {
-            continue;
-          }
-
-          const nameFromEntry =
-            Array.isArray(entry.aliases) && entry.aliases.length > 0
-              ? (entry.aliases[0] as string)
-              : entry.name || pattern;
-          const name = nameFromEntry || pattern;
-          const priority =
-            priorityMap[name.toLowerCase()] ||
-            (entry.priority as number | undefined) ||
-            999;
-          const suffix = (entry.suffix as string | undefined) || "";
-          this.functionalGroups.set(pattern, { name, priority, suffix });
-        }
-      }
-
-      // Override OPSIN names for certain patterns to use standard IUPAC names
-      // OPSIN uses "cyanohydrin" for C#N, but we want "nitrile" for standard naming
-      if (this.functionalGroups.has("C#N")) {
-        const entry = this.functionalGroups.get("C#N");
-        this.functionalGroups.set("C#N", {
-          ...entry,
-          name: "nitrile",
-          suffix: "nitrile",
-        });
-      }
-
-      // Build suffixes map
-      this.suffixes = new Map();
-      if (this.rules.suffixes) {
-        for (const [name, pattern] of Object.entries(this.rules.suffixes)) {
-          this.suffixes.set(name, pattern as string);
-        }
-      }
-    } catch (_error) {
-      // Try a repository-root fallback (some runners set cwd differently)
-      try {
-        const cwdPath = `${process.cwd()}/opsin-rules.json`;
-        const rulesData = fs.readFileSync(cwdPath, "utf8");
-        this.rules = JSON.parse(rulesData);
-        // build maps as above with priority mapping
-        this.functionalGroups = new Map();
-        if (this.rules.functionalGroups) {
-          // Priority follows IUPAC Blue Book P-44.1 (lower number = higher priority)
-          const priorityMap: Record<string, number> = {
-            "carboxylic acid": 1,
-            "sulfonic acid": 2,
-            ester: 3,
-            "acid halide": 4,
-            amide: 5,
-            hydrazide: 6,
-            nitrile: 7,
-            cyanohydrin: 7, // OPSIN alias for nitrile (C#N)
-            aldehyde: 8,
-            ketone: 9,
-            alcohol: 10,
-            phenol: 10,
-            amine: 11,
-            ether: 12,
-          };
-
-          for (const [pattern, data] of Object.entries(
-            this.rules.functionalGroups,
-          )) {
-            const entry = data || {};
-
-            // Skip halogens - they are substituents, not functional groups
-            if (
-              pattern === "F" ||
-              pattern === "Cl" ||
-              pattern === "Br" ||
-              pattern === "I"
-            ) {
-              continue;
-            }
-
-            // Skip 'S' pattern - we handle thioethers (RSR) in builtin checks
-            if (pattern === "S") {
-              continue;
-            }
-
-            const nameFromEntry =
-              Array.isArray(entry.aliases) && entry.aliases.length > 0
-                ? (entry.aliases[0] as string)
-                : entry.name || pattern;
-            const name = nameFromEntry || pattern;
-            const priority =
-              priorityMap[name.toLowerCase()] ||
-              (entry.priority as number | undefined) ||
-              999;
-            const suffix = (entry.suffix as string | undefined) || "";
-            this.functionalGroups.set(pattern, { name, priority, suffix });
-          }
-        }
-
-        // Override OPSIN names for certain patterns to use standard IUPAC names
-        if (this.functionalGroups.has("C#N")) {
-          const entry = this.functionalGroups.get("C#N");
-          this.functionalGroups.set("C#N", {
-            ...entry,
-            name: "nitrile",
-            suffix: "nitrile",
-          });
-        }
-
-        this.suffixes = new Map();
-        if (this.rules.suffixes) {
-          for (const [name, pattern] of Object.entries(this.rules.suffixes)) {
-            this.suffixes.set(name, pattern as string);
-          }
-        }
-      } catch (_err2) {
-        console.warn("Could not load OPSIN rules, using fallback");
-        this.initializeFallbackRules();
-      }
-    }
-  }
-
-  private initializeFallbackRules(): void {
-    // Minimal fallback if OPSIN rules unavailable
-    this.rules = {};
-
-    // Populate a minimal set of functional group patterns with priorities so tests
-    // that rely on common functional groups succeed even without full OPSIN data.
-    // Priority follows IUPAC Blue Book P-44.1 (lower number = higher priority)
-    this.functionalGroups = new Map();
-    const fgList = [
-      {
-        pattern: "C(=O)[OX2H1]",
-        name: "carboxylic acid",
-        suffix: "oic acid",
-        priority: 1,
-      },
-      { pattern: "C(=O)O", name: "ester", suffix: "oate", priority: 3 },
-      { pattern: "C(=O)N", name: "amide", suffix: "amide", priority: 5 },
-      { pattern: "C#N", name: "nitrile", suffix: "nitrile", priority: 7 },
-      { pattern: "C=O", name: "aldehyde", suffix: "al", priority: 8 },
-      { pattern: "[CX3](=O)[CX4]", name: "ketone", suffix: "one", priority: 9 },
-      { pattern: "[OX2H]", name: "alcohol", suffix: "ol", priority: 10 },
-      { pattern: "[NX3][CX4]", name: "amine", suffix: "amine", priority: 11 },
-      { pattern: "ROR", name: "ether", suffix: "ether", priority: 12 },
-    ];
-
-    for (const fg of fgList) {
-      this.functionalGroups.set(fg.pattern, {
-        name: fg.name,
-        suffix: fg.suffix,
-        priority: fg.priority,
-      });
+  private initializeFunctionalGroupsFromService(): void {
+    // Copy functional groups from service for local caching
+    const allGroups = this.opsinService.getAllFunctionalGroups();
+    for (const [pattern, data] of allGroups.entries()) {
+      this.functionalGroups.set(pattern, data);
     }
   }
 
@@ -453,9 +242,35 @@ export class OPSINFunctionalGroupDetector {
 
           const fgEntry = this.functionalGroups.get(check.pattern);
 
-          // Special case: For ketones, create one functional group per C=O pair
-          // since each ketone should be counted separately for dione, trione, etc.
-          if (check.pattern === "[CX3](=O)[CX4]" && atomsMatched.length > 2) {
+          // Special case: For carboxylic acids, create one functional group per C(=O)OH triple
+          // since each carboxylic acid should be counted separately for diacids, triacids, etc.
+          if (check.pattern === "C(=O)[OX2H1]" && atomsMatched.length > 3) {
+            // atomsMatched contains triples: [C1, O_carbonyl1, O_hydroxyl1, C2, O_carbonyl2, O_hydroxyl2, ...]
+            for (let i = 0; i < atomsMatched.length; i += 3) {
+              detectedGroups.push({
+                type: check.pattern,
+                name: fgEntry?.name || check.name,
+                suffix: fgEntry?.suffix || "",
+                prefix: fgEntry?.prefix || undefined,
+                priority: fgEntry?.priority || check.priority,
+                atoms: [
+                  atomsMatched[i]!,
+                  atomsMatched[i + 1]!,
+                  atomsMatched[i + 2]!,
+                ],
+                pattern: check.pattern,
+              });
+              // Claim these atoms
+              claimedAtoms.add(atomsMatched[i]!);
+              claimedAtoms.add(atomsMatched[i + 1]!);
+              claimedAtoms.add(atomsMatched[i + 2]!);
+            }
+          } else if (
+            check.pattern === "[CX3](=O)[CX4]" &&
+            atomsMatched.length > 2
+          ) {
+            // Special case: For ketones, create one functional group per C=O pair
+            // since each ketone should be counted separately for dione, trione, etc.
             // atomsMatched contains pairs: [C1, O1, C2, O2, ...]
             for (let i = 0; i < atomsMatched.length; i += 2) {
               detectedGroups.push({
@@ -788,7 +603,9 @@ export class OPSINFunctionalGroupDetector {
     atoms: readonly Atom[],
     bonds: readonly Bond[],
   ): number[] {
-    // Look for carbonyl carbon (C=O) followed by OH
+    // Look for ALL carboxylic acid groups (C=O-OH), not just the first one
+    const carboxylicAcids: number[] = [];
+
     for (let i = 0; i < atoms.length; i++) {
       const atom = atoms[i];
       if (!atom || atom.symbol !== "C") continue;
@@ -836,12 +653,12 @@ export class OPSINFunctionalGroupDetector {
             atom.id,
             atoms,
           )!;
-          // Return all three atoms: carbonyl carbon, carbonyl oxygen, hydroxyl oxygen
-          return [atom.id, carbonylOxygen.id, oxygen.id];
+          // Add all three atoms: carbonyl carbon, carbonyl oxygen, hydroxyl oxygen
+          carboxylicAcids.push(atom.id, carbonylOxygen.id, oxygen.id);
         }
       }
     }
-    return [];
+    return carboxylicAcids;
   }
 
   private findAlcoholPattern(
@@ -1229,7 +1046,7 @@ export class OPSINFunctionalGroupDetector {
     rings?: readonly (readonly number[])[],
   ): number[] {
     const allAmides: number[] = [];
-    
+
     // Look for all carbonyl carbons (C=O) bonded to nitrogen
     for (let i = 0; i < atoms.length; i++) {
       const atom = atoms[i];
@@ -1611,6 +1428,12 @@ export class OPSINFunctionalGroupDetector {
     // Look for ALL carbonyl carbons (C=O) single-bonded to oxygen which is bonded to carbon
     const esters: number[] = [];
 
+    if (process.env.VERBOSE) {
+      console.log("[findEsterPattern] Starting search");
+      console.log(`[findEsterPattern] Atoms count: ${atoms.length}`);
+      console.log(`[findEsterPattern] Bonds count: ${bonds.length}`);
+    }
+
     for (let i = 0; i < atoms.length; i++) {
       const atom = atoms[i];
       if (!atom || atom.symbol !== "C") continue;
@@ -1624,12 +1447,22 @@ export class OPSINFunctionalGroupDetector {
 
       if (!doubleBondOxygen) continue;
 
+      if (process.env.VERBOSE) {
+        console.log(`[findEsterPattern] Found C=O at atom ${atom.id}`);
+      }
+
       const singleBondedOxygen = bonds.find(
         (bond) =>
           (bond.atom1 === atom.id || bond.atom2 === atom.id) &&
           bond.type === "single" &&
           this.getBondedAtom(bond, atom.id, atoms)?.symbol === "O",
       );
+
+      if (process.env.VERBOSE) {
+        console.log(
+          `[findEsterPattern] Single bonded O: ${singleBondedOxygen ? "found" : "not found"}`,
+        );
+      }
 
       if (singleBondedOxygen) {
         const oxygen = this.getBondedAtom(singleBondedOxygen, atom.id, atoms)!;
@@ -1639,12 +1472,22 @@ export class OPSINFunctionalGroupDetector {
             this.getBondedAtom(b, oxygen.id, atoms)?.symbol === "C" &&
             this.getBondedAtom(b, oxygen.id, atoms)?.id !== atom.id,
         );
+        if (process.env.VERBOSE) {
+          console.log(
+            `[findEsterPattern] O-C neighbor: ${oxCarbonNeighbor ? "found" : "not found"}`,
+          );
+        }
         if (oxCarbonNeighbor) {
           const carbonylOxygen = this.getBondedAtom(
             doubleBondOxygen,
             atom.id,
             atoms,
           )!;
+          if (process.env.VERBOSE) {
+            console.log(
+              `[findEsterPattern] ✓ ESTER FOUND: C=${atom.id}, O=${carbonylOxygen.id}, O=${oxygen.id}`,
+            );
+          }
           esters.push(atom.id, carbonylOxygen.id, oxygen.id);
         }
       }
@@ -1984,15 +1827,17 @@ export class OPSINFunctionalGroupDetector {
   }
 }
 
-// Singleton instance - safe to share because:
-// 1. rules, functionalGroups, suffixes are read-only after initialization
-// 2. matchPatternCache uses WeakMap which is per-molecule and garbage-collected
-// 3. All methods are stateless and don't mutate shared state
+// Temporary singleton for backward compatibility - will be removed
+
 let _sharedDetector: OPSINFunctionalGroupDetector | null = null;
+let _sharedService: OPSINService | null = null;
 
 export function getSharedDetector(): OPSINFunctionalGroupDetector {
   if (!_sharedDetector) {
-    _sharedDetector = new OPSINFunctionalGroupDetector();
+    if (!_sharedService) {
+      _sharedService = new OPSINService();
+    }
+    _sharedDetector = new OPSINFunctionalGroupDetector(_sharedService);
   }
   return _sharedDetector;
 }

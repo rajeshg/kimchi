@@ -1,5 +1,7 @@
 import type { Molecule } from "../../types";
 import type { Atom, Bond, MultipleBond } from "types";
+import type { OPSINService } from "./services/opsin-service";
+import type { OPSINFunctionalGroupDetector } from "./opsin-functional-group-detector";
 
 /**
  * Generate a unique ID for a molecule based on its structure
@@ -22,6 +24,14 @@ import type {
   ParentStructure,
   RuleConflict,
 } from "./types";
+
+/**
+ * Services available to the naming context
+ */
+export interface ContextServices {
+  readonly opsin: OPSINService;
+  readonly detector: OPSINFunctionalGroupDetector;
+}
 
 interface RawSubstituent {
   position: string;
@@ -153,16 +163,25 @@ export interface AtomicAnalysis {
 export class ImmutableNamingContext {
   private readonly state: ContextState;
   private readonly history: RuleExecutionTrace[];
+  private readonly services: ContextServices;
 
-  private constructor(state: ContextState, history: RuleExecutionTrace[] = []) {
+  private constructor(
+    state: ContextState,
+    services: ContextServices,
+    history: RuleExecutionTrace[] = [],
+  ) {
     this.state = Object.freeze({ ...state });
+    this.services = services;
     this.history = [...history];
   }
 
   /**
    * Create initial context from molecule
    */
-  static create(molecule: Molecule): ImmutableNamingContext {
+  static create(
+    molecule: Molecule,
+    services: ContextServices,
+  ): ImmutableNamingContext {
     const initialState: ContextState = {
       molecule,
       functionalGroups: [],
@@ -183,7 +202,11 @@ export class ImmutableNamingContext {
         findMainChain,
         findSubstituents,
       } = require("./naming/iupac-chains");
-      const main = findMainChain(molecule) as number[];
+      const main = findMainChain(
+        molecule,
+        undefined,
+        services.detector,
+      ) as number[];
       const candidates: Chain[] = [];
       if (main && main.length >= 2) {
         const atoms = main
@@ -211,7 +234,11 @@ export class ImmutableNamingContext {
             }
           }
         }
-        const subsRaw = findSubstituents(molecule, main as number[]);
+        const subsRaw = findSubstituents(
+          molecule,
+          main as number[],
+          services.detector,
+        );
         const substituents = (subsRaw as RawSubstituent[]).map((s) => {
           if (process.env.VERBOSE) {
             console.log(
@@ -241,7 +268,7 @@ export class ImmutableNamingContext {
       // ignore and leave candidateChains empty
     }
 
-    return new ImmutableNamingContext(initialState);
+    return new ImmutableNamingContext(initialState, services);
   }
 
   /**
@@ -249,6 +276,20 @@ export class ImmutableNamingContext {
    */
   getState(): Readonly<ContextState> {
     return this.state;
+  }
+
+  /**
+   * Get OPSIN service for rule lookups
+   */
+  getOPSIN(): OPSINService {
+    return this.services.opsin;
+  }
+
+  /**
+   * Get OPSIN functional group detector
+   */
+  getDetector(): OPSINFunctionalGroupDetector {
+    return this.services.detector;
   }
 
   /**
@@ -294,7 +335,7 @@ export class ImmutableNamingContext {
     const newState = Object.freeze({ ...afterState });
     const newHistory = [...this.history, trace];
 
-    return new ImmutableNamingContext(newState, newHistory);
+    return new ImmutableNamingContext(newState, this.services, newHistory);
   }
 
   /**
@@ -460,7 +501,7 @@ export class ImmutableNamingContext {
     const newState = Object.freeze({ ...afterState });
     const newHistory = [...this.history, trace];
 
-    return new ImmutableNamingContext(newState, newHistory);
+    return new ImmutableNamingContext(newState, this.services, newHistory);
   }
 
   /**

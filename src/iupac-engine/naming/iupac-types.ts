@@ -11,6 +11,7 @@ export interface NamingSubstituent {
   size: number;
   name: string;
   atoms?: number[]; // Optional atom indices for deduplication
+  startAtomId?: number; // Optional starting atom ID for filtering
 }
 
 /**

@@ -16,9 +16,6 @@ import {
   nameAlkylSulfanylSubstituent,
   namePhosphorylSubstituent,
   namePhosphanylSubstituent,
-  findSubstituents,
-  classifySubstituent,
-  generateSubstitutedName,
 } from "../naming/iupac-chains";
 import { getGreekNumeral } from "../naming/iupac-helpers";
 
@@ -189,6 +186,18 @@ export const SUBSTITUENT_ALPHABETIZATION_RULE: IUPACRule = {
       return context;
     }
 
+    if (process.env.VERBOSE) {
+      console.log(
+        "[SUBSTITUENT_ALPHABETIZATION_RULE] Input functionalGroups:",
+        functionalGroups.map((g) => ({
+          type: g.type,
+          isPrincipal: g.isPrincipal,
+          locants: g.locants,
+          locant: g.locant,
+        })),
+      );
+    }
+
     // Separate principal groups from substituents
     const principalGroups = functionalGroups.filter(
       (group: FunctionalGroup) => group.isPrincipal,
@@ -205,6 +214,20 @@ export const SUBSTITUENT_ALPHABETIZATION_RULE: IUPACRule = {
         return prefixA.localeCompare(prefixB);
       },
     );
+
+    if (process.env.VERBOSE) {
+      console.log(
+        "[SUBSTITUENT_ALPHABETIZATION_RULE] Output functionalGroups:",
+        [...principalGroups, ...alphabetizedStructuralSubstituents].map(
+          (g) => ({
+            type: g.type,
+            isPrincipal: g.isPrincipal,
+            locants: g.locants,
+            locant: g.locant,
+          }),
+        ),
+      );
+    }
 
     return context.withStateUpdate(
       (state: ContextState) => ({
@@ -1342,7 +1365,9 @@ function buildBoraneName(
   const boraneGroup = functionalGroups.find((g) => g.type === "borane");
   if (!boraneGroup || !boraneGroup.atoms || boraneGroup.atoms.length === 0) {
     if (process.env.VERBOSE) {
-      console.log("[buildBoraneName] No borane group found, using substitutive");
+      console.log(
+        "[buildBoraneName] No borane group found, using substitutive",
+      );
     }
     return buildSubstitutiveName(parentStructure, functionalGroups, molecule);
   }
@@ -1350,15 +1375,15 @@ function buildBoraneName(
   const firstAtom = boraneGroup.atoms[0];
   if (!firstAtom) {
     if (process.env.VERBOSE) {
-      console.log("[buildBoraneName] No boron atom in group, using substitutive");
+      console.log(
+        "[buildBoraneName] No boron atom in group, using substitutive",
+      );
     }
     return buildSubstitutiveName(parentStructure, functionalGroups, molecule);
   }
 
   const boronAtom =
-    typeof firstAtom === "object"
-      ? firstAtom
-      : molecule.atoms[firstAtom];
+    typeof firstAtom === "object" ? firstAtom : molecule.atoms[firstAtom];
   if (!boronAtom) {
     if (process.env.VERBOSE) {
       console.log("[buildBoraneName] No boron atom found, using substitutive");
@@ -1388,7 +1413,8 @@ function buildBoraneName(
   const substituentNames: string[] = [];
 
   for (const bond of bondsToBoron) {
-    const substituentAtomIdx = bond.atom1 === boronIdx ? bond.atom2 : bond.atom1;
+    const substituentAtomIdx =
+      bond.atom1 === boronIdx ? bond.atom2 : bond.atom1;
     const substituentAtom = molecule.atoms[substituentAtomIdx];
 
     if (!substituentAtom) continue;
@@ -1412,7 +1438,8 @@ function buildBoraneName(
 
       // Add neighbors (excluding boron)
       for (const b of molecule.bonds) {
-        const next = b.atom1 === current ? b.atom2 : b.atom2 === current ? b.atom1 : -1;
+        const next =
+          b.atom1 === current ? b.atom2 : b.atom2 === current ? b.atom1 : -1;
         if (next !== -1 && !visited.has(next)) {
           stack.push(next);
         }
@@ -1508,15 +1535,15 @@ function nameBoranylSubstituent(
   }
 
   // Check if this is a simple saturated alkyl group (no heteroatoms, no multiple bonds)
-  const hasHeteroatoms = Array.from(substituentAtoms).some(
-    (idx) => {
-      const sym = molecule.atoms[idx]?.symbol;
-      return sym !== "C" && sym !== "H";
-    },
-  );
+  const hasHeteroatoms = Array.from(substituentAtoms).some((idx) => {
+    const sym = molecule.atoms[idx]?.symbol;
+    return sym !== "C" && sym !== "H";
+  });
 
   const hasMultipleBonds = molecule.bonds
-    .filter((b) => substituentAtoms.has(b.atom1) && substituentAtoms.has(b.atom2))
+    .filter(
+      (b) => substituentAtoms.has(b.atom1) && substituentAtoms.has(b.atom2),
+    )
     .some((b) => b.type !== "single");
 
   const hasBranching = carbonAtoms.some((atomIdx) => {
@@ -1591,9 +1618,6 @@ function nameComplexBoranylSubstituent(
       `[nameComplexBoranylSubstituent] Chain from root ${rootAtomIdx}: ${chain.join(",")}`,
     );
   }
-
-  // Build chain set for substituent detection
-  const chainSet = new Set(chain);
 
   // Detect double/triple bonds along the chain
   const multipleBonds: Array<{ position: number; type: "double" | "triple" }> =
@@ -1947,7 +1971,11 @@ function nameChainSubstituent(
         // Count other carbons attached to chain carbon (excluding the chain itself)
         const otherCarbons = molecule.bonds.filter((b) => {
           const otherIdx =
-            b.atom1 === chainIdx ? b.atom2 : b.atom2 === chainIdx ? b.atom1 : -1;
+            b.atom1 === chainIdx
+              ? b.atom2
+              : b.atom2 === chainIdx
+                ? b.atom1
+                : -1;
           if (otherIdx === -1 || otherIdx === startIdx) return false;
           const otherAtom = molecule.atoms[otherIdx];
           return otherAtom?.symbol === "C";
@@ -2116,9 +2144,7 @@ function groupSubstituents(
  * Format substituent groups with multiplicative prefixes and locants
  * Returns strings like "2,4-dimethyl-3-ethyl"
  */
-function formatSubstituentGroups(
-  groups: Map<string, number[]>,
-): string {
+function formatSubstituentGroups(groups: Map<string, number[]>): string {
   // Sort groups alphabetically by substituent name
   const sortedGroups = Array.from(groups.entries()).sort((a, b) =>
     a[0].localeCompare(b[0]),
@@ -2246,7 +2272,10 @@ function detectNSubstituents(
     };
     const multiplier =
       multipliers[nSubstituents.length] || `${nSubstituents.length}`;
-    const nLocants = new Array(nSubstituents.length).fill("N").join(",");
+    const nLocants = Array.from(
+      { length: nSubstituents.length },
+      () => "N",
+    ).join(",");
     return `${nLocants}-${multiplier}${firstSubName}`;
   }
 
@@ -3984,6 +4013,25 @@ function buildSubstitutiveName(
         );
         return nameWithoutParent + preferredAcidNames[chainLength];
       }
+    }
+
+    // Override suffix for ring carboxylic acids
+    // IUPAC rule: rings use "carboxylic acid" suffix, chains use "oic acid"
+    // Example: cyclohexane-1,2-dicarboxylic acid (not cyclohexane-1,2-dioic acid)
+    if (
+      principalGroup.type === "carboxylic_acid" &&
+      principalGroup.suffix === "oic acid" &&
+      parentStructure.type === "ring" &&
+      (principalGroup.multiplicity ?? 1) >= 1
+    ) {
+      if (process.env.VERBOSE) {
+        console.log(
+          `[buildSubstitutiveName] Overriding carboxylic acid suffix for ring structure: "oic acid" → "carboxylic acid"`,
+        );
+      }
+      principalGroup.suffix = "carboxylic acid";
+      // Mark as multiplicative to ensure proper handling with multiplicity prefix
+      principalGroup.isMultiplicative = true;
     }
 
     // Handle multiplicative suffix (e.g., dione, trione)

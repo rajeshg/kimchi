@@ -8,11 +8,13 @@
 import { describe, test, expect } from "bun:test";
 import { IUPACNamer } from "../../../src/iupac-engine";
 import { parseSMILES } from "../../../src/parsers/smiles-parser";
-import { getSharedDetector } from "../../../src/iupac-engine/opsin-functional-group-detector";
+import { OPSINFunctionalGroupDetector } from "../../../src/iupac-engine/opsin-functional-group-detector";
+import { OPSINService } from "../../../src/iupac-engine/services/opsin-service";
 
 describe("Comprehensive P-44.1 Functional Group Coverage", () => {
   test("should detect all priority levels from OPSIN rules", () => {
-    const detector = getSharedDetector();
+    const opsinService = new OPSINService();
+    const detector = new OPSINFunctionalGroupDetector(opsinService);
 
     // Test molecules covering different priority levels
     // Priorities follow IUPAC Blue Book P-44.1 (lower number = higher priority)
@@ -88,7 +90,8 @@ describe("Comprehensive P-44.1 Functional Group Coverage", () => {
   });
 
   test("should handle complex molecules with multiple functional groups", () => {
-    const detector = getSharedDetector();
+    const opsinService = new OPSINService();
+    const detector = new OPSINFunctionalGroupDetector(opsinService);
 
     // Test 4-aminobenzoic acid - has both carboxylic acid and amine
     const parseResult = parseSMILES("N=C1C=CC=C1C(=O)O");
@@ -114,7 +117,8 @@ describe("Comprehensive P-44.1 Functional Group Coverage", () => {
   });
 
   test("should use comprehensive OPSIN patterns", () => {
-    const detector = getSharedDetector();
+    const opsinService = new OPSINService();
+    const detector = new OPSINFunctionalGroupDetector(opsinService);
 
     // Test nitrile detection
     const parseResult = parseSMILES("CC#N");
@@ -155,7 +159,8 @@ describe("Comprehensive P-44.1 Functional Group Coverage", () => {
   });
 
   test("should demonstrate P-44.1 priority hierarchy", () => {
-    const detector = getSharedDetector();
+    const opsinService = new OPSINService();
+    const detector = new OPSINFunctionalGroupDetector(opsinService);
 
     // Create a molecule with multiple functional groups to test priority
     // This would be a hypothetical molecule with carboxylic acid and alcohol
@@ -248,7 +253,8 @@ describe("P-44.1 Implementation Summary", () => {
     console.log("✓ Support for complex multi-functional molecules");
 
     // Verify the detector can access OPSIN rules
-    const detector = getSharedDetector();
+    const opsinService = new OPSINService();
+    const detector = new OPSINFunctionalGroupDetector(opsinService);
 
     // Test that we can detect various functional group types
     const testMolecules = ["CCO", "CC(=O)O", "CC(=O)C", "CC#N"];

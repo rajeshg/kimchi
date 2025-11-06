@@ -55,9 +55,7 @@ export const RING_NUMBERING_RULE: IUPACRule = {
           `[Ring Numbering] Using von Baeyer numbering:`,
           Array.from(parentStructure.vonBaeyerNumbering.entries()),
         );
-        console.log(
-          `[Ring Numbering - ENTRY] Functional groups on entry:`,
-        );
+        console.log(`[Ring Numbering - ENTRY] Functional groups on entry:`);
         for (const fg of state.functionalGroups || []) {
           console.log(
             `  FG "${fg.type}": atoms.length=${fg.atoms?.length}, atoms=[${fg.atoms?.map((a: Atom) => a.id).join(", ")}]`,
@@ -89,10 +87,11 @@ export const RING_NUMBERING_RULE: IUPACRule = {
           if (fg.atoms && fg.atoms.length > 0) {
             // For ketones, only use the carbonyl carbon (first atom) for locant calculation
             // to avoid counting the oxygen which would create duplicate locants
-            const atomsToProcess = fg.type === "ketone" && fg.atoms[0] !== undefined
-              ? [fg.atoms[0]]
-              : fg.atoms;
-            
+            const atomsToProcess =
+              fg.type === "ketone" && fg.atoms[0] !== undefined
+                ? [fg.atoms[0]]
+                : fg.atoms;
+
             for (const groupAtom of atomsToProcess) {
               const groupAtomId =
                 typeof groupAtom === "object" ? groupAtom.id : groupAtom;
@@ -274,10 +273,11 @@ export const RING_NUMBERING_RULE: IUPACRule = {
           if (fg.atoms && fg.atoms.length > 0) {
             // For ketones, only use the carbonyl carbon (first atom) for locant calculation
             // to avoid counting the oxygen which would create duplicate locants
-            const atomsToProcess = fg.type === "ketone" && fg.atoms[0] !== undefined
-              ? [fg.atoms[0]]
-              : fg.atoms;
-            
+            const atomsToProcess =
+              fg.type === "ketone" && fg.atoms[0] !== undefined
+                ? [fg.atoms[0]]
+                : fg.atoms;
+
             for (const groupAtom of atomsToProcess) {
               const groupAtomId =
                 typeof groupAtom === "object" ? groupAtom.id : groupAtom;
@@ -415,10 +415,11 @@ export const RING_NUMBERING_RULE: IUPACRule = {
         if (fg.atoms && fg.atoms.length > 0) {
           // For ketones, only use the carbonyl carbon (first atom) for locant calculation
           // to avoid counting the oxygen which would create duplicate locants
-          const atomsToProcess = fg.type === "ketone" && fg.atoms[0] !== undefined
-            ? [fg.atoms[0]]
-            : fg.atoms;
-          
+          const atomsToProcess =
+            fg.type === "ketone" && fg.atoms[0] !== undefined
+              ? [fg.atoms[0]]
+              : fg.atoms;
+
           for (const groupAtom of atomsToProcess) {
             // Handle both object format (with .id) and direct ID format
             const groupAtomId =
@@ -461,15 +462,23 @@ export const RING_NUMBERING_RULE: IUPACRule = {
 
           if (process.env.VERBOSE) {
             console.log(
-              `[Ring Numbering] Updated functional group ${fg.type}: new locants=${attachedRingPositions}, new locant=${attachedRingPositions[0]}`,
+              `[Ring Numbering] Updated functional group ${fg.type}: new locants=${JSON.stringify(attachedRingPositions)}, new locant=${attachedRingPositions[0]}`,
             );
           }
 
-          return {
+          const updatedGroup = {
             ...fg,
-            locants: attachedRingPositions,
+            locants: [...attachedRingPositions], // Create a NEW array
             locant: attachedRingPositions[0],
           };
+
+          if (process.env.VERBOSE) {
+            console.log(
+              `[Ring Numbering] Created updated group with locants=${JSON.stringify(updatedGroup.locants)}`,
+            );
+          }
+
+          return updatedGroup;
         }
 
         // Otherwise, try to convert existing locants using the atom ID to position map
@@ -500,8 +509,13 @@ export const RING_NUMBERING_RULE: IUPACRule = {
       console.log(
         `[ring-numbering] BEFORE remapping - parentStructure.substituents:`,
         parentStructure.substituents?.map((s) => {
-          const atomId = "position" in s ? Number(s.position) : ("locant" in s ? s.locant : undefined);
-          return `${s.name} at atomId ${atomId}, position/locant ${"position" in s ? s.position : ("locant" in s ? s.locant : "N/A")}`;
+          const atomId =
+            "position" in s
+              ? Number(s.position)
+              : "locant" in s
+                ? s.locant
+                : undefined;
+          return `${s.name} at atomId ${atomId}, position/locant ${"position" in s ? s.position : "locant" in s ? s.locant : "N/A"}`;
         }),
       );
     }
@@ -546,6 +560,36 @@ export const RING_NUMBERING_RULE: IUPACRule = {
           (s) => `${s.name} at position ${s.position}`,
         ),
       );
+    }
+
+    if (process.env.VERBOSE) {
+      console.log(
+        `[Ring Numbering] SAVING updatedFunctionalGroups to state:`,
+        updatedFunctionalGroups.map((fg, idx) => ({
+          index: idx,
+          type: fg.type,
+          locants: fg.locants,
+          locant: fg.locant,
+          locants_array_identity: fg.locants,
+        })),
+      );
+
+      // Check if both functional groups share the same locants array reference
+      if (updatedFunctionalGroups.length >= 2) {
+        const fg0_locants = updatedFunctionalGroups[0]?.locants;
+        const fg1_locants = updatedFunctionalGroups[1]?.locants;
+        console.log(
+          `[Ring Numbering] Are locants arrays the same object? ${fg0_locants === fg1_locants}`,
+        );
+        if (fg0_locants)
+          console.log(
+            `[Ring Numbering] FG0 locants value: ${JSON.stringify(fg0_locants)}`,
+          );
+        if (fg1_locants)
+          console.log(
+            `[Ring Numbering] FG1 locants value: ${JSON.stringify(fg1_locants)}`,
+          );
+      }
     }
 
     return context.withStateUpdate(

@@ -41,6 +41,10 @@ export const INITIAL_STRUCTURE_ANALYSIS_RULE: IUPACRule = {
       const { detectRingSystems } = require("../ring-analysis-layer");
       const ringSystems: RingSystem[] = detectRingSystems(molecule);
 
+      if (process.env.VERBOSE) {
+        console.log(`[P-44.3.1] Detected ${ringSystems.length} ring system(s)`);
+      }
+
       if (ringSystems.length > 0) {
         // Update state with candidateRings so ring-analysis rules run
         let ctxWithRings = context.withStateUpdate(
@@ -51,6 +55,11 @@ export const INITIAL_STRUCTURE_ANALYSIS_RULE: IUPACRule = {
           ExecutionPhase.PARENT_STRUCTURE,
           `Detected ${ringSystems.length} ring system(s)`,
         );
+        if (process.env.VERBOSE) {
+          console.log(
+            `[P-44.3.1] After setting candidateRings: ${ctxWithRings.getState().candidateRings?.length || 0}`,
+          );
+        }
         // eslint-disable-next-line no-param-reassign
         // @ts-ignore - reassign local context for further actions
         context = ctxWithRings as unknown as ImmutableNamingContext;
@@ -75,7 +84,11 @@ export const INITIAL_STRUCTURE_ANALYSIS_RULE: IUPACRule = {
           );
         });
       }
-      const mainChain = findMainChain(molecule, functionalGroups);
+      const mainChain = findMainChain(
+        molecule,
+        functionalGroups,
+        context.getDetector(),
+      );
       console.log(
         `[initial-structure-layer] findMainChain returned: ${mainChain?.join(",") || "empty"}`,
       );
@@ -120,7 +133,11 @@ export const INITIAL_STRUCTURE_ANALYSIS_RULE: IUPACRule = {
           }
         }
 
-        const subsRaw = findSubstituents(molecule, main as number[]);
+        const subsRaw = findSubstituents(
+          molecule,
+          main as number[],
+          context.getDetector(),
+        );
         const substituents = subsRaw.map((s: NamingSubstituent) => ({
           atoms: [],
           bonds: [],
@@ -144,6 +161,11 @@ export const INITIAL_STRUCTURE_ANALYSIS_RULE: IUPACRule = {
       }
 
       // Preserve candidateRings while updating candidateChains
+      if (process.env.VERBOSE) {
+        console.log(
+          `[P-44.3.1] Before returning: candidateRings=${context.getState().candidateRings?.length || 0}, ringSystems=${ringSystems.length}`,
+        );
+      }
       return context.withStateUpdate(
         (state: ContextState) => ({
           ...state,
