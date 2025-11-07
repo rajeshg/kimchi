@@ -89,13 +89,36 @@ export const P14_3_PRINCIPAL_GROUP_NUMBERING_RULE: IUPACRule = {
         ),
       ];
     } else {
-      principalLocants = principalGroups.map((group) =>
-        getPrincipalGroupLocantFromSet(
+      if (process.env.VERBOSE) {
+        console.log(
+          `[P-14.3 MULTI-PRINCIPAL] Processing ${principalGroups.length} principal groups`,
+        );
+        console.log(
+          `[P-14.3 MULTI-PRINCIPAL] parentStructure.type=${parentStructure.type}`,
+        );
+        console.log(
+          `[P-14.3 MULTI-PRINCIPAL] parentStructure.locants=${JSON.stringify(parentStructure.locants)}`,
+        );
+        console.log(
+          `[P-14.3 MULTI-PRINCIPAL] ring atoms=${parentStructure.ring?.atoms.map((a: Atom) => a.id)}`,
+        );
+      }
+      principalLocants = principalGroups.map((group) => {
+        const locant = getPrincipalGroupLocantFromSet(
           parentStructure,
           group,
           parentStructure.locants,
-        ),
-      );
+        );
+        if (process.env.VERBOSE) {
+          console.log(
+            `[P-14.3 MULTI-PRINCIPAL] Group ${group.type} atom ${group.atoms[0]?.id}:${group.atoms[0]?.symbol} → locant ${locant}`,
+          );
+          console.log(
+            `[P-14.3 MULTI-PRINCIPAL] Group atoms array:`, group.atoms.map((a: Atom) => `${a.id}:${a.symbol}`)
+          );
+        }
+        return locant;
+      });
     }
 
     if (process.env.VERBOSE) {
@@ -108,6 +131,12 @@ export const P14_3_PRINCIPAL_GROUP_NUMBERING_RULE: IUPACRule = {
         if (group.isPrincipal && principalIdx < principalLocants.length) {
           const locant = principalLocants[principalIdx]!;
           principalIdx++;
+
+          if (process.env.VERBOSE) {
+            console.log(
+              `[P-14.3 PRINCIPAL] Processing principal group ${group.type}: locant=${locant}, group.locants=${JSON.stringify(group.locants)}, locantsConverted=${group.locantsConverted}, ringNumberingApplied=${parentStructure.ringNumberingApplied}`,
+            );
+          }
 
           // If ring numbering has already been applied, preserve the existing locants array
           // Ring numbering handles multiple principal groups on rings correctly
@@ -135,9 +164,11 @@ export const P14_3_PRINCIPAL_GROUP_NUMBERING_RULE: IUPACRule = {
         }
 
         // For non-principal groups, convert atom IDs to chain positions
+        // Skip if already converted by P-14.2
         if (
           !group.isPrincipal &&
           group.locants &&
+          !group.locantsConverted &&
           parentStructure.type === "chain" &&
           parentStructure.chain
         ) {
@@ -146,11 +177,21 @@ export const P14_3_PRINCIPAL_GROUP_NUMBERING_RULE: IUPACRule = {
           );
           const molecule = context.getState().molecule;
           
+          if (process.env.VERBOSE) {
+            console.log(
+              `[P-14.3 DEBUG] ${group.type}: input locants=${JSON.stringify(group.locants)}, chainAtomIds=${JSON.stringify(chainAtomIds)}, optimizedLocants=${JSON.stringify(optimizedLocants)}`,
+            );
+          }
+          
           const convertedLocants = group.locants.map((atomId: number) => {
             const position = chainAtomIds.indexOf(atomId);
             if (position !== -1) {
               // Convert to 1-based position using the optimized locant set
-              return optimizedLocants[position] ?? position + 1;
+              const result = optimizedLocants[position] ?? position + 1;
+              if (process.env.VERBOSE) {
+                console.log(`[P-14.3 CONVERT] atomId=${atomId} in chain at pos=${position} → locant=${result}`);
+              }
+              return result;
             }
             
             // Atom not in chain - find which chain atom it's bonded to
@@ -166,12 +207,19 @@ export const P14_3_PRINCIPAL_GROUP_NUMBERING_RULE: IUPACRule = {
                 if (chainAtomId !== undefined) {
                   const chainPos = chainAtomIds.indexOf(chainAtomId);
                   if (chainPos !== -1) {
-                    return optimizedLocants[chainPos] ?? chainPos + 1;
+                    const result = optimizedLocants[chainPos] ?? chainPos + 1;
+                    if (process.env.VERBOSE) {
+                      console.log(`[P-14.3 CONVERT] atomId=${atomId} NOT in chain, bonded to chain atom ${chainAtomId} at pos=${chainPos} → locant=${result}`);
+                    }
+                    return result;
                   }
                 }
               }
             }
             
+            if (process.env.VERBOSE) {
+              console.log(`[P-14.3 CONVERT] atomId=${atomId} fallback → returning atomId=${atomId}`);
+            }
             return atomId; // Fallback to atom ID if not found in chain
           });
 
@@ -184,12 +232,20 @@ export const P14_3_PRINCIPAL_GROUP_NUMBERING_RULE: IUPACRule = {
           return {
             ...group,
             locants: convertedLocants,
+            locantsConverted: true, // Mark that locants have been converted
           };
         }
 
         return group;
       },
     );
+
+    if (process.env.VERBOSE) {
+      console.log(
+        "[P-14.3 FINAL] Updated functional groups:",
+        updatedFunctionalGroups.map(g => ({ type: g.type, isPrincipal: g.isPrincipal, locants: g.locants, locant: g.locant }))
+      );
+    }
 
     return context.withStateUpdate(
       (state: ContextState) => ({

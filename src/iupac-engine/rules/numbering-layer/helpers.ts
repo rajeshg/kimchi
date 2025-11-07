@@ -29,12 +29,30 @@ export function normalizeFunctionalGroupLocants(
   }
 
   return functionalGroups.map((group) => {
-    const mappedLocants = (group.locants || []).map((val: number) => {
+    // Skip conversion if already converted by P-14.3
+    if (group.locantsConverted) {
+      return group;
+    }
+
+    const originalLocants = group.locants || [];
+    const mappedLocants = originalLocants.map((val: number) => {
       // If this value matches an atom id, map to locant, otherwise leave as-is
       return atomIndexToLocant.has(val) ? atomIndexToLocant.get(val)! : val;
     });
 
-    return { ...group, locants: mappedLocants };
+    // Check if any locants were actually converted
+    const locantsChanged = originalLocants.some((val, i) => val !== mappedLocants[i]);
+
+    if (process.env.VERBOSE) {
+      console.log(
+        `[normalizeFunctionalGroupLocants] ${group.type}: original locants=${JSON.stringify(group.locants)} → mapped=${JSON.stringify(mappedLocants)}`,
+      );
+    }
+
+    // Only mark as converted if locants actually changed
+    return locantsChanged 
+      ? { ...group, locants: mappedLocants, locantsConverted: true }
+      : { ...group, locants: mappedLocants };
   });
 }
 
@@ -348,6 +366,18 @@ export function getPrincipalGroupLocantFromSet(
           atomId,
           "initial positionInRing:",
           positionInRing,
+        );
+        console.log(
+          "[getPrincipalGroupLocantFromSet] Ring - principalGroup.bonds:",
+          principalGroup.bonds,
+        );
+        console.log(
+          "[getPrincipalGroupLocantFromSet] Ring - principalGroup.atoms:",
+          principalGroup.atoms,
+        );
+        console.log(
+          "[getPrincipalGroupLocantFromSet] Ring - ring.atoms:",
+          ring.atoms.map((a: Atom) => a.id),
         );
       }
 

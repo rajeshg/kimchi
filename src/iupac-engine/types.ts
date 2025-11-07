@@ -95,6 +95,7 @@ export interface FunctionalGroup {
   name?: string; // Full name from complex substituent analysis (e.g., flattened alkoxy names)
   locants: number[];
   locant?: number;
+  locantsConverted?: boolean; // True if locants have been converted from atom IDs to chain positions
   // Assembled metadata used during name assembly
   assembledName?: string;
   locantString?: string;

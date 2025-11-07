@@ -390,40 +390,34 @@ export const FUNCTIONAL_GROUP_PRIORITY_RULE: IUPACRule = {
                   typeof a === "number" ? a : a.id,
                 ) || [];
 
-              // For alcohols, OPSIN detects oxygen but we store carbon
-              // Match by checking if any current atom (oxygen) is bonded to any previous atom (carbon)
-              if (type === "alcohol") {
-                for (const currentAtomId of atomIds) {
-                  for (const prevAtomId of prevAtomIds) {
-                    // Check if these atoms are bonded
-                    const bonded = mol.bonds.some(
-                      (b: Bond) =>
-                        (b.atom1 === currentAtomId && b.atom2 === prevAtomId) ||
-                        (b.atom2 === currentAtomId && b.atom1 === prevAtomId),
-                    );
-                    if (bonded) {
-                      if (process.env.VERBOSE) {
-                        console.log(
-                          `[FUNCTIONAL_GROUP_PRIORITY_RULE] Found alcohol match: oxygen ${currentAtomId} bonded to carbon ${prevAtomId}`,
-                        );
-                      }
-                      return true;
-                    }
-                  }
-                }
-                return false;
-              }
-
-              // For other functional groups, match by overlapping atom IDs
-              const matches = prevAtomIds.some((id: number) =>
+              // Match by overlapping atom IDs
+              let matches = prevAtomIds.some((id: number) =>
                 atomIdSet.has(id),
               );
 
-              if (process.env.VERBOSE && type === "ketone") {
+              // If no direct overlap, check if atoms are bonded
+              // This handles cases like alcohols where previous detection stores carbon (C)
+              // and SMARTS detection finds oxygen (O), but they're bonded via C-O bond
+              if (!matches && prev.bonds && prev.bonds.length > 0) {
+                const prevBonds = prev.bonds;
+                matches = prevAtomIds.some((prevAtomId: number) =>
+                  atomIds.some((currentAtomId: number) =>
+                    prevBonds.some(
+                      (bond: Bond) =>
+                        (bond.atom1 === prevAtomId && bond.atom2 === currentAtomId) ||
+                        (bond.atom2 === prevAtomId && bond.atom1 === currentAtomId),
+                    ),
+                  ),
+                );
+              }
+
+              if (process.env.VERBOSE && (type === "ketone" || type === "alcohol")) {
                 if (process.env.VERBOSE) {
                 console.log(
                   `[FUNCTIONAL_GROUP_PRIORITY_RULE] Checking prev.type=${prev.type} prevAtomIds=`,
                   prevAtomIds,
+                  "currentAtomIds=",
+                  atomIds,
                   "matches=",
                   matches,
                 );
@@ -446,7 +440,7 @@ export const FUNCTIONAL_GROUP_PRIORITY_RULE: IUPACRule = {
               }
             }
 
-            // Preserve atoms if available (e.g., alcohol detection stores carbon instead of oxygen)
+            // Preserve atoms if available from previous detection
             // BUT: for ketones, if we expanded the atom list to include acyl chains, don't preserve
             // ALSO: for ketones, don't preserve if previous detection had different atom count (e.g., LACTONE_TO_KETONE only stores carbonyl C)
             const wasExpanded =
@@ -2268,6 +2262,13 @@ export const ALCOHOL_DETECTION_RULE: IUPACRule = {
     context.getState().molecule.atoms.length > 0,
   action: (context: ImmutableNamingContext) => {
     const alcohols: FunctionalGroup[] = detectAlcohols(context);
+    if (process.env.VERBOSE && alcohols.length > 0) {
+      console.log("[ALCOHOL RULE ACTION] Detected alcohols:", alcohols.length);
+      for (const alc of alcohols) {
+        console.log(`[ALCOHOL RULE ACTION] Alcohol atoms:`, alc.atoms.map(a => `${a.id}:${a.symbol}`));
+        console.log(`[ALCOHOL RULE ACTION] Alcohol locants:`, alc.locants);
+      }
+    }
     let updatedContext = context;
     if (alcohols.length > 0) {
       // Append alcohol detections to pre-existing functional groups
@@ -2685,7 +2686,7 @@ function detectAlcohols(context: ImmutableNamingContext): RawFunctionalGroup[] {
               context.getDetector().getFunctionalGroupPriority("alcohol") || 0,
             ),
             isPrincipal: false,
-            locants: [carbonId], // Set locant to carbon atom ID
+            locants: [carbonId], // Set locant to carbon atom ID (P-14.3 will convert to chain position)
           });
         }
       }
