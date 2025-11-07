@@ -34,3 +34,14 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 # Finder (MacOS) folder config
 .DS_Store
 comparison.html
+
+# debug and test scripts (temporary development files)
+debug-*.ts
+test-*.ts
+test_*.ts
+scripts/debug-*.ts
+scripts/test-*.ts
+scripts/profile-*.ts
+scripts/trace-*.ts
+scripts/benchmark-*.ts
+scripts/check-sssr-*.ts
