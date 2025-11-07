@@ -148,6 +148,16 @@ describe("ring-analysis", () => {
       );
       expect(mcb.length).toBe(sssr.length);
     });
+
+    it("finds correct SSSR size for adamantane (3 rings)", () => {
+      const result = parseSMILES("C1C2CC3CC1CC(C2)C3");
+      const mol = result.molecules[0]!;
+      const sssr = findSSSR(mol.atoms, mol.bonds);
+      expect(sssr.length).toBe(3);
+      if (mol.rings) {
+        expect(mol.rings.length).toBe(3);
+      }
+    });
   });
 
   describe("classifyRingSystems", () => {

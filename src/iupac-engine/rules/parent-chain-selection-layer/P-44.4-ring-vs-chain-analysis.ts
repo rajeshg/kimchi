@@ -6,6 +6,7 @@ import type {
 } from "../../immutable-context";
 import { ExecutionPhase } from "../../immutable-context";
 import type { NamingSubstituent } from "../../naming/iupac-types";
+import { classifyRingSystems } from "src/utils/ring-analysis";
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const {
@@ -51,13 +52,35 @@ export const P44_4_RING_VS_CHAIN_IN_CHAIN_ANALYSIS_RULE: IUPACRule = {
     if (!candidateRings || candidateRings.length === 0) return context;
     if (!candidateChains || candidateChains.length === 0) return context;
 
-    // Get the largest ring size (number of atoms in ring)
     const ring = candidateRings[0]!;
-    const ringSize = ring.size || (ring.atoms ? ring.atoms.length : 0);
+    
+    // For fused ring systems, we need to count ALL atoms in the fused system,
+    // not just atoms in a single ring. This is critical for naphthalene, anthracene, etc.
+    let ringSize = ring.size || (ring.atoms ? ring.atoms.length : 0);
+    
+    // Check if this is a fused ring system by examining the RingSystem's fused flag
+    // or by checking if ring.atoms contains more atoms than a single ring would
+    if (ring.fused || (ring.rings && ring.rings.length > 1)) {
+      // For fused systems, count all unique atoms in the entire system
+      if (ring.atoms && ring.atoms.length > 0) {
+        ringSize = ring.atoms.length;
+        if (process.env.VERBOSE) {
+          console.log(`[P-44.4] Detected fused ring system with ${ring.rings?.length || 0} rings`);
+          console.log(`[P-44.4] Total unique atoms in fused system: ${ringSize}`);
+        }
+      }
+    }
 
     // Get the longest chain length
     const longestChain = candidateChains[0]!;
     const chainLength = longestChain.atoms ? longestChain.atoms.length : 0;
+    
+    if (process.env.VERBOSE) {
+      console.log(`[P-44.4] candidateRings.length: ${candidateRings.length}`);
+      console.log(`[P-44.4] First ring system - fused: ${ring.fused}, rings count: ${ring.rings?.length || 0}`);
+      console.log(`[P-44.4] Ring size (total atoms): ${ringSize}`);
+      console.log(`[P-44.4] Chain length: ${chainLength}`);
+    }
 
     // P-44.4 criterion: Compare lengths first
     // Prefer the larger structure (more atoms)

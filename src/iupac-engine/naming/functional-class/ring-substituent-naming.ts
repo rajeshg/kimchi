@@ -12,10 +12,10 @@ export function detectRingInAlkoxyGroup(
   alkoxyCarbonIds: Set<number>,
   molecule: Molecule,
 ): number[][] {
-  const ringInfo = analyzeRings(molecule);
+  const rings = molecule.rings ? molecule.rings.map(r => [...r]) : [];
   const ringsInAlkoxy: number[][] = [];
 
-  for (const ring of ringInfo.rings) {
+  for (const ring of rings) {
     const ringIntersection = ring.filter((atomId) =>
       alkoxyCarbonIds.has(atomId),
     );

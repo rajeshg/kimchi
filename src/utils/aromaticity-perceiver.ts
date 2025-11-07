@@ -411,12 +411,6 @@ function perceiveAromaticityMutable(
 
   const allRings = findAllCycles(atoms as Atom[], bonds as Bond[], 7);
 
-  // IMPORTANT: Cache the rings in the graph to avoid recomputation in enrichMolecule
-  if (mg) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (mg as any)._sssr = allRings;
-  }
-
   if (allRings.length === 0) return;
 
   const originalBondTypes: Record<string, Bond["type"]> = {};

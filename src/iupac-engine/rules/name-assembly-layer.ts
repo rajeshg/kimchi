@@ -395,11 +395,13 @@ export const MULTIPLICATIVE_PREFIXES_RULE: IUPACRule = {
         principalGroups.length,
         principalGroups.map((g) => ({ type: g.type, locants: g.locants })),
       );
+      if (process.env.VERBOSE) {
       console.log(
         "[MULTIPLICATIVE_PREFIXES_RULE] nonPrincipalGroups:",
         nonPrincipalGroups.length,
         nonPrincipalGroups.map((g) => ({ type: g.type, locants: g.locants })),
       );
+      }
     }
 
     // Group identical non-principal types for multiplicative prefixes (di-methyl, tri-chloro, etc.)
@@ -557,14 +559,18 @@ export const COMPLETE_NAME_ASSEMBLY_RULE: IUPACRule = {
         "[COMPLETE_NAME_ASSEMBLY_RULE] nomenclatureMethod:",
         nomenclatureMethod,
       );
+      if (process.env.VERBOSE) {
       console.log(
         "[COMPLETE_NAME_ASSEMBLY_RULE] parentStructure:",
         parentStructure?.type,
       );
+      }
+      if (process.env.VERBOSE) {
       console.log(
         "[COMPLETE_NAME_ASSEMBLY_RULE] functionalGroups:",
         functionalGroups?.map((g) => g.type),
       );
+      }
     }
 
     if (!parentStructure) {
@@ -1018,6 +1024,7 @@ function buildSubstitutiveName(
       "[buildSubstitutiveName] parentStructure.type:",
       parentStructure.type,
     );
+    if (process.env.VERBOSE) {
     console.log(
       "[buildSubstitutiveName] parentStructure.substituents:",
       JSON.stringify(
@@ -1027,6 +1034,8 @@ function buildSubstitutiveName(
         })),
       ),
     );
+    }
+    if (process.env.VERBOSE) {
     console.log(
       "[buildSubstitutiveName] functionalGroups:",
       JSON.stringify(
@@ -1039,6 +1048,7 @@ function buildSubstitutiveName(
         })),
       ),
     );
+    }
   }
 
   let name = "";
@@ -1154,9 +1164,11 @@ function buildSubstitutiveName(
           }
 
           if (subLocant === attachmentLocant) {
+            if (process.env.VERBOSE) {
             console.log(
               `[buildSubstitutiveName] Filtering out ketone with attachment at locant ${attachmentLocant} - already represented as acyl substituent "${subType || subName}"`,
             );
+            }
             return true;
           }
 
@@ -1188,10 +1200,12 @@ function buildSubstitutiveName(
       "[buildSubstitutiveName] principalGroupAtomIds:",
       Array.from(principalGroupAtomIds),
     );
+    if (process.env.VERBOSE) {
     console.log(
       "[buildSubstitutiveName] principalFGPrefix:",
       principalFGPrefix,
     );
+    }
   }
 
   // Collect all functional group atoms (both principal and non-principal)
@@ -1215,9 +1229,11 @@ function buildSubstitutiveName(
     if (principalFGPrefix && sub.type === principalFGPrefix) {
       if (process.env.VERBOSE) {
         const locant = "locant" in sub ? sub.locant : undefined;
+        if (process.env.VERBOSE) {
         console.log(
           `[buildSubstitutiveName] excluding substituent ${sub.type} (locant=${locant}) - matches principal FG prefix`,
         );
+        }
       }
       return false;
     }
@@ -1231,9 +1247,11 @@ function buildSubstitutiveName(
         return principalGroupAtomIds.has(atomId);
       });
       if (isPrincipal && process.env.VERBOSE) {
+        if (process.env.VERBOSE) {
         console.log(
           `[buildSubstitutiveName] excluding substituent ${sub.type} - atoms overlap with principal FG`,
         );
+        }
       }
       return !isPrincipal;
     }
@@ -1291,10 +1309,12 @@ function buildSubstitutiveName(
         }
       }
       if (process.env.VERBOSE && parentRingAtomIds.size > 0) {
+        if (process.env.VERBOSE) {
         console.log(
           `[buildSubstitutiveName] Parent ring atom IDs:`,
           Array.from(parentRingAtomIds),
         );
+        }
       }
     }
   }
@@ -1504,9 +1524,11 @@ function buildSubstitutiveName(
         console.log(
           `[buildSubstitutiveName]   Comparing "${fgType}" with parentSubName="${parentSubName}" (length=${parentSubName.length})`,
         );
+        if (process.env.VERBOSE) {
         console.log(
           `[buildSubstitutiveName]   includes check: ${parentSubName.includes(fgType)}, length check: ${parentSubName.length > 10}`,
         );
+        }
       }
       // CRITICAL: Length threshold (> 10) prevents simple false positive matches
       // e.g., "oxy" in "hydroxy" vs "oxy" in "2,2-dimethylpropylsulfonylsulfinyl"
@@ -1617,6 +1639,7 @@ function buildSubstitutiveName(
         })),
       ),
     );
+    if (process.env.VERBOSE) {
     console.log(
       "[buildSubstitutiveName] fgStructuralSubstituentsFinal:",
       JSON.stringify(
@@ -1627,6 +1650,8 @@ function buildSubstitutiveName(
         })),
       ),
     );
+    }
+    if (process.env.VERBOSE) {
     console.log(
       "[buildSubstitutiveName] parentStructuralSubstituents:",
       JSON.stringify(
@@ -1637,6 +1662,8 @@ function buildSubstitutiveName(
         })),
       ),
     );
+    }
+    if (process.env.VERBOSE) {
     console.log(
       "[buildSubstitutiveName] deduplicatedParentSubs:",
       JSON.stringify(
@@ -1647,6 +1674,8 @@ function buildSubstitutiveName(
         })),
       ),
     );
+    }
+    if (process.env.VERBOSE) {
     console.log(
       "[buildSubstitutiveName] allStructuralSubstituents:",
       JSON.stringify(
@@ -1662,6 +1691,7 @@ function buildSubstitutiveName(
         })),
       ),
     );
+    }
   }
 
   if (allStructuralSubstituents.length > 0) {
@@ -2232,9 +2262,11 @@ function buildSubstitutiveName(
                 "position" in sub
                   ? (sub as { position: string }).position
                   : undefined;
+              if (process.env.VERBOSE) {
               console.log(
                 `[LOCANT DEBUG] sub.type=${sub.type}, sub.name=${sub.name}, sub.locant=${subLocant}, sub.locants=${JSON.stringify(subLocants)}, sub.position=${subPosition}, calculated locant=${locant}`,
               );
+              }
             }
             if (locant && !Number.isNaN(locant)) {
               substituentGroups.get(subName)!.push(locant);
@@ -2347,9 +2379,11 @@ function buildSubstitutiveName(
           hasAcylWithInternalLocants;
 
         if (subName.includes("oyl")) {
+          if (process.env.VERBOSE) {
           console.log(
             `[WRAP DEBUG acyl] subName="${subName}", hasAcylWithInternalLocants=${hasAcylWithInternalLocants}, needsWrapping=${needsWrapping}`,
           );
+          }
         }
 
         // Add multiplicative prefix if there are multiple identical substituents
@@ -2367,9 +2401,11 @@ function buildSubstitutiveName(
           process.env.VERBOSE &&
           (subName.includes("methyl") || subName.includes("propyl"))
         ) {
+          if (process.env.VERBOSE) {
           console.log(
             `[WRAP DEBUG] subName="${subName}", hasNestedParentheses=${hasNestedParentheses}, needsWrapping=${needsWrapping}, alreadyWrapped=${alreadyWrapped}`,
           );
+          }
         }
 
         const wrappedSubName = alreadyWrapped
@@ -2504,7 +2540,9 @@ function buildSubstitutiveName(
         "[DEBUG] substituentParts before join:",
         JSON.stringify(substituentParts),
       );
+      if (process.env.VERBOSE) {
       console.log("[DEBUG] isHeteroatomParent:", isHeteroatomParent);
+      }
     }
 
     if (substituentParts.length > 0) {
@@ -2583,12 +2621,16 @@ function buildSubstitutiveName(
           process.env.VERBOSE &&
           beforeFilter.length !== filteredStructuralSubstituentParts.length
         ) {
+          if (process.env.VERBOSE) {
           console.log(
             `[buildSubstitutiveName] Hydroxy filter removed: ${beforeFilter.filter((p) => !filteredStructuralSubstituentParts.includes(p)).join(", ")}`,
           );
+          }
+          if (process.env.VERBOSE) {
           console.log(
             `[buildSubstitutiveName] Remaining after hydroxy filter: ${filteredStructuralSubstituentParts.join(", ")}`,
           );
+          }
         }
       }
 
@@ -2611,12 +2653,16 @@ function buildSubstitutiveName(
           console.log(
             "[buildSubstitutiveName] Skipping adding substituentParts because parent already contains them (approx match)",
           );
+          if (process.env.VERBOSE) {
           console.log(
             `[buildSubstitutiveName] filteredStructuralSubstituentParts: ${JSON.stringify(filteredStructuralSubstituentParts)}`,
           );
+          }
+          if (process.env.VERBOSE) {
           console.log(
             `[buildSubstitutiveName] normalizedParent: "${normalizedParent}"`,
           );
+          }
         }
       } else {
         // Normalize individual missing parts to ensure locant hyphens exist (e.g., "6hydroxy" -> "6-hydroxy")
@@ -2670,10 +2716,12 @@ function buildSubstitutiveName(
       "[buildSubstitutiveName] parentStructure.assembledName:",
       parentStructure.assembledName,
     );
+    if (process.env.VERBOSE) {
     console.log(
       "[buildSubstitutiveName] parentStructure.substituents:",
       JSON.stringify(parentStructure.substituents),
     );
+    }
   }
 
   const parentName =
@@ -2744,19 +2792,29 @@ function buildSubstitutiveName(
       console.log(
         `[PREFERRED NAME CHECK] principalGroup.type=${principalGroup.type}`,
       );
+      if (process.env.VERBOSE) {
       console.log(
         `[PREFERRED NAME CHECK] principalGroup.suffix=${principalGroup.suffix}`,
       );
+      }
+      if (process.env.VERBOSE) {
       console.log(
         `[PREFERRED NAME CHECK] parentStructure.type=${parentStructure.type}`,
       );
+      }
+      if (process.env.VERBOSE) {
       console.log(
         `[PREFERRED NAME CHECK] parentStructure.chain?.multipleBonds?.length=${parentStructure.chain?.multipleBonds?.length}`,
       );
+      }
+      if (process.env.VERBOSE) {
       console.log(
         `[PREFERRED NAME CHECK] allStructuralSubstituents.length=${allStructuralSubstituents.length}`,
       );
+      }
+      if (process.env.VERBOSE) {
       console.log(`[PREFERRED NAME CHECK] chainLength=${chainLength}`);
+      }
     }
     if (
       principalGroup.type === "carboxylic_acid" &&
@@ -2962,9 +3020,11 @@ function buildSubstitutiveName(
           opsinService,
         );
         if (process.env.VERBOSE && nSubstituentsPrefix) {
+          if (process.env.VERBOSE) {
           console.log(
             `[buildSubstitutiveName] N-substituents detected: ${nSubstituentsPrefix}`,
           );
+          }
         }
 
         // Parse N-substituent string to extract locants and base name

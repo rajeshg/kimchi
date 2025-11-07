@@ -247,14 +247,13 @@ export const RING_SELECTION_COMPLETE_RULE: IUPACRule = {
         return true; // Apply this rule to select the ring
       }
 
-      // P-44.4: If FG counts are equal, use size comparison
-      if (chainLength > ringSize) {
-        if (process.env.VERBOSE) {
-          console.log(
-            `[ring-selection-complete conditions] Chain > Ring: deferring to chain selection`,
-          );
-        }
-        return false;
+      // IUPAC Blue Book P-44.1.2.2: "Within the same class, a ring or ring system 
+      // has seniority over a chain." This is an absolute rule when FG counts are equal.
+      // We do NOT compare atom counts - rings ALWAYS take priority over chains.
+      if (process.env.VERBOSE) {
+        console.log(
+          `[ring-selection-complete conditions] Ring system has priority per P-44.1.2.2 (rings > chains)`,
+        );
       }
     }
 
@@ -280,7 +279,7 @@ export const RING_SELECTION_COMPLETE_RULE: IUPACRule = {
     }
 
     const molecule = context.getState().molecule;
-    const ringInfo = analyzeRings(molecule);
+    const ringInfo = context.getState().cachedRingInfo!;
 
     // Check if multiple rings are connected (forming a polycyclic system)
     if (candidateRings.length > 1) {

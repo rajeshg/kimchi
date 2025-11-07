@@ -50,8 +50,18 @@ export function nameRingSubstituent(
   molecule: Molecule,
   startAtomIdx: number,
   chainAtoms: Set<number>,
+  depth = 0,
+  maxDepth = 3,
 ): NamingSubstituentInfo | null {
   if (!molecule.rings) return null;
+  
+  // Prevent infinite recursion
+  if (depth >= maxDepth) {
+    if (process.env.VERBOSE) {
+      console.log(`[nameRingSubstituent] Max depth ${maxDepth} reached, stopping recursion`);
+    }
+    return null;
+  }
 
   // Import aromatic naming function dynamically to avoid circular dependencies
   const {
@@ -169,6 +179,7 @@ export function nameRingSubstituent(
       sub.atomIdx,
       ringSet,
       new Set(),
+      depth + 1,
     );
 
     if (subInfo) {

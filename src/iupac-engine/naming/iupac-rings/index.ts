@@ -412,6 +412,13 @@ export function generateBaseCyclicName(
   ringInfo: ReturnType<typeof analyzeRings>,
 ): string {
   const meaningfulRings = ringInfo.rings.filter((ring) => ring.length >= 3);
+  
+  if (process.env.VERBOSE) {
+    console.log("\n[generateBaseCyclicName] CALLED");
+    console.log("  Total atoms:", molecule.atoms.length);
+    console.log("  meaningfulRings.length:", meaningfulRings.length);
+    console.log("  Ring sizes:", meaningfulRings.map(r => r.length));
+  }
 
   if (meaningfulRings.length === 1) {
     const ring = meaningfulRings[0]!;
@@ -490,15 +497,31 @@ export function generateBaseCyclicName(
     }
 
     if (ringClassification.fused.length > 0) {
+      if (process.env.VERBOSE) {
+        console.log("[generateBaseCyclicName] FUSED RING BRANCH");
+        console.log("  meaningfulRings:", meaningfulRings);
+      }
       const fusedSystems = identifyFusedRingSystems(meaningfulRings, molecule);
+      if (process.env.VERBOSE) {
+        console.log("  fusedSystems.length:", fusedSystems.length);
+      }
       if (fusedSystems.length > 0) {
         const fusedSystem = fusedSystems[0]!;
+        if (process.env.VERBOSE) {
+          console.log("  fusedSystem:", fusedSystem);
+        }
         let fusedName = identifyAdvancedFusedPattern(
           fusedSystem.rings,
           molecule,
         );
+        if (process.env.VERBOSE) {
+          console.log("  fusedName from advanced:", fusedName);
+        }
         if (!fusedName)
           fusedName = identifyFusedRingPattern(fusedSystem, molecule);
+        if (process.env.VERBOSE) {
+          console.log("  fusedName final:", fusedName);
+        }
         if (fusedName) {
           return normalizeCyclicName(fusedName, meaningfulRings, molecule);
         }

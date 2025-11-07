@@ -55,11 +55,15 @@ export const RING_NUMBERING_RULE: IUPACRule = {
           `[Ring Numbering] Using von Baeyer numbering:`,
           Array.from(parentStructure.vonBaeyerNumbering.entries()),
         );
+        if (process.env.VERBOSE) {
         console.log(`[Ring Numbering - ENTRY] Functional groups on entry:`);
+        }
         for (const fg of state.functionalGroups || []) {
+          if (process.env.VERBOSE) {
           console.log(
             `  FG "${fg.type}": atoms.length=${fg.atoms?.length}, atoms=[${fg.atoms?.map((a: Atom) => a.id).join(", ")}]`,
           );
+          }
         }
       }
 
@@ -186,15 +190,21 @@ export const RING_NUMBERING_RULE: IUPACRule = {
         console.log(
           `[Ring Numbering] Original principal locants: [${originalLocants.principal.join(", ")}]`,
         );
+        if (process.env.VERBOSE) {
         console.log(
           `[Ring Numbering] Reversed principal locants: [${reversedLocants.principal.join(", ")}]`,
         );
+        }
+        if (process.env.VERBOSE) {
         console.log(
           `[Ring Numbering] Original substituent locants: [${originalLocants.substituent.join(", ")}]`,
         );
+        }
+        if (process.env.VERBOSE) {
         console.log(
           `[Ring Numbering] Reversed substituent locants: [${reversedLocants.substituent.join(", ")}]`,
         );
+        }
       }
 
       // Choose the numbering with the lowest set of locants
@@ -446,9 +456,11 @@ export const RING_NUMBERING_RULE: IUPACRule = {
                     !attachedRingPositions.includes(position)
                   ) {
                     attachedRingPositions.push(position);
+                    if (process.env.VERBOSE) {
                     console.log(
                       `[Ring Numbering] Functional group ${fg.type} attached to ring position ${position} (atom ${otherAtomId})`,
                     );
+                    }
                   }
                 }
               }
@@ -594,17 +606,23 @@ export const RING_NUMBERING_RULE: IUPACRule = {
       if (updatedFunctionalGroups.length >= 2) {
         const fg0_locants = updatedFunctionalGroups[0]?.locants;
         const fg1_locants = updatedFunctionalGroups[1]?.locants;
+        if (process.env.VERBOSE) {
         console.log(
           `[Ring Numbering] Are locants arrays the same object? ${fg0_locants === fg1_locants}`,
         );
+        }
         if (fg0_locants)
+          if (process.env.VERBOSE) {
           console.log(
             `[Ring Numbering] FG0 locants value: ${JSON.stringify(fg0_locants)}`,
           );
+          }
         if (fg1_locants)
+          if (process.env.VERBOSE) {
           console.log(
             `[Ring Numbering] FG1 locants value: ${JSON.stringify(fg1_locants)}`,
           );
+          }
       }
     }
 

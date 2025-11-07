@@ -80,10 +80,12 @@ export function buildEsterWithRingAlkylGroup(
       if (s.atoms && s.atoms.length > 0) {
         const hasEsterAtom = s.atoms.some((atom) => esterAtomIds.has(atom.id));
         if (hasEsterAtom && process.env.VERBOSE) {
+          if (process.env.VERBOSE) {
           console.log(
             `[buildEsterWithRingAlkylGroup] Filtering out substituent with ester atoms:`,
             s,
           );
+          }
         }
         return !hasEsterAtom;
       }
@@ -106,10 +108,12 @@ export function buildEsterWithRingAlkylGroup(
 
   if (process.env.VERBOSE) {
     console.log("[buildEsterWithRingAlkylGroup] esterOxygen:", esterOxygen);
+    if (process.env.VERBOSE) {
     console.log(
       "[buildEsterWithRingAlkylGroup] parentStructure.ring:",
       parentStructure.ring,
     );
+    }
   }
 
   if (esterOxygen && parentStructure.ring) {
@@ -131,14 +135,18 @@ export function buildEsterWithRingAlkylGroup(
         "[buildEsterWithRingAlkylGroup] esterOxygenId:",
         esterOxygenId,
       );
+      if (process.env.VERBOSE) {
       console.log(
         "[buildEsterWithRingAlkylGroup] ringAtomIds:",
         Array.from(ringAtomIds),
       );
+      }
+      if (process.env.VERBOSE) {
       console.log(
         "[buildEsterWithRingAlkylGroup] atomIdToPosition map:",
         Array.from(atomIdToPosition.entries()),
       );
+      }
     }
 
     // Find which ring atom the ester oxygen connects to
@@ -292,14 +300,18 @@ export function buildEsterWithRingAlkylGroup(
       "[buildEsterWithRingAlkylGroup] parentSubstituents:",
       parentSubstituents,
     );
+    if (process.env.VERBOSE) {
     console.log(
       "[buildEsterWithRingAlkylGroup] fgSubstituents:",
       fgSubstituents,
     );
+    }
+    if (process.env.VERBOSE) {
     console.log(
       "[buildEsterWithRingAlkylGroup] allSubstituents:",
       allSubstituents,
     );
+    }
   }
 
   // Sort substituents alphabetically by name (IUPAC rule), then by locant
@@ -398,8 +410,12 @@ export function buildEsterWithRingAlkylGroup(
       "[buildEsterWithRingAlkylGroup] alkylGroupName:",
       alkylGroupName,
     );
+    if (process.env.VERBOSE) {
     console.log("[buildEsterWithRingAlkylGroup] acylLength:", acylLength);
+    }
+    if (process.env.VERBOSE) {
     console.log("[buildEsterWithRingAlkylGroup] acylName:", acylName);
+    }
   }
 
   // Functional class format: (alkyl) alkanoate
@@ -415,10 +431,12 @@ export function getAcylChainLength(
 ): number {
   if (process.env.VERBOSE) {
     console.log("[getAcylChainLength] esterGroup.atoms:", esterGroup.atoms);
+    if (process.env.VERBOSE) {
     console.log(
       "[getAcylChainLength] esterGroup.atoms.length:",
       esterGroup.atoms?.length,
     );
+    }
   }
 
   if (!esterGroup.atoms || esterGroup.atoms.length < 3) return 1;
@@ -440,12 +458,14 @@ export function getAcylChainLength(
       "symbol:",
       molecule.atoms[carbonylCarbon]?.symbol,
     );
+    if (process.env.VERBOSE) {
     console.log(
       "[getAcylChainLength] esterOxygen:",
       esterOxygen,
       "symbol:",
       molecule.atoms[esterOxygen]?.symbol,
     );
+    }
   }
 
   // BFS from carbonyl carbon, avoiding ester oxygen
@@ -1220,11 +1240,15 @@ export function buildEsterWithRingAcylGroup(
 
   if (process.env.VERBOSE) {
     console.log("[buildEsterWithRingAcylGroup] ringName:", ringName);
+    if (process.env.VERBOSE) {
     console.log("[buildEsterWithRingAcylGroup] isAromatic:", isAromatic);
+    }
+    if (process.env.VERBOSE) {
     console.log(
       "[buildEsterWithRingAcylGroup] condition check: isAromatic && ringName.includes('benzen'):",
       isAromatic && ringName.includes("benzen"),
     );
+    }
   }
 
   // For aromatic rings with carboxylate, use special naming
@@ -1307,14 +1331,18 @@ export function buildEsterWithRingAcylGroup(
         "[buildEsterWithRingAcylGroup] ringSubstituents (initial):",
         ringSubstituents,
       );
+      if (process.env.VERBOSE) {
       console.log(
         "[buildEsterWithRingAcylGroup] additionalSubs:",
         additionalSubs,
       );
+      }
+      if (process.env.VERBOSE) {
       console.log(
         "[buildEsterWithRingAcylGroup] allSubstituents:",
         allSubstituents,
       );
+      }
     }
 
     // Build substituent prefix: "3-(substituent1)-5-(substituent2)"
@@ -1342,7 +1370,9 @@ export function buildEsterWithRingAcylGroup(
 
     if (process.env.VERBOSE) {
       console.log("[buildEsterWithRingAcylGroup] aromatic acylName:", acylName);
+      if (process.env.VERBOSE) {
       console.log("[buildEsterWithRingAcylGroup] alkoxyName:", alkoxyName);
+      }
     }
 
     return `${alkoxyName} ${acylName}`;
@@ -1363,8 +1393,12 @@ export function buildEsterWithRingAcylGroup(
 
   if (process.env.VERBOSE) {
     console.log("[buildEsterWithRingAcylGroup] ringBaseName:", ringBaseName);
+    if (process.env.VERBOSE) {
     console.log("[buildEsterWithRingAcylGroup] acylName:", acylName);
+    }
+    if (process.env.VERBOSE) {
     console.log("[buildEsterWithRingAcylGroup] alkoxyName:", alkoxyName);
+    }
   }
 
   return `${alkoxyName} ${acylName}`;
@@ -1414,7 +1448,9 @@ function detectAmideGroup(
     }
 
     if (process.env.VERBOSE && hasDoubleBondToO) {
+      if (process.env.VERBOSE) {
       console.log(`[detectAmideGroup] Atom ${atomId} has C=O`);
+      }
     }
 
     // If this carbon has C=O, check if it's an amide (also has C-N)
@@ -1502,7 +1538,9 @@ function buildComplexAlkoxyWithAmide(
       "[buildComplexAlkoxyWithAmide] alkoxyCarbonId:",
       alkoxyCarbonId,
     );
+    if (process.env.VERBOSE) {
     console.log("[buildComplexAlkoxyWithAmide] amideInfo:", amideInfo);
+    }
   }
 
   // Build the alkoxy chain structure
@@ -2200,7 +2238,7 @@ export function getAlkoxyGroupName(
 
   // **RING DETECTION INTEGRATION POINT**
   // Check if the alkoxy group contains any rings
-  const ringInfo = analyzeRings(molecule);
+  const rings = molecule.rings ? molecule.rings.map(r => [...r]) : [];
   const ringsInAlkoxy: number[][] = [];
 
   if (process.env.VERBOSE) {
@@ -2208,28 +2246,32 @@ export function getAlkoxyGroupName(
       "[getAlkoxyGroupName] BFS complete. alkoxyCarbonIds:",
       Array.from(alkoxyCarbonIds),
     );
+    if (process.env.VERBOSE) {
     console.log(
       "[getAlkoxyGroupName] Total rings in molecule:",
-      ringInfo.rings.length,
+      rings.length,
     );
-    for (let i = 0; i < ringInfo.rings.length; i++) {
-      console.log(`[getAlkoxyGroupName] Ring ${i}:`, ringInfo.rings[i]);
+    }
+    for (let i = 0; i < rings.length; i++) {
+      if (process.env.VERBOSE) {
+      console.log(`[getAlkoxyGroupName] Ring ${i}:`, rings[i]);
+      }
     }
   }
 
-  for (const ring of ringInfo.rings) {
+  for (const ring of rings) {
     const ringIntersection = ring.filter((atomId) =>
       alkoxyCarbonIds.has(atomId),
     );
     if (process.env.VERBOSE) {
       console.log(
-        `[getAlkoxyGroupName] Ring ${ringInfo.rings.indexOf(ring)} intersection:`,
+        `[getAlkoxyGroupName] Ring ${rings.indexOf(ring)} intersection:`,
         ringIntersection,
         `(length ${ringIntersection.length})`,
       );
     }
     if (ringIntersection.length >= 3) {
-      ringsInAlkoxy.push(ring);
+      ringsInAlkoxy.push([...ring]);
     }
   }
 
@@ -2271,6 +2313,7 @@ export function getAlkoxyGroupName(
     );
     if (functionalGroups) {
       for (const fg of functionalGroups) {
+        if (process.env.VERBOSE) {
         console.log(
           "[getAlkoxyGroupName] FG:",
           fg.type,
@@ -2279,13 +2322,18 @@ export function getAlkoxyGroupName(
           "atoms:",
           fg.atoms,
         );
+        }
       }
     }
+    if (process.env.VERBOSE) {
     console.log(
       "[getAlkoxyGroupName] alkoxyCarbonIds:",
       Array.from(alkoxyCarbonIds),
     );
+    }
+    if (process.env.VERBOSE) {
     console.log("[getAlkoxyGroupName] carbonChain:", carbonChain);
+    }
   }
 
   // 1. Detect acyloxy substituents (nested esters converted to acyloxy)
@@ -2914,15 +2962,21 @@ export function buildEsterName(
       "[buildEsterName] parentStructure:",
       JSON.stringify(parentStructure, null, 2),
     );
+    if (process.env.VERBOSE) {
     console.log(
       "[buildEsterName] parentStructure.type:",
       parentStructure?.type,
     );
+    }
+    if (process.env.VERBOSE) {
     console.log(
       "[buildEsterName] parentStructure.chain:",
       parentStructure?.chain,
     );
+    }
+    if (process.env.VERBOSE) {
     console.log("[buildEsterName] esterGroup:", esterGroup);
+    }
   }
 
   // Handle ring-based structures
@@ -3017,12 +3071,14 @@ export function buildEsterName(
         "[buildEsterName] Ring detected: isRingOnAcylSide=",
         isRingOnAcylSide,
       );
+      if (process.env.VERBOSE) {
       console.log(
         "[buildEsterName] carbonylCarbonIdTemp=",
         carbonylCarbonIdTemp,
         "ringAtomIds=",
         Array.from(ringAtomIds),
       );
+      }
     }
 
     if (isRingOnAcylSide) {
@@ -3075,12 +3131,14 @@ export function buildEsterName(
       "isMultiester:",
       isMultiester,
     );
+    if (process.env.VERBOSE) {
     console.log(
       "[buildEsterName] chain.atoms:",
       chain.atoms?.length,
       "chain.length:",
       chain.length,
     );
+    }
   }
 
   if (isMultiester) {
@@ -3111,9 +3169,11 @@ export function buildEsterName(
       esterGroup.atoms.forEach((atomOrId: number | Atom, idx: number) => {
         const atomId = typeof atomOrId === "number" ? atomOrId : atomOrId.id;
         const atom = molecule.atoms[atomId];
+        if (process.env.VERBOSE) {
         console.log(
           `[buildEsterName]   atoms[${idx}]: ${atomId} = ${atom?.symbol}`,
         );
+        }
       });
     }
 
@@ -3287,14 +3347,18 @@ export function buildEsterName(
 
   if (process.env.VERBOSE) {
     console.log("[buildEsterName] parentChainCarbonIds:", parentChainCarbonIds);
+    if (process.env.VERBOSE) {
     console.log(
       "[buildEsterName] parentChainIncludesAlkoxy:",
       parentChainIncludesAlkoxy,
     );
+    }
+    if (process.env.VERBOSE) {
     console.log(
       "[buildEsterName] parentChainIncludesAcyl:",
       parentChainIncludesAcyl,
     );
+    }
   }
 
   // Calculate acyl side carbons
@@ -3326,7 +3390,9 @@ export function buildEsterName(
         "[buildEsterName] Using longest chain for acyl side, length:",
         acylLength,
       );
+      if (process.env.VERBOSE) {
       console.log("[buildEsterName] Acyl chain:", longestChain);
+      }
     }
   }
 
@@ -3362,20 +3428,32 @@ export function buildEsterName(
         "[buildEsterName] Using longest chain for alkoxy side, length:",
         alkoxyLength,
       );
+      if (process.env.VERBOSE) {
       console.log("[buildEsterName] Alkoxy chain:", longestChain);
+      }
     }
   }
 
   if (process.env.VERBOSE) {
     console.log("[buildEsterName] carbonylCarbonId:", carbonylCarbonId);
+    if (process.env.VERBOSE) {
     console.log("[buildEsterName] esterOxygenId:", esterOxygenId);
+    }
+    if (process.env.VERBOSE) {
     console.log("[buildEsterName] alkoxyCarbonId:", alkoxyCarbonId);
+    }
+    if (process.env.VERBOSE) {
     console.log("[buildEsterName] acylLength:", acylLength);
+    }
+    if (process.env.VERBOSE) {
     console.log("[buildEsterName] alkoxyLength:", alkoxyLength);
+    }
+    if (process.env.VERBOSE) {
     console.log(
       "[buildEsterName] alkoxyCarbonIds:",
       Array.from(alkoxyCarbonIds),
     );
+    }
   }
 
   // Check if alkoxy chain has substituents (acyloxy, alkoxy groups)
@@ -3555,8 +3633,13 @@ export function buildEsterName(
 
     if (process.env.VERBOSE) {
       console.log("[buildEsterName] alkoxyCarbonId:", alkoxyCarbonId);
+      if (process.env.VERBOSE) {
       console.log("[buildEsterName] alkoxyIndexInChain:", alkoxyIndexInChain);
+      }
+      if (process.env.VERBOSE) {
       console.log("[buildEsterName] needsReversal:", needsReversal);
+      }
+      if (process.env.VERBOSE) {
       console.log(
         "[buildEsterName] alkylSubs from parent chain:",
         alkylSubs.map((s) => ({
@@ -3565,6 +3648,7 @@ export function buildEsterName(
           locant: s.locant,
         })),
       );
+      }
     }
 
     // Map to collect substituents by position
@@ -3609,6 +3693,7 @@ export function buildEsterName(
         "[buildEsterName] Adding FG substituents, chainAtomIds:",
         chainAtomIds,
       );
+      if (process.env.VERBOSE) {
       console.log(
         "[buildEsterName] functionalGroups:",
         functionalGroups.map((fg) => ({
@@ -3616,6 +3701,7 @@ export function buildEsterName(
           atoms: fg.atoms?.map((a) => (typeof a === "number" ? a : a.id)),
         })),
       );
+      }
     }
     for (const fg of functionalGroups) {
       // Skip the principal ester group
@@ -3713,10 +3799,12 @@ export function buildEsterName(
     if (process.env.VERBOSE) {
       console.log("[buildEsterName] substByPosition details:");
       for (const [pos, subs] of substByPosition.entries()) {
+        if (process.env.VERBOSE) {
         console.log(
           `  Position ${pos}:`,
           subs.map((s) => `${s.name} (count=${s.count})`),
         );
+        }
       }
     }
 

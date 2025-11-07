@@ -13,17 +13,7 @@ export function detectRingSystems(molecule: Molecule): unknown[] {
   const ringSystems: unknown[] = [];
 
   // Get rings - prefer parser-provided rings, fallback to ring analysis
-  let rings: number[][] = [];
-  if (
-    molecule.rings &&
-    Array.isArray(molecule.rings) &&
-    molecule.rings.length > 0
-  ) {
-    rings = molecule.rings;
-  } else {
-    const ringInfo = analyzeRings(molecule);
-    rings = ringInfo.rings;
-  }
+  const rings = molecule.rings ? molecule.rings.map(r => [...r]) : [];
 
   if (rings.length === 0) {
     return ringSystems; // No rings detected
@@ -196,6 +186,31 @@ export function generateRingName(
   const size = ringSystem.size;
   const type = ringSystem.type;
   const atoms = ringSystem.atoms || [];
+  const classification = ringSystem.classification;
+
+  // Handle fused ring systems (naphthalene, anthracene, etc.)
+  if (classification === "fused" && molecule && ringSystem.rings && ringSystem.rings.length > 1) {
+    const fusedName = generateFusedPolycyclicName(ringSystem.rings, molecule);
+    if (fusedName) {
+      return fusedName;
+    }
+  }
+
+  // Handle bridged ring systems (bicyclo, tricyclo, etc.)
+  if (classification === "bridged" && molecule && ringSystem.rings && ringSystem.rings.length > 1) {
+    const bridgedResult = generateBridgedPolycyclicName(ringSystem.rings, molecule);
+    if (bridgedResult && bridgedResult.name) {
+      return bridgedResult.name;
+    }
+  }
+
+  // Handle spiro ring systems
+  if (classification === "spiro" && molecule && ringSystem.rings && ringSystem.rings.length > 1) {
+    const spiroName = generateSpiroPolycyclicName(ringSystem.rings, molecule);
+    if (spiroName) {
+      return spiroName;
+    }
+  }
 
   // Count heteroatoms first (used by both aromatic and saturated checks)
   const heteroCount: Record<string, number> = {};
@@ -438,6 +453,6 @@ export function generateFusedPolycyclicName(
   // This could be enhanced with specific P-2.5 rules
   const {
     identifyPolycyclicPattern,
-  } = require("../../naming/iupac-rings/index");
+  } = require("../../naming/iupac-rings/fused-naming");
   return identifyPolycyclicPattern(fusedRings, molecule);
 }

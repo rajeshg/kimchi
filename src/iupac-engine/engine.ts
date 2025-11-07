@@ -353,7 +353,7 @@ export class RuleEngine {
     }
 
     // Check for rings as fallback
-    const ringInfo: RingInfo = analyzeRings(context.getState().molecule);
+    const ringInfo = context.getState().cachedRingInfo!;
     if (ringInfo.rings.length > 0) {
       const ringSize = ringInfo.rings[0]!.length;
       const aromaticRings = getAromaticRings(

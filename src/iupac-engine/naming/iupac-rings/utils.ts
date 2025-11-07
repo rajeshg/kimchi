@@ -296,21 +296,39 @@ export function generateClassicPolycyclicName(
   if (rings.length === 2 && bridgeheads.length === 2) {
     const bh1 = bridgeheads[0]!;
     const bh2 = bridgeheads[1]!;
+    
+    // Build adjacency list once for O(1) neighbor lookups
+    const adjacency = new Map<number, Set<number>>();
+    for (const bond of molecule.bonds) {
+      if (!adjacency.has(bond.atom1)) adjacency.set(bond.atom1, new Set());
+      if (!adjacency.has(bond.atom2)) adjacency.set(bond.atom2, new Set());
+      adjacency.get(bond.atom1)!.add(bond.atom2);
+      adjacency.get(bond.atom2)!.add(bond.atom1);
+    }
+
     const paths: number[][] = [];
     const visited = new Set<number>();
+    const pathSignatures = new Set<string>();
 
     function dfs(current: number, target: number, path: number[]): void {
       if (current === target) {
-        paths.push([...path]);
+        const signature = path.join(",");
+        if (!pathSignatures.has(signature)) {
+          pathSignatures.add(signature);
+          paths.push([...path]);
+        }
         return;
       }
+      // Early termination: stop if we already have 3 unique paths
+      if (paths.length >= 3) return;
+      
       visited.add(current);
-      for (const bond of molecule.bonds) {
-        let next: number | undefined = undefined;
-        if (bond.atom1 === current) next = bond.atom2;
-        else if (bond.atom2 === current) next = bond.atom1;
-        if (typeof next === "number" && next >= 0 && !visited.has(next)) {
-          dfs(next, target, [...path, next]);
+      const neighbors = adjacency.get(current);
+      if (neighbors) {
+        for (const next of neighbors) {
+          if (!visited.has(next)) {
+            dfs(next, target, [...path, next]);
+          }
         }
       }
       visited.delete(current);
@@ -318,10 +336,7 @@ export function generateClassicPolycyclicName(
 
     dfs(bh1, bh2, [bh1]);
 
-    // Filter unique paths
-    const uniquePaths = paths.filter(
-      (p, i, arr) => arr.findIndex((q) => q.join(",") === p.join(",")) === i,
-    );
+    const uniquePaths = paths;
 
     const bridgeLengths = uniquePaths
       .map((p) => p.length - 2)
@@ -429,6 +444,15 @@ export function generateClassicPolycyclicName(
 
   // For tricyclo: three or more rings, three or more bridgeheads
   if (rings.length >= 3 && bridgeheads.length >= 3) {
+    // Build adjacency list once for O(1) neighbor lookups
+    const adjacency = new Map<number, Set<number>>();
+    for (const bond of molecule.bonds) {
+      if (!adjacency.has(bond.atom1)) adjacency.set(bond.atom1, new Set());
+      if (!adjacency.has(bond.atom2)) adjacency.set(bond.atom2, new Set());
+      adjacency.get(bond.atom1)!.add(bond.atom2);
+      adjacency.get(bond.atom2)!.add(bond.atom1);
+    }
+
     // Find all bridge lengths between all pairs of bridgeheads
     const bridgeLengths: number[] = [];
     for (let i = 0; i < bridgeheads.length; i++) {
@@ -444,12 +468,12 @@ export function generateClassicPolycyclicName(
             return;
           }
           visited.add(current);
-          for (const bond of molecule.bonds) {
-            let next: number | undefined = undefined;
-            if (bond.atom1 === current) next = bond.atom2;
-            else if (bond.atom2 === current) next = bond.atom1;
-            if (typeof next === "number" && next >= 0 && !visited.has(next)) {
-              dfs(next, [...path, next]);
+          const neighbors = adjacency.get(current);
+          if (neighbors) {
+            for (const next of neighbors) {
+              if (!visited.has(next)) {
+                dfs(next, [...path, next]);
+              }
             }
           }
           visited.delete(current);

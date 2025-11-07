@@ -10,6 +10,7 @@ export function classifySubstituent(
   startAtomIdx: number,
   chainAtoms: Set<number>,
   fgAtomIds: Set<number> = new Set(),
+  depth = 0,
 ): NamingSubstituentInfo | null {
   // First check: if the starting atom is part of a functional group, skip it
   if (fgAtomIds.has(startAtomIdx)) {
@@ -67,7 +68,7 @@ export function classifySubstituent(
         `[classifySubstituent] Detected ring system substituent starting at ${startAtomIdx}`,
       );
     // Name the ring system as a substituent
-    return nameRingSubstituent(molecule, startAtomIdx, chainAtoms);
+    return nameRingSubstituent(molecule, startAtomIdx, chainAtoms, depth);
   }
 
   // Check if this is an acyl group (ketone substituent): C(=O)R

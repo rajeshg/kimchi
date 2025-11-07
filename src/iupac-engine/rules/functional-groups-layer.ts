@@ -280,6 +280,7 @@ export const FUNCTIONAL_GROUP_PRIORITY_RULE: IUPACRule = {
         "[FUNCTIONAL_GROUP_PRIORITY_RULE] Molecule has rings?",
         mol.rings?.length || 0,
       );
+      if (process.env.VERBOSE) {
       console.log(
         "[FUNCTIONAL_GROUP_PRIORITY_RULE] Detected functional groups (raw):",
         detected.map((d: DetectedFunctionalGroup) => ({
@@ -289,6 +290,8 @@ export const FUNCTIONAL_GROUP_PRIORITY_RULE: IUPACRule = {
           priority: d.priority,
         })),
       );
+      }
+      if (process.env.VERBOSE) {
       console.log(
         "[FUNCTIONAL_GROUP_PRIORITY_RULE] Previous functional groups:",
         previousFunctionalGroups.map((fg: FunctionalGroup) => ({
@@ -296,6 +299,7 @@ export const FUNCTIONAL_GROUP_PRIORITY_RULE: IUPACRule = {
           bonds: fg.bonds?.length || 0,
         })),
       );
+      }
     }
 
     // Build normalized functional groups and a parallel trace metadata array
@@ -366,12 +370,14 @@ export const FUNCTIONAL_GROUP_PRIORITY_RULE: IUPACRule = {
           const atomIdSet = new Set(atomIds);
 
           if (process.env.VERBOSE && type === "alcohol") {
+            if (process.env.VERBOSE) {
             console.log(
               `[FUNCTIONAL_GROUP_PRIORITY_RULE] Matching ${type}: atomIndices=`,
               atomIndices,
               "atomIds=",
               atomIds,
             );
+            }
           }
 
           const matchingPrevious = previousFunctionalGroups.find(
@@ -414,12 +420,14 @@ export const FUNCTIONAL_GROUP_PRIORITY_RULE: IUPACRule = {
               );
 
               if (process.env.VERBOSE && type === "ketone") {
+                if (process.env.VERBOSE) {
                 console.log(
                   `[FUNCTIONAL_GROUP_PRIORITY_RULE] Checking prev.type=${prev.type} prevAtomIds=`,
                   prevAtomIds,
                   "matches=",
                   matches,
                 );
+                }
               }
 
               return matches;
@@ -462,9 +470,11 @@ export const FUNCTIONAL_GROUP_PRIORITY_RULE: IUPACRule = {
                 );
               }
             } else if (wasExpanded && process.env.VERBOSE) {
+              if (process.env.VERBOSE) {
               console.log(
                 `[FUNCTIONAL_GROUP_PRIORITY_RULE] NOT preserving atoms for ${type} because we expanded from ${d.atoms?.length} to ${atoms.length}`,
               );
+              }
             }
 
             // Preserve locants if explicitly set (e.g., alcohol detection sets carbon atom ID)
@@ -537,10 +547,12 @@ export const FUNCTIONAL_GROUP_PRIORITY_RULE: IUPACRule = {
           isPrincipal: principalGroup.isPrincipal,
         },
       );
+      if (process.env.VERBOSE) {
       console.log(
         "[FUNCTIONAL_GROUP_PRIORITY_RULE] functional group priority score:",
         priorityScore,
       );
+      }
     }
 
     // Special handling for ring systems:
@@ -606,13 +618,17 @@ export const FUNCTIONAL_GROUP_PRIORITY_RULE: IUPACRule = {
     }
 
     if (shouldDemotePrincipalGroup && process.env.VERBOSE) {
+      if (process.env.VERBOSE) {
       console.log(
         "[FUNCTIONAL_GROUP_PRIORITY_RULE] Ring system detected - functional groups attached to ring atoms will be treated as substituents",
       );
+      }
+      if (process.env.VERBOSE) {
       console.log(
         "[FUNCTIONAL_GROUP_PRIORITY_RULE] Demoting principal group:",
         principalGroup?.type,
       );
+      }
     }
 
     // Mark ALL functional groups of the principal type as principal
@@ -662,10 +678,12 @@ export const FUNCTIONAL_GROUP_PRIORITY_RULE: IUPACRule = {
             console.log(
               "[FUNCTIONAL_GROUP_PRIORITY_RULE] Detected hierarchical esters - marking only primary ester as principal",
             );
+            if (process.env.VERBOSE) {
             console.log(
               "[FUNCTIONAL_GROUP_PRIORITY_RULE] Primary ester atoms:",
               hierarchyResult.primaryEsterAtoms,
             );
+            }
           }
           // Only mark the primary ester as principal, demote nested esters
           const primaryAtomSet = new Set(hierarchyResult.primaryEsterAtoms);
@@ -928,13 +946,17 @@ function analyzeEsterHierarchy(
     .map((ester, idx) => {
       if (process.env.VERBOSE) {
         console.log(`[analyzeEsterHierarchy] Analyzing ester ${idx}:`, ester);
+        if (process.env.VERBOSE) {
         console.log(
           `[analyzeEsterHierarchy] Ester atoms type:`,
           typeof ester.atoms,
           Array.isArray(ester.atoms),
         );
+        }
         if (Array.isArray(ester.atoms)) {
+          if (process.env.VERBOSE) {
           console.log(`[analyzeEsterHierarchy] First atom:`, ester.atoms[0]);
+          }
         }
       }
       // ester.atoms might be an array of atom IDs (numbers) or Atom objects
@@ -1502,9 +1524,11 @@ function checkIfSimpleEster(
   if (process.env.VERBOSE) {
     const hasRings = detectSimpleRings(mol);
     if (hasRings) {
+      if (process.env.VERBOSE) {
       console.log(
         "[checkIfSimpleEster] Has rings but ester NOT in ring → use functional class",
       );
+      }
     }
   }
 
@@ -1542,10 +1566,12 @@ function checkIfSimpleEster(
         fg.type !== "ester" && fg.type !== "ether" && fg.type !== "alkoxy",
     );
     if (otherFunctionalGroups.length > 0) {
+      if (process.env.VERBOSE) {
       console.log(
         "[checkIfSimpleEster] Other (lower priority) FGs that are OK:",
         otherFunctionalGroups.map((fg) => `${fg.type}(${fg.priority})`),
       );
+      }
     }
   }
 
@@ -1580,9 +1606,11 @@ function checkIfSimpleEster(
       // Allow branched and substituted alkoxy chains - functional class can handle these
       // The naming logic in ester-naming.ts will generate proper bracketed names
       if (process.env.VERBOSE && (info.branched || info.hasAttachedFG)) {
+        if (process.env.VERBOSE) {
         console.log(
           "[checkIfSimpleEster] Alkoxy chain is branched or has attached FG -> will use complex functional class naming",
         );
+        }
       }
 
       // No restrictions here - functional class nomenclature can handle complexity
@@ -1758,12 +1786,14 @@ export const LACTONE_TO_KETONE_RULE: IUPACRule = {
       const esters = functionalGroups.filter(
         (fg: FunctionalGroup) => fg.type === "ester",
       );
+      if (process.env.VERBOSE) {
       console.log(
         "[LACTONE_TO_KETONE] Checking conditions: esters=",
         esters.length,
         "rings=",
         rings.length,
       );
+      }
     }
 
     if (!rings || rings.length === 0) {
@@ -1909,6 +1939,7 @@ export const LACTONE_TO_KETONE_RULE: IUPACRule = {
       console.log(
         "[LACTONE_TO_KETONE] Converting cyclic esters to ketones (if any)",
       );
+      if (process.env.VERBOSE) {
       console.log(
         "[LACTONE_TO_KETONE] Current functionalGroups:",
         functionalGroups.map((fg: FunctionalGroup) => ({
@@ -1918,6 +1949,7 @@ export const LACTONE_TO_KETONE_RULE: IUPACRule = {
           ),
         })),
       );
+      }
     }
 
     // Find lactone carbonyls using the same logic as conditions function
@@ -2637,7 +2669,9 @@ function detectAlcohols(context: ImmutableNamingContext): RawFunctionalGroup[] {
           console.log(
             `[ALCOHOL DETECTION] Oxygen atom ${atom.id} bonded to carbon atom ${carbonId}`,
           );
+          if (process.env.VERBOSE) {
           console.log(`[ALCOHOL DETECTION] Carbon atom:`, carbonAtom);
+          }
         }
 
         if (carbonAtom) {
@@ -3016,16 +3050,22 @@ function analyzeAlkoxySubstituent(
 
   if (process.env.VERBOSE) {
     console.log(`[analyzeAlkoxySubstituent] Oxygen ${oxygenAtom.id}`);
+    if (process.env.VERBOSE) {
     console.log(
       `  Carbon ${carbon1.id}: count=${chain1Info.carbonCount}, hasNested=${chain1Info.hasNestedOxygen}, atoms=${chain1Info.atoms.map((a) => a.id).join(",")}`,
     );
+    }
+    if (process.env.VERBOSE) {
     console.log(
       `  Carbon ${carbon2.id}: count=${chain2Info.carbonCount}, hasNested=${chain2Info.hasNestedOxygen}, atoms=${chain2Info.atoms.map((a) => a.id).join(",")}`,
     );
+    }
+    if (process.env.VERBOSE) {
     console.log(
       `  MainChainAtoms:`,
       mainChainAtoms ? Array.from(mainChainAtoms) : "null",
     );
+    }
   }
 
   // Determine which chain is the substituent
@@ -3040,9 +3080,11 @@ function analyzeAlkoxySubstituent(
       console.log(
         `  Carbon ${carbon1.id} on main chain: ${carbon1OnMainChain}`,
       );
+      if (process.env.VERBOSE) {
       console.log(
         `  Carbon ${carbon2.id} on main chain: ${carbon2OnMainChain}`,
       );
+      }
     }
 
     if (carbon1OnMainChain && !carbon2OnMainChain) {
