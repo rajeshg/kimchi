@@ -1317,6 +1317,45 @@ export function findRingStartingPosition(
       return triazineArrangement.start;
     }
 
+    // Special case: 3-membered rings with multiple heteroatoms (e.g., diaziridine: N-N-C)
+    // For diaziridines, the two nitrogens should be at positions 1 and 2, carbon at position 3
+    if (ring.atoms.length === 3 && heteroatomIndices.length === 2) {
+      if (process.env.VERBOSE) {
+        console.log(
+          `[findRingStartingPosition] 3-membered ring with 2 heteroatoms detected: [${ring.atoms.map((a: Atom) => `${a.id}:${a.symbol}`).join(", ")}]`,
+        );
+      }
+
+      // Find the carbon atom (position 3)
+      let carbonIndex = -1;
+      for (let i = 0; i < ring.atoms.length; i++) {
+        if (ring.atoms[i]!.symbol === "C") {
+          carbonIndex = i;
+          break;
+        }
+      }
+
+      if (carbonIndex >= 0) {
+        // Reorder: [hetero1, hetero2, carbon]
+        const firstHeteroIdx = heteroatomIndices[0]!;
+        const secondHeteroIdx = heteroatomIndices[1]!;
+        const hetero1 = ring.atoms[firstHeteroIdx]!;
+        const hetero2 = ring.atoms[secondHeteroIdx]!;
+        const carbon = ring.atoms[carbonIndex]!;
+
+        // Arrange as [hetero1, hetero2, carbon]
+        ring.atoms = [hetero1, hetero2, carbon] as Atom[];
+
+        if (process.env.VERBOSE) {
+          console.log(
+            `[Ring Numbering] 3-membered ring with 2 heteroatoms: reordered to [${ring.atoms.map((a: Atom) => `${a.id}:${a.symbol}`).join(", ")}] (positions 1, 2, 3)`,
+          );
+        }
+
+        return 1;
+      }
+    }
+
     // General case: find arrangement that gives lowest heteroatom locants
     let bestArrangement: { atoms: Atom[]; start: number } | null = null;
     let bestHeteroatomLocants: number[] = [];

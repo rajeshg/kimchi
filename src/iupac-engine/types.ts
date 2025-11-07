@@ -162,6 +162,7 @@ export interface StructuralSubstituent {
   name?: string;
   prefix?: string;
   position?: string;
+  attachedToRingAtomId?: number;
 }
 
 export interface MultipleBond {

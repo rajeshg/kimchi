@@ -464,6 +464,7 @@ export const P3_2_RING_SUBSTITUENT_RULE: IUPACRule = {
                 isPrincipal: false,
                 name: substituentName,
                 position: String(position), // Convert to string for IUPACSubstituent interface
+                attachedToRingAtomId: ringAtom.id,
               });
             }
           }

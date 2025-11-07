@@ -521,11 +521,27 @@ export const RING_NUMBERING_RULE: IUPACRule = {
     }
 
     const updatedSubstituents = parentStructure.substituents?.map((sub) => {
-      // For NamingSubstituent, position is the original atom ID (as a string)
-      // For StructuralSubstituent, locant is the original atom ID (as number)
-      const atomId = "position" in sub ? Number(sub.position) : sub.locant;
+      // Check if substituent has attachedToRingAtomId (for ring-attached substituents)
+      let atomId: number;
+      const hasRingAttachment = "attachedToRingAtomId" in sub && sub.attachedToRingAtomId !== undefined;
+      if (hasRingAttachment) {
+        atomId = sub.attachedToRingAtomId!;
+      } else {
+        // For NamingSubstituent, position is the original atom ID (as a string)
+        // For StructuralSubstituent, locant is the original atom ID (as number)
+        atomId = "position" in sub ? Number(sub.position) : sub.locant;
+      }
+      
       const newPosition = atomIdToPosition.get(atomId);
       if (newPosition !== undefined) {
+        // Only update locant for substituents directly attached to ring atoms
+        if (hasRingAttachment) {
+          return {
+            ...sub,
+            position: String(newPosition),
+            locant: newPosition,  // KEY: Update locant for ring substituents
+          };
+        }
         return {
           ...sub,
           position: String(newPosition),
