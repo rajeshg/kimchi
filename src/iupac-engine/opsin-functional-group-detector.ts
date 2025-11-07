@@ -161,31 +161,31 @@ export class OPSINFunctionalGroupDetector {
       {
         pattern: "S(=O)(=O)",
         name: "sulfonyl",
-        priority: 11.6,
+        priority: 15,
         finder: this.findSulfonylPattern.bind(this),
       },
       {
         pattern: "S(=O)",
         name: "sulfinyl",
-        priority: 11.7,
+        priority: 16,
         finder: this.findSulfinylPattern.bind(this),
       },
       {
         pattern: "P(=O)",
         name: "phosphoryl",
-        priority: 11.8,
+        priority: 17,
         finder: this.findPhosphorylPattern.bind(this),
       },
       {
         pattern: "P",
         name: "phosphanyl",
-        priority: 11.9,
+        priority: 18,
         finder: this.findPhosphanylPattern.bind(this),
       },
       {
         pattern: "B",
         name: "borane",
-        priority: 11.95,
+        priority: 19,
         finder: this.findBoranePattern.bind(this),
       },
       {

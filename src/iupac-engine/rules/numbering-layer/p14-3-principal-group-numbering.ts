@@ -144,12 +144,34 @@ export const P14_3_PRINCIPAL_GROUP_NUMBERING_RULE: IUPACRule = {
           const chainAtomIds = parentStructure.chain.atoms.map(
             (a: Atom) => a.id,
           );
+          const molecule = context.getState().molecule;
+          
           const convertedLocants = group.locants.map((atomId: number) => {
             const position = chainAtomIds.indexOf(atomId);
             if (position !== -1) {
               // Convert to 1-based position using the optimized locant set
               return optimizedLocants[position] ?? position + 1;
             }
+            
+            // Atom not in chain - find which chain atom it's bonded to
+            if (molecule?.bonds) {
+              for (const bond of molecule.bonds) {
+                let chainAtomId: number | undefined;
+                if (bond.atom1 === atomId && chainAtomIds.includes(bond.atom2)) {
+                  chainAtomId = bond.atom2;
+                } else if (bond.atom2 === atomId && chainAtomIds.includes(bond.atom1)) {
+                  chainAtomId = bond.atom1;
+                }
+                
+                if (chainAtomId !== undefined) {
+                  const chainPos = chainAtomIds.indexOf(chainAtomId);
+                  if (chainPos !== -1) {
+                    return optimizedLocants[chainPos] ?? chainPos + 1;
+                  }
+                }
+              }
+            }
+            
             return atomId; // Fallback to atom ID if not found in chain
           });
 

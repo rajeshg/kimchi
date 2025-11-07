@@ -1057,16 +1057,55 @@ function buildSubstitutiveName(
       if (group.type === "ketone" && !group.isPrincipal) {
         // Get the ketone's carbonyl carbon atom
         const carbonylCarbon = group.atoms?.find((atom) => atom.symbol === "C");
-        const ketoneLocant = group.locant ?? group.locants?.[0];
+        
+        if (!carbonylCarbon) {
+          return true; // Keep if we can't determine the carbon
+        }
+
+        // Determine the ketone's attachment point to the main chain
+        // If the carbonyl carbon is NOT on the chain, find which chain atom it's bonded to
+        const chainAtoms = parentStructure.chain?.atoms || [];
+        const chainAtomIds = chainAtoms.map((a) => a.id);
+        
+        let attachmentLocant: number | undefined;
+        
+        // Check if carbonyl carbon is on the chain
+        const chainPosition = chainAtomIds.indexOf(carbonylCarbon.id);
+        if (chainPosition !== -1) {
+          // Carbonyl is on chain - use its position
+          const locantSet = parentStructure.locants || [];
+          attachmentLocant = locantSet[chainPosition] ?? chainPosition + 1;
+        } else {
+          // Carbonyl is NOT on chain - find which chain atom it's bonded to
+          if (molecule?.bonds) {
+            for (const bond of molecule.bonds) {
+              let chainAtomId: number | undefined;
+              if (bond.atom1 === carbonylCarbon.id && chainAtomIds.includes(bond.atom2)) {
+                chainAtomId = bond.atom2;
+              } else if (bond.atom2 === carbonylCarbon.id && chainAtomIds.includes(bond.atom1)) {
+                chainAtomId = bond.atom1;
+              }
+              
+              if (chainAtomId !== undefined) {
+                const chainPos = chainAtomIds.indexOf(chainAtomId);
+                if (chainPos !== -1) {
+                  const locantSet = parentStructure.locants || [];
+                  attachmentLocant = locantSet[chainPos] ?? chainPos + 1;
+                  break;
+                }
+              }
+            }
+          }
+        }
 
         if (process.env.VERBOSE) {
           console.log(
-            `[ACYL FILTER] Checking ketone: locant=${ketoneLocant}, carbonylCarbon=${carbonylCarbon?.id}`,
+            `[ACYL FILTER] Checking ketone: carbonylCarbon=${carbonylCarbon.id}, attachmentLocant=${attachmentLocant}`,
           );
         }
 
-        if (!carbonylCarbon) {
-          return true; // Keep if we can't determine the carbon
+        if (attachmentLocant === undefined) {
+          return true; // Keep if we can't determine the attachment point
         }
 
         // Check if this ketone is already in parent substituents as an acyl group
@@ -1105,18 +1144,18 @@ function buildSubstitutiveName(
             return false;
           }
 
-          // Check if the locant matches
+          // Check if the locant matches the ketone's attachment point
           const subLocant = "locant" in sub ? sub.locant : undefined;
 
           if (process.env.VERBOSE) {
             console.log(
-              `[ACYL FILTER]     Acyl sub "${subType || subName}" at locant ${subLocant}, ketone at ${ketoneLocant}, match=${subLocant === ketoneLocant}`,
+              `[ACYL FILTER]     Acyl sub "${subType || subName}" at locant ${subLocant}, ketone attachment at ${attachmentLocant}, match=${subLocant === attachmentLocant}`,
             );
           }
 
-          if (subLocant === ketoneLocant) {
+          if (subLocant === attachmentLocant) {
             console.log(
-              `[buildSubstitutiveName] Filtering out ketone at locant ${ketoneLocant} - already represented as acyl substituent "${subType || subName}"`,
+              `[buildSubstitutiveName] Filtering out ketone with attachment at locant ${attachmentLocant} - already represented as acyl substituent "${subType || subName}"`,
             );
             return true;
           }
