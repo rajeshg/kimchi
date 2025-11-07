@@ -414,34 +414,21 @@ export const RING_SELECTION_COMPLETE_RULE: IUPACRule = {
       );
     }
 
-    // Find substituents on the ring
+    // We'll find substituents AFTER filtering and principal group selection
+    // For now, create an empty parent structure
     const ringAtomIdArray = parentRing.atoms.map((atom) => atom.id);
-    const substituents = findSubstituentsOnMonocyclicRing(
-      ringAtomIdArray,
-      molecule,
-    );
-
-    if (process.env.VERBOSE) {
-      console.log(
-        `[ring-selection-complete] Found ${substituents.length} substituents on ring`,
-      );
-      console.log(
-        `[ring-selection-complete] Substituents:`,
-        substituents.map((s) => `${s.name} at position ${s.position}`),
-      );
-    }
-
-    const parentStructure = {
+    let parentStructure = {
       type: "ring" as const,
       ring: parentRing,
       name: generateBaseCyclicName(molecule, ringInfo),
       locants: generateRingLocants(parentRing),
-      substituents: substituents,
+      substituents: [] as any[], // Will be filled in after principal group selection
     };
+    
+    const functionalGroups = context.getState().functionalGroups || [];
 
     // Filter functional groups to only include those directly attached to the ring
     // Functional groups on side chains should NOT be principal groups
-    const functionalGroups = context.getState().functionalGroups || [];
     const ringAtomIds = new Set(parentRing.atoms.map((atom) => atom.id));
 
     if (process.env.VERBOSE) {
@@ -591,6 +578,76 @@ export const RING_SELECTION_COMPLETE_RULE: IUPACRule = {
         );
       }
     }
+    
+    // NOW find substituents on the ring, after principal group selection
+    // Extract PRINCIPAL functional group atom IDs to exclude them from substituents
+    // We exclude:
+    // 1. Principal group atoms (e.g., imine carbon in ring)
+    // 2. Amine atoms bonded to principal group atoms (these become N-substituents)
+    const fgAtomIds = new Set<number>();
+    const principalAtomIds = new Set<number>();
+    
+    // First, collect principal group atom IDs
+    for (const fg of filteredFunctionalGroups) {
+      if (fg.isPrincipal && fg.atoms) {
+        for (const fgAtom of fg.atoms) {
+          const fgAtomId = typeof fgAtom === "object" ? fgAtom.id : fgAtom;
+          fgAtomIds.add(fgAtomId);
+          principalAtomIds.add(fgAtomId);
+        }
+      }
+    }
+    
+    if (process.env.VERBOSE) {
+      console.log(`[ring-selection-complete] Principal FG atom IDs: [${Array.from(principalAtomIds).join(', ')}]`);
+    }
+    
+    // Also exclude amine atoms that are bonded to principal group atoms
+    // (these will be handled as N-substituents)
+    for (const fg of functionalGroups) {
+      if (fg.type === "amine" && fg.atoms) {
+        for (const fgAtom of fg.atoms) {
+          const amineAtomId = typeof fgAtom === "object" ? fgAtom.id : fgAtom;
+          // Check if this amine atom is bonded to any principal group atom
+          for (const bond of molecule.bonds) {
+            if (bond.atom1 === amineAtomId || bond.atom2 === amineAtomId) {
+              const otherAtomId = bond.atom1 === amineAtomId ? bond.atom2 : bond.atom1;
+              if (principalAtomIds.has(otherAtomId)) {
+                fgAtomIds.add(amineAtomId);
+                if (process.env.VERBOSE) {
+                  console.log(`[ring-selection-complete] Excluding amine atom ${amineAtomId} - bonded to principal FG atom ${otherAtomId}`);
+                }
+                break;
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    if (process.env.VERBOSE) {
+      console.log(`[ring-selection-complete] All excluded FG atom IDs: [${Array.from(fgAtomIds).join(', ')}]`);
+    }
+
+    // Find substituents on the ring with the proper exclusions
+    const substituents = findSubstituentsOnMonocyclicRing(
+      ringAtomIdArray,
+      molecule,
+      fgAtomIds,
+    );
+
+    if (process.env.VERBOSE) {
+      console.log(
+        `[ring-selection-complete] Found ${substituents.length} substituents on ring`,
+      );
+      console.log(
+        `[ring-selection-complete] Substituents:`,
+        substituents.map((s) => `${s.name} at position ${s.position}`),
+      );
+    }
+
+    // Update parent structure with the substituents
+    parentStructure.substituents = substituents;
 
     return context
       .withParentStructure(

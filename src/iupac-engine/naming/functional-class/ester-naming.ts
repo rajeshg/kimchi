@@ -1281,10 +1281,16 @@ export function buildEsterWithRingAcylGroup(
     }
 
     // Merge with existing substituents
+    // Replace substituents from additionalSubs (which are more accurate for amides)
     const allSubstituents = [...ringSubstituents];
     for (const newSub of additionalSubs) {
-      // Only add if not already present at this position
-      if (!allSubstituents.some((s) => s.position === newSub.position)) {
+      // Find existing substituent at this position
+      const existingIndex = allSubstituents.findIndex((s) => s.position === newSub.position);
+      if (existingIndex >= 0) {
+        // Replace the existing substituent with the more accurate one from detectBenzeneRingSubstituents
+        allSubstituents[existingIndex] = newSub;
+      } else {
+        // Add if not already present at this position
         allSubstituents.push(newSub);
       }
     }

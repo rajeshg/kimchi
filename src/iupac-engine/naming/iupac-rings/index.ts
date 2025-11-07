@@ -795,6 +795,7 @@ function getMonocyclicBaseName(ring: number[], molecule: Molecule): string {
 export function findSubstituentsOnMonocyclicRing(
   ring: number[],
   molecule: Molecule,
+  fgAtomIds?: Set<number>,
 ): NamingSubstituent[] {
   const substituents: NamingSubstituent[] = [];
   const ringSet = new Set(ring);
@@ -810,6 +811,11 @@ export function findSubstituentsOnMonocyclicRing(
       }
 
       if (substituentAtomIdx >= 0) {
+        // Skip atoms that are part of functional groups
+        if (fgAtomIds && fgAtomIds.has(substituentAtomIdx)) {
+          continue;
+        }
+
         // Skip OH groups directly attached to ring - these are principal functional groups, not substituents
         const substituentAtom = molecule.atoms[substituentAtomIdx];
         if (
