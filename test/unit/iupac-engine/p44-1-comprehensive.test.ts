@@ -9,12 +9,11 @@ import { describe, test, expect } from "bun:test";
 import { IUPACNamer } from "../../../src/iupac-engine";
 import { parseSMILES } from "../../../src/parsers/smiles-parser";
 import { OPSINFunctionalGroupDetector } from "../../../src/iupac-engine/opsin-functional-group-detector";
-import { OPSINService } from "../../../src/iupac-engine/services/opsin-service";
+import { getSharedOPSINService } from "../../../src/iupac-engine/opsin-service";
 
 describe("Comprehensive P-44.1 Functional Group Coverage", () => {
   test("should detect all priority levels from OPSIN rules", () => {
-    const opsinService = new OPSINService();
-    const detector = new OPSINFunctionalGroupDetector(opsinService);
+    const detector = new OPSINFunctionalGroupDetector();
 
     // Test molecules covering different priority levels
     // Priorities follow IUPAC Blue Book P-44.1 (lower number = higher priority)
@@ -25,13 +24,13 @@ describe("Comprehensive P-44.1 Functional Group Coverage", () => {
         expectedName: "carboxylic acid",
       },
       {
-        smiles: "CC(=O)OC", // Ester - Priority 3 (higher than amide per P-44.1)
-        expectedPriority: 3,
+        smiles: "CC(=O)OC", // Ester - Priority 4 (after sulfonic and sulfinic acids per P-44.1)
+        expectedPriority: 4,
         expectedName: "ester",
       },
       {
-        smiles: "CC(=O)NC", // Amide - Priority 5
-        expectedPriority: 5,
+        smiles: "CC(=O)NC", // Amide - Priority 6
+        expectedPriority: 6,
         expectedName: "amide",
       },
       {
@@ -55,13 +54,13 @@ describe("Comprehensive P-44.1 Functional Group Coverage", () => {
         expectedName: "alcohol",
       },
       {
-        smiles: "CCN", // Amine - Priority 11
-        expectedPriority: 11,
+        smiles: "CCN", // Amine - Priority 13
+        expectedPriority: 13,
         expectedName: "amine",
       },
       {
-        smiles: "CCOC", // Ether - Priority 12 (lowest priority per P-44.1)
-        expectedPriority: 12,
+        smiles: "CCOC", // Ether - Priority 14 (per P-44.1)
+        expectedPriority: 14,
         expectedName: "ether",
       },
     ];
@@ -90,8 +89,7 @@ describe("Comprehensive P-44.1 Functional Group Coverage", () => {
   });
 
   test("should handle complex molecules with multiple functional groups", () => {
-    const opsinService = new OPSINService();
-    const detector = new OPSINFunctionalGroupDetector(opsinService);
+    const detector = new OPSINFunctionalGroupDetector();
 
     // Test 4-aminobenzoic acid - has both carboxylic acid and amine
     const parseResult = parseSMILES("N=C1C=CC=C1C(=O)O");
@@ -117,8 +115,7 @@ describe("Comprehensive P-44.1 Functional Group Coverage", () => {
   });
 
   test("should use comprehensive OPSIN patterns", () => {
-    const opsinService = new OPSINService();
-    const detector = new OPSINFunctionalGroupDetector(opsinService);
+    const detector = new OPSINFunctionalGroupDetector();
 
     // Test nitrile detection
     const parseResult = parseSMILES("CC#N");
@@ -159,8 +156,7 @@ describe("Comprehensive P-44.1 Functional Group Coverage", () => {
   });
 
   test("should demonstrate P-44.1 priority hierarchy", () => {
-    const opsinService = new OPSINService();
-    const detector = new OPSINFunctionalGroupDetector(opsinService);
+    const detector = new OPSINFunctionalGroupDetector();
 
     // Create a molecule with multiple functional groups to test priority
     // This would be a hypothetical molecule with carboxylic acid and alcohol
@@ -253,8 +249,7 @@ describe("P-44.1 Implementation Summary", () => {
     console.log("✓ Support for complex multi-functional molecules");
 
     // Verify the detector can access OPSIN rules
-    const opsinService = new OPSINService();
-    const detector = new OPSINFunctionalGroupDetector(opsinService);
+    const detector = new OPSINFunctionalGroupDetector();
 
     // Test that we can detect various functional group types
     const testMolecules = ["CCO", "CC(=O)O", "CC(=O)C", "CC#N"];

@@ -6,8 +6,11 @@ import {
   getGreekNumeral,
 } from "./iupac-helpers";
 import type { NamingSubstituent } from "./iupac-types";
-import { getSharedOPSINService } from "../services/opsin-service";
-import { getHeteroAtomPrefixFromOPSIN } from "../adapters/opsin-adapter";
+import { getSharedOPSINService } from "../opsin-service";
+import {
+  getHeteroAtomPrefixFromOPSIN,
+  getSimpleMultiplierWithVowel,
+} from "../opsin-adapter";
 import {
   findSubstituents,
   classifySubstituent,
@@ -450,7 +453,14 @@ export function generateSubstitutedName(
   for (const [root, data] of grouped.entries()) {
     const positions = data.positions.sort((a, b) => parseInt(a) - parseInt(b));
     const count = positions.length;
-    const multiplier = count === 1 ? "" : getGreekNumeral(count);
+    const multiplier =
+      count === 1
+        ? ""
+        : getSimpleMultiplierWithVowel(
+            count,
+            root.charAt(0),
+            getSharedOPSINService(),
+          );
 
     // Check if we can omit the locant: single substituent at position 1, no heteroatoms, simple saturated chain
     const canOmitLocant =

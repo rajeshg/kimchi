@@ -16,7 +16,7 @@ import { LAYER_ORDER, LAYER_DEFINITIONS } from "./layer-config";
 import { getSharedNameGenerator } from "./opsin-name-generator";
 import { analyzeRings, getAromaticRings } from "src/utils/ring-analysis";
 import type { RingInfo } from "src/utils/ring-analysis";
-import { OPSINService } from "./services/opsin-service";
+import { getSharedOPSINService } from "./opsin-service";
 import { OPSINFunctionalGroupDetector } from "./opsin-functional-group-detector";
 
 /**
@@ -28,10 +28,9 @@ export class RuleEngine {
   private services: ContextServices;
 
   constructor() {
-    const opsinService = new OPSINService();
     this.services = {
-      opsin: opsinService,
-      detector: new OPSINFunctionalGroupDetector(opsinService),
+      opsin: getSharedOPSINService(),
+      detector: new OPSINFunctionalGroupDetector(),
     };
     this.initializeEngine();
   }

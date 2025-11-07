@@ -1,11 +1,14 @@
 import { buildRingSubstituentAlkylName } from "./ring-substituent-naming";
 import { analyzeRings } from "src/utils/ring-analysis";
+import { getSimpleMultiplier, getComplexMultiplier } from "../../opsin-adapter";
+import { getSharedOPSINService } from "../../opsin-service";
 import type {
   ParentStructure,
   FunctionalGroup,
   StructuralSubstituent,
-} from "../types";
+} from "../../types";
 import type { Molecule, Bond, Atom } from "types";
+import type { OPSINService } from "../../opsin-service";
 
 /**
  * Helper function to safely get position string from a substituent.
@@ -35,6 +38,7 @@ export function buildEsterWithRingAlkylGroup(
   esterGroup: FunctionalGroup,
   molecule: Molecule,
   functionalGroups: FunctionalGroup[],
+  opsinService?: OPSINService,
 ): string {
   // For functional class nomenclature, build: (ring-with-all-substituents-yl)alkanoate
   // Example: (4-acetyl-5,5-dimethyl-2-propan-2-yloxolan-2-yl)acetate
@@ -353,7 +357,12 @@ export function buildEsterWithRingAlkylGroup(
   for (const [_, group] of groupedSubstituents) {
     const locantStr = group.locants.join(",");
     const multiplier =
-      group.locants.length > 1 ? getMultiplier(group.locants.length) : "";
+      group.locants.length > 1
+        ? getSimpleMultiplier(
+            group.locants.length,
+            opsinService ?? getSharedOPSINService(),
+          )
+        : "";
     substituentParts.push(`${locantStr}-${multiplier}${group.name}`);
   }
 
@@ -395,26 +404,6 @@ export function buildEsterWithRingAlkylGroup(
 
   // Functional class format: (alkyl) alkanoate
   return `(${alkylGroupName}) ${acylName}`;
-}
-
-/**
- * Get multiplicity prefix (di, tri, tetra, etc.)
- */
-export function getMultiplier(count: number): string {
-  const prefixes = [
-    "",
-    "",
-    "di",
-    "tri",
-    "tetra",
-    "penta",
-    "hexa",
-    "hepta",
-    "octa",
-    "nona",
-    "deca",
-  ];
-  return count < prefixes.length ? (prefixes[count] ?? "") : `${count}-`;
 }
 
 /**
@@ -935,6 +924,7 @@ function nameAcylAlkylSubstituent(
 
   // Build the name parts
   const parts: string[] = [];
+  const opsinSvc = getSharedOPSINService();
   for (const name of sortedNames) {
     const locants = substByName.get(name)!;
     locants.sort((a, b) => a - b);
@@ -945,18 +935,7 @@ function nameAcylAlkylSubstituent(
     if (count === 1) {
       parts.push(`${locantString}-${name}`);
     } else {
-      const multipliers = [
-        "",
-        "mono",
-        "di",
-        "tri",
-        "tetra",
-        "penta",
-        "hexa",
-        "hepta",
-        "octa",
-      ];
-      const multiplier = multipliers[count] || `${count}`;
+      const multiplier = getSimpleMultiplier(count, opsinSvc);
       parts.push(`${locantString}-${multiplier}${name}`);
     }
   }
@@ -1226,6 +1205,7 @@ export function buildEsterWithRingAcylGroup(
   esterGroup: FunctionalGroup,
   molecule: Molecule,
   functionalGroups: FunctionalGroup[],
+  opsinService?: OPSINService,
 ): string {
   if (process.env.VERBOSE) {
     console.log(
@@ -1351,6 +1331,7 @@ export function buildEsterWithRingAcylGroup(
       esterGroup,
       molecule,
       functionalGroups,
+      opsinService,
     );
 
     if (process.env.VERBOSE) {
@@ -1367,7 +1348,12 @@ export function buildEsterWithRingAcylGroup(
   const acylName = `${ringBaseName}carboxylate`;
 
   // Now find the alkoxy group
-  const alkoxyName = getAlkoxyGroupName(esterGroup, molecule, functionalGroups);
+  const alkoxyName = getAlkoxyGroupName(
+    esterGroup,
+    molecule,
+    functionalGroups,
+    opsinService,
+  );
 
   if (process.env.VERBOSE) {
     console.log("[buildEsterWithRingAcylGroup] ringBaseName:", ringBaseName);
@@ -1973,6 +1959,7 @@ export function getAlkoxyGroupName(
   esterGroup: FunctionalGroup,
   molecule: Molecule,
   functionalGroups?: FunctionalGroup[],
+  opsinService?: OPSINService,
 ): string {
   // Find carbonyl carbon and ester oxygen
   let carbonylCarbonId: number | undefined;
@@ -2732,21 +2719,10 @@ export function getAlkoxyGroupName(
       } else {
         // Multiple identical substituents: use bis/tris/tetrakis
         const multiplicity = positions.length;
-        let multiplicativePrefix = "";
-
-        if (multiplicity === 2) {
-          multiplicativePrefix = "bis";
-        } else if (multiplicity === 3) {
-          multiplicativePrefix = "tris";
-        } else if (multiplicity === 4) {
-          multiplicativePrefix = "tetrakis";
-        } else if (multiplicity === 5) {
-          multiplicativePrefix = "pentakis";
-        } else if (multiplicity === 6) {
-          multiplicativePrefix = "hexakis";
-        } else {
-          multiplicativePrefix = `${multiplicity}-kis`;
-        }
+        const multiplicativePrefix = getComplexMultiplier(
+          multiplicity,
+          opsinService ?? getSharedOPSINService(),
+        );
 
         // For complex substituent names (containing hyphens or being compound),
         // wrap in parentheses: "2,3-bis(trimethylsilyloxy)"
@@ -2920,6 +2896,7 @@ export function buildEsterName(
   esterGroup: FunctionalGroup,
   molecule: Molecule,
   functionalGroups: FunctionalGroup[],
+  opsinService?: OPSINService,
 ): string {
   // Ester functional class nomenclature:
   // Monoester: [alkyl] [alkanoate] (e.g., "methyl acetate")
@@ -3054,6 +3031,7 @@ export function buildEsterName(
         esterGroup,
         molecule,
         functionalGroups,
+        opsinService,
       );
     } else {
       // Ring is on alkoxy side - handle as ring-based alkyl group
@@ -3067,6 +3045,7 @@ export function buildEsterName(
         esterGroup,
         molecule,
         functionalGroups,
+        opsinService,
       );
     }
   }
@@ -3780,18 +3759,8 @@ export function buildEsterName(
         }
       } else {
         // Multiple substituents (e.g., 2,4,4-trimethyl)
-        const multipliers = [
-          "",
-          "mono",
-          "di",
-          "tri",
-          "tetra",
-          "penta",
-          "hexa",
-          "hepta",
-          "octa",
-        ];
-        const multiplier = multipliers[totalCount] || `${totalCount}`;
+        const opsinSvc = getSharedOPSINService();
+        const multiplier = getSimpleMultiplier(totalCount, opsinSvc);
         alkylSubParts.push(`${locantString}-${multiplier}${name}`);
         if (process.env.VERBOSE) {
           console.log(
@@ -3817,7 +3786,12 @@ export function buildEsterName(
   } else {
     // Use getAlkoxyGroupName - it handles both simple and complex cases
     // It has built-in detection for amide groups and other complex structural features
-    alkylName = getAlkoxyGroupName(esterGroup, molecule, functionalGroups);
+    alkylName = getAlkoxyGroupName(
+      esterGroup,
+      molecule,
+      functionalGroups,
+      opsinService,
+    );
   }
 
   // Prefer deriving the acyl name from the parentStructure.chain when the parent chain contains the carbonyl carbon
@@ -4259,17 +4233,6 @@ export function buildDiesterName(
 }
 
 function getMultiplicativePrefix(count: number): string {
-  const prefixes: { [key: number]: string } = {
-    2: "di",
-    3: "tri",
-    4: "tetra",
-    5: "penta",
-    6: "hexa",
-    7: "hepta",
-    8: "octa",
-    9: "nona",
-    10: "deca",
-  };
-
-  return prefixes[count] || `${count}-`;
+  const opsinService = getSharedOPSINService();
+  return getSimpleMultiplier(count, opsinService);
 }

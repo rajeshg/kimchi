@@ -6,6 +6,10 @@ import {
   identifyAdvancedFusedPattern,
 } from "./fused-naming";
 import { getNumberingFunction } from "./numbering";
+import { getSimpleMultiplierWithVowel } from "../../opsin-adapter";
+import { getSharedOPSINService } from "../../opsin-service";
+import { ruleEngine } from "../iupac-rule-engine";
+import { nameAlkylSulfanylSubstituent } from "../chains/substituent-naming/sulfanyl";
 
 interface FusedSystem {
   rings: number[][];
@@ -60,27 +64,26 @@ function groupSubstituents(
 function generatePrefixes(
   grouped: Record<string, { positions: string[]; name: string }>,
 ): string[] {
+  const opsinService = getSharedOPSINService();
   const prefixes: string[] = [];
   for (const [name, data] of Object.entries(grouped)) {
     const positions = data.positions.slice().sort();
     const posStr = positions.join(",");
     let prefix = "";
-    if (positions.length === 1) prefix = `${posStr}-${name}`;
-    else prefix = `${posStr}-${getMultiplicityPrefix(positions.length)}${name}`;
+    if (positions.length === 1) {
+      prefix = `${posStr}-${name}`;
+    } else {
+      const multiplier = getSimpleMultiplierWithVowel(
+        positions.length,
+        name.charAt(0),
+        opsinService,
+      );
+      prefix = `${posStr}-${multiplier}${name}`;
+    }
     prefixes.push(prefix);
   }
   prefixes.sort();
   return prefixes;
-}
-
-function getMultiplicityPrefix(n: number): string {
-  const map: Record<number, string> = {
-    2: "di",
-    3: "tri",
-    4: "tetra",
-    5: "penta",
-  };
-  return map[n] ?? `${n}`;
 }
 
 export function findSubstituentsOnFusedSystem(
@@ -195,25 +198,45 @@ function classifyFusedSubstituent(
     return { type: "halo", size: 1, name: "bromo" };
   } else if (atoms.some((atom) => atom.symbol === "I")) {
     return { type: "halo", size: 1, name: "iodo" };
+  } else if (atoms.some((atom) => atom.symbol === "S")) {
+    // Handle sulfur-containing substituents (e.g., methylsulfanyl, phenylsulfanyl)
+    const sulfurAtomIdx = Array.from(substituentAtoms).find(
+      (idx) => molecule.atoms[idx]?.symbol === "S",
+    );
+    if (sulfurAtomIdx !== undefined) {
+      const name = nameAlkylSulfanylSubstituent(
+        molecule,
+        substituentAtoms,
+        sulfurAtomIdx,
+      );
+      return { type: "functional", size: substituentAtoms.size, name };
+    }
   }
 
   // Larger alkyl groups
   if (carbonCount > 0) {
-    const alkaneNames = [
-      "",
-      "meth",
-      "eth",
-      "prop",
-      "but",
-      "pent",
-      "hex",
-      "hept",
-      "oct",
-      "non",
-      "dec",
-    ];
-    const prefix = alkaneNames[carbonCount] || `C${carbonCount}`;
-    return { type: "alkyl", size: carbonCount, name: `${prefix}yl` };
+    // Use IUPAC rule engine to get alkane stem (supports C1-C100+)
+    if (process.env.VERBOSE) {
+      console.log(`[substituents.ts] carbonCount: ${carbonCount}`);
+    }
+    const alkaneName = ruleEngine.getAlkaneName(carbonCount);
+    if (process.env.VERBOSE) {
+      console.log(`[substituents.ts] alkaneName from rule engine: ${alkaneName}`);
+    }
+    if (alkaneName) {
+      // Remove "ane" suffix and add "yl" for substituent naming
+      const prefix = alkaneName.replace(/ane$/, "");
+      if (process.env.VERBOSE) {
+        console.log(`[substituents.ts] prefix after stripping 'ane': ${prefix}`);
+        console.log(`[substituents.ts] final name: ${prefix}yl`);
+      }
+      return { type: "alkyl", size: carbonCount, name: `${prefix}yl` };
+    }
+    // Fallback to generic notation if rule engine fails
+    if (process.env.VERBOSE) {
+      console.log(`[substituents.ts] FALLBACK: Using C${carbonCount}yl`);
+    }
+    return { type: "alkyl", size: carbonCount, name: `C${carbonCount}yl` };
   }
 
   return null;

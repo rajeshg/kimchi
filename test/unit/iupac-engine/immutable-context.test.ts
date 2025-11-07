@@ -11,16 +11,15 @@ import {
 import {
   FUNCTIONAL_GROUP_CONTRACT,
   ContractValidator,
-} from "../../../src/iupac-engine/contracts/layer-contracts";
-import { OPSINService } from "../../../src/iupac-engine/services/opsin-service";
+} from "../../../src/iupac-engine/layer-contracts";
+import { getSharedOPSINService } from "../../../src/iupac-engine/opsin-service";
 import { OPSINFunctionalGroupDetector } from "../../../src/iupac-engine/opsin-functional-group-detector";
 
 // Helper to create test services
 function createTestServices(): ContextServices {
-  const opsin = new OPSINService();
   return {
-    opsin,
-    detector: new OPSINFunctionalGroupDetector(opsin),
+    opsin: getSharedOPSINService(),
+    detector: new OPSINFunctionalGroupDetector(),
   };
 }
 

@@ -1,6 +1,6 @@
 import type { Molecule } from "types";
 import { BondType } from "types";
-import { getSharedOPSINService } from "../../../services/opsin-service";
+import { getSharedOPSINService } from "../../../opsin-service";
 
 /**
  * Calculate the highest priority functional group in a chain using OPSIN priorities

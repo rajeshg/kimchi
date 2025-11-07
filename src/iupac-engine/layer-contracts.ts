@@ -1,6 +1,6 @@
-import { ExecutionPhase } from "../immutable-context";
+import { ExecutionPhase } from "./immutable-context";
 
-import type { ContextState } from "../immutable-context";
+import type { ContextState } from "./immutable-context";
 
 /**
  * Layer contract defining dependencies and outputs

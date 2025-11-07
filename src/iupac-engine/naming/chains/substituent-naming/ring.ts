@@ -57,7 +57,7 @@ export function nameRingSubstituent(
   const {
     generateAromaticRingName,
     isRingAromatic,
-  } = require("./iupac-rings/aromatic-naming");
+  } = require("../../iupac-rings/aromatic-naming");
 
   // Find which ring(s) contain the starting atom
   const containingRings = molecule.rings.filter((ring) =>
@@ -85,7 +85,7 @@ export function nameRingSubstituent(
     // For non-aromatic rings, use generateRingName to handle heterocycles properly
     const {
       generateRingName,
-    } = require("../rules/ring-analysis-layer/helpers");
+    } = require("../../../rules/ring-analysis-layer/helpers");
 
     // Build ring system object with atoms and bonds
     const ringAtoms = ring.map((idx: number) => molecule.atoms[idx]);

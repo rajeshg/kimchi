@@ -1,4 +1,4 @@
-import type { Molecule, Atom } from "../../../types";
+import type { Molecule, Atom } from "types";
 import { analyzeRings } from "src/utils/ring-analysis";
 
 export interface RingSubstituentInfo {

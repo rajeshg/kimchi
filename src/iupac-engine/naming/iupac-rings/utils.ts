@@ -1,4 +1,7 @@
 import type { Molecule } from "types";
+import { getSimpleMultiplier } from "../../opsin-adapter";
+import { getSharedOPSINService } from "../../opsin-service";
+import { ruleEngine } from "../iupac-rule-engine";
 
 export function getAlkaneBySize(n: number): string {
   const map: Record<number, string> = {
@@ -96,13 +99,8 @@ export function buildPerimeterFromRings(fusedSystem: FusedSystem): number[] {
 }
 
 export function getMultiplicityPrefix(n: number): string {
-  const map: Record<number, string> = {
-    2: "di",
-    3: "tri",
-    4: "tetra",
-    5: "penta",
-  };
-  return map[n] ?? `${n}`;
+  const opsinService = getSharedOPSINService();
+  return getSimpleMultiplier(n, opsinService);
 }
 
 export function compareNumericArrays(a: number[], b: number[]): number {
@@ -174,21 +172,18 @@ export function classifyFusedSubstituent(
 
   // Larger alkyl groups
   if (carbonCount > 0) {
-    const alkaneNames = [
-      "",
-      "meth",
-      "eth",
-      "prop",
-      "but",
-      "pent",
-      "hex",
-      "hept",
-      "oct",
-      "non",
-      "dec",
-    ];
-    const prefix = alkaneNames[carbonCount] || `C${carbonCount}`;
-    return { type: "alkyl", size: carbonCount, name: `${prefix}yl` };
+    // Use IUPAC rule engine to get alkane stem (supports C1-C100+)
+    const alkaneName = ruleEngine.getAlkaneName(carbonCount);
+    if (process.env.VERBOSE) {
+      console.log(`[classifyFusedSubstituent] carbonCount=${carbonCount}, alkaneName=${alkaneName}`);
+    }
+    if (alkaneName) {
+      // Remove "ane" suffix and add "yl" for substituent naming
+      const prefix = alkaneName.replace(/ane$/, "");
+      return { type: "alkyl", size: carbonCount, name: `${prefix}yl` };
+    }
+    // Fallback to generic notation if rule engine fails
+    return { type: "alkyl", size: carbonCount, name: `C${carbonCount}yl` };
   }
 
   return null;

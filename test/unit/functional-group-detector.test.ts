@@ -6,16 +6,14 @@ import {
 } from "src/iupac-engine/naming/iupac-chains";
 
 describe("functional group detector", () => {
-  it("detects carboxylic acid priority (6) for CC(=O)O", () => {
+  it("detects carboxylic acid priority (1) for CC(=O)O", () => {
     const res = parseSMILES("CC(=O)O");
     const mol = res.molecules[0]!;
     const chain = findLongestCarbonChain(mol);
-    expect(getChainFunctionalGroupPriority(chain, mol)).toBeGreaterThanOrEqual(
-      6,
-    );
+    expect(getChainFunctionalGroupPriority(chain, mol)).toBeLessThanOrEqual(1);
   });
 
-  it("detects sulfonic acid priority (6) for CCS(=O)(=O)O", () => {
+  it("detects sulfonic acid priority (2) for CCS(=O)(=O)O", () => {
     const res = parseSMILES("CCS(=O)(=O)O");
     const mol = res.molecules[0]!;
     // ensure chain includes the sulfur atom for detection
@@ -29,12 +27,10 @@ describe("functional group detector", () => {
         : neighBond.atom1
       : -1;
     const chain = cIdx >= 0 ? [cIdx, sIdx] : findLongestCarbonChain(mol);
-    expect(getChainFunctionalGroupPriority(chain, mol)).toBeGreaterThanOrEqual(
-      6,
-    );
+    expect(getChainFunctionalGroupPriority(chain, mol)).toBeLessThanOrEqual(2);
   });
 
-  it("detects ester/amide/acid-chloride priority (5) for CC(=O)OC / CC(=O)N / CC(=O)Cl", () => {
+  it("detects ester/amide/acid-chloride priority (4-6) for CC(=O)OC / CC(=O)N / CC(=O)Cl", () => {
     const est = parseSMILES("CC(=O)OC");
     const am = parseSMILES("CC(=O)N");
     const ac = parseSMILES("CC(=O)Cl");
@@ -43,22 +39,22 @@ describe("functional group detector", () => {
         findLongestCarbonChain(est.molecules[0]!),
         est.molecules[0]!,
       ),
-    ).toBeGreaterThanOrEqual(5);
+    ).toBeLessThanOrEqual(6);
     expect(
       getChainFunctionalGroupPriority(
         findLongestCarbonChain(am.molecules[0]!),
         am.molecules[0]!,
       ),
-    ).toBeGreaterThanOrEqual(5);
+    ).toBeLessThanOrEqual(6);
     expect(
       getChainFunctionalGroupPriority(
         findLongestCarbonChain(ac.molecules[0]!),
         ac.molecules[0]!,
       ),
-    ).toBeGreaterThanOrEqual(5);
+    ).toBeLessThanOrEqual(6);
   });
 
-  it("detects nitrile/nitro/carbonyl priority (>=4) for CC#N, CC[N+](=O)[O-], C(C)=O", () => {
+  it("detects nitrile/nitro/carbonyl priority (<=17) for CC#N, CC[N+](=O)[O-], C(C)=O", () => {
     const nitr = parseSMILES("CC#N");
     const nitro = parseSMILES("CC[N+](=O)[O-]");
     const carbonyl = parseSMILES("CC(=O)C");
@@ -98,19 +94,19 @@ describe("functional group detector", () => {
 
     expect(
       getChainFunctionalGroupPriority(nitrChain, nitrMol),
-    ).toBeGreaterThanOrEqual(4);
+    ).toBeLessThanOrEqual(17);
     expect(
       getChainFunctionalGroupPriority(nitroChain, nitroMol),
-    ).toBeGreaterThanOrEqual(4);
+    ).toBeLessThanOrEqual(17);
     expect(
       getChainFunctionalGroupPriority(
         findLongestCarbonChain(carbonyl.molecules[0]!),
         carbonyl.molecules[0]!,
       ),
-    ).toBeGreaterThanOrEqual(4);
+    ).toBeLessThanOrEqual(17);
   });
 
-  it("detects alcohol priority (3) for CCO", () => {
+  it("detects alcohol priority (10) for CCO", () => {
     const res = parseSMILES("CCO");
     const mol = res.molecules[0]!;
     // include the oxygen atom to detect alcohol
@@ -118,53 +114,41 @@ describe("functional group detector", () => {
     const bond = mol.bonds.find((b) => b.atom1 === oIdx || b.atom2 === oIdx);
     const cIdx = bond ? (bond.atom1 === oIdx ? bond.atom2 : bond.atom1) : -1;
     const chain = cIdx >= 0 ? [cIdx, oIdx] : findLongestCarbonChain(mol);
-    expect(getChainFunctionalGroupPriority(chain, mol)).toBeGreaterThanOrEqual(
-      3,
-    );
+    expect(getChainFunctionalGroupPriority(chain, mol)).toBeLessThanOrEqual(10);
   });
 
-  it("detects carboxylic acid priority (6) for benzoic acid (c1ccccc1C(=O)O)", () => {
+  it("detects carboxylic acid priority (1) for benzoic acid (c1ccccc1C(=O)O)", () => {
     const res = parseSMILES("c1ccccc1C(=O)O");
     const mol = res.molecules[0]!;
     const chain = findLongestCarbonChain(mol);
-    expect(getChainFunctionalGroupPriority(chain, mol)).toBeGreaterThanOrEqual(
-      6,
-    );
+    expect(getChainFunctionalGroupPriority(chain, mol)).toBeLessThanOrEqual(1);
   });
 
-  it("detects amide priority (5) for benzamide (c1ccccc1C(=O)N)", () => {
+  it("detects amide priority (6) for benzamide (c1ccccc1C(=O)N)", () => {
     const res = parseSMILES("c1ccccc1C(=O)N");
     const mol = res.molecules[0]!;
     const chain = findLongestCarbonChain(mol);
-    expect(getChainFunctionalGroupPriority(chain, mol)).toBeGreaterThanOrEqual(
-      5,
-    );
+    expect(getChainFunctionalGroupPriority(chain, mol)).toBeLessThanOrEqual(6);
   });
 
-  it("detects carboxylic acid priority (6) for phenylacetic acid (c1ccccc1CC(=O)O)", () => {
+  it("detects carboxylic acid priority (1) for phenylacetic acid (c1ccccc1CC(=O)O)", () => {
     const res = parseSMILES("c1ccccc1CC(=O)O");
     const mol = res.molecules[0]!;
     const chain = findLongestCarbonChain(mol);
-    expect(getChainFunctionalGroupPriority(chain, mol)).toBeGreaterThanOrEqual(
-      6,
-    );
+    expect(getChainFunctionalGroupPriority(chain, mol)).toBeLessThanOrEqual(1);
   });
 
-  it("detects amide priority (5) for N-phenylbenzamide (c1ccc(C(=O)Nc2ccccc2)cc1)", () => {
+  it("detects amide priority (6) for N-phenylbenzamide (c1ccc(C(=O)Nc2ccccc2)cc1)", () => {
     const res = parseSMILES("c1ccc(C(=O)Nc2ccccc2)cc1");
     const mol = res.molecules[0]!;
     const chain = findLongestCarbonChain(mol);
-    expect(getChainFunctionalGroupPriority(chain, mol)).toBeGreaterThanOrEqual(
-      5,
-    );
+    expect(getChainFunctionalGroupPriority(chain, mol)).toBeLessThanOrEqual(6);
   });
 
   it("detects acid chloride priority (5) for aromatic acid chloride (c1ccccc1C(=O)Cl)", () => {
     const res = parseSMILES("c1ccccc1C(=O)Cl");
     const mol = res.molecules[0]!;
     const chain = findLongestCarbonChain(mol);
-    expect(getChainFunctionalGroupPriority(chain, mol)).toBeGreaterThanOrEqual(
-      5,
-    );
+    expect(getChainFunctionalGroupPriority(chain, mol)).toBeLessThanOrEqual(5);
   });
 });

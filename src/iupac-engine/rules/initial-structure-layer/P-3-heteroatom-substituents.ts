@@ -18,6 +18,8 @@ import type { IUPACRule } from "../../types";
 import type { Atom, Molecule, Bond } from "types";
 import { BondType } from "types";
 import type { StructuralSubstituent as IUPACSubstituent } from "../../types";
+import { getSimpleMultiplier } from "../../opsin-adapter";
+import { getSharedOPSINService } from "../../opsin-service";
 
 /**
  * Rule P-3.1: Heteroatom Parent Substituent Detection
@@ -798,14 +800,10 @@ function getRingSubstituentName(
       );
       for (const [subName, count] of sortedSubs) {
         if (count > 1) {
-          const multiplier =
-            count === 2
-              ? "di"
-              : count === 3
-                ? "tri"
-                : count === 4
-                  ? "tetra"
-                  : "";
+          const multiplier = getSimpleMultiplier(
+            count,
+            getSharedOPSINService(),
+          );
           substituentParts.push(`${locant},${locant}-${multiplier}${subName}`);
         } else {
           substituentParts.push(`${locant}-${subName}`);

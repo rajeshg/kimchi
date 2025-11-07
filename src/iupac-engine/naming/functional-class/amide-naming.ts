@@ -1,5 +1,7 @@
-import type { Molecule } from "../../../types";
-import type { ParentStructure, FunctionalGroup } from "../types";
+import type { Molecule } from "types";
+import type { ParentStructure, FunctionalGroup } from "../../types";
+import { getSimpleMultiplier } from "../../opsin-adapter";
+import { getSharedOPSINService } from "../../opsin-service";
 
 /**
  * Build N-substituted amide name
@@ -185,20 +187,8 @@ export function buildAmideName(
 }
 
 function getMultiplier(count: number): string {
-  const multipliers = [
-    "",
-    "",
-    "di",
-    "tri",
-    "tetra",
-    "penta",
-    "hexa",
-    "hepta",
-    "octa",
-    "nona",
-    "deca",
-  ];
-  return count < multipliers.length ? multipliers[count] || "" : `${count}-`;
+  const opsinService = getSharedOPSINService();
+  return getSimpleMultiplier(count, opsinService);
 }
 
 /**

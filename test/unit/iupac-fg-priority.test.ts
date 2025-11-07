@@ -6,19 +6,19 @@ import {
 } from "src/iupac-engine/naming/iupac-chains";
 
 describe("IUPAC functional-group priority (extended)", () => {
-  const cases: { smiles: string; name: string; minPriority: number }[] = [
-    { smiles: "CC(=O)OCC", name: "ester (ethyl acetate)", minPriority: 5 },
-    { smiles: "CCC#N", name: "nitrile (propionitrile)", minPriority: 4 },
-    { smiles: "CC(=O)N", name: "amide (acetamide)", minPriority: 5 },
+  const cases: { smiles: string; name: string; maxPriority: number }[] = [
+    { smiles: "CC(=O)OCC", name: "ester (ethyl acetate)", maxPriority: 4 },
+    { smiles: "CCC#N", name: "nitrile (propionitrile)", maxPriority: 7 },
+    { smiles: "CC(=O)N", name: "amide (acetamide)", maxPriority: 6 },
     {
       smiles: "CC(=O)Cl",
       name: "acid chloride (acetyl chloride)",
-      minPriority: 5,
+      maxPriority: 5,
     },
     {
       smiles: "CP(=O)(O)O",
       name: "phosphonic acid (methylphosphonic acid)",
-      minPriority: 6,
+      maxPriority: 1,
     },
     // Note: sulfonamide and nitro groups are excluded from the parent chain,
     // so getChainFunctionalGroupPriority cannot detect them by examining chain atoms alone
@@ -31,7 +31,7 @@ describe("IUPAC functional-group priority (extended)", () => {
       const main = findMainChain(mol);
       expect(main.length).toBeGreaterThanOrEqual(1);
       const priority = getChainFunctionalGroupPriority(main, mol);
-      expect(priority).toBeGreaterThanOrEqual(c.minPriority);
+      expect(priority).toBeLessThanOrEqual(c.maxPriority);
     });
   }
 });

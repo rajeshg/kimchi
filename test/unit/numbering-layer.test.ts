@@ -14,15 +14,14 @@ import type {
   Chain,
 } from "src/iupac-engine/types";
 import type { Atom, Bond } from "types";
-import { OPSINService } from "src/iupac-engine/services/opsin-service";
+import { getSharedOPSINService } from "src/iupac-engine/opsin-service";
 import { OPSINFunctionalGroupDetector } from "src/iupac-engine/opsin-functional-group-detector";
 
 // Helper to create test services
 function createTestServices(): ContextServices {
-  const opsin = new OPSINService();
   return {
-    opsin,
-    detector: new OPSINFunctionalGroupDetector(opsin),
+    opsin: getSharedOPSINService(),
+    detector: new OPSINFunctionalGroupDetector(),
   };
 }
 

@@ -1,5 +1,7 @@
 import type { Molecule } from "types";
 import { ruleEngine } from "./iupac-rule-engine";
+import { getSimpleMultiplier } from "../opsin-adapter";
+import { getSharedOPSINService } from "../opsin-service";
 
 export function getAlkaneName(carbonCount: number): string {
   // Use declarative rule engine for alkane names (handles C1-C11 direct lookup, C12+ construction)
@@ -53,21 +55,8 @@ export function combineName(baseName: string, functionalGroup: string): string {
 }
 
 export function getGreekNumeral(n: number): string {
-  const numerals: Record<number, string> = {
-    1: "mono",
-    2: "di",
-    3: "tri",
-    4: "tetra",
-    5: "penta",
-    6: "hexa",
-    7: "hepta",
-    8: "octa",
-    9: "nona",
-    10: "deca",
-    11: "undeca",
-    12: "dodeca",
-  };
-  return numerals[n] || `${n}`;
+  const opsinService = getSharedOPSINService();
+  return getSimpleMultiplier(n, opsinService);
 }
 
 export function generateSimpleNameFromFormula(

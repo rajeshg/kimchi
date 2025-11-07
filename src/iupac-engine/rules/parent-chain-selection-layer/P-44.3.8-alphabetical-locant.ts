@@ -3,7 +3,7 @@ import { BLUE_BOOK_RULES, RulePriority } from "../../types";
 import {
   canonicalizeCitationList,
   compareCitationArrays,
-} from "../../utils/citation-normalizer";
+} from "../../citation-normalizer";
 import type { ImmutableNamingContext } from "../../immutable-context";
 import { ExecutionPhase } from "../../immutable-context";
 import type { Chain, StructuralSubstituent } from "../../types";

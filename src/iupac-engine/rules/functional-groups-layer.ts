@@ -4,7 +4,7 @@ import type { ImmutableNamingContext } from "../immutable-context";
 import { ExecutionPhase, NomenclatureMethod } from "../immutable-context";
 import type { Molecule, Atom, Bond } from "../../../types";
 import type { OPSINFunctionalGroupDetector } from "../opsin-functional-group-detector";
-import { getAcyloxyNameFromOPSIN } from "../adapters/opsin-adapter";
+import { getAcyloxyNameFromOPSIN } from "../opsin-adapter";
 
 // Type for OPSIN detector return values (atoms are indices)
 type DetectedFunctionalGroup = {
@@ -97,8 +97,6 @@ function findAcylChain(mol: Molecule, carbonylCarbon: number): number[] {
 
   return chain;
 }
-
-
 
 /**
  * Expand a ketone functional group to include the complete acyl substituent chain.

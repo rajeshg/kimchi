@@ -162,13 +162,66 @@ export function nameAlkylSulfanylSubstituent(
     baseName = getAlkaneBaseName(carbonCount);
   }
 
+  // Detect if we need to add attachment locant for branched chains
+  let needsLocant = false;
+  let attachmentPosition = 1; // default to position 1 (terminal carbon)
+  
+  // Count how many carbons are bonded to the carbon attached to sulfur
+  let carbonNeighbors = 0;
+  for (const bond of molecule.bonds) {
+    if (bond.atom1 === carbonAttachedToS && carbonAtoms.includes(bond.atom2)) {
+      carbonNeighbors++;
+    } else if (bond.atom2 === carbonAttachedToS && carbonAtoms.includes(bond.atom1)) {
+      carbonNeighbors++;
+    }
+  }
+  
+  // If the carbon attached to S has 2+ carbon neighbors, it's branched
+  // For branched chains like isopropyl, we need to determine the attachment position
+  if (carbonNeighbors >= 2) {
+    needsLocant = true;
+    
+    // For a branched carbon in the middle of the chain (like isopropyl):
+    // The chain goes through it, so the attachment is at an internal position
+    // We need to find the position by counting from one end of the longest chain
+    
+    // Simple heuristic: if the carbon has 2 carbon neighbors and is not at either end,
+    // it's likely at position 2 for a 3-carbon chain (isopropyl pattern)
+    // More complex cases would need proper chain traversal and numbering
+    
+    if (carbonCount === 3 && carbonNeighbors === 2) {
+      // Isopropyl case: C-C(C)-S -> attachment at position 2
+      attachmentPosition = 2;
+    } else {
+      // For other cases, use the position in the DFS chain
+      attachmentPosition = carbonChain.indexOf(carbonAttachedToS) + 1;
+    }
+  }
+  
+  if (process.env.VERBOSE) {
+    console.log(
+      `[nameAlkylSulfanylSubstituent] carbonAttachedToS=${carbonAttachedToS}, ` +
+      `carbonNeighbors=${carbonNeighbors}, carbonCount=${carbonCount}, ` +
+      `needsLocant=${needsLocant}, attachmentPosition=${attachmentPosition}`,
+    );
+  }
+
   if (tripleBonds.length > 0) {
     const positions = tripleBonds.sort((a, b) => a - b).join(",");
+    if (needsLocant) {
+      return `${baseName}-${positions}-yn-${attachmentPosition}-ylsulfanyl`;
+    }
     return `${baseName}-${positions}-ynylsulfanyl`;
   } else if (doubleBonds.length > 0) {
     const positions = doubleBonds.sort((a, b) => a - b).join(",");
+    if (needsLocant) {
+      return `${baseName}-${positions}-en-${attachmentPosition}-ylsulfanyl`;
+    }
     return `${baseName}-${positions}-enylsulfanyl`;
   } else {
+    if (needsLocant) {
+      return `${baseName}an-${attachmentPosition}-ylsulfanyl`;
+    }
     return `${baseName}ylsulfanyl`;
   }
 }

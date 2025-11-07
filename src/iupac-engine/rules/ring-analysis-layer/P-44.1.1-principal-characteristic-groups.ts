@@ -138,13 +138,15 @@ export const P44_1_1_PRINCIPAL_CHARACTERISTIC_GROUPS_RULE: IUPACRule = {
         console.log("[P-44.1.1] Skipping - parent already selected");
       return false;
     }
-    // Only apply if we have both chains and rings to compare
+    // Apply if we have both chains and rings, OR if we have rings and might be able to find chains
     const chains = state.candidateChains as Chain[];
     const rings = state.candidateRings;
-    const shouldApply = chains.length > 0 && rings && rings.length > 0;
+    const shouldApply =
+      (chains && chains.length > 0 && rings && rings.length > 0) ||
+      ((!chains || chains.length === 0) && rings && rings.length > 0);
     if (process.env.VERBOSE)
       console.log(
-        `[P-44.1.1] Conditions check: chains=${chains.length}, rings=${rings?.length || 0}, shouldApply=${shouldApply}`,
+        `[P-44.1.1] Conditions check: chains=${chains?.length || 0}, rings=${rings?.length || 0}, shouldApply=${shouldApply}`,
       );
     return shouldApply;
   },
@@ -158,7 +160,19 @@ export const P44_1_1_PRINCIPAL_CHARACTERISTIC_GROUPS_RULE: IUPACRule = {
 
     // Get principal functional groups (already detected in functional-groups-layer)
     // These include: alcohols, ketones, aldehydes, carboxylic acids, amines, etc.
-    const principalFGs = functionalGroups.filter((fg) => fg.isPrincipal);
+    // EXCLUDE groups that can NEVER be principal (ethers, thioethers, halides, nitro, etc.)
+    const NON_PRINCIPAL_TYPES = [
+      "ether", // ROR - always named as alkoxy
+      "thioether", // RSR - always named as alkylsulfanyl
+      "RSR", // Same as thioether (pattern name)
+      "ROR", // Same as ether (pattern name)
+      "halide", // F, Cl, Br, I
+      "nitro", // NO2
+      "nitroso", // NO
+    ];
+    const principalFGs = functionalGroups.filter(
+      (fg) => fg.isPrincipal && !NON_PRINCIPAL_TYPES.includes(fg.type),
+    );
 
     if (process.env.VERBOSE) {
       console.log(`[P-44.1.1] principalFGs.length=${principalFGs.length}`);

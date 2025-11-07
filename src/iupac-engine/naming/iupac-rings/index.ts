@@ -22,6 +22,13 @@ import {
   findSubstituentsOnFusedSystem,
 } from "./substituents";
 import { getAlkaneBySize, generateClassicPolycyclicName } from "./utils";
+import {
+  getSimpleMultiplier,
+  getSimpleMultiplierWithVowel,
+} from "../../opsin-adapter";
+import { getSharedOPSINService } from "../../opsin-service";
+import { nameAlkylSulfanylSubstituent } from "../chains/substituent-naming/sulfanyl";
+import { ruleEngine } from "../iupac-rule-engine";
 
 function createRingSystemFromRings(
   rings: number[][],
@@ -924,6 +931,7 @@ function createSubMoleculeFromSubstituent(
 function nameComplexSubstituent(
   molecule: Molecule,
   substituentAtoms: Set<number>,
+  startAtomIdx: number,
 ): string | null {
   const subMolecule = createSubMoleculeFromSubstituent(
     molecule,
@@ -936,6 +944,34 @@ function nameComplexSubstituent(
 
     if (process.env.VERBOSE) {
       console.log("[nameComplexSubstituent] Generated IUPAC name:", iupacName);
+    }
+
+    // Detect if attachment point is branched (internal carbon)
+    // For example: C(C)(C)I attached via the central carbon
+    const startAtom = molecule.atoms[startAtomIdx];
+    let carbonNeighbors = 0;
+    if (startAtom?.symbol === "C") {
+      for (const bond of molecule.bonds) {
+        if (bond.atom1 === startAtomIdx || bond.atom2 === startAtomIdx) {
+          const otherIdx = bond.atom1 === startAtomIdx ? bond.atom2 : bond.atom1;
+          const otherAtom = molecule.atoms[otherIdx];
+          if (otherAtom?.symbol === "C" && substituentAtoms.has(otherIdx)) {
+            carbonNeighbors++;
+          }
+        }
+      }
+    }
+
+    // If attachment carbon has 2+ carbon neighbors within the substituent,
+    // it's a branched substituent and needs locant + parentheses
+    // Example: "2-iodopropane" → "(2-iodopropan-2-yl)"
+    const isBranchedAttachment = carbonNeighbors >= 2;
+
+    if (process.env.VERBOSE) {
+      console.log(
+        `[nameComplexSubstituent] startAtomIdx=${startAtomIdx}, ` +
+        `carbonNeighbors=${carbonNeighbors}, isBranchedAttachment=${isBranchedAttachment}`
+      );
     }
 
     // Convert IUPAC name to substituent form (e.g., "propan-2-ol" → "hydroxypropan-2-yl")
@@ -976,6 +1012,37 @@ function nameComplexSubstituent(
             iupacName = `hydroxy${baseName}yl`;
           }
         }
+      }
+    }
+
+    // Handle branched substituents with halogens or other groups
+    // Example: "2-iodopropane" → "(2-iodopropan-2-yl)"
+    if (isBranchedAttachment && !iupacName.endsWith("yl")) {
+      // Pattern: "{locant}-{substituents}{basename}ane"
+      // Target: "({locant}-{substituents}{basename}an-{locant}-yl)"
+      
+      // Extract components from names like "2-iodopropane" or "2,2-dimethylpropane"
+      const match = iupacName.match(/^([\d,]+-)?(.+?)(propane|butane|pentane|hexane)$/);
+      if (match) {
+        const locantPrefix = match[1] || ""; // "2-" or "2,2-"
+        const substituents = match[2] || ""; // "iodo" or "dimethyl"
+        const baseName = match[3]; // "propane"
+        
+        // Extract the primary locant (first number) as attachment position
+        const locantMatch = locantPrefix.match(/^(\d+)/);
+        const attachmentLocant = locantMatch ? locantMatch[1] : "2"; // default to 2 for branched
+        
+        // Convert: "2-iodopropane" → "(2-iodopropan-2-yl)"
+        const stem = baseName.replace(/ane$/, "an");
+        iupacName = `(${locantPrefix}${substituents}${stem}-${attachmentLocant}-yl)`;
+        
+        if (process.env.VERBOSE) {
+          console.log(
+            `[nameComplexSubstituent] Converted branched substituent: ${iupacName}`
+          );
+        }
+        
+        return iupacName;
       }
     }
 
@@ -1057,21 +1124,15 @@ function classifySubstituent(
       return { type: "alkoxy", size: 2, name: "ethoxy" };
     } else if (carbonsOnOxygen.length === 1 && carbonCount >= 3) {
       // Longer chains: propoxy, butoxy, etc.
-      const alkaneNames = [
-        "",
-        "meth",
-        "eth",
-        "prop",
-        "but",
-        "pent",
-        "hex",
-        "hept",
-        "oct",
-        "non",
-        "dec",
-      ];
-      const prefix = alkaneNames[carbonCount] || `C${carbonCount}`;
-      return { type: "alkoxy", size: carbonCount, name: `${prefix}oxy` };
+      // Use IUPAC rule engine to get alkane stem (supports C1-C100+)
+      const alkaneName = ruleEngine.getAlkaneName(carbonCount);
+      if (alkaneName) {
+        // Remove "ane" suffix and add "oxy" for alkoxy naming
+        const prefix = alkaneName.replace(/ane$/, "");
+        return { type: "alkoxy", size: carbonCount, name: `${prefix}oxy` };
+      }
+      // Fallback to generic notation if rule engine fails
+      return { type: "alkoxy", size: carbonCount, name: `C${carbonCount}oxy` };
     }
   }
 
@@ -1084,6 +1145,18 @@ function classifySubstituent(
     return { type: "halogen", size: 0, name: "bromo" };
   } else if (startAtom?.symbol === "I") {
     return { type: "halogen", size: 0, name: "iodo" };
+  }
+
+  // Check for sulfur-based substituents: -S-R (thioether/sulfanyl)
+  // Pattern: sulfur bonded to carbon chain (e.g., methylsulfanyl, phenylsulfanyl)
+  if (startAtom?.symbol === "S") {
+    const sulfurAtomIdx = startAtomIdx;
+    const name = nameAlkylSulfanylSubstituent(
+      molecule,
+      substituentAtoms,
+      sulfurAtomIdx,
+    );
+    return { type: "functional", size: substituentAtoms.size, name };
   }
 
   // Check for carboxyl group: -C(=O)OH
@@ -1169,7 +1242,7 @@ function classifySubstituent(
         return { type: "alkyl", size: 4, name: "(2-methylpropan-2-yl)" };
       }
 
-      // Isobutyl or sec-butyl: attachment point has 1 carbon neighbor
+      // Isobutyl: attachment point has 1 carbon neighbor
       if (carbonNeighborsAtStart === 1) {
         // Check the neighbor's structure
         const neighborIdx = neighborsAtStart[0];
@@ -1191,9 +1264,17 @@ function classifySubstituent(
           if (carbonNeighborsAtSecond === 3) {
             return { type: "alkyl", size: 4, name: "(2-methylpropyl)" };
           }
+          // If second carbon has 2 neighbors, it's a linear chain (simple butyl)
+          // Structure: C-C-C-C where attachment is at terminal position
+          if (carbonNeighborsAtSecond === 2) {
+            return { type: "alkyl", size: 4, name: "butyl" };
+          }
         }
+      }
 
-        // If not isobutyl, it's sec-butyl (butan-2-yl): CCC(C)- linear chain with attachment at C2
+      // Sec-butyl: attachment point has 2 carbon neighbors (attached at C2 of linear chain)
+      // Structure: C-C(-)-C where attachment is at the second carbon
+      if (carbonNeighborsAtStart === 2) {
         return { type: "alkyl", size: 4, name: "(butan-2-yl)" };
       }
     }
@@ -1311,7 +1392,7 @@ function classifySubstituent(
       );
     }
 
-    const complexName = nameComplexSubstituent(molecule, substituentAtoms);
+    const complexName = nameComplexSubstituent(molecule, substituentAtoms, startAtomIdx);
     if (complexName) {
       if (process.env.VERBOSE) {
         console.log(
@@ -1325,21 +1406,15 @@ function classifySubstituent(
 
   // Larger alkyl groups (pure hydrocarbon chains)
   if (carbonCount > 0) {
-    const alkaneNames = [
-      "",
-      "meth",
-      "eth",
-      "prop",
-      "but",
-      "pent",
-      "hex",
-      "hept",
-      "oct",
-      "non",
-      "dec",
-    ];
-    const prefix = alkaneNames[carbonCount] || `C${carbonCount}`;
-    return { type: "alkyl", size: carbonCount, name: `${prefix}yl` };
+    // Use IUPAC rule engine to get alkane stem (supports C1-C100+)
+    const alkaneName = ruleEngine.getAlkaneName(carbonCount);
+    if (alkaneName) {
+      // Remove "ane" suffix and add "yl" for substituent naming
+      const prefix = alkaneName.replace(/ane$/, "");
+      return { type: "alkyl", size: carbonCount, name: `${prefix}yl` };
+    }
+    // Fallback to generic notation if rule engine fails
+    return { type: "alkyl", size: carbonCount, name: `C${carbonCount}yl` };
   }
 
   return null;
@@ -1418,6 +1493,7 @@ function generateMonocyclicSubstitutedName(
 
   // Generate prefixes
   const prefixes: string[] = [];
+  const opsinService = getSharedOPSINService();
   for (const [name, positions] of Object.entries(grouped)) {
     const sortedPositions = (positions || []).slice().sort((a, b) => a - b);
 
@@ -1431,7 +1507,12 @@ function generateMonocyclicSubstitutedName(
       if (sortedPositions.length === 1) {
         prefix = `${posStr}-${name}`;
       } else {
-        prefix = `${posStr}-${getMultiplicityPrefix(sortedPositions.length)}${name}`;
+        const multiplier = getSimpleMultiplierWithVowel(
+          sortedPositions.length,
+          name.charAt(0),
+          opsinService,
+        );
+        prefix = `${posStr}-${multiplier}${name}`;
       }
       prefixes.push(prefix);
     }
@@ -1457,16 +1538,6 @@ function isLocantSetLower(set1: number[], set2: number[]): boolean {
     if (set1[i]! > set2[i]!) return false;
   }
   return false;
-}
-
-function getMultiplicityPrefix(n: number): string {
-  const map: Record<number, string> = {
-    2: "di",
-    3: "tri",
-    4: "tetra",
-    5: "penta",
-  };
-  return map[n] ?? `${n}`;
 }
 
 /**

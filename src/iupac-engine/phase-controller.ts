@@ -8,7 +8,7 @@ import type {
   LayerContract,
   DependencyRequirement,
   DataStructureDefinition,
-} from "./contracts/layer-contracts";
+} from "./layer-contracts";
 import type { IUPACRule } from "./types";
 
 /**

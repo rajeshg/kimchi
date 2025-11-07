@@ -1,4 +1,4 @@
-import type { ImmutableNamingContext } from "../immutable-context";
+import type { ImmutableNamingContext } from "./immutable-context";
 
 /**
  * Simple HTML Trace Report Generator

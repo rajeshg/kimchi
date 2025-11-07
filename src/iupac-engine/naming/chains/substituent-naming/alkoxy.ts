@@ -5,8 +5,8 @@ import {
   getAlkylName,
   getGreekNumeral,
 } from "../../iupac-helpers";
-import { getSharedOPSINService } from "../../../services/opsin-service";
-import { getSimpleMultiplier } from "../../../adapters/opsin-adapter";
+import { getSharedOPSINService } from "../../../opsin-service";
+import { getSimpleMultiplier } from "../../../opsin-adapter";
 
 export function nameComplexAlkoxySubstituent(
   molecule: Molecule,

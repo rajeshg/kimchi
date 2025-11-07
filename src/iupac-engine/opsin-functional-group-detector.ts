@@ -1,6 +1,6 @@
 import type { Atom, Bond, Molecule } from "../../types";
-import type { FunctionalGroupData } from "./services/opsin-service";
-import { OPSINService } from "./services/opsin-service";
+import type { FunctionalGroupData } from "./opsin-service";
+import { getSharedOPSINService } from "./opsin-service";
 
 interface PatternFinderFunction {
   (
@@ -19,19 +19,27 @@ interface PatternFinderFunction {
 export class OPSINFunctionalGroupDetector {
   private matchPatternCache: WeakMap<Molecule, Map<string, number[]>> =
     new WeakMap();
-  private opsinService: OPSINService;
   private functionalGroups: Map<string, FunctionalGroupData> = new Map();
 
-  constructor(opsinService: OPSINService) {
-    this.opsinService = opsinService;
+  constructor() {
     this.initializeFunctionalGroupsFromService();
   }
 
   private initializeFunctionalGroupsFromService(): void {
     // Copy functional groups from service for local caching
-    const allGroups = this.opsinService.getAllFunctionalGroups();
+    const opsinService = getSharedOPSINService();
+    const allGroups = opsinService.getAllFunctionalGroups();
+    const rawRules = opsinService.getRawRules();
+
     for (const [pattern, data] of allGroups.entries()) {
-      this.functionalGroups.set(pattern, data);
+      // Look up priority by NAME from OPSIN rules, not pattern
+      const priority =
+        rawRules.functionalGroupPriorities?.[data.name] ?? data.priority ?? 999;
+
+      this.functionalGroups.set(pattern, {
+        ...data,
+        priority, // Override with correct priority from rules
+      });
     }
   }
 
@@ -62,6 +70,13 @@ export class OPSINFunctionalGroupDetector {
     const checkedPatterns = new Set<string>();
     const claimedAtoms = new Set<number>();
 
+    // Helper to get priority from OPSIN rules with fallback
+    const getPriority = (name: string, fallback: number): number => {
+      const opsinService = getSharedOPSINService();
+      const rawRules = opsinService.getRawRules();
+      return rawRules.functionalGroupPriorities?.[name] ?? fallback;
+    };
+
     // First, run a set of built-in high-priority detectors to ensure common groups
     // Priority follows IUPAC Blue Book P-44.1 (lower number = higher priority)
     // NOTE: Order matters for pattern matching! More specific patterns (e.g., SC#N) must come before more general patterns (e.g., C#N)
@@ -74,19 +89,19 @@ export class OPSINFunctionalGroupDetector {
       {
         pattern: "C(=O)[OX2H1]",
         name: "carboxylic acid",
-        priority: 1,
+        priority: getPriority("carboxylic acid", 1),
         finder: this.findCarboxylicAcidPattern.bind(this),
       },
       {
         pattern: "C(=O)O",
         name: "ester",
-        priority: 3,
+        priority: getPriority("ester", 4),
         finder: this.findEsterPattern.bind(this),
       },
       {
         pattern: "C(=O)N",
         name: "amide",
-        priority: 5,
+        priority: getPriority("amide", 6),
         finder: this.findAmidePattern.bind(this),
       },
       {
@@ -98,19 +113,19 @@ export class OPSINFunctionalGroupDetector {
       {
         pattern: "C#N",
         name: "nitrile",
-        priority: 7,
+        priority: getPriority("nitrile", 7),
         finder: this.findNitrilePattern.bind(this),
       },
       {
         pattern: "C=O",
         name: "aldehyde",
-        priority: 8,
+        priority: getPriority("aldehyde", 8),
         finder: this.findAldehydePattern.bind(this),
       },
       {
         pattern: "[CX3](=O)[CX4]",
         name: "ketone",
-        priority: 9,
+        priority: getPriority("ketone", 9),
         finder: this.findKetonePattern.bind(this),
       },
       {
@@ -122,13 +137,13 @@ export class OPSINFunctionalGroupDetector {
       {
         pattern: "[OX2H]",
         name: "alcohol",
-        priority: 10,
+        priority: getPriority("alcohol", 10),
         finder: this.findAlcoholPattern.bind(this),
       },
       {
         pattern: "[NX3][CX4]",
         name: "amine",
-        priority: 11,
+        priority: getPriority("amine", 13),
         finder: this.findAminePattern.bind(this),
       },
       {
@@ -176,7 +191,7 @@ export class OPSINFunctionalGroupDetector {
       {
         pattern: "ROR",
         name: "ether",
-        priority: 12,
+        priority: getPriority("ether", 14),
         finder: this.findEtherPattern.bind(this),
       },
     ];
@@ -236,7 +251,7 @@ export class OPSINFunctionalGroupDetector {
               name: check.name,
               suffix: defaultSuffixes[check.pattern] || "",
               prefix: defaultPrefixes[check.pattern] || undefined,
-              priority: check.priority,
+              priority: getPriority(check.name, check.priority),
             });
           }
 
@@ -1830,14 +1845,10 @@ export class OPSINFunctionalGroupDetector {
 // Temporary singleton for backward compatibility - will be removed
 
 let _sharedDetector: OPSINFunctionalGroupDetector | null = null;
-let _sharedService: OPSINService | null = null;
 
 export function getSharedDetector(): OPSINFunctionalGroupDetector {
   if (!_sharedDetector) {
-    if (!_sharedService) {
-      _sharedService = new OPSINService();
-    }
-    _sharedDetector = new OPSINFunctionalGroupDetector(_sharedService);
+    _sharedDetector = new OPSINFunctionalGroupDetector();
   }
   return _sharedDetector;
 }

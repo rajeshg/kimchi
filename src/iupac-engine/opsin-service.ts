@@ -20,6 +20,9 @@ export interface OPSINRules {
   };
   functionalGroups?: Record<string, OPSINRuleEntry>;
   suffixes?: Record<string, { aliases?: string[]; type?: string }>;
+  heteroAtoms?: Record<string, string>;
+  heteroAtomPriorityOrder?: string[];
+  functionalGroupPriorities?: Record<string, number>;
   [key: string]: unknown;
 }
 
@@ -50,25 +53,26 @@ export class OPSINService {
   private readonly rules: OPSINRules;
   private readonly functionalGroups: ReadonlyMap<string, FunctionalGroupData>;
   private readonly suffixes: ReadonlyMap<string, string>;
-  private readonly priorityMap: Record<string, number> = {
-    "carboxylic acid": 1,
-    "sulfonic acid": 2,
-    ester: 3,
-    "acid halide": 4,
-    amide: 5,
-    hydrazide: 6,
-    nitrile: 7,
-    cyanohydrin: 7,
-    aldehyde: 8,
-    ketone: 9,
-    alcohol: 10,
-    phenol: 10,
-    amine: 11,
-    ether: 12,
-  };
+  private readonly priorityMap: Record<string, number>;
 
   constructor() {
     this.rules = this.loadOPSINRules();
+    this.priorityMap = this.rules.functionalGroupPriorities || {
+      "carboxylic acid": 1,
+      "sulfonic acid": 2,
+      ester: 3,
+      "acid halide": 4,
+      amide: 5,
+      hydrazide: 6,
+      nitrile: 7,
+      cyanohydrin: 7,
+      aldehyde: 8,
+      ketone: 9,
+      alcohol: 10,
+      phenol: 10,
+      amine: 11,
+      ether: 12,
+    };
     this.functionalGroups = this.buildFunctionalGroupsMap();
     this.suffixes = this.buildSuffixesMap();
   }
@@ -113,8 +117,8 @@ export class OPSINService {
           : entry.name || pattern;
       const name = nameFromEntry || pattern;
       const priority =
-        this.priorityMap[name.toLowerCase()] ||
         (entry.priority as number | undefined) ||
+        this.priorityMap[name.toLowerCase()] ||
         999;
       const suffix = (entry.suffix as string | undefined) || "";
       const prefix = entry.prefix as string | undefined;
@@ -251,4 +255,34 @@ export class OPSINService {
     }
     return Object.keys(this.rules.multipliers);
   }
+
+  /**
+   * Get heteroatom prefix for replacement nomenclature
+   * @param atomSymbol - Element symbol (e.g., "O", "N", "S")
+   * @returns Heteroatom prefix (e.g., "oxa", "aza", "thia"), or undefined if not found
+   */
+  getHeteroAtomPrefix(atomSymbol: string): string | undefined {
+    if (!this.rules.heteroAtoms) {
+      return undefined;
+    }
+    return this.rules.heteroAtoms[atomSymbol];
+  }
+
+  /**
+   * Get heteroatom priority order from OPSIN rules
+   * @returns Array of heteroatom prefixes in IUPAC priority order (e.g., ["fluora", "chlora", "oxa", "thia", "aza", ...])
+   */
+  getHeteroAtomPriorityOrder(): string[] {
+    return this.rules.heteroAtomPriorityOrder || [];
+  }
+}
+
+// Singleton instance for shared use across the IUPAC engine
+let _sharedService: OPSINService | null = null;
+
+export function getSharedOPSINService(): OPSINService {
+  if (!_sharedService) {
+    _sharedService = new OPSINService();
+  }
+  return _sharedService;
 }

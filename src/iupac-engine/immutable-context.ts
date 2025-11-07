@@ -1,6 +1,6 @@
 import type { Molecule } from "../../types";
 import type { Atom, Bond, MultipleBond } from "types";
-import type { OPSINService } from "./services/opsin-service";
+import type { OPSINService } from "./opsin-service";
 import type { OPSINFunctionalGroupDetector } from "./opsin-functional-group-detector";
 
 /**

@@ -3,7 +3,7 @@ import {
   normalizeCitationName,
   canonicalizeCitationList,
   compareCitationArrays,
-} from "../../../src/iupac-engine/utils/citation-normalizer";
+} from "../../../src/iupac-engine/citation-normalizer";
 
 describe("Citation Normalizer", () => {
   test("normalize common citation variants", () => {

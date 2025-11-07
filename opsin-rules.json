@@ -3172,7 +3172,8 @@
       "aliases": [
         "ester"
       ],
-      "type": "functionalClass"
+      "type": "functionalClass",
+      "priority": 4
     },
     "salt": {
       "aliases": [
@@ -3215,7 +3216,8 @@
       "aliases": [
         "cyanohydrin"
       ],
-      "type": "functionalClass"
+      "type": "functionalClass",
+      "priority": 7
     },
     "=NO": {
       "aliases": [
@@ -3407,7 +3409,8 @@
         "amide",
         "amid"
       ],
-      "type": "acidReplacingFunctionalGroup"
+      "type": "acidReplacingFunctionalGroup",
+      "priority": 6
     },
     "Nc1ccccc1": {
       "aliases": [
@@ -3533,7 +3536,8 @@
         "ketone",
         "keton"
       ],
-      "type": "diValentGroup"
+      "type": "diValentGroup",
+      "priority": 8
     },
     "C(=O)C(=O)-": {
       "aliases": [
@@ -3977,187 +3981,344 @@
       "type": "monoValentStandaloneGroup"
     }
   },
-  "functionalGroupsRules": {
-    "description": "Functional groups ordered by priority (lower priority number = higher priority in naming)",
-    "groups": [
-      {
-        "priority": 1,
-        "name": "carboxylic acid",
-        "smarts": "[CX3](=O)[OX2H1]",
-        "suffix": "oic acid",
-        "parenthesized": false
-      },
-      {
-        "priority": 2,
-        "name": "aldehyde",
-        "smarts": "[CX3H1](=O)[#6]",
-        "suffix": "al",
-        "parenthesized": false
-      },
-      {
-        "priority": 3,
-        "name": "ketone",
-        "smarts": "[#6][CX3](=O)[#6]",
-        "suffix": "one",
-        "parenthesized": false
-      },
-      {
-        "priority": 4,
-        "name": "alcohol",
-        "smarts": "[OX2H]",
-        "suffix": "ol",
-        "parenthesized": false
-      },
-      {
-        "priority": 5,
-        "name": "amine",
-        "smarts": "[NX3;H2,H1]",
-        "suffix": "amine",
-        "parenthesized": false
-      },
-      {
-        "priority": 6,
-        "name": "ether",
-        "smarts": "[OD2]([#6])[#6]",
-        "suffix": "ether",
-        "parenthesized": true,
-        "ignoreIfInRing": true
-      },
-      {
-        "priority": 7,
-        "name": "amide",
-        "smarts": "[NX3][CX3](=[OX1])[#6]",
-        "suffix": "amide",
-        "parenthesized": true
-      },
-      {
-        "priority": 8,
-        "name": "ester",
-        "smarts": "[OX2H0][CX3](=[OX1])[#6]",
-        "suffix": "ate",
-        "parenthesized": false
-      }
-    ]
+  "heteroAtoms": {
+    "F": "fluora",
+    "Cl": "chlora",
+    "Br": "broma",
+    "I": "ioda",
+    "O": "oxa",
+    "S": "thia",
+    "[Se]": "selena",
+    "[Te]": "tellura",
+    "N": "aza",
+    "P": "phospha",
+    "[As]": "arsa",
+    "[Sb]": "stiba",
+    "[Bi]": "bisma",
+    "[Si]": "sila",
+    "[Ge]": "germa",
+    "[Sn]": "stanna",
+    "[Pb]": "plumba",
+    "B": "bora",
+    "[Al]": "aluma",
+    "[Ga]": "galla",
+    "[In]": "indiga",
+    "[Tl]": "thalla",
+    "[Hg]": "mercura"
   },
-  "substituentPatterns": {
-    "description": "Common substituent patterns for prefix generation",
-    "patterns": [
-      {
-        "name": "methyl",
-        "smarts": "C",
-        "prefix": "methyl"
-      },
-      {
-        "name": "ethyl",
-        "smarts": "CC",
-        "prefix": "ethyl"
-      },
-      {
-        "name": "propyl",
-        "smarts": "CCC",
-        "prefix": "propyl"
-      },
-      {
-        "name": "butyl",
-        "smarts": "CCCC",
-        "prefix": "butyl"
-      },
-      {
-        "name": "phenyl",
-        "smarts": "c1ccccc1",
-        "prefix": "phenyl"
-      },
-      {
-        "name": "hydroxyl",
-        "smarts": "O",
-        "prefix": "hydroxy"
-      },
-      {
-        "name": "amino",
-        "smarts": "N",
-        "prefix": "amino"
-      },
-      {
-        "name": "chloro",
-        "smarts": "Cl",
-        "prefix": "chloro"
-      },
-      {
-        "name": "bromo",
-        "smarts": "Br",
-        "prefix": "bromo"
-      },
-      {
-        "name": "iodo",
-        "smarts": "I",
-        "prefix": "iodo"
-      },
-      {
-        "name": "fluoro",
-        "smarts": "F",
-        "prefix": "fluoro"
-      }
-    ]
-  },
-  "chainSelectionRules": {
-    "description": "Rules for selecting the principal chain (in priority order)",
-    "rules": [
-      {
-        "priority": 1,
-        "name": "principal functional group",
-        "description": "Chain must contain the principal functional group"
-      },
-      {
-        "priority": 2,
-        "name": "longest carbon chain",
-        "description": "If multiple chains available, select the one with most carbon atoms"
-      },
-      {
-        "priority": 3,
-        "name": "most substituents",
-        "description": "Chain with the most substituent branches"
-      },
-      {
-        "priority": 4,
-        "name": "best numbering",
-        "description": "Chain that gives lowest locants to substituents"
-      }
-    ]
-  },
-  "numberingRules": {
-    "description": "Rules for numbering the principal chain (in priority order)",
-    "rules": [
-      {
-        "priority": 1,
-        "name": "functional group at lowest position",
-        "description": "Principal functional group gets lowest numbered position"
-      },
-      {
-        "priority": 2,
-        "name": "locant sum",
-        "description": "Use numbering that gives lowest sum of locant positions"
-      },
-      {
-        "priority": 3,
-        "name": "first difference rule",
-        "description": "Compare locant sequences from both ends, choose numbering with lowest number at first difference"
-      }
-    ]
-  },
-  "vowelElisionRules": {
-    "description": "Rules for vowel elision when combining name parts",
-    "rules": [
-      {
-        "description": "Drop 'a' or 'e' from end of alkane stem before suffix starting with vowel",
-        "pattern": "([aeiou])$",
-        "condition": "suffixStartsWithVowel",
-        "action": "removeTrailingVowel"
-      },
-      {
-        "description": "Keep 'a' in certain cases like 'methanal' and 'ethanal'",
-        "exceptions": ["methanal", "ethanal"],
-        "action": "keepVowel"
-      }
-    ]
+  "heteroAtomPriorityOrder": [
+    "fluora",
+    "chlora",
+    "broma",
+    "ioda",
+    "astata",
+    "oxa",
+    "thia",
+    "selena",
+    "tellura",
+    "polona",
+    "aza",
+    "phospha",
+    "arsa",
+    "stiba",
+    "bisma",
+    "carba",
+    "sila",
+    "germa",
+    "stanna",
+    "plumba",
+    "bora",
+    "alumina",
+    "galla",
+    "inda",
+    "thalla",
+    "zinca",
+    "cadma",
+    "mercura",
+    "cupra",
+    "argenta",
+    "aura",
+    "nickela",
+    "pallada",
+    "platina",
+    "darmstadta",
+    "cobalta",
+    "rhoda",
+    "irida",
+    "meitnera",
+    "ferra",
+    "ruthena",
+    "osma",
+    "hassa",
+    "mangana",
+    "techneta",
+    "rhena",
+    "bohra",
+    "chroma",
+    "molybda",
+    "tungsta",
+    "seaborga",
+    "vanada",
+    "nioba",
+    "tantala",
+    "dubna",
+    "titana",
+    "zircona",
+    "hafna",
+    "rutherforda",
+    "scanda",
+    "yttra",
+    "lanthana",
+    "cera",
+    "praseodyma",
+    "neodyma",
+    "prometha",
+    "samara",
+    "europa",
+    "gadolina",
+    "terba",
+    "dysprosa",
+    "holma",
+    "erba",
+    "thula",
+    "ytterba",
+    "luteta",
+    "actina",
+    "thora",
+    "protactina",
+    "urana",
+    "neptuna",
+    "plutona",
+    "america",
+    "cura",
+    "berkela",
+    "californa",
+    "einsteina",
+    "ferma",
+    "mendeleva",
+    "nobela",
+    "lawrenca",
+    "berylla",
+    "magnesa",
+    "calca",
+    "stronta",
+    "bara",
+    "rada",
+    "litha",
+    "soda",
+    "potassa",
+    "rubida",
+    "caesa",
+    "franca",
+    "hela",
+    "neona",
+    "argona",
+    "kryptona",
+    "xenona",
+    "radona",
+    "fluoronia",
+    "chloronia",
+    "bromonia",
+    "iodonia",
+    "astatonia",
+    "oxonia",
+    "thionia",
+    "selenonia",
+    "telluronia",
+    "polononia",
+    "azonia",
+    "phosphonia",
+    "arsonia",
+    "stibonia",
+    "bismuthonia",
+    "carbonia",
+    "silonia",
+    "germonia",
+    "stannonia",
+    "plumbonia",
+    "boronia",
+    "aluminonia",
+    "gallonia",
+    "indonia",
+    "thallonia",
+    "zinconia",
+    "cadmonia",
+    "mercuronia",
+    "cupronia",
+    "argentonia",
+    "auronia",
+    "nickelonia",
+    "palladonia",
+    "platinonia",
+    "darmstadtonia",
+    "cobaltonia",
+    "rhodonia",
+    "iridonia",
+    "meitneronia",
+    "ferronia",
+    "ruthenonia",
+    "osmonia",
+    "hassonia",
+    "manganonia",
+    "technetonia",
+    "rhenonia",
+    "bohronia",
+    "chromonia",
+    "molybdonia",
+    "tungstonia",
+    "seaborgonia",
+    "vanadonia",
+    "niobonia",
+    "tantalonia",
+    "dubnonia",
+    "titanonia",
+    "zircononia",
+    "hafnonia",
+    "rutherfordonia",
+    "scandonia",
+    "yttronia",
+    "lanthanonia",
+    "ceronia",
+    "praseodymonia",
+    "neodymonia",
+    "promethonia",
+    "samaronia",
+    "europonia",
+    "gadolinonia",
+    "terbonia",
+    "dysprosonia",
+    "holmonia",
+    "erbonia",
+    "thulonia",
+    "ytterbonia",
+    "lutetonia",
+    "actinonia",
+    "thoronia",
+    "protactinonia",
+    "uranonia",
+    "neptunonia",
+    "plutononia",
+    "americonia",
+    "curonia",
+    "berkelonia",
+    "californonia",
+    "einsteinonia",
+    "fermonia",
+    "mendelevonia",
+    "nobelonia",
+    "lawrenconia",
+    "beryllonia",
+    "magnesonia",
+    "calconia",
+    "strontonia",
+    "baronia",
+    "radonia",
+    "lithonia",
+    "sodonia",
+    "potassonia",
+    "rubidonia",
+    "caesonia",
+    "franconia",
+    "helonia",
+    "neononia",
+    "argononia",
+    "kryptononia",
+    "xenononia",
+    "radononia",
+    "fluoranylia",
+    "chloranylia",
+    "bromanylia",
+    "iodanylia",
+    "astatanylia",
+    "oxidanylia",
+    "sulfanylia",
+    "selanylia",
+    "tellanylia",
+    "polanylia",
+    "azanylia",
+    "phosphanylia",
+    "arsanylia",
+    "stibanylia",
+    "bismuthanylia",
+    "carbanylia",
+    "silanylia",
+    "germanylia",
+    "stannanylia",
+    "plumbanylia",
+    "boranylia",
+    "alumanylia",
+    "indiganylia",
+    "gallanylia",
+    "thallanylia",
+    "fluoranida",
+    "chloranida",
+    "bromanida",
+    "iodanida",
+    "astatanida",
+    "oxidanida",
+    "sulfanida",
+    "selanida",
+    "tellanida",
+    "polanida",
+    "azanida",
+    "phosphanida",
+    "arsanida",
+    "stibanida",
+    "bismuthanida",
+    "carbanida",
+    "silanida",
+    "germanida",
+    "stannanida",
+    "plumbanida",
+    "boranida",
+    "alumanida",
+    "indiganida",
+    "gallanida",
+    "thallanida",
+    "fluoranuida",
+    "chloranuida",
+    "bromanuida",
+    "iodanuida",
+    "astatanuida",
+    "oxidanuida",
+    "sulfanuida",
+    "selanuida",
+    "tellanuida",
+    "polanuida",
+    "azanuida",
+    "phosphanuida",
+    "arsanuida",
+    "stibanuida",
+    "bismuthanuida",
+    "carbanuida",
+    "silanuida",
+    "germanuida",
+    "stannanuida",
+    "plumbanuida",
+    "boranuida",
+    "alumanuida",
+    "indiganuida",
+    "gallanuida",
+    "thallanuida"
+  ],
+  "functionalGroupPriorities": {
+    "carboxylic acid": 1,
+    "sulfonic acid": 2,
+    "sulfinic acid": 3,
+    "ester": 4,
+    "acyl halide": 5,
+    "amide": 6,
+    "nitrile": 7,
+    "aldehyde": 8,
+    "ketone": 9,
+    "alcohol": 10,
+    "phenol": 11,
+    "thiol": 12,
+    "amine": 13,
+    "ether": 14,
+    "sulfide": 15,
+    "alkene": 16,
+    "alkyne": 17,
+    "alkane": 18
   }
 }

@@ -3,6 +3,8 @@ import { BLUE_BOOK_RULES, RulePriority } from "../../types";
 import type { ImmutableNamingContext } from "../../immutable-context";
 import { ExecutionPhase } from "../../immutable-context";
 import type { Chain, MultipleBond } from "../../types";
+import { getSimpleMultiplier } from "../../opsin-adapter";
+import { getSharedOPSINService } from "../../opsin-service";
 
 /**
  * Rule: Parent Chain Selection Complete
@@ -127,26 +129,14 @@ export function generateChainName(
     (b: MultipleBond) => b.type === "triple",
   ).length;
 
-  const multiplicativePrefixes = [
-    "di",
-    "tri",
-    "tetra",
-    "penta",
-    "hexa",
-    "hepta",
-    "octa",
-    "nona",
-    "deca",
-  ];
+  const opsinService = getSharedOPSINService();
 
   let unsatSuffix = "";
   const parts: string[] = [];
   if (doubleCount > 0) {
     const locStr = doubleBondLocants.join(",");
     const mult =
-      doubleCount > 1
-        ? multiplicativePrefixes[doubleCount - 2] || `${doubleCount}-`
-        : "";
+      doubleCount > 1 ? getSimpleMultiplier(doubleCount, opsinService) : "";
     const suf = `${mult}ene`;
     // IUPAC rule: Omit locant when unambiguous (chains ≤3 carbons have only one possible position)
     // Include locant for chains ≥4 carbons where position matters (but-1-ene vs but-2-ene)
@@ -159,9 +149,7 @@ export function generateChainName(
   if (tripleCount > 0) {
     const locStr = tripleBondLocants.join(",");
     const mult =
-      tripleCount > 1
-        ? multiplicativePrefixes[tripleCount - 2] || `${tripleCount}-`
-        : "";
+      tripleCount > 1 ? getSimpleMultiplier(tripleCount, opsinService) : "";
     const suf = `${mult}yne`;
     // IUPAC rule: Omit locant when unambiguous (chains ≤3 carbons have only one possible position)
     // Include locant for chains ≥4 carbons where position matters (but-1-yne vs but-2-yne)
