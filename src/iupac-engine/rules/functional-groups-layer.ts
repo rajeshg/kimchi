@@ -369,17 +369,6 @@ export const FUNCTIONAL_GROUP_PRIORITY_RULE: IUPACRule = {
           const atomIds = atoms.map((a: Atom) => a.id);
           const atomIdSet = new Set(atomIds);
 
-          if (process.env.VERBOSE && type === "alcohol") {
-            if (process.env.VERBOSE) {
-            console.log(
-              `[FUNCTIONAL_GROUP_PRIORITY_RULE] Matching ${type}: atomIndices=`,
-              atomIndices,
-              "atomIds=",
-              atomIds,
-            );
-            }
-          }
-
           const matchingPrevious = previousFunctionalGroups.find(
             (prev: FunctionalGroup) => {
               // Must match by type first
@@ -411,13 +400,11 @@ export const FUNCTIONAL_GROUP_PRIORITY_RULE: IUPACRule = {
                 );
               }
 
-              if (process.env.VERBOSE && (type === "ketone" || type === "alcohol")) {
+              if (process.env.VERBOSE && type === "ketone") {
                 if (process.env.VERBOSE) {
                 console.log(
                   `[FUNCTIONAL_GROUP_PRIORITY_RULE] Checking prev.type=${prev.type} prevAtomIds=`,
                   prevAtomIds,
-                  "currentAtomIds=",
-                  atomIds,
                   "matches=",
                   matches,
                 );
