@@ -872,6 +872,7 @@ export function findSubstituentsOnMonocyclicRing(
             size: substituentInfo.size,
             name: substituentInfo.name,
             startAtomId: substituentAtomIdx, // Track starting atom for filtering
+            attachedToRingAtomId: ringAtomIdx, // Track ring attachment for numbering
           });
         }
       }

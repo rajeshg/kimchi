@@ -12,6 +12,8 @@ export interface NamingSubstituent {
   name: string;
   atoms?: number[]; // Optional atom indices for deduplication
   startAtomId?: number; // Optional starting atom ID for filtering
+  attachedToRingAtomId?: number; // Optional ring atom ID for numbering
+  locant?: number; // Optional locant after numbering (1-indexed position)
 }
 
 /**
