@@ -1,9 +1,9 @@
-import type { IUPACRule } from "../../types";
+import type { IUPACRule, StructuralSubstituent } from "../../types";
 import { RulePriority, RingSystemType } from "../../types";
 import type { RingSystem } from "../../types";
+import type { NamingSubstituent } from "../../naming/iupac-types";
 import type { Atom, Bond } from "types";
 import { ExecutionPhase } from "../../immutable-context";
-import { analyzeRings } from "../../../utils/ring-analysis";
 import {
   generateBaseCyclicName,
   findSubstituentsOnMonocyclicRing,
@@ -247,7 +247,7 @@ export const RING_SELECTION_COMPLETE_RULE: IUPACRule = {
         return true; // Apply this rule to select the ring
       }
 
-      // IUPAC Blue Book P-44.1.2.2: "Within the same class, a ring or ring system 
+      // IUPAC Blue Book P-44.1.2.2: "Within the same class, a ring or ring system
       // has seniority over a chain." This is an absolute rule when FG counts are equal.
       // We do NOT compare atom counts - rings ALWAYS take priority over chains.
       if (process.env.VERBOSE) {
@@ -421,9 +421,9 @@ export const RING_SELECTION_COMPLETE_RULE: IUPACRule = {
       ring: parentRing,
       name: generateBaseCyclicName(molecule, ringInfo),
       locants: generateRingLocants(parentRing),
-      substituents: [] as any[], // Will be filled in after principal group selection
+      substituents: [] as (StructuralSubstituent | NamingSubstituent)[], // Will be filled in after principal group selection
     };
-    
+
     const functionalGroups = context.getState().functionalGroups || [];
 
     // Filter functional groups to only include those directly attached to the ring
@@ -577,7 +577,7 @@ export const RING_SELECTION_COMPLETE_RULE: IUPACRule = {
         );
       }
     }
-    
+
     // NOW find substituents on the ring, after principal group selection
     // Extract PRINCIPAL functional group atom IDs to exclude them from substituents
     // We exclude:
@@ -585,7 +585,7 @@ export const RING_SELECTION_COMPLETE_RULE: IUPACRule = {
     // 2. Amine atoms bonded to principal group atoms (these become N-substituents)
     const fgAtomIds = new Set<number>();
     const principalAtomIds = new Set<number>();
-    
+
     // First, collect principal group atom IDs
     for (const fg of filteredFunctionalGroups) {
       if (fg.isPrincipal && fg.atoms) {
@@ -596,11 +596,13 @@ export const RING_SELECTION_COMPLETE_RULE: IUPACRule = {
         }
       }
     }
-    
+
     if (process.env.VERBOSE) {
-      console.log(`[ring-selection-complete] Principal FG atom IDs: [${Array.from(principalAtomIds).join(', ')}]`);
+      console.log(
+        `[ring-selection-complete] Principal FG atom IDs: [${Array.from(principalAtomIds).join(", ")}]`,
+      );
     }
-    
+
     // Also exclude amine atoms that are bonded to principal group atoms
     // (these will be handled as N-substituents)
     for (const fg of functionalGroups) {
@@ -610,11 +612,14 @@ export const RING_SELECTION_COMPLETE_RULE: IUPACRule = {
           // Check if this amine atom is bonded to any principal group atom
           for (const bond of molecule.bonds) {
             if (bond.atom1 === amineAtomId || bond.atom2 === amineAtomId) {
-              const otherAtomId = bond.atom1 === amineAtomId ? bond.atom2 : bond.atom1;
+              const otherAtomId =
+                bond.atom1 === amineAtomId ? bond.atom2 : bond.atom1;
               if (principalAtomIds.has(otherAtomId)) {
                 fgAtomIds.add(amineAtomId);
                 if (process.env.VERBOSE) {
-                  console.log(`[ring-selection-complete] Excluding amine atom ${amineAtomId} - bonded to principal FG atom ${otherAtomId}`);
+                  console.log(
+                    `[ring-selection-complete] Excluding amine atom ${amineAtomId} - bonded to principal FG atom ${otherAtomId}`,
+                  );
                 }
                 break;
               }
@@ -623,9 +628,11 @@ export const RING_SELECTION_COMPLETE_RULE: IUPACRule = {
         }
       }
     }
-    
+
     if (process.env.VERBOSE) {
-      console.log(`[ring-selection-complete] All excluded FG atom IDs: [${Array.from(fgAtomIds).join(', ')}]`);
+      console.log(
+        `[ring-selection-complete] All excluded FG atom IDs: [${Array.from(fgAtomIds).join(", ")}]`,
+      );
     }
 
     // Find substituents on the ring with the proper exclusions

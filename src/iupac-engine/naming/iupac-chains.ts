@@ -18,6 +18,7 @@ import {
   nameAlkoxySubstituent,
   nameAlkylSulfanylSubstituent,
   namePhosphorylSubstituent,
+  nameAmideSubstituent,
 } from "./chains/substituent-naming";
 import { findMainChain } from "./chains/main-chain-selection";
 import { getChainFunctionalGroupPriority } from "./chains/main-chain-selection/functional-group-priority";
@@ -31,6 +32,7 @@ export {
   nameAlkoxySubstituent,
   nameAlkylSulfanylSubstituent,
   namePhosphorylSubstituent,
+  nameAmideSubstituent,
 } from "./chains/substituent-naming";
 export { findMainChain } from "./chains/main-chain-selection";
 export { getChainFunctionalGroupPriority } from "./chains/main-chain-selection/functional-group-priority";

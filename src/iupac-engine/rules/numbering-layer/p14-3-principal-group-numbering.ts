@@ -114,7 +114,8 @@ export const P14_3_PRINCIPAL_GROUP_NUMBERING_RULE: IUPACRule = {
             `[P-14.3 MULTI-PRINCIPAL] Group ${group.type} atom ${group.atoms[0]?.id}:${group.atoms[0]?.symbol} → locant ${locant}`,
           );
           console.log(
-            `[P-14.3 MULTI-PRINCIPAL] Group atoms array:`, group.atoms.map((a: Atom) => `${a.id}:${a.symbol}`)
+            `[P-14.3 MULTI-PRINCIPAL] Group atoms array:`,
+            group.atoms.map((a: Atom) => `${a.id}:${a.symbol}`),
           );
         }
         return locant;
@@ -176,49 +177,61 @@ export const P14_3_PRINCIPAL_GROUP_NUMBERING_RULE: IUPACRule = {
             (a: Atom) => a.id,
           );
           const molecule = context.getState().molecule;
-          
+
           if (process.env.VERBOSE) {
             console.log(
               `[P-14.3 DEBUG] ${group.type}: input locants=${JSON.stringify(group.locants)}, chainAtomIds=${JSON.stringify(chainAtomIds)}, optimizedLocants=${JSON.stringify(optimizedLocants)}`,
             );
           }
-          
+
           const convertedLocants = group.locants.map((atomId: number) => {
             const position = chainAtomIds.indexOf(atomId);
             if (position !== -1) {
               // Convert to 1-based position using the optimized locant set
               const result = optimizedLocants[position] ?? position + 1;
               if (process.env.VERBOSE) {
-                console.log(`[P-14.3 CONVERT] atomId=${atomId} in chain at pos=${position} → locant=${result}`);
+                console.log(
+                  `[P-14.3 CONVERT] atomId=${atomId} in chain at pos=${position} → locant=${result}`,
+                );
               }
               return result;
             }
-            
+
             // Atom not in chain - find which chain atom it's bonded to
             if (molecule?.bonds) {
               for (const bond of molecule.bonds) {
                 let chainAtomId: number | undefined;
-                if (bond.atom1 === atomId && chainAtomIds.includes(bond.atom2)) {
+                if (
+                  bond.atom1 === atomId &&
+                  chainAtomIds.includes(bond.atom2)
+                ) {
                   chainAtomId = bond.atom2;
-                } else if (bond.atom2 === atomId && chainAtomIds.includes(bond.atom1)) {
+                } else if (
+                  bond.atom2 === atomId &&
+                  chainAtomIds.includes(bond.atom1)
+                ) {
                   chainAtomId = bond.atom1;
                 }
-                
+
                 if (chainAtomId !== undefined) {
                   const chainPos = chainAtomIds.indexOf(chainAtomId);
                   if (chainPos !== -1) {
                     const result = optimizedLocants[chainPos] ?? chainPos + 1;
                     if (process.env.VERBOSE) {
-                      console.log(`[P-14.3 CONVERT] atomId=${atomId} NOT in chain, bonded to chain atom ${chainAtomId} at pos=${chainPos} → locant=${result}`);
+                      console.log(
+                        `[P-14.3 CONVERT] atomId=${atomId} NOT in chain, bonded to chain atom ${chainAtomId} at pos=${chainPos} → locant=${result}`,
+                      );
                     }
                     return result;
                   }
                 }
               }
             }
-            
+
             if (process.env.VERBOSE) {
-              console.log(`[P-14.3 CONVERT] atomId=${atomId} fallback → returning atomId=${atomId}`);
+              console.log(
+                `[P-14.3 CONVERT] atomId=${atomId} fallback → returning atomId=${atomId}`,
+              );
             }
             return atomId; // Fallback to atom ID if not found in chain
           });
@@ -243,7 +256,12 @@ export const P14_3_PRINCIPAL_GROUP_NUMBERING_RULE: IUPACRule = {
     if (process.env.VERBOSE) {
       console.log(
         "[P-14.3 FINAL] Updated functional groups:",
-        updatedFunctionalGroups.map(g => ({ type: g.type, isPrincipal: g.isPrincipal, locants: g.locants, locant: g.locant }))
+        updatedFunctionalGroups.map((g) => ({
+          type: g.type,
+          isPrincipal: g.isPrincipal,
+          locants: g.locants,
+          locant: g.locant,
+        })),
       );
     }
 

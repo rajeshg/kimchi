@@ -9,14 +9,12 @@ import {
   nameAlkylSulfanylSubstituent,
   namePhosphorylSubstituent,
   namePhosphanylSubstituent,
+  nameAmideSubstituent,
 } from "../../naming/iupac-chains";
 import { getSimpleMultiplierWithVowel } from "../../opsin-adapter";
 import type { OPSINService } from "../../opsin-service";
 import { getSharedOPSINService } from "../../opsin-service";
-import {
-  getMultiplicativePrefix,
-  collectSubstituentAtoms,
-} from "./utils";
+import { getMultiplicativePrefix, collectSubstituentAtoms } from "./utils";
 
 type ParentStructureExtended = ParentStructure & {
   assembledName?: string;
@@ -152,29 +150,29 @@ export function buildSubstitutiveName(
       parentStructure.type,
     );
     if (process.env.VERBOSE) {
-    console.log(
-      "[buildSubstitutiveName] parentStructure.substituents:",
-      JSON.stringify(
-        parentStructure.substituents?.map((s) => ({
-          type: s.type,
-          locant: "locant" in s ? s.locant : undefined,
-        })),
-      ),
-    );
+      console.log(
+        "[buildSubstitutiveName] parentStructure.substituents:",
+        JSON.stringify(
+          parentStructure.substituents?.map((s) => ({
+            type: s.type,
+            locant: "locant" in s ? s.locant : undefined,
+          })),
+        ),
+      );
     }
     if (process.env.VERBOSE) {
-    console.log(
-      "[buildSubstitutiveName] functionalGroups:",
-      JSON.stringify(
-        functionalGroups.map((g) => ({
-          type: g.type,
-          atoms: g.atoms,
-          isPrincipal: g.isPrincipal,
-          prefix: g.prefix,
-          suffix: g.suffix,
-        })),
-      ),
-    );
+      console.log(
+        "[buildSubstitutiveName] functionalGroups:",
+        JSON.stringify(
+          functionalGroups.map((g) => ({
+            type: g.type,
+            atoms: g.atoms,
+            isPrincipal: g.isPrincipal,
+            prefix: g.prefix,
+            suffix: g.suffix,
+          })),
+        ),
+      );
     }
   }
 
@@ -194,7 +192,7 @@ export function buildSubstitutiveName(
       if (group.type === "ketone" && !group.isPrincipal) {
         // Get the ketone's carbonyl carbon atom
         const carbonylCarbon = group.atoms?.find((atom) => atom.symbol === "C");
-        
+
         if (!carbonylCarbon) {
           return true; // Keep if we can't determine the carbon
         }
@@ -203,9 +201,9 @@ export function buildSubstitutiveName(
         // If the carbonyl carbon is NOT on the chain, find which chain atom it's bonded to
         const chainAtoms = parentStructure.chain?.atoms || [];
         const chainAtomIds = chainAtoms.map((a) => a.id);
-        
+
         let attachmentLocant: number | undefined;
-        
+
         // Check if carbonyl carbon is on the chain
         const chainPosition = chainAtomIds.indexOf(carbonylCarbon.id);
         if (chainPosition !== -1) {
@@ -217,12 +215,18 @@ export function buildSubstitutiveName(
           if (molecule?.bonds) {
             for (const bond of molecule.bonds) {
               let chainAtomId: number | undefined;
-              if (bond.atom1 === carbonylCarbon.id && chainAtomIds.includes(bond.atom2)) {
+              if (
+                bond.atom1 === carbonylCarbon.id &&
+                chainAtomIds.includes(bond.atom2)
+              ) {
                 chainAtomId = bond.atom2;
-              } else if (bond.atom2 === carbonylCarbon.id && chainAtomIds.includes(bond.atom1)) {
+              } else if (
+                bond.atom2 === carbonylCarbon.id &&
+                chainAtomIds.includes(bond.atom1)
+              ) {
                 chainAtomId = bond.atom1;
               }
-              
+
               if (chainAtomId !== undefined) {
                 const chainPos = chainAtomIds.indexOf(chainAtomId);
                 if (chainPos !== -1) {
@@ -292,9 +296,9 @@ export function buildSubstitutiveName(
 
           if (subLocant === attachmentLocant) {
             if (process.env.VERBOSE) {
-            console.log(
-              `[buildSubstitutiveName] Filtering out ketone with attachment at locant ${attachmentLocant} - already represented as acyl substituent "${subType || subName}"`,
-            );
+              console.log(
+                `[buildSubstitutiveName] Filtering out ketone with attachment at locant ${attachmentLocant} - already represented as acyl substituent "${subType || subName}"`,
+              );
             }
             return true;
           }
@@ -328,10 +332,10 @@ export function buildSubstitutiveName(
       Array.from(principalGroupAtomIds),
     );
     if (process.env.VERBOSE) {
-    console.log(
-      "[buildSubstitutiveName] principalFGPrefix:",
-      principalFGPrefix,
-    );
+      console.log(
+        "[buildSubstitutiveName] principalFGPrefix:",
+        principalFGPrefix,
+      );
     }
   }
 
@@ -357,9 +361,9 @@ export function buildSubstitutiveName(
       if (process.env.VERBOSE) {
         const locant = "locant" in sub ? sub.locant : undefined;
         if (process.env.VERBOSE) {
-        console.log(
-          `[buildSubstitutiveName] excluding substituent ${sub.type} (locant=${locant}) - matches principal FG prefix`,
-        );
+          console.log(
+            `[buildSubstitutiveName] excluding substituent ${sub.type} (locant=${locant}) - matches principal FG prefix`,
+          );
         }
       }
       return false;
@@ -375,9 +379,9 @@ export function buildSubstitutiveName(
       });
       if (isPrincipal && process.env.VERBOSE) {
         if (process.env.VERBOSE) {
-        console.log(
-          `[buildSubstitutiveName] excluding substituent ${sub.type} - atoms overlap with principal FG`,
-        );
+          console.log(
+            `[buildSubstitutiveName] excluding substituent ${sub.type} - atoms overlap with principal FG`,
+          );
         }
       }
       return !isPrincipal;
@@ -437,10 +441,10 @@ export function buildSubstitutiveName(
       }
       if (process.env.VERBOSE && parentRingAtomIds.size > 0) {
         if (process.env.VERBOSE) {
-        console.log(
-          `[buildSubstitutiveName] Parent ring atom IDs:`,
-          Array.from(parentRingAtomIds),
-        );
+          console.log(
+            `[buildSubstitutiveName] Parent ring atom IDs:`,
+            Array.from(parentRingAtomIds),
+          );
         }
       }
     }
@@ -652,9 +656,9 @@ export function buildSubstitutiveName(
           `[buildSubstitutiveName]   Comparing "${fgType}" with parentSubName="${parentSubName}" (length=${parentSubName.length})`,
         );
         if (process.env.VERBOSE) {
-        console.log(
-          `[buildSubstitutiveName]   includes check: ${parentSubName.includes(fgType)}, length check: ${parentSubName.length > 10}`,
-        );
+          console.log(
+            `[buildSubstitutiveName]   includes check: ${parentSubName.includes(fgType)}, length check: ${parentSubName.length > 10}`,
+          );
         }
       }
       // CRITICAL: Length threshold (> 10) prevents simple false positive matches
@@ -767,57 +771,57 @@ export function buildSubstitutiveName(
       ),
     );
     if (process.env.VERBOSE) {
-    console.log(
-      "[buildSubstitutiveName] fgStructuralSubstituentsFinal:",
-      JSON.stringify(
-        fgStructuralSubstituentsFinal.map((s: FunctionalGroupExtended) => ({
-          type: s.type,
-          name: s.name,
-          locant: s.locant ?? s.locants?.[0],
-        })),
-      ),
-    );
+      console.log(
+        "[buildSubstitutiveName] fgStructuralSubstituentsFinal:",
+        JSON.stringify(
+          fgStructuralSubstituentsFinal.map((s: FunctionalGroupExtended) => ({
+            type: s.type,
+            name: s.name,
+            locant: s.locant ?? s.locants?.[0],
+          })),
+        ),
+      );
     }
     if (process.env.VERBOSE) {
-    console.log(
-      "[buildSubstitutiveName] parentStructuralSubstituents:",
-      JSON.stringify(
-        parentStructuralSubstituents.map((s) => ({
-          type: s.type,
-          name: s.name,
-          locant: "locant" in s ? s.locant : undefined,
-        })),
-      ),
-    );
+      console.log(
+        "[buildSubstitutiveName] parentStructuralSubstituents:",
+        JSON.stringify(
+          parentStructuralSubstituents.map((s) => ({
+            type: s.type,
+            name: s.name,
+            locant: "locant" in s ? s.locant : undefined,
+          })),
+        ),
+      );
     }
     if (process.env.VERBOSE) {
-    console.log(
-      "[buildSubstitutiveName] deduplicatedParentSubs:",
-      JSON.stringify(
-        deduplicatedParentSubs.map((s) => ({
-          type: s.type,
-          name: s.name,
-          locant: "locant" in s ? s.locant : undefined,
-        })),
-      ),
-    );
+      console.log(
+        "[buildSubstitutiveName] deduplicatedParentSubs:",
+        JSON.stringify(
+          deduplicatedParentSubs.map((s) => ({
+            type: s.type,
+            name: s.name,
+            locant: "locant" in s ? s.locant : undefined,
+          })),
+        ),
+      );
     }
     if (process.env.VERBOSE) {
-    console.log(
-      "[buildSubstitutiveName] allStructuralSubstituents:",
-      JSON.stringify(
-        allStructuralSubstituents.map((s) => ({
-          type: s.type,
-          name: s.name,
-          locant:
-            "locant" in s
-              ? s.locant
-              : "locants" in s
-                ? s.locants?.[0]
-                : undefined,
-        })),
-      ),
-    );
+      console.log(
+        "[buildSubstitutiveName] allStructuralSubstituents:",
+        JSON.stringify(
+          allStructuralSubstituents.map((s) => ({
+            type: s.type,
+            name: s.name,
+            locant:
+              "locant" in s
+                ? s.locant
+                : "locants" in s
+                  ? s.locants?.[0]
+                  : undefined,
+          })),
+        ),
+      );
     }
   }
 
@@ -1359,6 +1363,117 @@ export function buildSubstitutiveName(
           }
         }
 
+        // Convert amide to proper amide substituent name (e.g., "butanamoyl")
+        if (subName && (subName === "amide" || subName.includes("-amide"))) {
+          const locantMatch = subName.match(/^(\d+)-/);
+          const locantPrefix = locantMatch ? locantMatch[1] + "-" : "";
+
+          let named = false;
+          if ("atoms" in sub && sub.atoms && sub.atoms.length > 0) {
+            const firstAtom = sub.atoms[0];
+            if (typeof firstAtom === "object" && "symbol" in firstAtom) {
+              const atoms = sub.atoms as Atom[];
+              const carbonylCarbon = atoms.find(
+                (atom: Atom) => atom.symbol === "C",
+              );
+              if (carbonylCarbon) {
+                const carbonylIdx = molecule.atoms.findIndex(
+                  (a: Atom) => a.id === carbonylCarbon.id,
+                );
+                if (carbonylIdx !== -1) {
+                  const mainChainAtomIds = new Set<number>();
+                  if (parentStructure.chain?.atoms) {
+                    for (const chainAtom of parentStructure.chain.atoms) {
+                      mainChainAtomIds.add(chainAtom.id);
+                    }
+                  }
+                  if (parentStructure.ring?.atoms) {
+                    for (const ringAtom of parentStructure.ring.atoms) {
+                      mainChainAtomIds.add(ringAtom.id);
+                    }
+                  }
+
+                  const mainChainAtomIndices = new Set<number>();
+                  for (const atomId of mainChainAtomIds) {
+                    const idx = molecule.atoms.findIndex(
+                      (a: Atom) => a.id === atomId,
+                    );
+                    if (idx !== -1) mainChainAtomIndices.add(idx);
+                  }
+
+                  const substituentAtomIndices = collectSubstituentAtoms(
+                    molecule,
+                    carbonylIdx,
+                    mainChainAtomIndices,
+                  );
+
+                  const baseName = nameAmideSubstituent(
+                    molecule,
+                    substituentAtomIndices,
+                    carbonylIdx,
+                  );
+                  subName = locantPrefix + baseName;
+                  named = true;
+
+                  if (process.env.VERBOSE) {
+                    console.log(
+                      `[AMIDE NAMING] Named amide as: ${subName} (carbonyl at ${carbonylIdx})`,
+                    );
+                  }
+                }
+              }
+            } else if (typeof firstAtom === "number") {
+              const atomIndices = sub.atoms as number[];
+              const carbonylIdx = atomIndices.find(
+                (idx: number) => molecule.atoms[idx]?.symbol === "C",
+              );
+              if (carbonylIdx !== undefined) {
+                const mainChainAtomIndices = new Set<number>();
+                if (parentStructure.chain?.atoms) {
+                  for (const chainAtom of parentStructure.chain.atoms) {
+                    const idx = molecule.atoms.findIndex(
+                      (a: Atom) => a.id === chainAtom.id,
+                    );
+                    if (idx !== -1) mainChainAtomIndices.add(idx);
+                  }
+                }
+                if (parentStructure.ring?.atoms) {
+                  for (const ringAtom of parentStructure.ring.atoms) {
+                    const idx = molecule.atoms.findIndex(
+                      (a: Atom) => a.id === ringAtom.id,
+                    );
+                    if (idx !== -1) mainChainAtomIndices.add(idx);
+                  }
+                }
+
+                const substituentAtomIndices = collectSubstituentAtoms(
+                  molecule,
+                  carbonylIdx,
+                  mainChainAtomIndices,
+                );
+
+                const baseName = nameAmideSubstituent(
+                  molecule,
+                  substituentAtomIndices,
+                  carbonylIdx,
+                );
+                subName = locantPrefix + baseName;
+                named = true;
+
+                if (process.env.VERBOSE) {
+                  console.log(
+                    `[AMIDE NAMING] Named amide as: ${subName} (carbonyl at ${carbonylIdx})`,
+                  );
+                }
+              }
+            }
+          }
+
+          if (!named) {
+            subName = "carbamoyl";
+          }
+        }
+
         if (subName) {
           // Check if assembledName already includes locants (e.g., "4-methoxy")
           const alreadyHasLocants =
@@ -1390,9 +1505,9 @@ export function buildSubstitutiveName(
                   ? (sub as { position: string }).position
                   : undefined;
               if (process.env.VERBOSE) {
-              console.log(
-                `[LOCANT DEBUG] sub.type=${sub.type}, sub.name=${sub.name}, sub.locant=${subLocant}, sub.locants=${JSON.stringify(subLocants)}, sub.position=${subPosition}, calculated locant=${locant}`,
-              );
+                console.log(
+                  `[LOCANT DEBUG] sub.type=${sub.type}, sub.name=${sub.name}, sub.locant=${subLocant}, sub.locants=${JSON.stringify(subLocants)}, sub.position=${subPosition}, calculated locant=${locant}`,
+                );
               }
             }
             if (locant && !Number.isNaN(locant)) {
@@ -1507,9 +1622,9 @@ export function buildSubstitutiveName(
 
         if (subName.includes("oyl")) {
           if (process.env.VERBOSE) {
-          console.log(
-            `[WRAP DEBUG acyl] subName="${subName}", hasAcylWithInternalLocants=${hasAcylWithInternalLocants}, needsWrapping=${needsWrapping}`,
-          );
+            console.log(
+              `[WRAP DEBUG acyl] subName="${subName}", hasAcylWithInternalLocants=${hasAcylWithInternalLocants}, needsWrapping=${needsWrapping}`,
+            );
           }
         }
 
@@ -1529,9 +1644,9 @@ export function buildSubstitutiveName(
           (subName.includes("methyl") || subName.includes("propyl"))
         ) {
           if (process.env.VERBOSE) {
-          console.log(
-            `[WRAP DEBUG] subName="${subName}", hasNestedParentheses=${hasNestedParentheses}, needsWrapping=${needsWrapping}, alreadyWrapped=${alreadyWrapped}`,
-          );
+            console.log(
+              `[WRAP DEBUG] subName="${subName}", hasNestedParentheses=${hasNestedParentheses}, needsWrapping=${needsWrapping}, alreadyWrapped=${alreadyWrapped}`,
+            );
           }
         }
 
@@ -1668,7 +1783,7 @@ export function buildSubstitutiveName(
         JSON.stringify(substituentParts),
       );
       if (process.env.VERBOSE) {
-      console.log("[DEBUG] isHeteroatomParent:", isHeteroatomParent);
+        console.log("[DEBUG] isHeteroatomParent:", isHeteroatomParent);
       }
     }
 
@@ -1749,14 +1864,14 @@ export function buildSubstitutiveName(
           beforeFilter.length !== filteredStructuralSubstituentParts.length
         ) {
           if (process.env.VERBOSE) {
-          console.log(
-            `[buildSubstitutiveName] Hydroxy filter removed: ${beforeFilter.filter((p) => !filteredStructuralSubstituentParts.includes(p)).join(", ")}`,
-          );
+            console.log(
+              `[buildSubstitutiveName] Hydroxy filter removed: ${beforeFilter.filter((p) => !filteredStructuralSubstituentParts.includes(p)).join(", ")}`,
+            );
           }
           if (process.env.VERBOSE) {
-          console.log(
-            `[buildSubstitutiveName] Remaining after hydroxy filter: ${filteredStructuralSubstituentParts.join(", ")}`,
-          );
+            console.log(
+              `[buildSubstitutiveName] Remaining after hydroxy filter: ${filteredStructuralSubstituentParts.join(", ")}`,
+            );
           }
         }
       }
@@ -1781,14 +1896,14 @@ export function buildSubstitutiveName(
             "[buildSubstitutiveName] Skipping adding substituentParts because parent already contains them (approx match)",
           );
           if (process.env.VERBOSE) {
-          console.log(
-            `[buildSubstitutiveName] filteredStructuralSubstituentParts: ${JSON.stringify(filteredStructuralSubstituentParts)}`,
-          );
+            console.log(
+              `[buildSubstitutiveName] filteredStructuralSubstituentParts: ${JSON.stringify(filteredStructuralSubstituentParts)}`,
+            );
           }
           if (process.env.VERBOSE) {
-          console.log(
-            `[buildSubstitutiveName] normalizedParent: "${normalizedParent}"`,
-          );
+            console.log(
+              `[buildSubstitutiveName] normalizedParent: "${normalizedParent}"`,
+            );
           }
         }
       } else {
@@ -1844,10 +1959,10 @@ export function buildSubstitutiveName(
       parentStructure.assembledName,
     );
     if (process.env.VERBOSE) {
-    console.log(
-      "[buildSubstitutiveName] parentStructure.substituents:",
-      JSON.stringify(parentStructure.substituents),
-    );
+      console.log(
+        "[buildSubstitutiveName] parentStructure.substituents:",
+        JSON.stringify(parentStructure.substituents),
+      );
     }
   }
 
@@ -1920,27 +2035,27 @@ export function buildSubstitutiveName(
         `[PREFERRED NAME CHECK] principalGroup.type=${principalGroup.type}`,
       );
       if (process.env.VERBOSE) {
-      console.log(
-        `[PREFERRED NAME CHECK] principalGroup.suffix=${principalGroup.suffix}`,
-      );
+        console.log(
+          `[PREFERRED NAME CHECK] principalGroup.suffix=${principalGroup.suffix}`,
+        );
       }
       if (process.env.VERBOSE) {
-      console.log(
-        `[PREFERRED NAME CHECK] parentStructure.type=${parentStructure.type}`,
-      );
+        console.log(
+          `[PREFERRED NAME CHECK] parentStructure.type=${parentStructure.type}`,
+        );
       }
       if (process.env.VERBOSE) {
-      console.log(
-        `[PREFERRED NAME CHECK] parentStructure.chain?.multipleBonds?.length=${parentStructure.chain?.multipleBonds?.length}`,
-      );
+        console.log(
+          `[PREFERRED NAME CHECK] parentStructure.chain?.multipleBonds?.length=${parentStructure.chain?.multipleBonds?.length}`,
+        );
       }
       if (process.env.VERBOSE) {
-      console.log(
-        `[PREFERRED NAME CHECK] allStructuralSubstituents.length=${allStructuralSubstituents.length}`,
-      );
+        console.log(
+          `[PREFERRED NAME CHECK] allStructuralSubstituents.length=${allStructuralSubstituents.length}`,
+        );
       }
       if (process.env.VERBOSE) {
-      console.log(`[PREFERRED NAME CHECK] chainLength=${chainLength}`);
+        console.log(`[PREFERRED NAME CHECK] chainLength=${chainLength}`);
       }
     }
     if (
@@ -2148,9 +2263,9 @@ export function buildSubstitutiveName(
         );
         if (process.env.VERBOSE && nSubstituentsPrefix) {
           if (process.env.VERBOSE) {
-          console.log(
-            `[buildSubstitutiveName] N-substituents detected: ${nSubstituentsPrefix}`,
-          );
+            console.log(
+              `[buildSubstitutiveName] N-substituents detected: ${nSubstituentsPrefix}`,
+            );
           }
         }
 

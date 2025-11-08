@@ -22,10 +22,7 @@ import {
   findSubstituentsOnFusedSystem,
 } from "./substituents";
 import { getAlkaneBySize, generateClassicPolycyclicName } from "./utils";
-import {
-  getSimpleMultiplier,
-  getSimpleMultiplierWithVowel,
-} from "../../opsin-adapter";
+import { getSimpleMultiplierWithVowel } from "../../opsin-adapter";
 import { getSharedOPSINService } from "../../opsin-service";
 import { nameAlkylSulfanylSubstituent } from "../chains/substituent-naming/sulfanyl";
 import { ruleEngine } from "../iupac-rule-engine";
@@ -412,12 +409,15 @@ export function generateBaseCyclicName(
   ringInfo: ReturnType<typeof analyzeRings>,
 ): string {
   const meaningfulRings = ringInfo.rings.filter((ring) => ring.length >= 3);
-  
+
   if (process.env.VERBOSE) {
     console.log("\n[generateBaseCyclicName] CALLED");
     console.log("  Total atoms:", molecule.atoms.length);
     console.log("  meaningfulRings.length:", meaningfulRings.length);
-    console.log("  Ring sizes:", meaningfulRings.map(r => r.length));
+    console.log(
+      "  Ring sizes:",
+      meaningfulRings.map((r) => r.length),
+    );
   }
 
   if (meaningfulRings.length === 1) {
@@ -983,7 +983,8 @@ function nameComplexSubstituent(
     if (startAtom?.symbol === "C") {
       for (const bond of molecule.bonds) {
         if (bond.atom1 === startAtomIdx || bond.atom2 === startAtomIdx) {
-          const otherIdx = bond.atom1 === startAtomIdx ? bond.atom2 : bond.atom1;
+          const otherIdx =
+            bond.atom1 === startAtomIdx ? bond.atom2 : bond.atom1;
           const otherAtom = molecule.atoms[otherIdx];
           if (otherAtom?.symbol === "C" && substituentAtoms.has(otherIdx)) {
             carbonNeighbors++;
@@ -1000,7 +1001,7 @@ function nameComplexSubstituent(
     if (process.env.VERBOSE) {
       console.log(
         `[nameComplexSubstituent] startAtomIdx=${startAtomIdx}, ` +
-        `carbonNeighbors=${carbonNeighbors}, isBranchedAttachment=${isBranchedAttachment}`
+          `carbonNeighbors=${carbonNeighbors}, isBranchedAttachment=${isBranchedAttachment}`,
       );
     }
 
@@ -1050,28 +1051,30 @@ function nameComplexSubstituent(
     if (isBranchedAttachment && !iupacName.endsWith("yl")) {
       // Pattern: "{locant}-{substituents}{basename}ane"
       // Target: "({locant}-{substituents}{basename}an-{locant}-yl)"
-      
+
       // Extract components from names like "2-iodopropane" or "2,2-dimethylpropane"
-      const match = iupacName.match(/^([\d,]+-)?(.+?)(propane|butane|pentane|hexane)$/);
+      const match = iupacName.match(
+        /^([\d,]+-)?(.+?)(propane|butane|pentane|hexane)$/,
+      );
       if (match) {
         const locantPrefix = match[1] || ""; // "2-" or "2,2-"
         const substituents = match[2] || ""; // "iodo" or "dimethyl"
         const baseName = match[3]; // "propane"
-        
+
         // Extract the primary locant (first number) as attachment position
         const locantMatch = locantPrefix.match(/^(\d+)/);
         const attachmentLocant = locantMatch ? locantMatch[1] : "2"; // default to 2 for branched
-        
+
         // Convert: "2-iodopropane" → "(2-iodopropan-2-yl)"
         const stem = baseName.replace(/ane$/, "an");
         iupacName = `(${locantPrefix}${substituents}${stem}-${attachmentLocant}-yl)`;
-        
+
         if (process.env.VERBOSE) {
           console.log(
-            `[nameComplexSubstituent] Converted branched substituent: ${iupacName}`
+            `[nameComplexSubstituent] Converted branched substituent: ${iupacName}`,
           );
         }
-        
+
         return iupacName;
       }
     }
@@ -1422,7 +1425,11 @@ function classifySubstituent(
       );
     }
 
-    const complexName = nameComplexSubstituent(molecule, substituentAtoms, startAtomIdx);
+    const complexName = nameComplexSubstituent(
+      molecule,
+      substituentAtoms,
+      startAtomIdx,
+    );
     if (complexName) {
       if (process.env.VERBOSE) {
         console.log(

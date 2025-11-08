@@ -15,4 +15,5 @@ export { classifySubstituent } from "./substituent-classification";
 export { nameAlkoxySubstituent } from "./alkoxy";
 export { nameAlkylSulfanylSubstituent } from "./sulfanyl";
 export { namePhosphorylSubstituent } from "./phosphoryl";
+export { nameAmideSubstituent } from "./amide";
 export { nameRingSubstituent } from "./ring";

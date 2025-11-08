@@ -14,8 +14,7 @@ import {
 } from "./immutable-context";
 import { LAYER_ORDER, LAYER_DEFINITIONS } from "./layer-config";
 import { getSharedNameGenerator } from "./opsin-name-generator";
-import { analyzeRings, getAromaticRings } from "src/utils/ring-analysis";
-import type { RingInfo } from "src/utils/ring-analysis";
+import { getAromaticRings } from "src/utils/ring-analysis";
 import { getSharedOPSINService } from "./opsin-service";
 import { OPSINFunctionalGroupDetector } from "./opsin-functional-group-detector";
 

@@ -107,12 +107,14 @@ export const P44_4_RING_CHAIN_SELECTION_RULE: IUPACRule = {
       return context;
     }
 
-    // IUPAC Blue Book P-44.1.2.2: "Within the same class, a ring or ring system 
+    // IUPAC Blue Book P-44.1.2.2: "Within the same class, a ring or ring system
     // has seniority over a chain." This is an absolute rule when both are hydrocarbons
     // (or contain the same senior element). We do NOT compare atom counts.
-    
+
     if (process.env.VERBOSE) {
-      console.log(`[P-44.4] Ring system detected, selecting as parent per P-44.1.2.2`);
+      console.log(
+        `[P-44.4] Ring system detected, selecting as parent per P-44.1.2.2`,
+      );
       console.log(`[P-44.4] Ring atoms: ${ring.atoms?.length || 0}`);
       const longestChain = candidateChains[0];
       const chainLength = longestChain?.atoms ? longestChain.atoms.length : 0;

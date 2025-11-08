@@ -1,5 +1,4 @@
 import type { Molecule, Atom } from "types";
-import { analyzeRings } from "src/utils/ring-analysis";
 
 export interface RingSubstituentInfo {
   ringAtoms: number[];
@@ -12,7 +11,7 @@ export function detectRingInAlkoxyGroup(
   alkoxyCarbonIds: Set<number>,
   molecule: Molecule,
 ): number[][] {
-  const rings = molecule.rings ? molecule.rings.map(r => [...r]) : [];
+  const rings = molecule.rings ? molecule.rings.map((r) => [...r]) : [];
   const ringsInAlkoxy: number[][] = [];
 
   for (const ring of rings) {

@@ -56,13 +56,13 @@ export const RING_NUMBERING_RULE: IUPACRule = {
           Array.from(parentStructure.vonBaeyerNumbering.entries()),
         );
         if (process.env.VERBOSE) {
-        console.log(`[Ring Numbering - ENTRY] Functional groups on entry:`);
+          console.log(`[Ring Numbering - ENTRY] Functional groups on entry:`);
         }
         for (const fg of state.functionalGroups || []) {
           if (process.env.VERBOSE) {
-          console.log(
-            `  FG "${fg.type}": atoms.length=${fg.atoms?.length}, atoms=[${fg.atoms?.map((a: Atom) => a.id).join(", ")}]`,
-          );
+            console.log(
+              `  FG "${fg.type}": atoms.length=${fg.atoms?.length}, atoms=[${fg.atoms?.map((a: Atom) => a.id).join(", ")}]`,
+            );
           }
         }
       }
@@ -191,19 +191,19 @@ export const RING_NUMBERING_RULE: IUPACRule = {
           `[Ring Numbering] Original principal locants: [${originalLocants.principal.join(", ")}]`,
         );
         if (process.env.VERBOSE) {
-        console.log(
-          `[Ring Numbering] Reversed principal locants: [${reversedLocants.principal.join(", ")}]`,
-        );
+          console.log(
+            `[Ring Numbering] Reversed principal locants: [${reversedLocants.principal.join(", ")}]`,
+          );
         }
         if (process.env.VERBOSE) {
-        console.log(
-          `[Ring Numbering] Original substituent locants: [${originalLocants.substituent.join(", ")}]`,
-        );
+          console.log(
+            `[Ring Numbering] Original substituent locants: [${originalLocants.substituent.join(", ")}]`,
+          );
         }
         if (process.env.VERBOSE) {
-        console.log(
-          `[Ring Numbering] Reversed substituent locants: [${reversedLocants.substituent.join(", ")}]`,
-        );
+          console.log(
+            `[Ring Numbering] Reversed substituent locants: [${reversedLocants.substituent.join(", ")}]`,
+          );
         }
       }
 
@@ -457,9 +457,9 @@ export const RING_NUMBERING_RULE: IUPACRule = {
                   ) {
                     attachedRingPositions.push(position);
                     if (process.env.VERBOSE) {
-                    console.log(
-                      `[Ring Numbering] Functional group ${fg.type} attached to ring position ${position} (atom ${otherAtomId})`,
-                    );
+                      console.log(
+                        `[Ring Numbering] Functional group ${fg.type} attached to ring position ${position} (atom ${otherAtomId})`,
+                      );
                     }
                   }
                 }
@@ -535,7 +535,8 @@ export const RING_NUMBERING_RULE: IUPACRule = {
     const updatedSubstituents = parentStructure.substituents?.map((sub) => {
       // Check if substituent has attachedToRingAtomId (for ring-attached substituents)
       let atomId: number;
-      const hasRingAttachment = "attachedToRingAtomId" in sub && sub.attachedToRingAtomId !== undefined;
+      const hasRingAttachment =
+        "attachedToRingAtomId" in sub && sub.attachedToRingAtomId !== undefined;
       if (hasRingAttachment) {
         atomId = sub.attachedToRingAtomId!;
       } else {
@@ -543,7 +544,7 @@ export const RING_NUMBERING_RULE: IUPACRule = {
         // For StructuralSubstituent, locant is the original atom ID (as number)
         atomId = "position" in sub ? Number(sub.position) : sub.locant;
       }
-      
+
       const newPosition = atomIdToPosition.get(atomId);
       if (newPosition !== undefined) {
         // Only update locant for substituents directly attached to ring atoms
@@ -551,7 +552,7 @@ export const RING_NUMBERING_RULE: IUPACRule = {
           return {
             ...sub,
             position: String(newPosition),
-            locant: newPosition,  // KEY: Update locant for ring substituents
+            locant: newPosition, // KEY: Update locant for ring substituents
           };
         }
         return {
@@ -607,21 +608,21 @@ export const RING_NUMBERING_RULE: IUPACRule = {
         const fg0_locants = updatedFunctionalGroups[0]?.locants;
         const fg1_locants = updatedFunctionalGroups[1]?.locants;
         if (process.env.VERBOSE) {
-        console.log(
-          `[Ring Numbering] Are locants arrays the same object? ${fg0_locants === fg1_locants}`,
-        );
+          console.log(
+            `[Ring Numbering] Are locants arrays the same object? ${fg0_locants === fg1_locants}`,
+          );
         }
         if (fg0_locants)
           if (process.env.VERBOSE) {
-          console.log(
-            `[Ring Numbering] FG0 locants value: ${JSON.stringify(fg0_locants)}`,
-          );
+            console.log(
+              `[Ring Numbering] FG0 locants value: ${JSON.stringify(fg0_locants)}`,
+            );
           }
         if (fg1_locants)
           if (process.env.VERBOSE) {
-          console.log(
-            `[Ring Numbering] FG1 locants value: ${JSON.stringify(fg1_locants)}`,
-          );
+            console.log(
+              `[Ring Numbering] FG1 locants value: ${JSON.stringify(fg1_locants)}`,
+            );
           }
       }
     }

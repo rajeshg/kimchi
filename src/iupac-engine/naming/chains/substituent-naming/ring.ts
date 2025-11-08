@@ -54,11 +54,13 @@ export function nameRingSubstituent(
   maxDepth = 3,
 ): NamingSubstituentInfo | null {
   if (!molecule.rings) return null;
-  
+
   // Prevent infinite recursion
   if (depth >= maxDepth) {
     if (process.env.VERBOSE) {
-      console.log(`[nameRingSubstituent] Max depth ${maxDepth} reached, stopping recursion`);
+      console.log(
+        `[nameRingSubstituent] Max depth ${maxDepth} reached, stopping recursion`,
+      );
     }
     return null;
   }

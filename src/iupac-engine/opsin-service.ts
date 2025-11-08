@@ -57,22 +57,7 @@ export class OPSINService {
 
   constructor() {
     this.rules = this.loadOPSINRules();
-    this.priorityMap = this.rules.functionalGroupPriorities || {
-      "carboxylic acid": 1,
-      "sulfonic acid": 2,
-      ester: 3,
-      "acid halide": 4,
-      amide: 5,
-      hydrazide: 6,
-      nitrile: 7,
-      cyanohydrin: 7,
-      aldehyde: 8,
-      ketone: 9,
-      alcohol: 10,
-      phenol: 10,
-      amine: 11,
-      ether: 12,
-    };
+    this.priorityMap = this.rules.functionalGroupPriorities || {};
     this.functionalGroups = this.buildFunctionalGroupsMap();
     this.suffixes = this.buildSuffixesMap();
   }

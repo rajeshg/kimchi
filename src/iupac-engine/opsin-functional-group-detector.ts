@@ -1808,21 +1808,8 @@ export class OPSINFunctionalGroupDetector {
       return group.priority;
     }
 
-    // Fallback priorities for common groups
-    const fallbackPriorities: { [key: string]: number } = {
-      carboxylic_acid: 1,
-      aldehyde: 2,
-      ketone: 3,
-      alcohol: 4,
-      amine: 5,
-      ether: 6,
-      amide: 7,
-      ester: 8,
-      halide: 9,
-      nitrile: 10,
-    };
-
-    return fallbackPriorities[type] || 999;
+    // No fallback - return high priority if not found
+    return 999;
   }
 
   /**

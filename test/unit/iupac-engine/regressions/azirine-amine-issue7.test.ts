@@ -17,7 +17,9 @@ describe("Regression: azirine with amine substituent exclusion (issue #7)", () =
     // - "N,N-dimethyl" should be present (substituents on amine nitrogen)
     // - "3-methyl" should be present (methyl on ring carbon)
     // - "1-methylmethyl" should NOT be present (amine should be excluded from ring substituents)
-    expect(iupacName).toBe("N,N,3-trimethyl-3-propan-2-ylsulfanylazirin-2-amine");
+    expect(iupacName).toBe(
+      "N,N,3-trimethyl-3-propan-2-ylsulfanylazirin-2-amine",
+    );
     expect(iupacName).not.toContain("1-methylmethyl");
     expect(iupacName).toContain("propan-2-ylsulfanyl");
   });

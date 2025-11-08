@@ -41,7 +41,9 @@ export function normalizeFunctionalGroupLocants(
     });
 
     // Check if any locants were actually converted
-    const locantsChanged = originalLocants.some((val, i) => val !== mappedLocants[i]);
+    const locantsChanged = originalLocants.some(
+      (val, i) => val !== mappedLocants[i],
+    );
 
     if (process.env.VERBOSE) {
       console.log(
@@ -50,7 +52,7 @@ export function normalizeFunctionalGroupLocants(
     }
 
     // Only mark as converted if locants actually changed
-    return locantsChanged 
+    return locantsChanged
       ? { ...group, locants: mappedLocants, locantsConverted: true }
       : { ...group, locants: mappedLocants };
   });
@@ -134,22 +136,22 @@ export function getPrincipalGroupLocant(
         functionalGroupAtom,
       );
       if (process.env.VERBOSE) {
-      console.log(
-        "[getPrincipalGroupLocant] functionalGroupAtom type:",
-        typeof functionalGroupAtom,
-      );
+        console.log(
+          "[getPrincipalGroupLocant] functionalGroupAtom type:",
+          typeof functionalGroupAtom,
+        );
       }
       if (process.env.VERBOSE) {
-      console.log(
-        "[getPrincipalGroupLocant] functionalGroupAtom.id:",
-        functionalGroupAtom.id,
-      );
+        console.log(
+          "[getPrincipalGroupLocant] functionalGroupAtom.id:",
+          functionalGroupAtom.id,
+        );
       }
       if (process.env.VERBOSE) {
-      console.log(
-        "[getPrincipalGroupLocant] chain.atoms:",
-        chain.atoms.map((a: Atom) => a.id),
-      );
+        console.log(
+          "[getPrincipalGroupLocant] chain.atoms:",
+          chain.atoms.map((a: Atom) => a.id),
+        );
       }
     }
 
@@ -200,10 +202,10 @@ export function getPrincipalGroupLocant(
     if (process.env.VERBOSE) {
       console.log("[getPrincipalGroupLocant] atomId:", atomId);
       if (process.env.VERBOSE) {
-      console.log(
-        "[getPrincipalGroupLocant] positionInChain:",
-        positionInChain,
-      );
+        console.log(
+          "[getPrincipalGroupLocant] positionInChain:",
+          positionInChain,
+        );
       }
     }
 
@@ -246,13 +248,13 @@ export function getPrincipalGroupLocantFromSet(
     if (process.env.VERBOSE) {
       console.log("[getPrincipalGroupLocantFromSet] atomId:", atomId);
       if (process.env.VERBOSE) {
-      console.log(
-        "[getPrincipalGroupLocantFromSet] chain atoms:",
-        chain.atoms.map((a: Atom) => a.id),
-      );
+        console.log(
+          "[getPrincipalGroupLocantFromSet] chain atoms:",
+          chain.atoms.map((a: Atom) => a.id),
+        );
       }
       if (process.env.VERBOSE) {
-      console.log("[getPrincipalGroupLocantFromSet] locantSet:", locantSet);
+        console.log("[getPrincipalGroupLocantFromSet] locantSet:", locantSet);
       }
     }
 
@@ -602,13 +604,13 @@ export function findOptimalRingNumbering(
     );
 
     if (process.env.VERBOSE) {
-    console.log(
-      `[Ring Numbering] Principal groups found:`,
-      principalGroups.map(
-        (g) =>
-          `${g.type}(isPrincipal:${g.isPrincipal}, priority:${g.priority})`,
-      ),
-    );
+      console.log(
+        `[Ring Numbering] Principal groups found:`,
+        principalGroups.map(
+          (g) =>
+            `${g.type}(isPrincipal:${g.isPrincipal}, priority:${g.priority})`,
+        ),
+      );
     }
 
     for (const group of principalGroups) {
@@ -625,9 +627,9 @@ export function findOptimalRingNumbering(
             if (ring.atoms[i]?.id === groupAtomId) {
               principalGroupPositions.add(i);
               if (process.env.VERBOSE) {
-              console.log(
-                `[Ring Numbering] Principal group ${group.type} is ring atom at position ${i} (atom ${groupAtomId})`,
-              );
+                console.log(
+                  `[Ring Numbering] Principal group ${group.type} is ring atom at position ${i} (atom ${groupAtomId})`,
+                );
               }
               foundGroupPosition = true;
               break;
@@ -657,9 +659,9 @@ export function findOptimalRingNumbering(
                 if (ring.atoms[i]?.id === otherAtomId) {
                   principalGroupPositions.add(i);
                   if (process.env.VERBOSE) {
-                  console.log(
-                    `[Ring Numbering] Principal group ${group.type} attached to ring position ${i} (atom ${otherAtomId})`,
-                  );
+                    console.log(
+                      `[Ring Numbering] Principal group ${group.type} attached to ring position ${i} (atom ${otherAtomId})`,
+                    );
                   }
                   foundGroupPosition = true;
                   break;
@@ -677,10 +679,10 @@ export function findOptimalRingNumbering(
   }
 
   if (process.env.VERBOSE) {
-  console.log(
-    `[Ring Numbering] Principal group positions:`,
-    Array.from(principalGroupPositions).sort((a, b) => a - b),
-  );
+    console.log(
+      `[Ring Numbering] Principal group positions:`,
+      Array.from(principalGroupPositions).sort((a, b) => a - b),
+    );
   }
 
   // Count substituents at each ring position (not just which positions have substituents)
@@ -706,9 +708,9 @@ export function findOptimalRingNumbering(
             substituentCounts[i] = currentCount + 1;
           }
           if (process.env.VERBOSE) {
-          console.log(
-            `[Ring Numbering] Found substituent at ring position ${i} (atom ${ringAtom.id})`,
-          );
+            console.log(
+              `[Ring Numbering] Found substituent at ring position ${i} (atom ${ringAtom.id})`,
+            );
           }
         }
       }
@@ -720,9 +722,9 @@ export function findOptimalRingNumbering(
     0,
   );
   if (process.env.VERBOSE) {
-  console.log(
-    `[Ring Numbering] Substituent counts: [${substituentCounts.join(", ")}], total: ${totalSubstituents}`,
-  );
+    console.log(
+      `[Ring Numbering] Substituent counts: [${substituentCounts.join(", ")}], total: ${totalSubstituents}`,
+    );
   }
 
   // If no substituents, default numbering is fine
@@ -789,9 +791,9 @@ export function findOptimalRingNumbering(
 
       const directionStr = direction === 1 ? "CW" : "CCW";
       if (process.env.VERBOSE) {
-      console.log(
-        `[Ring Numbering] Starting at position ${start} (${directionStr}): principal = [${principalLocants.join(", ")}], substituent = [${substituentLocants.join(", ")}], all = [${allLocants.join(", ")}]`,
-      );
+        console.log(
+          `[Ring Numbering] Starting at position ${start} (${directionStr}): principal = [${principalLocants.join(", ")}], substituent = [${substituentLocants.join(", ")}], all = [${allLocants.join(", ")}]`,
+        );
       }
 
       // Compare with best so far
@@ -802,9 +804,9 @@ export function findOptimalRingNumbering(
         bestPrincipalLocants = principalLocants;
         bestStart = direction === 1 ? start + 1 : -(start + 1); // 1-based, signed for direction
         if (process.env.VERBOSE) {
-        console.log(
-          `[Ring Numbering] New best! Start at ${Math.abs(bestStart)} (${directionStr})`,
-        );
+          console.log(
+            `[Ring Numbering] New best! Start at ${Math.abs(bestStart)} (${directionStr})`,
+          );
         }
       } else {
         let shouldUpdate = false;
@@ -846,9 +848,9 @@ export function findOptimalRingNumbering(
           bestPrincipalLocants = principalLocants;
           bestStart = direction === 1 ? start + 1 : -(start + 1); // 1-based, signed for direction
           if (process.env.VERBOSE) {
-          console.log(
-            `[Ring Numbering] New best${updateReason}! Start at ${Math.abs(bestStart)} (${directionStr})`,
-          );
+            console.log(
+              `[Ring Numbering] New best${updateReason}! Start at ${Math.abs(bestStart)} (${directionStr})`,
+            );
           }
         }
       }
@@ -856,9 +858,9 @@ export function findOptimalRingNumbering(
   }
 
   if (process.env.VERBOSE) {
-  console.log(
-    `[Ring Numbering] Final decision: start at position ${Math.abs(bestStart)} (${bestStart > 0 ? "CW" : "CCW"}), locants = [${bestLocants.join(", ")}]`,
-  );
+    console.log(
+      `[Ring Numbering] Final decision: start at position ${Math.abs(bestStart)} (${bestStart > 0 ? "CW" : "CCW"}), locants = [${bestLocants.join(", ")}]`,
+    );
   }
 
   return bestStart;
@@ -912,9 +914,9 @@ export function findOptimalRingNumberingFromHeteroatom(
   }
   if (process.env.VERBOSE && functionalGroupAtomIds.size > 0) {
     if (process.env.VERBOSE) {
-    console.log(
-      `[Heteroatom Ring Numbering] Functional group atom IDs to exclude: [${Array.from(functionalGroupAtomIds).join(", ")}]`,
-    );
+      console.log(
+        `[Heteroatom Ring Numbering] Functional group atom IDs to exclude: [${Array.from(functionalGroupAtomIds).join(", ")}]`,
+      );
     }
   }
 
@@ -1089,9 +1091,9 @@ export function findOptimalRingNumberingFromHeteroatom(
         `[Heteroatom Ring Numbering] Direction 1 (CW) principal FG attachment locants: [${principalLocants1.join(", ")}]`,
       );
       if (process.env.VERBOSE) {
-      console.log(
-        `[Heteroatom Ring Numbering] Direction 2 (CCW) principal FG attachment locants: [${principalLocants2.join(", ")}]`,
-      );
+        console.log(
+          `[Heteroatom Ring Numbering] Direction 2 (CCW) principal FG attachment locants: [${principalLocants2.join(", ")}]`,
+        );
       }
     }
 
@@ -1156,9 +1158,9 @@ export function findOptimalRingNumberingFromHeteroatom(
         `[Heteroatom Ring Numbering] Direction 1 (CW) functional group locants: [${fgLocants1.join(", ")}]`,
       );
       if (process.env.VERBOSE) {
-      console.log(
-        `[Heteroatom Ring Numbering] Direction 2 (CCW) functional group locants: [${fgLocants2.join(", ")}]`,
-      );
+        console.log(
+          `[Heteroatom Ring Numbering] Direction 2 (CCW) functional group locants: [${fgLocants2.join(", ")}]`,
+        );
       }
     }
 
@@ -1235,9 +1237,9 @@ export function findOptimalRingNumberingFromHeteroatom(
       `[Heteroatom Ring Numbering] Direction 1 (clockwise) substituent locants: [${locants1.join(", ")}]`,
     );
     if (process.env.VERBOSE) {
-    console.log(
-      `[Heteroatom Ring Numbering] Direction 2 (counterclockwise) substituent locants: [${locants2.join(", ")}]`,
-    );
+      console.log(
+        `[Heteroatom Ring Numbering] Direction 2 (counterclockwise) substituent locants: [${locants2.join(", ")}]`,
+      );
     }
   }
 
@@ -1316,9 +1318,9 @@ function detectAndNumberTriazine(
           `[detectAndNumberTriazine] Found 1,2,4-triazine pattern (CW) starting at index ${startIdx}`,
         );
         if (process.env.VERBOSE) {
-        console.log(
-          `[detectAndNumberTriazine] Reordered atoms: [${cwAtoms.map((a) => `${a.id}:${a.symbol}`).join(", ")}]`,
-        );
+          console.log(
+            `[detectAndNumberTriazine] Reordered atoms: [${cwAtoms.map((a) => `${a.id}:${a.symbol}`).join(", ")}]`,
+          );
         }
       }
       return { atoms: cwAtoms, start: 1 };
@@ -1343,9 +1345,9 @@ function detectAndNumberTriazine(
           `[detectAndNumberTriazine] Found 1,2,4-triazine pattern (CCW) starting at index ${startIdx}`,
         );
         if (process.env.VERBOSE) {
-        console.log(
-          `[detectAndNumberTriazine] Reordered atoms: [${ccwAtoms.map((a) => `${a.id}:${a.symbol}`).join(", ")}]`,
-        );
+          console.log(
+            `[detectAndNumberTriazine] Reordered atoms: [${ccwAtoms.map((a) => `${a.id}:${a.symbol}`).join(", ")}]`,
+          );
         }
       }
       return { atoms: ccwAtoms, start: 1 };
@@ -1384,14 +1386,14 @@ export function findRingStartingPosition(
           `[findRingStartingPosition] BEFORE triazine numbering: ring.atoms = [${oldAtoms.join(", ")}]`,
         );
         if (process.env.VERBOSE) {
-        console.log(
-          `[findRingStartingPosition] AFTER triazine numbering: ring.atoms = [${ring.atoms.map((a: Atom) => a.id).join(", ")}]`,
-        );
+          console.log(
+            `[findRingStartingPosition] AFTER triazine numbering: ring.atoms = [${ring.atoms.map((a: Atom) => a.id).join(", ")}]`,
+          );
         }
         if (process.env.VERBOSE) {
-        console.log(
-          `[Ring Numbering] Applied canonical 1,2,4-triazine numbering: [${ring.atoms.map((a: Atom) => `${a.id}:${a.symbol}`).join(", ")}]`,
-        );
+          console.log(
+            `[Ring Numbering] Applied canonical 1,2,4-triazine numbering: [${ring.atoms.map((a: Atom) => `${a.id}:${a.symbol}`).join(", ")}]`,
+          );
         }
       }
       return triazineArrangement.start;
@@ -1495,14 +1497,14 @@ export function findRingStartingPosition(
           `[findRingStartingPosition] BEFORE mutation: ring.atoms = [${oldAtoms.join(", ")}]`,
         );
         if (process.env.VERBOSE) {
-        console.log(
-          `[findRingStartingPosition] AFTER mutation: ring.atoms = [${ring.atoms.map((a: Atom) => a.id).join(", ")}]`,
-        );
+          console.log(
+            `[findRingStartingPosition] AFTER mutation: ring.atoms = [${ring.atoms.map((a: Atom) => a.id).join(", ")}]`,
+          );
         }
         if (process.env.VERBOSE) {
-        console.log(
-          `[Ring Numbering] Multiple heteroatoms - reordered to [${ring.atoms.map((a: Atom) => `${a.id}:${a.symbol}`).join(", ")}] for lowest heteroatom locants [${bestHeteroatomLocants.join(", ")}]`,
-        );
+          console.log(
+            `[Ring Numbering] Multiple heteroatoms - reordered to [${ring.atoms.map((a: Atom) => `${a.id}:${a.symbol}`).join(", ")}] for lowest heteroatom locants [${bestHeteroatomLocants.join(", ")}]`,
+          );
         }
       }
 
@@ -1744,9 +1746,9 @@ export function findRingStartingPosition(
 
       if (!isAdjacent) {
         if (process.env.VERBOSE) {
-        console.log(
-          `[Ring Numbering] WARNING: Double bond at positions ${minPos},${maxPos} is not adjacent`,
-        );
+          console.log(
+            `[Ring Numbering] WARNING: Double bond at positions ${minPos},${maxPos} is not adjacent`,
+          );
         }
         continue;
       }
@@ -1821,9 +1823,9 @@ export function findRingStartingPosition(
         substituentLocants.sort((a, b) => a - b);
         const directionStr = direction === 1 ? "CW" : "CCW";
         if (process.env.VERBOSE) {
-        console.log(
-          `[Ring Numbering] Unsaturation scheme: start=${start + 1} ${directionStr}, substituent locants=[${substituentLocants.join(", ")}]`,
-        );
+          console.log(
+            `[Ring Numbering] Unsaturation scheme: start=${start + 1} ${directionStr}, substituent locants=[${substituentLocants.join(", ")}]`,
+          );
         }
 
         // Compare with best so far
@@ -1834,9 +1836,9 @@ export function findRingStartingPosition(
           bestLocants = substituentLocants;
           bestStart = direction === 1 ? start + 1 : -(start + 1);
           if (process.env.VERBOSE) {
-          console.log(
-            `[Ring Numbering] New best for unsaturation! Start at ${Math.abs(bestStart)} (${directionStr})`,
-          );
+            console.log(
+              `[Ring Numbering] New best for unsaturation! Start at ${Math.abs(bestStart)} (${directionStr})`,
+            );
           }
         }
       }
@@ -1899,14 +1901,14 @@ export function reorderRingAtoms(
   }
 
   if (process.env.VERBOSE) {
-  console.log(
-    `[Ring Reordering] Original atom IDs: [${atoms.map((a: Atom) => a.id).join(", ")}]`,
-  );
+    console.log(
+      `[Ring Reordering] Original atom IDs: [${atoms.map((a: Atom) => a.id).join(", ")}]`,
+    );
   }
   if (process.env.VERBOSE) {
-  console.log(
-    `[Ring Reordering] Reordered atom IDs: [${reordered.map((a: Atom) => a.id).join(", ")}] (starting from position ${Math.abs(startingPosition)}, ${isCounterClockwise ? "CCW" : "CW"})`,
-  );
+    console.log(
+      `[Ring Reordering] Reordered atom IDs: [${reordered.map((a: Atom) => a.id).join(", ")}] (starting from position ${Math.abs(startingPosition)}, ${isCounterClockwise ? "CCW" : "CW"})`,
+    );
   }
 
   return reordered;

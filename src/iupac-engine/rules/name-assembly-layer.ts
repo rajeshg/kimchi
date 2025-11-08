@@ -2,95 +2,20 @@ import type { IUPACRule } from "../types";
 import { RulePriority } from "../types";
 import { ExecutionPhase, type ContextState } from "../immutable-context";
 import type { ImmutableNamingContext } from "../immutable-context";
-import type {
-  FunctionalGroup,
-  ParentStructure,
-  MultipleBond,
-  StructuralSubstituent,
-} from "../types";
-import type { NamingSubstituent } from "../naming/iupac-types";
-import type { Molecule, Atom } from "types";
-import { buildEsterName } from "../naming/functional-class/ester-naming";
-import { buildAmideName } from "../naming/functional-class/amide-naming";
-import {
-  nameAlkylSulfanylSubstituent,
-  namePhosphorylSubstituent,
-  namePhosphanylSubstituent,
-} from "../naming/iupac-chains";
-import {
-  getSimpleMultiplier,
-  getSimpleMultiplierWithVowel,
-  getComplexMultiplier,
-} from "../opsin-adapter";
-import type { OPSINService } from "../opsin-service";
-import { getSharedOPSINService } from "../opsin-service";
-import {
-  buildChainName,
-  findLongestCarbonChainFromRoot,
-  findSubstituentsOnChain,
-  nameChainSubstituent,
-} from "./name-assembly-layer/chain-naming";
-import {
-  buildFunctionalClassName,
-  buildThiocyanateName,
-  buildAlkylGroupName,
-  buildBoraneName,
-  nameBoranylSubstituent,
-  nameComplexBoranylSubstituent,
-} from "./name-assembly-layer/special-naming";
-import {
-  getMultiplicativePrefix,
-  collectSubstituentAtoms,
-  collectConnectedAtomsInSet,
-  groupSubstituents,
-  formatSubstituentGroups,
-} from "./name-assembly-layer/utils";
+import type { FunctionalGroup } from "../types";
+import { buildChainName } from "./name-assembly-layer/chain-naming";
+import { buildFunctionalClassName } from "./name-assembly-layer/special-naming";
+import { getMultiplicativePrefix } from "./name-assembly-layer/utils";
 import {
   buildRingName,
   buildHeteroatomName,
 } from "./name-assembly-layer/ring-naming";
-import {
-  buildSubstitutiveName,
-  detectNSubstituents,
-} from "./name-assembly-layer/substitutive-naming";
+import { buildSubstitutiveName } from "./name-assembly-layer/substitutive-naming";
 import {
   validateIUPACName,
   applyFinalFormatting,
   calculateNameConfidence,
 } from "./name-assembly-layer/validation";
-
-/**
- * Extended ParentStructure type with assembly-phase properties
- */
-type ParentStructureExtended = ParentStructure & {
-  assembledName?: string;
-  substituents?: (StructuralSubstituent | NamingSubstituent)[];
-  size?: number;
-};
-
-/**
- * Extended FunctionalGroup with optional locant property for assembly
- */
-type FunctionalGroupExtended = FunctionalGroup & {
-  locant?: number;
-};
-
-/**
- * Extended StructuralSubstituent with optional assembly properties
- */
-type StructuralSubstituentExtended = StructuralSubstituent & {
-  assembledName?: string;
-  prefix?: string;
-  locants?: number[];
-  suffix?: string;
-};
-
-/**
- * Union type for items that can be either FunctionalGroup or StructuralSubstituent with extensions
- */
-type StructuralSubstituentOrFunctionalGroup =
-  | FunctionalGroupExtended
-  | StructuralSubstituentExtended;
 
 /**
  * Name Assembly Layer Rules
@@ -330,11 +255,11 @@ export const MULTIPLICATIVE_PREFIXES_RULE: IUPACRule = {
         principalGroups.map((g) => ({ type: g.type, locants: g.locants })),
       );
       if (process.env.VERBOSE) {
-      console.log(
-        "[MULTIPLICATIVE_PREFIXES_RULE] nonPrincipalGroups:",
-        nonPrincipalGroups.length,
-        nonPrincipalGroups.map((g) => ({ type: g.type, locants: g.locants })),
-      );
+        console.log(
+          "[MULTIPLICATIVE_PREFIXES_RULE] nonPrincipalGroups:",
+          nonPrincipalGroups.length,
+          nonPrincipalGroups.map((g) => ({ type: g.type, locants: g.locants })),
+        );
       }
     }
 
@@ -494,16 +419,16 @@ export const COMPLETE_NAME_ASSEMBLY_RULE: IUPACRule = {
         nomenclatureMethod,
       );
       if (process.env.VERBOSE) {
-      console.log(
-        "[COMPLETE_NAME_ASSEMBLY_RULE] parentStructure:",
-        parentStructure?.type,
-      );
+        console.log(
+          "[COMPLETE_NAME_ASSEMBLY_RULE] parentStructure:",
+          parentStructure?.type,
+        );
       }
       if (process.env.VERBOSE) {
-      console.log(
-        "[COMPLETE_NAME_ASSEMBLY_RULE] functionalGroups:",
-        functionalGroups?.map((g) => g.type),
-      );
+        console.log(
+          "[COMPLETE_NAME_ASSEMBLY_RULE] functionalGroups:",
+          functionalGroups?.map((g) => g.type),
+        );
       }
     }
 

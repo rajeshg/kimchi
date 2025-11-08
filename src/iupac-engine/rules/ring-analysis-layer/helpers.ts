@@ -1,7 +1,4 @@
-import {
-  analyzeRings,
-  classifyRingSystems,
-} from "../../../utils/ring-analysis";
+import { classifyRingSystems } from "../../../utils/ring-analysis";
 import type { Molecule, Atom, Bond } from "../../../../types";
 import { BondType } from "../../../../types";
 
@@ -13,7 +10,7 @@ export function detectRingSystems(molecule: Molecule): unknown[] {
   const ringSystems: unknown[] = [];
 
   // Get rings - prefer parser-provided rings, fallback to ring analysis
-  const rings = molecule.rings ? molecule.rings.map(r => [...r]) : [];
+  const rings = molecule.rings ? molecule.rings.map((r) => [...r]) : [];
 
   if (rings.length === 0) {
     return ringSystems; // No rings detected
@@ -189,7 +186,12 @@ export function generateRingName(
   const classification = ringSystem.classification;
 
   // Handle fused ring systems (naphthalene, anthracene, etc.)
-  if (classification === "fused" && molecule && ringSystem.rings && ringSystem.rings.length > 1) {
+  if (
+    classification === "fused" &&
+    molecule &&
+    ringSystem.rings &&
+    ringSystem.rings.length > 1
+  ) {
     const fusedName = generateFusedPolycyclicName(ringSystem.rings, molecule);
     if (fusedName) {
       return fusedName;
@@ -197,15 +199,28 @@ export function generateRingName(
   }
 
   // Handle bridged ring systems (bicyclo, tricyclo, etc.)
-  if (classification === "bridged" && molecule && ringSystem.rings && ringSystem.rings.length > 1) {
-    const bridgedResult = generateBridgedPolycyclicName(ringSystem.rings, molecule);
+  if (
+    classification === "bridged" &&
+    molecule &&
+    ringSystem.rings &&
+    ringSystem.rings.length > 1
+  ) {
+    const bridgedResult = generateBridgedPolycyclicName(
+      ringSystem.rings,
+      molecule,
+    );
     if (bridgedResult && bridgedResult.name) {
       return bridgedResult.name;
     }
   }
 
   // Handle spiro ring systems
-  if (classification === "spiro" && molecule && ringSystem.rings && ringSystem.rings.length > 1) {
+  if (
+    classification === "spiro" &&
+    molecule &&
+    ringSystem.rings &&
+    ringSystem.rings.length > 1
+  ) {
     const spiroName = generateSpiroPolycyclicName(ringSystem.rings, molecule);
     if (spiroName) {
       return spiroName;

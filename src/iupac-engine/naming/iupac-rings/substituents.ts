@@ -221,13 +221,17 @@ function classifyFusedSubstituent(
     }
     const alkaneName = ruleEngine.getAlkaneName(carbonCount);
     if (process.env.VERBOSE) {
-      console.log(`[substituents.ts] alkaneName from rule engine: ${alkaneName}`);
+      console.log(
+        `[substituents.ts] alkaneName from rule engine: ${alkaneName}`,
+      );
     }
     if (alkaneName) {
       // Remove "ane" suffix and add "yl" for substituent naming
       const prefix = alkaneName.replace(/ane$/, "");
       if (process.env.VERBOSE) {
-        console.log(`[substituents.ts] prefix after stripping 'ane': ${prefix}`);
+        console.log(
+          `[substituents.ts] prefix after stripping 'ane': ${prefix}`,
+        );
         console.log(`[substituents.ts] final name: ${prefix}yl`);
       }
       return { type: "alkyl", size: carbonCount, name: `${prefix}yl` };

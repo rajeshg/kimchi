@@ -1,5 +1,4 @@
 import { buildRingSubstituentAlkylName } from "./ring-substituent-naming";
-import { analyzeRings } from "src/utils/ring-analysis";
 import { getSimpleMultiplier, getComplexMultiplier } from "../../opsin-adapter";
 import { getSharedOPSINService } from "../../opsin-service";
 import type {
@@ -81,10 +80,10 @@ export function buildEsterWithRingAlkylGroup(
         const hasEsterAtom = s.atoms.some((atom) => esterAtomIds.has(atom.id));
         if (hasEsterAtom && process.env.VERBOSE) {
           if (process.env.VERBOSE) {
-          console.log(
-            `[buildEsterWithRingAlkylGroup] Filtering out substituent with ester atoms:`,
-            s,
-          );
+            console.log(
+              `[buildEsterWithRingAlkylGroup] Filtering out substituent with ester atoms:`,
+              s,
+            );
           }
         }
         return !hasEsterAtom;
@@ -109,10 +108,10 @@ export function buildEsterWithRingAlkylGroup(
   if (process.env.VERBOSE) {
     console.log("[buildEsterWithRingAlkylGroup] esterOxygen:", esterOxygen);
     if (process.env.VERBOSE) {
-    console.log(
-      "[buildEsterWithRingAlkylGroup] parentStructure.ring:",
-      parentStructure.ring,
-    );
+      console.log(
+        "[buildEsterWithRingAlkylGroup] parentStructure.ring:",
+        parentStructure.ring,
+      );
     }
   }
 
@@ -136,16 +135,16 @@ export function buildEsterWithRingAlkylGroup(
         esterOxygenId,
       );
       if (process.env.VERBOSE) {
-      console.log(
-        "[buildEsterWithRingAlkylGroup] ringAtomIds:",
-        Array.from(ringAtomIds),
-      );
+        console.log(
+          "[buildEsterWithRingAlkylGroup] ringAtomIds:",
+          Array.from(ringAtomIds),
+        );
       }
       if (process.env.VERBOSE) {
-      console.log(
-        "[buildEsterWithRingAlkylGroup] atomIdToPosition map:",
-        Array.from(atomIdToPosition.entries()),
-      );
+        console.log(
+          "[buildEsterWithRingAlkylGroup] atomIdToPosition map:",
+          Array.from(atomIdToPosition.entries()),
+        );
       }
     }
 
@@ -301,16 +300,16 @@ export function buildEsterWithRingAlkylGroup(
       parentSubstituents,
     );
     if (process.env.VERBOSE) {
-    console.log(
-      "[buildEsterWithRingAlkylGroup] fgSubstituents:",
-      fgSubstituents,
-    );
+      console.log(
+        "[buildEsterWithRingAlkylGroup] fgSubstituents:",
+        fgSubstituents,
+      );
     }
     if (process.env.VERBOSE) {
-    console.log(
-      "[buildEsterWithRingAlkylGroup] allSubstituents:",
-      allSubstituents,
-    );
+      console.log(
+        "[buildEsterWithRingAlkylGroup] allSubstituents:",
+        allSubstituents,
+      );
     }
   }
 
@@ -411,10 +410,10 @@ export function buildEsterWithRingAlkylGroup(
       alkylGroupName,
     );
     if (process.env.VERBOSE) {
-    console.log("[buildEsterWithRingAlkylGroup] acylLength:", acylLength);
+      console.log("[buildEsterWithRingAlkylGroup] acylLength:", acylLength);
     }
     if (process.env.VERBOSE) {
-    console.log("[buildEsterWithRingAlkylGroup] acylName:", acylName);
+      console.log("[buildEsterWithRingAlkylGroup] acylName:", acylName);
     }
   }
 
@@ -432,10 +431,10 @@ export function getAcylChainLength(
   if (process.env.VERBOSE) {
     console.log("[getAcylChainLength] esterGroup.atoms:", esterGroup.atoms);
     if (process.env.VERBOSE) {
-    console.log(
-      "[getAcylChainLength] esterGroup.atoms.length:",
-      esterGroup.atoms?.length,
-    );
+      console.log(
+        "[getAcylChainLength] esterGroup.atoms.length:",
+        esterGroup.atoms?.length,
+      );
     }
   }
 
@@ -459,12 +458,12 @@ export function getAcylChainLength(
       molecule.atoms[carbonylCarbon]?.symbol,
     );
     if (process.env.VERBOSE) {
-    console.log(
-      "[getAcylChainLength] esterOxygen:",
-      esterOxygen,
-      "symbol:",
-      molecule.atoms[esterOxygen]?.symbol,
-    );
+      console.log(
+        "[getAcylChainLength] esterOxygen:",
+        esterOxygen,
+        "symbol:",
+        molecule.atoms[esterOxygen]?.symbol,
+      );
     }
   }
 
@@ -1241,13 +1240,13 @@ export function buildEsterWithRingAcylGroup(
   if (process.env.VERBOSE) {
     console.log("[buildEsterWithRingAcylGroup] ringName:", ringName);
     if (process.env.VERBOSE) {
-    console.log("[buildEsterWithRingAcylGroup] isAromatic:", isAromatic);
+      console.log("[buildEsterWithRingAcylGroup] isAromatic:", isAromatic);
     }
     if (process.env.VERBOSE) {
-    console.log(
-      "[buildEsterWithRingAcylGroup] condition check: isAromatic && ringName.includes('benzen'):",
-      isAromatic && ringName.includes("benzen"),
-    );
+      console.log(
+        "[buildEsterWithRingAcylGroup] condition check: isAromatic && ringName.includes('benzen'):",
+        isAromatic && ringName.includes("benzen"),
+      );
     }
   }
 
@@ -1309,7 +1308,9 @@ export function buildEsterWithRingAcylGroup(
     const allSubstituents = [...ringSubstituents];
     for (const newSub of additionalSubs) {
       // Find existing substituent at this position
-      const existingIndex = allSubstituents.findIndex((s) => s.position === newSub.position);
+      const existingIndex = allSubstituents.findIndex(
+        (s) => s.position === newSub.position,
+      );
       if (existingIndex >= 0) {
         // Replace the existing substituent with the more accurate one from detectBenzeneRingSubstituents
         allSubstituents[existingIndex] = newSub;
@@ -1332,16 +1333,16 @@ export function buildEsterWithRingAcylGroup(
         ringSubstituents,
       );
       if (process.env.VERBOSE) {
-      console.log(
-        "[buildEsterWithRingAcylGroup] additionalSubs:",
-        additionalSubs,
-      );
+        console.log(
+          "[buildEsterWithRingAcylGroup] additionalSubs:",
+          additionalSubs,
+        );
       }
       if (process.env.VERBOSE) {
-      console.log(
-        "[buildEsterWithRingAcylGroup] allSubstituents:",
-        allSubstituents,
-      );
+        console.log(
+          "[buildEsterWithRingAcylGroup] allSubstituents:",
+          allSubstituents,
+        );
       }
     }
 
@@ -1371,7 +1372,7 @@ export function buildEsterWithRingAcylGroup(
     if (process.env.VERBOSE) {
       console.log("[buildEsterWithRingAcylGroup] aromatic acylName:", acylName);
       if (process.env.VERBOSE) {
-      console.log("[buildEsterWithRingAcylGroup] alkoxyName:", alkoxyName);
+        console.log("[buildEsterWithRingAcylGroup] alkoxyName:", alkoxyName);
       }
     }
 
@@ -1394,10 +1395,10 @@ export function buildEsterWithRingAcylGroup(
   if (process.env.VERBOSE) {
     console.log("[buildEsterWithRingAcylGroup] ringBaseName:", ringBaseName);
     if (process.env.VERBOSE) {
-    console.log("[buildEsterWithRingAcylGroup] acylName:", acylName);
+      console.log("[buildEsterWithRingAcylGroup] acylName:", acylName);
     }
     if (process.env.VERBOSE) {
-    console.log("[buildEsterWithRingAcylGroup] alkoxyName:", alkoxyName);
+      console.log("[buildEsterWithRingAcylGroup] alkoxyName:", alkoxyName);
     }
   }
 
@@ -1449,7 +1450,7 @@ function detectAmideGroup(
 
     if (process.env.VERBOSE && hasDoubleBondToO) {
       if (process.env.VERBOSE) {
-      console.log(`[detectAmideGroup] Atom ${atomId} has C=O`);
+        console.log(`[detectAmideGroup] Atom ${atomId} has C=O`);
       }
     }
 
@@ -1539,7 +1540,7 @@ function buildComplexAlkoxyWithAmide(
       alkoxyCarbonId,
     );
     if (process.env.VERBOSE) {
-    console.log("[buildComplexAlkoxyWithAmide] amideInfo:", amideInfo);
+      console.log("[buildComplexAlkoxyWithAmide] amideInfo:", amideInfo);
     }
   }
 
@@ -2238,7 +2239,7 @@ export function getAlkoxyGroupName(
 
   // **RING DETECTION INTEGRATION POINT**
   // Check if the alkoxy group contains any rings
-  const rings = molecule.rings ? molecule.rings.map(r => [...r]) : [];
+  const rings = molecule.rings ? molecule.rings.map((r) => [...r]) : [];
   const ringsInAlkoxy: number[][] = [];
 
   if (process.env.VERBOSE) {
@@ -2247,14 +2248,14 @@ export function getAlkoxyGroupName(
       Array.from(alkoxyCarbonIds),
     );
     if (process.env.VERBOSE) {
-    console.log(
-      "[getAlkoxyGroupName] Total rings in molecule:",
-      rings.length,
-    );
+      console.log(
+        "[getAlkoxyGroupName] Total rings in molecule:",
+        rings.length,
+      );
     }
     for (let i = 0; i < rings.length; i++) {
       if (process.env.VERBOSE) {
-      console.log(`[getAlkoxyGroupName] Ring ${i}:`, rings[i]);
+        console.log(`[getAlkoxyGroupName] Ring ${i}:`, rings[i]);
       }
     }
   }
@@ -2314,25 +2315,25 @@ export function getAlkoxyGroupName(
     if (functionalGroups) {
       for (const fg of functionalGroups) {
         if (process.env.VERBOSE) {
-        console.log(
-          "[getAlkoxyGroupName] FG:",
-          fg.type,
-          "prefix:",
-          fg.prefix,
-          "atoms:",
-          fg.atoms,
-        );
+          console.log(
+            "[getAlkoxyGroupName] FG:",
+            fg.type,
+            "prefix:",
+            fg.prefix,
+            "atoms:",
+            fg.atoms,
+          );
         }
       }
     }
     if (process.env.VERBOSE) {
-    console.log(
-      "[getAlkoxyGroupName] alkoxyCarbonIds:",
-      Array.from(alkoxyCarbonIds),
-    );
+      console.log(
+        "[getAlkoxyGroupName] alkoxyCarbonIds:",
+        Array.from(alkoxyCarbonIds),
+      );
     }
     if (process.env.VERBOSE) {
-    console.log("[getAlkoxyGroupName] carbonChain:", carbonChain);
+      console.log("[getAlkoxyGroupName] carbonChain:", carbonChain);
     }
   }
 
@@ -2963,19 +2964,19 @@ export function buildEsterName(
       JSON.stringify(parentStructure, null, 2),
     );
     if (process.env.VERBOSE) {
-    console.log(
-      "[buildEsterName] parentStructure.type:",
-      parentStructure?.type,
-    );
+      console.log(
+        "[buildEsterName] parentStructure.type:",
+        parentStructure?.type,
+      );
     }
     if (process.env.VERBOSE) {
-    console.log(
-      "[buildEsterName] parentStructure.chain:",
-      parentStructure?.chain,
-    );
+      console.log(
+        "[buildEsterName] parentStructure.chain:",
+        parentStructure?.chain,
+      );
     }
     if (process.env.VERBOSE) {
-    console.log("[buildEsterName] esterGroup:", esterGroup);
+      console.log("[buildEsterName] esterGroup:", esterGroup);
     }
   }
 
@@ -3072,12 +3073,12 @@ export function buildEsterName(
         isRingOnAcylSide,
       );
       if (process.env.VERBOSE) {
-      console.log(
-        "[buildEsterName] carbonylCarbonIdTemp=",
-        carbonylCarbonIdTemp,
-        "ringAtomIds=",
-        Array.from(ringAtomIds),
-      );
+        console.log(
+          "[buildEsterName] carbonylCarbonIdTemp=",
+          carbonylCarbonIdTemp,
+          "ringAtomIds=",
+          Array.from(ringAtomIds),
+        );
       }
     }
 
@@ -3132,12 +3133,12 @@ export function buildEsterName(
       isMultiester,
     );
     if (process.env.VERBOSE) {
-    console.log(
-      "[buildEsterName] chain.atoms:",
-      chain.atoms?.length,
-      "chain.length:",
-      chain.length,
-    );
+      console.log(
+        "[buildEsterName] chain.atoms:",
+        chain.atoms?.length,
+        "chain.length:",
+        chain.length,
+      );
     }
   }
 
@@ -3170,9 +3171,9 @@ export function buildEsterName(
         const atomId = typeof atomOrId === "number" ? atomOrId : atomOrId.id;
         const atom = molecule.atoms[atomId];
         if (process.env.VERBOSE) {
-        console.log(
-          `[buildEsterName]   atoms[${idx}]: ${atomId} = ${atom?.symbol}`,
-        );
+          console.log(
+            `[buildEsterName]   atoms[${idx}]: ${atomId} = ${atom?.symbol}`,
+          );
         }
       });
     }
@@ -3348,16 +3349,16 @@ export function buildEsterName(
   if (process.env.VERBOSE) {
     console.log("[buildEsterName] parentChainCarbonIds:", parentChainCarbonIds);
     if (process.env.VERBOSE) {
-    console.log(
-      "[buildEsterName] parentChainIncludesAlkoxy:",
-      parentChainIncludesAlkoxy,
-    );
+      console.log(
+        "[buildEsterName] parentChainIncludesAlkoxy:",
+        parentChainIncludesAlkoxy,
+      );
     }
     if (process.env.VERBOSE) {
-    console.log(
-      "[buildEsterName] parentChainIncludesAcyl:",
-      parentChainIncludesAcyl,
-    );
+      console.log(
+        "[buildEsterName] parentChainIncludesAcyl:",
+        parentChainIncludesAcyl,
+      );
     }
   }
 
@@ -3391,7 +3392,7 @@ export function buildEsterName(
         acylLength,
       );
       if (process.env.VERBOSE) {
-      console.log("[buildEsterName] Acyl chain:", longestChain);
+        console.log("[buildEsterName] Acyl chain:", longestChain);
       }
     }
   }
@@ -3429,7 +3430,7 @@ export function buildEsterName(
         alkoxyLength,
       );
       if (process.env.VERBOSE) {
-      console.log("[buildEsterName] Alkoxy chain:", longestChain);
+        console.log("[buildEsterName] Alkoxy chain:", longestChain);
       }
     }
   }
@@ -3437,22 +3438,22 @@ export function buildEsterName(
   if (process.env.VERBOSE) {
     console.log("[buildEsterName] carbonylCarbonId:", carbonylCarbonId);
     if (process.env.VERBOSE) {
-    console.log("[buildEsterName] esterOxygenId:", esterOxygenId);
+      console.log("[buildEsterName] esterOxygenId:", esterOxygenId);
     }
     if (process.env.VERBOSE) {
-    console.log("[buildEsterName] alkoxyCarbonId:", alkoxyCarbonId);
+      console.log("[buildEsterName] alkoxyCarbonId:", alkoxyCarbonId);
     }
     if (process.env.VERBOSE) {
-    console.log("[buildEsterName] acylLength:", acylLength);
+      console.log("[buildEsterName] acylLength:", acylLength);
     }
     if (process.env.VERBOSE) {
-    console.log("[buildEsterName] alkoxyLength:", alkoxyLength);
+      console.log("[buildEsterName] alkoxyLength:", alkoxyLength);
     }
     if (process.env.VERBOSE) {
-    console.log(
-      "[buildEsterName] alkoxyCarbonIds:",
-      Array.from(alkoxyCarbonIds),
-    );
+      console.log(
+        "[buildEsterName] alkoxyCarbonIds:",
+        Array.from(alkoxyCarbonIds),
+      );
     }
   }
 
@@ -3634,20 +3635,20 @@ export function buildEsterName(
     if (process.env.VERBOSE) {
       console.log("[buildEsterName] alkoxyCarbonId:", alkoxyCarbonId);
       if (process.env.VERBOSE) {
-      console.log("[buildEsterName] alkoxyIndexInChain:", alkoxyIndexInChain);
+        console.log("[buildEsterName] alkoxyIndexInChain:", alkoxyIndexInChain);
       }
       if (process.env.VERBOSE) {
-      console.log("[buildEsterName] needsReversal:", needsReversal);
+        console.log("[buildEsterName] needsReversal:", needsReversal);
       }
       if (process.env.VERBOSE) {
-      console.log(
-        "[buildEsterName] alkylSubs from parent chain:",
-        alkylSubs.map((s) => ({
-          type: s.type,
-          name: s.name,
-          locant: s.locant,
-        })),
-      );
+        console.log(
+          "[buildEsterName] alkylSubs from parent chain:",
+          alkylSubs.map((s) => ({
+            type: s.type,
+            name: s.name,
+            locant: s.locant,
+          })),
+        );
       }
     }
 
@@ -3694,13 +3695,13 @@ export function buildEsterName(
         chainAtomIds,
       );
       if (process.env.VERBOSE) {
-      console.log(
-        "[buildEsterName] functionalGroups:",
-        functionalGroups.map((fg) => ({
-          type: fg.type,
-          atoms: fg.atoms?.map((a) => (typeof a === "number" ? a : a.id)),
-        })),
-      );
+        console.log(
+          "[buildEsterName] functionalGroups:",
+          functionalGroups.map((fg) => ({
+            type: fg.type,
+            atoms: fg.atoms?.map((a) => (typeof a === "number" ? a : a.id)),
+          })),
+        );
       }
     }
     for (const fg of functionalGroups) {
@@ -3800,10 +3801,10 @@ export function buildEsterName(
       console.log("[buildEsterName] substByPosition details:");
       for (const [pos, subs] of substByPosition.entries()) {
         if (process.env.VERBOSE) {
-        console.log(
-          `  Position ${pos}:`,
-          subs.map((s) => `${s.name} (count=${s.count})`),
-        );
+          console.log(
+            `  Position ${pos}:`,
+            subs.map((s) => `${s.name} (count=${s.count})`),
+          );
         }
       }
     }

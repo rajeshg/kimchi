@@ -12,7 +12,7 @@ describe("Long alkyl substituents with OPSIN integration", () => {
 
     const mol = result.molecules[0];
     if (!mol) throw new Error("Molecule not parsed");
-    
+
     const iupacName = generateIUPACName(mol);
     // Should contain "undecyl" from OPSIN alkane stems
     expect(iupacName).toContain("undecyl");
@@ -27,7 +27,7 @@ describe("Long alkyl substituents with OPSIN integration", () => {
 
     const mol = result.molecules[0];
     if (!mol) throw new Error("Molecule not parsed");
-    
+
     const iupacName = generateIUPACName(mol);
     // Should contain "dodecyl" from OPSIN alkane stems
     expect(iupacName).toContain("dodecyl");
@@ -67,7 +67,7 @@ describe("Long alkyl substituents with OPSIN integration", () => {
 
     const mol = result.molecules[0];
     if (!mol) throw new Error("Molecule not parsed");
-    
+
     const iupacName = generateIUPACName(mol);
     // Should either have a valid OPSIN name or fallback to C50yl
     expect(iupacName).toMatch(/(C50|.*yl)naphthalene/);
