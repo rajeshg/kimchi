@@ -224,6 +224,7 @@ function expandKetoneToAcylGroup(
   }
 
   // BFS traversal from acyl chain start, away from carbonyl
+  // STOP at ring atoms to prevent including aromatic rings and benzyl groups
   const visited = new Set<number>([carbonylIdx, oxygenIdx]);
   const acylAtoms: number[] = [];
   const queue = [acylChainStart];
@@ -231,6 +232,13 @@ function expandKetoneToAcylGroup(
 
   while (queue.length > 0) {
     const currentIdx = queue.shift()!;
+    const currentAtom = mol.atoms[currentIdx];
+    
+    // STOP if we encounter a ring atom (don't include it or traverse beyond it)
+    if (currentAtom?.isInRing) {
+      continue;
+    }
+    
     acylAtoms.push(currentIdx);
 
     for (const bond of mol.bonds) {
@@ -240,8 +248,8 @@ function expandKetoneToAcylGroup(
       if (visited.has(otherIdx)) continue;
 
       const otherAtom = mol.atoms[otherIdx];
-      // Include all carbons and branches in the acyl chain
-      if (otherAtom?.symbol === "C") {
+      // Include only aliphatic carbons (not in rings)
+      if (otherAtom?.symbol === "C" && !otherAtom.isInRing) {
         visited.add(otherIdx);
         queue.push(otherIdx);
       }
@@ -587,10 +595,7 @@ export const FUNCTIONAL_GROUP_PRIORITY_RULE: IUPACRule = {
                 typeof nitrogen === "number" ? nitrogen : nitrogen.id;
 
               // If both C and N are in ring → it's a lactam → demote
-              if (
-                ringAtomIds.has(carbonylCId) &&
-                ringAtomIds.has(nitrogenId)
-              ) {
+              if (ringAtomIds.has(carbonylCId) && ringAtomIds.has(nitrogenId)) {
                 shouldDemotePrincipalGroup = true;
                 if (process.env.VERBOSE) {
                   console.log(
@@ -611,7 +616,8 @@ export const FUNCTIONAL_GROUP_PRIORITY_RULE: IUPACRule = {
               .map((bond) => (bond.atom1 === locant ? bond.atom2 : bond.atom1))
               .map((atomId) => mol.atoms.find((a) => a.id === atomId))
               .filter(
-                (atom): atom is Atom => atom !== undefined && atom.symbol === "O",
+                (atom): atom is Atom =>
+                  atom !== undefined && atom.symbol === "O",
               );
 
             // Check if any of these oxygens are part of the ring
@@ -890,7 +896,10 @@ export const FUNCTIONAL_CLASS_RULE: IUPACRule = {
     );
 
     let updatedContext: ImmutableNamingContext;
-    if (hasFunctionalClassGroup || isFunctionalClassPreferred(principalGroup, context)) {
+    if (
+      hasFunctionalClassGroup ||
+      isFunctionalClassPreferred(principalGroup, context)
+    ) {
       updatedContext = context.withNomenclatureMethod(
         NomenclatureMethod.FUNCTIONAL_CLASS,
         "functional-class-nomenclature",
@@ -2616,7 +2625,6 @@ function isFunctionalClassPreferred(
   // nomenclature because the ring name already incorporates the carbonyl
   // (e.g., "imidazolidin-4-one" not "imidazolidine amide")
   if (principalGroup.type === "amide" && context) {
-    const molecule = context.getState().molecule;
     // Check if the carbonyl carbon (first atom in amide group) is in a ring
     const carbonylCarbon = principalGroup.atoms?.[0];
     if (carbonylCarbon && carbonylCarbon.isInRing) {

@@ -12,13 +12,37 @@ export function classifySubstituent(
   fgAtomIds: Set<number> = new Set(),
   depth = 0,
 ): NamingSubstituentInfo | null {
+  if (process.env.VERBOSE && startAtomIdx === 0) {
+    console.log(
+      `[classifySubstituent] CALLED with atom 0, chainAtoms=${Array.from(chainAtoms).join(",")}`,
+    );
+    console.log(
+      `[classifySubstituent] Molecule has ${molecule.atoms.length} atoms, ALL IDs:`,
+      molecule.atoms.map((a, i) => ({ idx: i, id: a.id, symbol: a.symbol })),
+    );
+    console.log(
+      `[classifySubstituent] Call stack:`,
+      new Error().stack?.split("\n").slice(2, 8).join("\n"),
+    );
+  }
+
   // First check: if the starting atom is part of a functional group, skip it
-  if (fgAtomIds.has(startAtomIdx)) {
+  // UNLESS it's part of a ring system, which should be named as a ring substituent
+  const isRingAtom =
+    molecule.rings?.some((ring) => ring.includes(startAtomIdx)) || false;
+
+  if (fgAtomIds.has(startAtomIdx) && !isRingAtom) {
     if (process.env.VERBOSE)
       console.log(
-        `[classifySubstituent] Skipping atom ${startAtomIdx} - part of functional group`,
+        `[classifySubstituent] Skipping atom ${startAtomIdx} - part of functional group (not a ring)`,
       );
     return null;
+  }
+
+  if (fgAtomIds.has(startAtomIdx) && isRingAtom && process.env.VERBOSE) {
+    console.log(
+      `[classifySubstituent] Atom ${startAtomIdx} is in FG but also in a ring - will attempt ring naming`,
+    );
   }
 
   const visited = new Set<number>(chainAtoms);
@@ -47,6 +71,20 @@ export function classifySubstituent(
     .map((idx) => molecule.atoms[idx])
     .filter((atom): atom is (typeof molecule.atoms)[0] => atom !== undefined);
   const carbonCount = atoms.filter((atom) => atom.symbol === "C").length;
+
+  if (process.env.VERBOSE && startAtomIdx === 0) {
+    console.log(
+      `[classifySubstituent] Atom 0 substituent: atoms=[${Array.from(substituentAtoms).join(",")}], carbonCount=${carbonCount}, atoms.length=${atoms.length}`,
+    );
+    console.log(
+      `[classifySubstituent] Atom 0 details: symbol=${molecule.atoms[0]?.symbol}, idx=0, atomObj=`,
+      molecule.atoms[0],
+    );
+    console.log(
+      `[classifySubstituent] Filtered atoms:`,
+      atoms.map((a) => ({ symbol: a.symbol, idx: molecule.atoms.indexOf(a) })),
+    );
+  }
 
   // Check if this substituent contains ring atoms - if so, it might be a ring system substituent
   const hasRingAtoms = Array.from(substituentAtoms).some((atomId) => {
@@ -335,6 +373,32 @@ export function classifySubstituent(
   const neighborCounts = Array.from(carbonNeighbors.values());
   const maxCNeigh = neighborCounts.length ? Math.max(...neighborCounts) : 0;
   if (carbonCount === 1 && atoms.length === 1) {
+    // Check if this is an exocyclic double bond (=CH2 group)
+    // Look for a double bond connecting this carbon to a parent structure atom (chain or ring)
+    const hasDoubleBondToParent = molecule.bonds.some(
+      (bond) =>
+        (bond.atom1 === startAtomIdx || bond.atom2 === startAtomIdx) &&
+        bond.type === "double" &&
+        ((bond.atom1 === startAtomIdx && chainAtoms.has(bond.atom2)) ||
+          (bond.atom2 === startAtomIdx && chainAtoms.has(bond.atom1))),
+    );
+
+    if (process.env.VERBOSE) {
+      console.log(
+        `[classifySubstituent] Checking single carbon at ${startAtomIdx}: hasDoubleBondToParent=${hasDoubleBondToParent}`,
+      );
+    }
+
+    if (hasDoubleBondToParent) {
+      // This is an exocyclic double bond: =CH2 → methylidene
+      if (process.env.VERBOSE) {
+        console.log(
+          `[classifySubstituent] Detected exocyclic double bond at ${startAtomIdx} → methylidene`,
+        );
+      }
+      return { type: "alkyl", size: 1, name: "methylidene" };
+    }
+
     return { type: "alkyl", size: 1, name: "methyl" };
   } else if (carbonCount === 2 && atoms.length === 2) {
     return { type: "alkyl", size: 2, name: "ethyl" };
@@ -346,6 +410,8 @@ export function classifySubstituent(
     atoms.some((atom) => atom.symbol === "O" && atom.hydrogens === 1)
   ) {
     return { type: "functional", size: 1, name: "hydroxy" };
+  } else if (atoms.some((atom) => atom.symbol === "F")) {
+    return { type: "halo", size: 1, name: "fluoro" };
   } else if (atoms.some((atom) => atom.symbol === "Cl")) {
     return { type: "halo", size: 1, name: "chloro" };
   } else if (atoms.some((atom) => atom.symbol === "Br")) {

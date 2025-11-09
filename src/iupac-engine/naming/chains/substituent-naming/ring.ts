@@ -167,6 +167,22 @@ export function nameRingSubstituent(
     );
   }
 
+  // For benzene rings with multiple substituents, determine optimal numbering direction
+  let optimalDirection: "forward" | "reverse" | undefined;
+  if ((ringName === "benzene" || ringName === "phenyl") && ringSubstituents.length > 0) {
+    optimalDirection = determineOptimalBenzeneDirection(
+      ring,
+      ringSubstituents,
+      startAtomIdx,
+      molecule,
+    );
+    if (process.env.VERBOSE) {
+      console.log(
+        `[nameRingSubstituent] Optimal benzene numbering direction: ${optimalDirection}`,
+      );
+    }
+  }
+
   // Recursively name each substituent attached to the ring
   const namedSubstituents: Array<{ locant: number; name: string }> = [];
   const ringSet = new Set(ring);
@@ -192,6 +208,7 @@ export function nameRingSubstituent(
         ringAtomIdx,
         molecule,
         ringName,
+        optimalDirection,
       );
 
       if (process.env.VERBOSE) {
@@ -320,6 +337,7 @@ export function determineRingAttachmentPosition(
   attachmentAtom: number,
   molecule: Molecule,
   ringName: string,
+  direction?: "forward" | "reverse",
 ): number {
   const posInRing = ring.indexOf(attachmentAtom);
   if (posInRing === -1) return 1; // fallback
@@ -615,14 +633,20 @@ export function determineRingAttachmentPosition(
 
     // Calculate position relative to attachment point
     // Attachment point is numbered 1, then we continue around the ring
-    // Going in the direction that gives lowest substituent locants
-    // For benzene, we go backwards through array indices: [5,4,3,2,1,0] if attachment is at 5
-
-    const relativePos = (attachmentIdx - posInRing + ring.length) % ring.length;
+    // Direction is determined by which way gives the lowest substituent locants
+    
+    let relativePos: number;
+    if (direction === "reverse") {
+      // Go counter-clockwise (reverse direction through array)
+      relativePos = (attachmentIdx - posInRing + ring.length) % ring.length;
+    } else {
+      // Go clockwise (forward direction through array) - default
+      relativePos = (posInRing - attachmentIdx + ring.length) % ring.length;
+    }
 
     if (process.env.VERBOSE) {
       console.log(
-        `[determineRingAttachmentPosition] attachmentIdx=${attachmentIdx}, posInRing=${posInRing}, relativePos=${relativePos}, IUPAC position=${relativePos + 1}`,
+        `[determineRingAttachmentPosition] attachmentIdx=${attachmentIdx}, posInRing=${posInRing}, direction=${direction || "forward"}, relativePos=${relativePos}, IUPAC position=${relativePos + 1}`,
       );
     }
 
@@ -672,6 +696,100 @@ export function determineRingAttachmentPosition(
 
   // For other rings, use simple sequential numbering (1-indexed)
   return posInRing + 1;
+}
+
+/**
+ * Determines the optimal numbering direction for a benzene ring to minimize substituent locants.
+ * Per IUPAC, when a benzene ring has multiple substituents, we should number in the direction
+ * that gives the lowest set of locants.
+ */
+function determineOptimalBenzeneDirection(
+  ring: readonly number[],
+  ringSubstituents: Array<{ atomIdx: number; ringPosition: number }>,
+  startAtomIdx: number,
+  molecule: Molecule,
+): "forward" | "reverse" {
+  if (ringSubstituents.length === 0) {
+    return "forward";
+  }
+
+  // Find the attachment point (where benzene connects to parent)
+  let attachmentIdx = -1;
+  const ringSet = new Set(ring);
+
+  for (let i = 0; i < ring.length; i++) {
+    const ringAtomIdx = ring[i]!;
+    
+    for (const bond of molecule.bonds) {
+      const otherAtom =
+        bond.atom1 === ringAtomIdx
+          ? bond.atom2
+          : bond.atom2 === ringAtomIdx
+            ? bond.atom1
+            : -1;
+      if (otherAtom >= 0 && !ringSet.has(otherAtom)) {
+        const otherAtomObj = molecule.atoms[otherAtom];
+        if (otherAtomObj && otherAtomObj.symbol !== "H") {
+          const isSimpleSubstituent =
+            otherAtomObj.symbol === "O" ||
+            otherAtomObj.symbol === "Cl" ||
+            otherAtomObj.symbol === "Br" ||
+            otherAtomObj.symbol === "F" ||
+            otherAtomObj.symbol === "I";
+
+          if (!isSimpleSubstituent) {
+            attachmentIdx = i;
+            break;
+          }
+        }
+      }
+    }
+    if (attachmentIdx >= 0) break;
+  }
+
+  if (attachmentIdx === -1) {
+    return "forward";
+  }
+
+  // Calculate locants in both directions
+  const forwardLocants: number[] = [];
+  const reverseLocants: number[] = [];
+
+  for (const sub of ringSubstituents) {
+    // Forward direction: go clockwise from attachment point
+    const forwardRelPos = (sub.ringPosition - attachmentIdx + ring.length) % ring.length;
+    forwardLocants.push(forwardRelPos + 1);
+
+    // Reverse direction: go counter-clockwise from attachment point
+    const reverseRelPos = (attachmentIdx - sub.ringPosition + ring.length) % ring.length;
+    reverseLocants.push(reverseRelPos + 1);
+  }
+
+  // Sort locants
+  forwardLocants.sort((a, b) => a - b);
+  reverseLocants.sort((a, b) => a - b);
+
+  if (process.env.VERBOSE) {
+    console.log(
+      `[determineOptimalBenzeneDirection] Forward locants: [${forwardLocants.join(",")}]`,
+    );
+    console.log(
+      `[determineOptimalBenzeneDirection] Reverse locants: [${reverseLocants.join(",")}]`,
+    );
+  }
+
+  // Compare locant sets lexicographically
+  for (let i = 0; i < Math.min(forwardLocants.length, reverseLocants.length); i++) {
+    if (forwardLocants[i]! < reverseLocants[i]!) {
+      return "forward";
+    }
+    if (reverseLocants[i]! < forwardLocants[i]!) {
+      return "reverse";
+    }
+  }
+
+  // If all locants are equal, default to forward
+  return "forward";
 }
 
 /**

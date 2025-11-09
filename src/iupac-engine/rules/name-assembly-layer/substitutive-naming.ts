@@ -10,8 +10,9 @@ import {
   namePhosphorylSubstituent,
   namePhosphanylSubstituent,
   nameAmideSubstituent,
+  nameRingSubstituent,
 } from "../../naming/iupac-chains";
-import { getSimpleMultiplierWithVowel } from "../../opsin-adapter";
+import { getSimpleMultiplierWithVowel, getChainNameFromOPSIN } from "../../opsin-adapter";
 import type { OPSINService } from "../../opsin-service";
 import { getSharedOPSINService } from "../../opsin-service";
 import { getMultiplicativePrefix, collectSubstituentAtoms } from "./utils";
@@ -27,6 +28,80 @@ type FunctionalGroupExtended = FunctionalGroup & {
 };
 
 /**
+ * Name a carbon substituent attached via C=N double bond (ylidene nomenclature)
+ * Example: (CH3)2C=N → "propan-2-ylidene"
+ */
+function nameYlideneSubstituent(
+  molecule: Molecule,
+  carbonId: number,
+  nitrogenId: number,
+  parentAtomIds: Set<number>,
+  opsinService: OPSINService,
+): string {
+  // Safety checks
+  if (!molecule || !molecule.bonds || !molecule.atoms) {
+    if (process.env.VERBOSE) {
+      console.log("[nameYlideneSubstituent] Invalid molecule structure");
+    }
+    return "ylideneamino";
+  }
+  
+  // Collect all atoms in the substituent (carbon + its neighbors, excluding nitrogen)
+  const substituentAtoms = new Set<number>();
+  const toVisit: number[] = [carbonId];
+  const visited = new Set<number>();
+  
+  while (toVisit.length > 0) {
+    const currentId = toVisit.pop()!;
+    if (visited.has(currentId)) continue;
+    visited.add(currentId);
+    
+    // Don't include parent atoms or the nitrogen
+    if (parentAtomIds.has(currentId) || currentId === nitrogenId) continue;
+    
+    substituentAtoms.add(currentId);
+    
+    // Find neighbors
+    for (const bond of molecule.bonds) {
+      let neighborId: number | undefined;
+      if (bond.atom1 === currentId) neighborId = bond.atom2;
+      else if (bond.atom2 === currentId) neighborId = bond.atom1;
+      
+      if (neighborId !== undefined && !visited.has(neighborId)) {
+        toVisit.push(neighborId);
+      }
+    }
+  }
+  
+  // Count carbons in the substituent
+  const substituentAtomsArray = Array.from(substituentAtoms);
+  const carbonCount = substituentAtomsArray.filter(
+    (id) => molecule.atoms[id]?.symbol === "C"
+  ).length;
+  
+  if (carbonCount === 0) {
+    return "ylideneamino"; // Edge case: no carbons
+  }
+  
+  // Build the ylidene name
+  // For simple cases without branching or specific locants, use chain name + "ylidene"
+  // Example: C1 with 2 methyls = propan-2-ylidene
+  const chainName = getChainNameFromOPSIN(carbonCount, opsinService);
+  
+  // Determine locant (position of the double bond in the carbon chain)
+  // For now, assume simple case where double bond is at position 2 for propane (2 methyls on C)
+  // TODO: Implement proper chain traversal and locant determination
+  let locant = "";
+  if (carbonCount === 3) {
+    locant = "-2-"; // propan-2-ylidene
+  } else if (carbonCount > 3) {
+    locant = "-2-"; // Default to position 2 for now
+  }
+  
+  return `${chainName}${locant}ylidene`;
+}
+
+/**
  * Detect N-substituents on amine/imine nitrogen atoms
  * Returns a prefix string like "N-methyl" or "N,N-dimethyl" or empty string
  */
@@ -36,8 +111,9 @@ export function detectNSubstituents(
   molecule: Molecule,
   opsinService?: OPSINService,
 ): string {
-  // For imine groups (e.g., azirine), the principal group atoms contain the C=N carbon
-  // We need to find the amine nitrogen bonded to this carbon
+  // Detect N-substituents on amine/imine groups
+  // For imine: principalGroup.atoms[0] is the C=N carbon, need to find bonded N
+  // For amine: principalGroup.atoms[0] is the N itself
   if (!principalGroup.atoms || principalGroup.atoms.length === 0) {
     return "";
   }
@@ -46,31 +122,35 @@ export function detectNSubstituents(
     return "";
   }
 
-  // Find the amine nitrogen attached to the imine carbon
-  // For imine: principalGroup.atoms[0] is the C=N carbon
-  const imineCarbonId = principalGroup.atoms[0]?.id;
-  if (imineCarbonId === undefined) {
-    return "";
-  }
+  const firstAtom = principalGroup.atoms[0];
+  if (!firstAtom) return "";
 
-  // Find nitrogen bonded to the imine carbon with a single bond
   let amineNitrogenId: number | undefined;
-  for (const bond of molecule.bonds) {
-    if (bond.type !== "single") continue;
-    let potentialNitrogenId: number | undefined;
-    if (bond.atom1 === imineCarbonId) {
-      potentialNitrogenId = bond.atom2;
-    } else if (bond.atom2 === imineCarbonId) {
-      potentialNitrogenId = bond.atom1;
-    }
 
-    if (potentialNitrogenId !== undefined) {
-      const potentialNitrogen = molecule.atoms.find(
-        (a: Atom) => a.id === potentialNitrogenId,
-      );
-      if (potentialNitrogen?.symbol === "N" && !potentialNitrogen.isInRing) {
-        amineNitrogenId = potentialNitrogenId;
-        break;
+  // Determine if this is an imine or amine
+  if (firstAtom.symbol === "N") {
+    // Amine: nitrogen is the principal group atom
+    amineNitrogenId = firstAtom.id;
+  } else if (firstAtom.symbol === "C") {
+    // Imine: need to find nitrogen bonded to the C=N carbon
+    const imineCarbonId = firstAtom.id;
+    for (const bond of molecule.bonds) {
+      if (bond.type !== "single") continue;
+      let potentialNitrogenId: number | undefined;
+      if (bond.atom1 === imineCarbonId) {
+        potentialNitrogenId = bond.atom2;
+      } else if (bond.atom2 === imineCarbonId) {
+        potentialNitrogenId = bond.atom1;
+      }
+
+      if (potentialNitrogenId !== undefined) {
+        const potentialNitrogen = molecule.atoms.find(
+          (a: Atom) => a.id === potentialNitrogenId,
+        );
+        if (potentialNitrogen?.symbol === "N" && !potentialNitrogen.isInRing) {
+          amineNitrogenId = potentialNitrogenId;
+          break;
+        }
       }
     }
   }
@@ -79,25 +159,120 @@ export function detectNSubstituents(
     return "";
   }
 
-  // Find all carbon substituents on the amine nitrogen
-  const nSubstituents: Array<{ name: string; carbon: Atom }> = [];
+  const amineNitrogen = molecule.atoms.find((a) => a.id === amineNitrogenId);
+  if (!amineNitrogen) return "";
+
+  // Find parent structure attachment point (which atom is part of parent)
+  const parentAtomIds = new Set<number>();
+  if (parentStructure.type === "chain" && parentStructure.chain?.atoms) {
+    for (const atom of parentStructure.chain.atoms) {
+      parentAtomIds.add(atom.id);
+    }
+  } else if (parentStructure.type === "ring" && parentStructure.ring?.atoms) {
+    for (const atom of parentStructure.ring.atoms) {
+      parentAtomIds.add(atom.id);
+    }
+  }
+
+  // Find all substituents bonded to the amine nitrogen
+  const nSubstituents: Array<{
+    name: string;
+    atomId: number;
+    isRing: boolean;
+    isDoubleBond: boolean;
+  }> = [];
+
   for (const bond of molecule.bonds) {
-    if (bond.type !== "single") continue;
-    let carbonId: number | undefined;
+    let substituentAtomId: number | undefined;
     if (bond.atom1 === amineNitrogenId) {
-      carbonId = bond.atom2;
+      substituentAtomId = bond.atom2;
     } else if (bond.atom2 === amineNitrogenId) {
-      carbonId = bond.atom1;
+      substituentAtomId = bond.atom1;
     }
 
-    if (carbonId !== undefined) {
-      const carbon = molecule.atoms.find((a: Atom) => a.id === carbonId);
-      // Check if it's a carbon and not the imine carbon
-      if (carbon?.symbol === "C" && carbonId !== imineCarbonId) {
-        // For now, assume it's a methyl group (simple alkyl)
-        // TODO: Handle longer alkyl chains (ethyl, propyl, etc.)
-        nSubstituents.push({ name: "methyl", carbon });
+    if (substituentAtomId === undefined) continue;
+
+    // Skip if this atom is part of the parent structure
+    if (parentAtomIds.has(substituentAtomId)) {
+      continue;
+    }
+
+    const substituentAtom = molecule.atoms.find(
+      (a) => a.id === substituentAtomId,
+    );
+    if (!substituentAtom || substituentAtom.symbol !== "C") continue;
+
+    // Check for C=N double bond (ylideneamino pattern)
+    const isDoubleBond = bond.type === "double";
+    
+    if (!isDoubleBond && bond.type !== "single") continue;
+
+    // Check if this carbon is part of an aromatic ring (N-aryl substituent)
+    if (substituentAtom.isInRing && substituentAtom.aromatic) {
+      if (process.env.VERBOSE) {
+        console.log(
+          `[detectNSubstituents] Found N-aryl substituent: aromatic ring starting at atom ${substituentAtomId}`,
+        );
       }
+
+      // Name the aromatic ring system with substituents using nameRingSubstituent
+      // Pass parentAtomIds as "chainAtoms" to exclude them from the substituent
+      const ringSubInfo = nameRingSubstituent(
+        molecule,
+        substituentAtomId,
+        parentAtomIds,
+        0,
+        3,
+      );
+
+      if (ringSubInfo && ringSubInfo.name) {
+        if (process.env.VERBOSE) {
+          console.log(
+            `[detectNSubstituents] Named N-aryl substituent: ${ringSubInfo.name}`,
+          );
+        }
+        nSubstituents.push({
+          name: ringSubInfo.name,
+          atomId: substituentAtomId,
+          isRing: true,
+          isDoubleBond: isDoubleBond,
+        });
+      } else {
+        // Fallback to "phenyl" if naming fails
+        nSubstituents.push({
+          name: "phenyl",
+          atomId: substituentAtomId,
+          isRing: true,
+          isDoubleBond: isDoubleBond,
+        });
+      }
+    } else if (!substituentAtom.isInRing) {
+      // Alkyl or ylidene substituent
+      let substituentName: string;
+      
+      if (isDoubleBond) {
+        // C=N double bond: use ylidene nomenclature
+        // For now, handle simple case (single carbon with branches)
+        // TODO: Handle longer chains with proper locants
+        substituentName = nameYlideneSubstituent(
+          molecule,
+          substituentAtomId,
+          amineNitrogenId,
+          parentAtomIds,
+          opsinService ?? getSharedOPSINService(),
+        );
+      } else {
+        // Simple alkyl substituent
+        // TODO: Handle longer chains (ethyl, propyl, etc.)
+        substituentName = "methyl";
+      }
+      
+      nSubstituents.push({
+        name: substituentName,
+        atomId: substituentAtomId,
+        isRing: false,
+        isDoubleBond: isDoubleBond,
+      });
     }
   }
 
@@ -106,19 +281,25 @@ export function detectNSubstituents(
   }
 
   // Format N-substituents
-  // Single substituent: "N-methyl"
-  // Two identical: "N,N-dimethyl"
-  // Two different: "N-ethyl-N-methyl" (alphabetical)
   if (nSubstituents.length === 1) {
-    return `N-${nSubstituents[0]!.name}`;
+    const sub = nSubstituents[0]!;
+    // For ylidene substituents, use "3-(ylideneamino)" format with position number
+    if (sub.isDoubleBond) {
+      return `(${sub.name}amino)`;
+    }
+    // For aromatic rings, use parentheses
+    if (sub.isRing) {
+      return `N-(${sub.name})`;
+    }
+    return `N-${sub.name}`;
   }
 
-  // Check if all substituents are identical
+  // Multiple substituents
   const firstSubName = nSubstituents[0]!.name;
   const allIdentical = nSubstituents.every((sub) => sub.name === firstSubName);
 
-  if (allIdentical) {
-    // Use di-, tri-, etc. prefix from OPSIN
+  if (allIdentical && !nSubstituents[0]!.isRing) {
+    // Multiple identical alkyl groups: N,N-dimethyl
     const multiplier = getSimpleMultiplierWithVowel(
       nSubstituents.length,
       firstSubName.charAt(0),
@@ -131,11 +312,19 @@ export function detectNSubstituents(
     return `${nLocants}-${multiplier}${firstSubName}`;
   }
 
-  // Different substituents - alphabetize and format as N-sub1-N-sub2
-  const sortedNames = nSubstituents
-    .map((sub) => sub.name)
-    .sort((a, b) => a.localeCompare(b));
-  return sortedNames.map((name) => `N-${name}`).join("-");
+  // Different substituents or aromatic rings - format individually
+  return nSubstituents
+    .map((sub) => {
+      if (sub.isDoubleBond) {
+        return `(${sub.name}amino)`;
+      }
+      if (sub.isRing) {
+        return `N-(${sub.name})`;
+      }
+      return `N-${sub.name}`;
+    })
+    .sort((a, b) => a.localeCompare(b))
+    .join("-");
 }
 
 export function buildSubstitutiveName(
@@ -1981,6 +2170,217 @@ export function buildSubstitutiveName(
 
   name += parentName;
 
+  // Transform partially saturated heterocycles to indicated hydrogen format
+  // Example: "thiazoline" → "4H-1,3-thiazol", "imidazoline" → "2H-1,3-imidazol"
+  if (parentStructure.type === "ring" && parentStructure.ring) {
+    const ring = parentStructure.ring;
+
+    // Get heteroatoms from ring atoms (not from ring.heteroatoms which may be empty)
+    const ringAtoms = ring.atoms || [];
+    const heteroAtomsList = ringAtoms.filter(
+      (a) => a.symbol !== "C" && a.symbol !== "H",
+    );
+
+    // Get locants for heteroatoms
+    const locants = parentStructure.locants || [];
+    const heteroatomsWithLocants = heteroAtomsList
+      .map((atom) => {
+        const atomIndex = ringAtoms.findIndex((a) => a.id === atom.id);
+        return {
+          atom,
+          atomIndex,
+          locant: locants[atomIndex] ?? atomIndex + 1,
+        };
+      })
+      .sort((a, b) => a.locant - b.locant);
+
+    if (process.env.VERBOSE) {
+      console.log(
+        `[buildSubstitutiveName] Checking for partially saturated heterocycle transformation`,
+      );
+      console.log(`[buildSubstitutiveName]   name="${name}"`);
+      console.log(
+        `[buildSubstitutiveName]   ringAtoms:`,
+        ringAtoms.map((a) => `${a.id}:${a.symbol}`).join(", "),
+      );
+      console.log(`[buildSubstitutiveName]   locants:`, locants);
+      console.log(
+        `[buildSubstitutiveName]   heteroAtomsList.length=${heteroAtomsList.length}`,
+      );
+      console.log(
+        `[buildSubstitutiveName]   heteroatomsWithLocants:`,
+        heteroatomsWithLocants
+          .map((h) => `${h.atom.symbol}@${h.locant}(idx:${h.atomIndex})`)
+          .join(", "),
+      );
+      console.log(`[buildSubstitutiveName]   ring.size=${ring.size}`);
+    }
+
+    // Check if this is a partially saturated 5-membered heterocycle
+    // Common patterns: thiazoline, imidazoline, oxazoline, pyrazoline
+    const partiallySaturatedPattern =
+      /^(.+?)(thiazoline|imidazoline|oxazoline|pyrazoline)$/;
+    const match = name.match(partiallySaturatedPattern);
+
+    if (process.env.VERBOSE) {
+      console.log(`[buildSubstitutiveName]   pattern match:`, match);
+    }
+
+    if (match && heteroatomsWithLocants.length >= 2) {
+      const prefix = match[1] || "";
+      const ringType = match[2] || "";
+
+      // Get heteroatom positions (locants)
+      const heteroatomLocants = heteroatomsWithLocants.map((h) => h.locant);
+
+      if (heteroatomLocants.length >= 2 && ring.size === 5) {
+        // Determine which position has the saturated carbon (added hydrogen)
+        // For thiazoline (N=C-S-C-C with one double bond), the saturated position is typically position 4 or 5
+        // Standard thiazoline numbering: N(1)=C(2)-S(3)-C(4)-C(5) where C4 or C5 is saturated
+
+        let hydrogenPosition = 4; // Default for thiazoline-like rings
+
+        // For specific ring types, adjust hydrogen position
+        if (ringType === "imidazoline") {
+          hydrogenPosition = 2; // Imidazoline typically has 2H
+        }
+
+        // Build the heteroatom locant string (e.g., "1,3")
+        const heteroLocantStr = heteroatomLocants.join(",");
+
+        // Transform the ring name: "thiazoline" → "thiazol", "imidazoline" → "imidazol"
+        const baseName = ringType.replace(/ine$/, "");
+
+        // Reconstruct name with indicated hydrogen format
+        // Example: "5-methylidenethiazoline" → "5-methylidene-4H-1,3-thiazol"
+        const separator = prefix.length > 0 ? "-" : "";
+        name = `${prefix}${separator}${hydrogenPosition}H-${heteroLocantStr}-${baseName}`;
+
+        // Renumber substituent locants from old thiazoline numbering to new 1,3-thiazol numbering
+        // Old numbering (N-first): N(1), C(2), S(3), C(4), C(5)
+        // New numbering (S-first): S(1), C(2), N(3), C(4), C(5)
+        // We need to map: old locant → new locant based on actual atom positions
+        if (prefix.length > 0 && ringAtoms.length === 5) {
+          // Build mapping from old locants to new locants
+          // ringAtoms is in the OLD numbering order (N-first)
+          // We need to renumber based on S-first (standard 1,3-thiazol numbering)
+
+          // Find sulfur and nitrogen atom indices in ringAtoms
+          const sulfurIndex = ringAtoms.findIndex((a) => a.symbol === "S");
+          const nitrogenIndex = ringAtoms.findIndex((a) => a.symbol === "N");
+
+          if (sulfurIndex !== -1 && nitrogenIndex !== -1) {
+            // Create old-to-new locant mapping
+            // For 1,3-thiazol: S at position 1, N at position 3
+            // We need to determine the direction to traverse the ring from S to N
+            const locantMapping: Map<number, number> = new Map();
+
+            // Calculate forward and backward distances from S to N
+            const forwardDist =
+              (nitrogenIndex - sulfurIndex + ringAtoms.length) %
+              ringAtoms.length;
+            const backwardDist =
+              (sulfurIndex - nitrogenIndex + ringAtoms.length) %
+              ringAtoms.length;
+
+            // Choose direction that puts N at position 3 (i.e., 2 steps away from S)
+            // For 1,3-thiazol, N should be at position 3, which is 2 positions from S (at position 1)
+            const goBackward = backwardDist === 2;
+
+            if (process.env.VERBOSE) {
+              console.log(
+                `[buildSubstitutiveName] Ring traversal: S at index ${sulfurIndex}, N at index ${nitrogenIndex}`,
+              );
+              console.log(
+                `[buildSubstitutiveName] Forward dist: ${forwardDist}, Backward dist: ${backwardDist}`,
+              );
+              console.log(
+                `[buildSubstitutiveName] Direction: ${goBackward ? "backward" : "forward"}`,
+              );
+            }
+
+            // Map each old locant to new locant based on chosen direction
+            for (let i = 0; i < ringAtoms.length; i++) {
+              const oldLocant = i + 1; // Old locant (1-based, N-first)
+              let newPosition: number;
+
+              if (goBackward) {
+                // Traverse backward from S
+                newPosition =
+                  (sulfurIndex - i + ringAtoms.length) % ringAtoms.length;
+              } else {
+                // Traverse forward from S
+                newPosition =
+                  (i - sulfurIndex + ringAtoms.length) % ringAtoms.length;
+              }
+
+              const newLocant = newPosition + 1; // New locant (1-based, S-first)
+              locantMapping.set(oldLocant, newLocant);
+            }
+
+            if (process.env.VERBOSE) {
+              console.log(
+                `[buildSubstitutiveName] Locant mapping (old→new):`,
+                Array.from(locantMapping.entries())
+                  .map(([old, n]) => `${old}→${n}`)
+                  .join(", "),
+              );
+            }
+
+            // Update substituent locants in the prefix
+            // Parse prefix to extract locant-substituent pairs
+            // Example: "4-methylidene" → extract locant 4, replace with new locant
+            const prefixPattern = /(\d+)-([a-z]+)/g;
+            let updatedPrefix = prefix;
+            let match2: RegExpExecArray | null;
+
+            while ((match2 = prefixPattern.exec(prefix)) !== null) {
+              const oldLocantStr = match2[1];
+              const substituentName = match2[2];
+              const oldLocant = Number.parseInt(oldLocantStr || "0", 10);
+              const newLocant = locantMapping.get(oldLocant);
+
+              if (newLocant !== undefined && newLocant !== oldLocant) {
+                // Replace old locant with new locant
+                const oldPattern = `${oldLocant}-${substituentName}`;
+                const newPattern = `${newLocant}-${substituentName}`;
+                updatedPrefix = updatedPrefix.replace(oldPattern, newPattern);
+
+                if (process.env.VERBOSE) {
+                  console.log(
+                    `[buildSubstitutiveName] Updated substituent locant: "${oldPattern}" → "${newPattern}"`,
+                  );
+                }
+              }
+            }
+
+            // Reconstruct name with updated prefix
+            if (updatedPrefix !== prefix) {
+              const sep = updatedPrefix.length > 0 ? "-" : "";
+              name = `${updatedPrefix}${sep}${hydrogenPosition}H-${heteroLocantStr}-${baseName}`;
+
+              if (process.env.VERBOSE) {
+                console.log(
+                  `[buildSubstitutiveName] Name after locant renumbering: "${name}"`,
+                );
+              }
+            }
+          }
+        }
+
+        if (process.env.VERBOSE) {
+          console.log(
+            `[buildSubstitutiveName] Transformed partially saturated heterocycle:`,
+            `"${match[0]}" → "${name}"`,
+          );
+          console.log(
+            `[buildSubstitutiveName] Heteroatom locants: ${heteroLocantStr}, H position: ${hydrogenPosition}`,
+          );
+        }
+      }
+    }
+  }
+
   // Add principal functional group suffix
   // Aggregate multiple principal groups of the same type into a single multiplicative group
   const allPrincipalGroups = functionalGroups.filter(
@@ -2255,18 +2655,21 @@ export function buildSubstitutiveName(
         (principalGroup.type === "imine" || principalGroup.type === "amine") &&
         principalGroup.suffix === "amine"
       ) {
+        if (process.env.VERBOSE) {
+          console.log(
+            `[buildSubstitutiveName] Calling detectNSubstituents for principalGroup.type="${principalGroup.type}", suffix="${principalGroup.suffix}"`,
+          );
+        }
         nSubstituentsPrefix = detectNSubstituents(
           principalGroup,
           parentStructure,
           molecule,
           opsinService,
         );
-        if (process.env.VERBOSE && nSubstituentsPrefix) {
-          if (process.env.VERBOSE) {
-            console.log(
-              `[buildSubstitutiveName] N-substituents detected: ${nSubstituentsPrefix}`,
-            );
-          }
+        if (process.env.VERBOSE) {
+          console.log(
+            `[buildSubstitutiveName] N-substituents detected: "${nSubstituentsPrefix}"`,
+          );
         }
 
         // Parse N-substituent string to extract locants and base name
@@ -2329,7 +2732,8 @@ export function buildSubstitutiveName(
         // Note: The parent name might have lost its trailing 'e' when joined (e.g., "azirine" → "azirin")
 
         // Find where the parent name starts in the assembled name
-        // Try both the full parent name and without trailing 'e'
+        // For heterocycles that were transformed (e.g., "thiazoline" → "4H-1,3-thiazol"),
+        // we need to detect the transformed parent portion
         const fullParentName =
           parentStructure.assembledName || parentStructure.name || "";
         let parentName = fullParentName;
@@ -2341,6 +2745,25 @@ export function buildSubstitutiveName(
           parentIndex = name.indexOf(parentWithoutE);
           if (parentIndex !== -1) {
             parentName = parentWithoutE;
+          }
+        }
+
+        // Special case: Check for partially saturated heterocycle transformation
+        // Pattern: "[substituents]-4H-1,3-thiazol" where parent was originally "thiazoline"
+        // Look for patterns like "XH-Y,Z-baseName" where X,Y,Z are digits
+        if (parentIndex === -1 && parentStructure.type === "ring") {
+          // Try to match a transformed heterocycle pattern: "XH-Y,Z-baseName"
+          const heterocyclePattern = /(\d+H-[\d,]+-[a-z]+)$/;
+          const match = name.match(heterocyclePattern);
+          if (match && match[1]) {
+            // Found a transformed heterocycle parent
+            parentName = match[1];
+            parentIndex = name.indexOf(parentName);
+            if (process.env.VERBOSE) {
+              console.log(
+                `[buildSubstitutiveName] Detected transformed heterocycle parent: "${parentName}"`,
+              );
+            }
           }
         }
 
@@ -2402,14 +2825,9 @@ export function buildSubstitutiveName(
               existingParts.push(remaining.substring(lastIdx, splitIdx));
               lastIdx = splitIdx + 1; // Skip the hyphen
             }
-            // Add the last part
+            // Add the last part (or entire string if no split points)
             if (lastIdx < remaining.length) {
               existingParts.push(remaining.substring(lastIdx));
-            }
-
-            // If no split points found, treat entire string as one part
-            if (splitPoints.length === 0 && remaining.length > 0) {
-              existingParts.push(remaining);
             }
           }
 
@@ -2469,8 +2887,15 @@ export function buildSubstitutiveName(
 
             // Strip outer parentheses from base name if present
             // E.g., "(propan-2-ylsulfanyl)" becomes "propan-2-ylsulfanyl"
-            while (baseName.startsWith("(") && baseName.endsWith(")")) {
-              baseName = baseName.slice(1, -1);
+            // BUT preserve parentheses for N-aryl substituents like "(3-chloro-4-fluorophenyl)"
+            const isNLocant = locantsStr.split(",").some((loc) => loc === "N");
+            const hasComplexStructure = baseName.includes("-");
+            const shouldPreserveParentheses = isNLocant && hasComplexStructure;
+
+            if (!shouldPreserveParentheses) {
+              while (baseName.startsWith("(") && baseName.endsWith(")")) {
+                baseName = baseName.slice(1, -1);
+              }
             }
 
             // Split locants by comma
@@ -2599,15 +3024,27 @@ export function buildSubstitutiveName(
                 : lastPart;
 
             // If last substituent ends with a connector suffix, attach directly without hyphen
+            // UNLESS the parent starts with a locant indicator (digit or special format like "4H-")
             const connectorSuffixes = ["yl", "ylidene", "ylidyne", "ylium"];
             const endsWithConnector = connectorSuffixes.some((suffix) =>
               lastSubstName.endsWith(suffix),
             );
 
-            if (endsWithConnector && groupedParts.length === 1) {
+            // Check if parent starts with a locant or special indicator that needs a hyphen
+            const parentNeedsHyphen = /^[\d]/.test(parentPortion);
+
+            if (
+              endsWithConnector &&
+              groupedParts.length === 1 &&
+              !parentNeedsHyphen
+            ) {
               // Single substituent ending with connector: attach directly
               name = lastPart + parentPortion;
-            } else if (endsWithConnector && groupedParts.length > 1) {
+            } else if (
+              endsWithConnector &&
+              groupedParts.length > 1 &&
+              !parentNeedsHyphen
+            ) {
               // Multiple substituents, last one ending with connector
               const allButLast = groupedParts.slice(0, -1).join("-");
               name = allButLast + "-" + lastPart + parentPortion;

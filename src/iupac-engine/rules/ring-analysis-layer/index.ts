@@ -8,6 +8,7 @@ import { P44_1_1_PRINCIPAL_CHARACTERISTIC_GROUPS_RULE } from "./P-44.1.1-princip
 import { P2_3_RING_ASSEMBLIES_RULE } from "./P-2.3-ring-assemblies";
 import { P2_4_SPIRO_COMPOUNDS_RULE } from "./P-2.4-spiro-compounds";
 import { P2_5_FUSED_RING_SYSTEMS_RULE } from "./P-2.5-fused-ring-systems";
+import { P44_4_RING_CHAIN_SELECTION_RULE } from "../initial-structure-layer/P-44.4-ring-vs-chain";
 
 /**
  * Ring Analysis Layer Rules (P-44.2, P-44.4)
@@ -29,6 +30,7 @@ export const RING_ANALYSIS_LAYER_RULES: IUPACRule[] = [
   P2_3_RING_ASSEMBLIES_RULE,
   P2_4_SPIRO_COMPOUNDS_RULE,
   P2_5_FUSED_RING_SYSTEMS_RULE,
+  P44_4_RING_CHAIN_SELECTION_RULE, // Must run BEFORE ring-selection-complete
   RING_SELECTION_COMPLETE_RULE,
 ];
 
@@ -42,6 +44,7 @@ export {
   P2_3_RING_ASSEMBLIES_RULE,
   P2_4_SPIRO_COMPOUNDS_RULE,
   P2_5_FUSED_RING_SYSTEMS_RULE,
+  P44_4_RING_CHAIN_SELECTION_RULE,
 };
 
 // Re-export helper functions

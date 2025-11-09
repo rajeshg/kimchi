@@ -9,6 +9,7 @@ describe("Regression: triazine with methylsulfanyl substituents (issue #16)", ()
     const mol = result.molecules[0];
 
     expect(mol).toBeDefined();
+    if (!mol) throw new Error("Failed to parse molecule");
 
     const iupacName = generateIUPACName(mol);
 
@@ -24,6 +25,7 @@ describe("Regression: triazine with methylsulfanyl substituents (issue #16)", ()
     const mol = result.molecules[0];
 
     expect(mol).toBeDefined();
+    if (!mol) throw new Error("Failed to parse molecule");
 
     const iupacName = generateIUPACName(mol);
 

@@ -2612,6 +2612,102 @@ export function getAlkoxyGroupName(
     }
   }
 
+  // 2c. Detect hydroxyl (-OH) groups on alkoxy chain
+  if (process.env.VERBOSE) {
+    console.log(
+      "[getAlkoxyGroupName] 2c. Starting hydroxyl detection, carbonChain length:",
+      carbonChain.length,
+    );
+  }
+  for (let i = 0; i < carbonChain.length; i++) {
+    const carbonId = carbonChain[i];
+    if (carbonId === undefined) continue;
+
+    if (process.env.VERBOSE) {
+      console.log(
+        `[getAlkoxyGroupName] 2c. Checking carbon ${carbonId} at position ${i + 1}`,
+      );
+    }
+
+    // Find oxygen atoms connected to this carbon (excluding ester oxygen)
+    for (const bond of molecule.bonds) {
+      if (bond.type === "single") {
+        let oxygenId: number | undefined;
+
+        if (
+          bond.atom1 === carbonId &&
+          molecule.atoms[bond.atom2]?.symbol === "O"
+        ) {
+          oxygenId = bond.atom2;
+        } else if (
+          bond.atom2 === carbonId &&
+          molecule.atoms[bond.atom1]?.symbol === "O"
+        ) {
+          oxygenId = bond.atom1;
+        }
+
+        if (oxygenId !== undefined && oxygenId !== esterOxygenId) {
+          const oxygenAtom = molecule.atoms[oxygenId];
+          if (!oxygenAtom) continue;
+
+          if (process.env.VERBOSE) {
+            console.log(
+              `[getAlkoxyGroupName] 2c. Found oxygen ${oxygenId} at carbon ${carbonId} position ${i + 1}, hydrogens=${oxygenAtom.hydrogens}`,
+            );
+          }
+
+          // Check if this is a hydroxyl group (O with 1 hydrogen, not bonded to another C/Si)
+          // Need to ensure it's not part of an ether (R-O-R') or silyloxy (R-O-Si)
+          let isBondedToCarbon = false;
+          let isBondedToSilicon = false;
+
+          for (const bond2 of molecule.bonds) {
+            if (bond2.type === "single") {
+              let otherAtomId: number | undefined;
+              if (bond2.atom1 === oxygenId && bond2.atom2 !== carbonId) {
+                otherAtomId = bond2.atom2;
+              } else if (bond2.atom2 === oxygenId && bond2.atom1 !== carbonId) {
+                otherAtomId = bond2.atom1;
+              }
+
+              if (otherAtomId !== undefined) {
+                const otherAtom = molecule.atoms[otherAtomId];
+                if (otherAtom?.symbol === "C") {
+                  isBondedToCarbon = true;
+                  break;
+                }
+                if (otherAtom?.symbol === "Si") {
+                  isBondedToSilicon = true;
+                  break;
+                }
+              }
+            }
+          }
+
+          // If oxygen has 1 hydrogen and is not bonded to C or Si, it's a hydroxyl
+          if (
+            oxygenAtom.hydrogens === 1 &&
+            !isBondedToCarbon &&
+            !isBondedToSilicon
+          ) {
+            const position = i + 1;
+            alkoxySubstituents.push({
+              position,
+              name: "hydroxy",
+              type: "hydroxyl",
+            });
+            if (process.env.VERBOSE) {
+              console.log(
+                `[getAlkoxyGroupName] 2c. Found hydroxyl at position ${position}`,
+              );
+            }
+            break; // Only one hydroxyl per carbon
+          }
+        }
+      }
+    }
+  }
+
   // 3. Check each carbon in the alkoxy chain for O-Si groups (silyloxy substituents)
   type SilyloxySubstituent = {
     position: number;
@@ -2861,14 +2957,53 @@ export function getAlkoxyGroupName(
     return baseName;
   } else {
     // Branched alkyl group - need to name the branches
-    const branchNames: string[] = [];
+    // Group branches by position and name to handle gem-dimethyl, etc.
+    type BranchSubstituent = {
+      position: number;
+      name: string;
+    };
+    const branchSubstituents: BranchSubstituent[] = [];
 
     for (const [position, branchCarbons] of branches) {
       for (const _branchId of branchCarbons) {
         // Simple case: assume single carbon branch (methyl)
-        branchNames.push(`${position}-methyl`);
+        branchSubstituents.push({ position, name: "methyl" });
       }
     }
+
+    // Group by name to detect identical branches at different positions
+    const branchByName = new Map<string, number[]>();
+    for (const sub of branchSubstituents) {
+      if (!branchByName.has(sub.name)) {
+        branchByName.set(sub.name, []);
+      }
+      branchByName.get(sub.name)!.push(sub.position);
+    }
+
+    // Build branch prefix parts with multiplicative prefixes for identical branches
+    const branchPrefixParts: string[] = [];
+    const sortedBranchNames = Array.from(branchByName.keys()).sort();
+
+    for (const name of sortedBranchNames) {
+      const positions = branchByName.get(name)!;
+      positions.sort((a, b) => a - b); // Sort positions numerically
+      const positionString = positions.join(",");
+
+      if (positions.length === 1) {
+        // Single branch: "2-methyl"
+        branchPrefixParts.push(`${positionString}-${name}`);
+      } else {
+        // Multiple identical branches: "2,4,4-trimethyl"
+        const multiplicity = positions.length;
+        const multiplicativePrefix = getSimpleMultiplier(
+          multiplicity,
+          opsinService ?? getSharedOPSINService(),
+        );
+        branchPrefixParts.push(`${positionString}-${multiplicativePrefix}${name}`);
+      }
+    }
+
+    const branchesPrefix = branchPrefixParts.join("-");
 
     const alkylPrefixes = [
       "",
@@ -2889,8 +3024,8 @@ export function getAlkoxyGroupName(
         : `C${chainLength}-alk`;
 
     const allSubstituents = substituentsPrefix
-      ? `${substituentsPrefix}-${branchNames.join("-")}`
-      : branchNames.join("-");
+      ? `${substituentsPrefix}-${branchesPrefix}`
+      : branchesPrefix;
     // Wrap in parentheses for complex alkyl names
     return `(${allSubstituents}${baseName}yl)`;
   }
@@ -3931,7 +4066,12 @@ export function buildEsterName(
         const loc = s.locant;
         const name = s.name || s.type;
         if (loc && name && !(name || "").toLowerCase().includes("oxy")) {
-          acylSubParts.push(`${loc}-${name}`);
+          // For 1-carbon chains (formate/methanoate), omit locant since there's only one position
+          if (carbonCount === 1) {
+            acylSubParts.push(name);
+          } else {
+            acylSubParts.push(`${loc}-${name}`);
+          }
         }
       }
 
@@ -3952,7 +4092,9 @@ export function buildEsterName(
         carbonCount < baseNames.length
           ? baseNames[carbonCount]
           : `C${carbonCount}-alkane`;
-      const baseAnoate = (base || "").replace("ane", "anoate");
+      // Special case: 1-carbon esters use "formate" not "methanoate"
+      const baseAnoate =
+        carbonCount === 1 ? "formate" : (base || "").replace("ane", "anoate");
       acylName =
         acylSubParts.length > 0
           ? `${acylSubParts.join(",")}${baseAnoate}`

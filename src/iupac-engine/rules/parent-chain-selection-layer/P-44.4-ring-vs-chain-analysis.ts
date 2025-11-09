@@ -10,6 +10,7 @@ import type { NamingSubstituent } from "../../naming/iupac-types";
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const {
   findSubstituentsOnMonocyclicRing: _findSubstituentsOnMonocyclicRing,
+  getHeterocyclicName: _getHeterocyclicName,
 } = require("../../naming/iupac-rings");
 
 /**
@@ -113,24 +114,41 @@ export const P44_4_RING_VS_CHAIN_IN_CHAIN_ANALYSIS_RULE: IUPACRule = {
       (ring.atoms && ring.atoms.some((a) => a.aromatic)
         ? "aromatic"
         : "aliphatic");
+
+    // Check for heterocyclic name first
     let name = "";
-    if (type === "aromatic") {
-      const aromaticNames: { [key: number]: string } = {
-        6: "benzene",
-        5: "cyclopentadiene",
-        7: "cycloheptatriene",
-      };
-      name = aromaticNames[ringSize] || `aromatic-${ringSize}-membered`;
-    } else {
-      const ringNames: { [key: number]: string } = {
-        3: "cyclopropane",
-        4: "cyclobutane",
-        5: "cyclopentane",
-        6: "cyclohexane",
-        7: "cycloheptane",
-        8: "cyclooctane",
-      };
-      name = ringNames[ringSize] || `cyclo${ringSize}ane`;
+    const mol = state.molecule;
+    if (ring && ring.atoms && mol) {
+      const atomIndices = ring.atoms.map((a) => a.id);
+      const heterocyclicName = _getHeterocyclicName(atomIndices, mol);
+      if (heterocyclicName) {
+        name = heterocyclicName;
+        if (process.env.VERBOSE) {
+          console.log("[P-44.4] Using heterocyclic name:", name);
+        }
+      }
+    }
+
+    // Fallback to generic names if no heterocyclic name found
+    if (!name) {
+      if (type === "aromatic") {
+        const aromaticNames: { [key: number]: string } = {
+          6: "benzene",
+          5: "cyclopentadiene",
+          7: "cycloheptatriene",
+        };
+        name = aromaticNames[ringSize] || `aromatic-${ringSize}-membered`;
+      } else {
+        const ringNames: { [key: number]: string } = {
+          3: "cyclopropane",
+          4: "cyclobutane",
+          5: "cyclopentane",
+          6: "cyclohexane",
+          7: "cycloheptane",
+          8: "cyclooctane",
+        };
+        name = ringNames[ringSize] || `cyclo${ringSize}ane`;
+      }
     }
     const locants =
       ring && ring.atoms ? ring.atoms.map((_, idx: number) => idx + 1) : [];

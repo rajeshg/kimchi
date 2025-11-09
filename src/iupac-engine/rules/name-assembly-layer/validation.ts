@@ -41,7 +41,8 @@ export function applyFinalFormatting(name: string): string {
 
   // Ensure there's a hyphen between a locant digit and the following text when missing
   // e.g., convert "6hydroxy7methyl" -> "6-hydroxy7-methyl" (further hyphenation follows)
-  formatted = formatted.replace(/(\d)(?=[A-Za-z])/g, "$1-");
+  // Exception: Don't add hyphen in indicated hydrogen notation (e.g., "4H-", "2H-")
+  formatted = formatted.replace(/(\d)(?=[A-GI-Za-gi-z])/g, "$1-");
 
   if (process.env.VERBOSE) {
     console.log(

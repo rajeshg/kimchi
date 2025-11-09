@@ -82,6 +82,23 @@ export function detectRingSystems(molecule: Molecule): unknown[] {
     groups.get(root)!.push(i);
   }
 
+  // DEBUG: Log groups for debugging
+  if (process.env.VERBOSE) {
+    console.log(`[detectRingSystems] Total rings: ${rings.length}`);
+    console.log(
+      `[detectRingSystems] Groups Map:`,
+      Array.from(groups.entries()),
+    );
+    for (const [root, ringIndices] of groups) {
+      console.log(
+        `  Group ${root}: ${ringIndices.length} rings, indices: [${ringIndices.join(", ")}]`,
+      );
+      for (const idx of ringIndices) {
+        console.log(`    Ring ${idx}:`, rings[idx]);
+      }
+    }
+  }
+
   // Build ring systems from groups
   for (const [_root, ringIndices] of groups) {
     // Collect all unique atoms and bonds from all rings in this system
@@ -365,6 +382,133 @@ export function generateRingName(
       return "diaziridin-3-one";
     }
     return "diaziridine";
+  }
+
+  // Check for saturated multi-heteroatom heterocycles (5-membered rings)
+  if (type !== "aromatic" && totalHetero >= 2 && size === 5) {
+    // Check if saturated (no double bonds in ring)
+    const ringIndices = atoms.map((atom) => atom.id);
+    const doubleBondsInRing = (ringSystem.bonds || []).filter((bond) => {
+      const isInRing =
+        ringIndices.includes(bond.atom1) && ringIndices.includes(bond.atom2);
+      return isInRing && bond.type === BondType.DOUBLE;
+    });
+
+    const isSaturated = doubleBondsInRing.length === 0;
+
+    if (isSaturated) {
+      // Imidazolidine: 5-membered ring with 2 nitrogens (N-C-C-N-C pattern)
+      if (hasNitrogen === 2 && totalHetero === 2) {
+        // Check for exocyclic carbonyl on ring carbon
+        let hasRingCarbonyl = false;
+        if (molecule) {
+          for (const bond of molecule.bonds) {
+            if (bond.type === BondType.DOUBLE) {
+              const atom1 = molecule.atoms[bond.atom1];
+              const atom2 = molecule.atoms[bond.atom2];
+
+              if (atom1 && atom2) {
+                const atom1InRing = ringIndices.includes(atom1.id);
+                const atom2InRing = ringIndices.includes(atom2.id);
+
+                // Check if one atom is a ring carbon and the other is an exocyclic oxygen
+                if (
+                  (atom1InRing &&
+                    atom1.symbol === "C" &&
+                    !atom2InRing &&
+                    atom2.symbol === "O") ||
+                  (atom2InRing &&
+                    atom2.symbol === "C" &&
+                    !atom1InRing &&
+                    atom1.symbol === "O")
+                ) {
+                  hasRingCarbonyl = true;
+                  break;
+                }
+              }
+            }
+          }
+        }
+
+        if (hasRingCarbonyl) {
+          return "imidazolidin-4-one";
+        }
+        return "imidazolidine";
+      }
+
+      // Thiazolidine: 5-membered ring with 1 nitrogen + 1 sulfur (C-S-C-N-C pattern)
+      if (hasNitrogen === 1 && hasSulfur === 1 && totalHetero === 2) {
+        return "thiazolidine";
+      }
+
+      // Oxazolidine: 5-membered ring with 1 nitrogen + 1 oxygen (O-C-N-C-C pattern)
+      if (hasNitrogen === 1 && hasOxygen === 1 && totalHetero === 2) {
+        return "oxazolidine";
+      }
+
+      // Dioxolane: 5-membered ring with 2 oxygens
+      if (hasOxygen === 2 && totalHetero === 2) {
+        return "dioxolane";
+      }
+    }
+
+    // Check for partially unsaturated 5-membered heterocycles (one double bond)
+    // Examples: thiazoline, imidazoline, oxazoline
+    if (!isSaturated) {
+      const doubleBondCount = doubleBondsInRing.length;
+
+      // Thiazoline: 5-membered ring with 1 nitrogen + 1 sulfur + 1 C=N double bond
+      if (
+        hasNitrogen === 1 &&
+        hasSulfur === 1 &&
+        totalHetero === 2 &&
+        doubleBondCount === 1
+      ) {
+        const doubleBond = doubleBondsInRing[0]!;
+        const atom1 = atoms.find((a) => a.id === doubleBond.atom1);
+        const atom2 = atoms.find((a) => a.id === doubleBond.atom2);
+        // Check if double bond is C=N
+        if (
+          (atom1?.symbol === "N" && atom2?.symbol === "C") ||
+          (atom1?.symbol === "C" && atom2?.symbol === "N")
+        ) {
+          return "thiazoline";
+        }
+      }
+
+      // Imidazoline: 5-membered ring with 2 nitrogens + 1 C=N double bond
+      if (hasNitrogen === 2 && totalHetero === 2 && doubleBondCount === 1) {
+        const doubleBond = doubleBondsInRing[0]!;
+        const atom1 = atoms.find((a) => a.id === doubleBond.atom1);
+        const atom2 = atoms.find((a) => a.id === doubleBond.atom2);
+        // Check if double bond is C=N
+        if (
+          (atom1?.symbol === "N" && atom2?.symbol === "C") ||
+          (atom1?.symbol === "C" && atom2?.symbol === "N")
+        ) {
+          return "imidazoline";
+        }
+      }
+
+      // Oxazoline: 5-membered ring with 1 nitrogen + 1 oxygen + 1 C=N double bond
+      if (
+        hasNitrogen === 1 &&
+        hasOxygen === 1 &&
+        totalHetero === 2 &&
+        doubleBondCount === 1
+      ) {
+        const doubleBond = doubleBondsInRing[0]!;
+        const atom1 = atoms.find((a) => a.id === doubleBond.atom1);
+        const atom2 = atoms.find((a) => a.id === doubleBond.atom2);
+        // Check if double bond is C=N
+        if (
+          (atom1?.symbol === "N" && atom2?.symbol === "C") ||
+          (atom1?.symbol === "C" && atom2?.symbol === "N")
+        ) {
+          return "oxazoline";
+        }
+      }
+    }
   }
 
   // Check for saturated heterocycles (3-6 membered rings with one heteroatom)

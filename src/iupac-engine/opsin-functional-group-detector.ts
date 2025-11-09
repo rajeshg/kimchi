@@ -830,6 +830,8 @@ export class OPSINFunctionalGroupDetector {
   ): number[] {
     // Look for C=N imine bonds within rings (e.g., azirine)
     // For azirine: the C=N bond should get the -amine suffix
+    // IMPORTANT: Only detect imines in simple hydrocarbon rings (C and N only)
+    // Do NOT detect C=N in heterocycles (rings containing S, O, etc.)
     if (process.env.VERBOSE) {
       console.log(
         `[findImineInRingPattern] Called with ${rings?.length || 0} rings`,
@@ -843,6 +845,30 @@ export class OPSINFunctionalGroupDetector {
           `[findImineInRingPattern] Checking ring: [${ring.join(", ")}]`,
         );
       }
+
+      // Check if this ring is a heterocycle (contains heteroatoms other than the N in C=N)
+      const ringAtoms = ring.map((atomId) => atoms[atomId]);
+      const heteroatomsInRing = ringAtoms.filter(
+        (atom) => atom && atom.symbol !== "C" && atom.symbol !== "H",
+      );
+
+      if (process.env.VERBOSE) {
+        console.log(
+          `[findImineInRingPattern] Ring heteroatoms: ${heteroatomsInRing.map((a) => a?.symbol).join(", ")}`,
+        );
+      }
+
+      // If ring contains heteroatoms besides N, it's a heterocycle - skip imine detection
+      // Exception: if the ring contains exactly 1 N (which is part of C=N), it could be azirine
+      if (heteroatomsInRing.length > 1) {
+        if (process.env.VERBOSE) {
+          console.log(
+            `[findImineInRingPattern] Skipping heterocycle ring (contains ${heteroatomsInRing.length} heteroatoms)`,
+          );
+        }
+        continue;
+      }
+
       // Check for C=N double bond within this ring
       for (const bond of bonds) {
         if (bond.type !== "double") continue;
@@ -863,7 +889,7 @@ export class OPSINFunctionalGroupDetector {
           const carbonAtom = atom1.symbol === "C" ? atom1 : atom2;
           if (process.env.VERBOSE) {
             console.log(
-              `[findImineInRingPattern] Found C=N bond: ${bond.atom1}=${bond.atom2}, returning carbon atom ${carbonAtom.id}`,
+              `[findImineInRingPattern] Found C=N bond in simple ring: ${bond.atom1}=${bond.atom2}, returning carbon atom ${carbonAtom.id}`,
             );
           }
           return [carbonAtom.id];
@@ -1127,20 +1153,35 @@ export class OPSINFunctionalGroupDetector {
     ring: readonly number[],
     atoms: readonly Atom[],
   ): boolean {
-    // Check if this is a heterocycle with a carbonyl (e.g., diaziridin-3-one)
-    // Simple heuristic: 3-membered ring with 2+ heteroatoms (N, O, S) and a C=O
+    // Check if this is a heterocycle with a carbonyl (lactam rings)
+    // Lactams: cyclic amides with C=O in the ring (e.g., pyrrolidin-2-one, piperidin-2-one, piperazin-2-one)
     const ringAtoms = ring
       .map((idx) => atoms[idx])
       .filter((a): a is Atom => a !== undefined);
 
-    if (ringAtoms.length === 3) {
-      const heteroCount = ringAtoms.filter((a) => a.symbol !== "C").length;
-      const nitrogenCount = ringAtoms.filter((a) => a.symbol === "N").length;
+    const ringSize = ringAtoms.length;
+    const nitrogenCount = ringAtoms.filter((a) => a.symbol === "N").length;
+    const carbonCount = ringAtoms.filter((a) => a.symbol === "C").length;
 
-      // Diaziridin-3-one case: 3-membered ring, 2 nitrogens, 1 carbon with C=O
-      if (nitrogenCount === 2 && heteroCount === 2) {
-        return true;
-      }
+    // Check for lactam patterns:
+    // 1. 3-membered rings: diaziridin-3-one (2N, 1C)
+    if (ringSize === 3 && nitrogenCount === 2 && carbonCount === 1) {
+      return true;
+    }
+
+    // 2. 5-membered rings: pyrrolidin-2-one (1N, 4C)
+    if (ringSize === 5 && nitrogenCount === 1 && carbonCount === 4) {
+      return true;
+    }
+
+    // 3. 6-membered rings with single N: piperidin-2-one (1N, 5C)
+    if (ringSize === 6 && nitrogenCount === 1 && carbonCount === 5) {
+      return true;
+    }
+
+    // 4. 6-membered rings with dual N: piperazin-2-one (2N, 4C)
+    if (ringSize === 6 && nitrogenCount === 2 && carbonCount === 4) {
+      return true;
     }
 
     return false;
@@ -1605,17 +1646,21 @@ export class OPSINFunctionalGroupDetector {
     bonds: readonly Bond[],
     rings?: readonly (readonly number[])[],
   ): number[] {
-    // Look for nitrogen attached to aromatic ring, but NOT part of an aromatic ring itself
+    // Look for nitrogen attached to aromatic ring, but NOT part of ANY ring itself
+    // Aniline must be an exocyclic nitrogen attached to benzene
     for (let i = 0; i < atoms.length; i++) {
       const atom = atoms[i];
       if (!atom || atom.symbol !== "N") continue;
 
-      // Skip nitrogen atoms that are part of aromatic rings (heterocycles like pyridine)
-      if (atom.aromatic && rings) {
-        const inRing = rings.some((ring) => ring.includes(atom.id));
-        if (inRing) {
-          continue;
-        }
+      // Skip nitrogen atoms that are part of ANY ring (aromatic or not)
+      // This excludes heterocycles like pyridine, thiazoline, imidazole, etc.
+      if (rings && rings.some((ring) => ring.includes(atom.id))) {
+        continue;
+      }
+
+      // Also check using isInRing flag for safety
+      if (atom.isInRing) {
+        continue;
       }
 
       const aromaticCarbons = bonds.filter((bond) => {

@@ -610,7 +610,7 @@ function generateBridgedName(
   return `bridged_C${molecule.atoms.length}`;
 }
 
-function getHeterocyclicName(
+export function getHeterocyclicName(
   ring: number[],
   molecule: Molecule,
 ): string | null {
@@ -634,34 +634,42 @@ function getHeterocyclicName(
   // Count double bonds in the ring (excluding exocyclic C=O for lactones/lactams)
   let ringDoubleBonds = 0;
   let hasRingCarbonyl = false;
+  const countedBonds = new Set<string>();
 
   for (let i = 0; i < ring.length; i++) {
     const atomIdx = ring[i]!;
     const atom = molecule.atoms[atomIdx];
     if (!atom) continue;
 
-    // Check for carbonyl carbon in ring (C=O where C is in ring and O might be exocyclic)
-    if (atom.symbol === "C") {
-      for (const bond of molecule.bonds) {
-        if (bond.type === BondType.DOUBLE) {
-          const otherIdx =
-            bond.atom1 === atomIdx
-              ? bond.atom2
-              : bond.atom2 === atomIdx
-                ? bond.atom1
-                : -1;
-          if (otherIdx === -1) continue;
+    for (const bond of molecule.bonds) {
+      if (bond.type === BondType.DOUBLE) {
+        const otherIdx =
+          bond.atom1 === atomIdx
+            ? bond.atom2
+            : bond.atom2 === atomIdx
+              ? bond.atom1
+              : -1;
+        if (otherIdx === -1) continue;
 
-          const otherAtom = molecule.atoms[otherIdx];
-          if (!otherAtom) continue;
+        const otherAtom = molecule.atoms[otherIdx];
+        if (!otherAtom) continue;
 
-          // Carbonyl: C in ring, O might be in or out of ring
-          if (otherAtom.symbol === "O") {
-            hasRingCarbonyl = true;
-          } else if (ring.includes(otherIdx)) {
-            // Double bond entirely within ring (not a carbonyl)
-            ringDoubleBonds++;
-          }
+        // Create a unique bond identifier (smaller index first)
+        const bondId =
+          bond.atom1 < bond.atom2
+            ? `${bond.atom1}-${bond.atom2}`
+            : `${bond.atom2}-${bond.atom1}`;
+
+        // Skip if we've already counted this bond
+        if (countedBonds.has(bondId)) continue;
+
+        // Carbonyl: C in ring, O might be in or out of ring
+        if (atom.symbol === "C" && otherAtom.symbol === "O") {
+          hasRingCarbonyl = true;
+        } else if (ring.includes(otherIdx)) {
+          // Double bond entirely within ring (not a carbonyl)
+          ringDoubleBonds++;
+          countedBonds.add(bondId);
         }
       }
     }
@@ -730,7 +738,12 @@ function getHeterocyclicName(
 
   // Check for partially saturated 5-membered rings with 2 heteroatoms (exactly 1 double bond)
   // These are named with "-oline" suffix (thiazoline, imidazoline, oxazoline)
-  if (!isSaturated && ringSize === 5 && totalHetero === 2 && ringDoubleBonds === 1) {
+  if (
+    !isSaturated &&
+    ringSize === 5 &&
+    totalHetero === 2 &&
+    ringDoubleBonds === 1
+  ) {
     // Thiazoline: 5-membered ring with 1 nitrogen + 1 sulfur + 1 C=N double bond
     if (hasNitrogen === 1 && hasSulfur === 1 && hasOxygen === 0) {
       return "thiazoline";
@@ -748,7 +761,12 @@ function getHeterocyclicName(
   }
 
   // Fully aromatic 5-membered rings with 2 heteroatoms (2+ double bonds)
-  if (!isSaturated && ringSize === 5 && totalHetero === 2 && ringDoubleBonds >= 2) {
+  if (
+    !isSaturated &&
+    ringSize === 5 &&
+    totalHetero === 2 &&
+    ringDoubleBonds >= 2
+  ) {
     // Thiazole: 5-membered unsaturated ring with 1 nitrogen + 1 sulfur
     if (hasNitrogen === 1 && hasSulfur === 1 && hasOxygen === 0) {
       return "thiazole";
@@ -763,6 +781,15 @@ function getHeterocyclicName(
     if (hasNitrogen === 1 && hasOxygen === 1 && hasSulfur === 0) {
       return "oxazole";
     }
+  }
+
+  // Piperazine (N1CCCCN1) - 6-membered ring with 2 nitrogens (MUST be before the totalHetero > 1 check)
+  // Can have a carbonyl making it piperazin-2-one (lactam)
+  if (isSaturated && ringSize === 6 && hasNitrogen === 2 && hasOxygen === 0 && hasSulfur === 0) {
+    if (hasRingCarbonyl) {
+      return "piperazin-2-one";
+    }
+    return "piperazine";
   }
 
   // Only name simple heterocycles (one heteroatom, saturated)
@@ -917,6 +944,60 @@ export function findSubstituentsOnMonocyclicRing(
           bond.type === BondType.SINGLE
         ) {
           continue;
+        }
+
+        // Check for ylideneamino pattern: Ring-N-N=C (e.g., C=N-N where second N is in ring)
+        // This pattern should be named as "(alkylideneamino)" rather than as a regular alkyl substituent
+        if (substituentAtom?.symbol === "N" && !substituentAtom.isInRing) {
+          // This nitrogen is attached to ring - check if it has a C=N double bond
+          let hasDoubleBondToCarbon = false;
+          let carbonWithDoubleBond = -1;
+          
+          for (const b of molecule.bonds) {
+            if (b.atom1 === substituentAtomIdx || b.atom2 === substituentAtomIdx) {
+              const otherIdx = b.atom1 === substituentAtomIdx ? b.atom2 : b.atom1;
+              const otherAtom = molecule.atoms[otherIdx];
+              
+              // Check for C=N double bond (where C is external to ring)
+              if (otherAtom?.symbol === "C" && !ringSet.has(otherIdx) && b.type === BondType.DOUBLE) {
+                hasDoubleBondToCarbon = true;
+                carbonWithDoubleBond = otherIdx;
+                break;
+              }
+            }
+          }
+          
+          // If we found C=N-N(ring) pattern, classify it specially
+          if (hasDoubleBondToCarbon && carbonWithDoubleBond >= 0) {
+            const ylideneInfo = classifyYlideneaminoSubstituent(
+              molecule,
+              carbonWithDoubleBond,
+              substituentAtomIdx,
+              ringSet,
+            );
+            
+            if (ylideneInfo) {
+              if (process.env.VERBOSE) {
+                console.log(
+                  `[findSubstituentsOnMonocyclicRing] Found ylideneamino substituent:`,
+                );
+                console.log(`  Ring atom ID (ringAtomIdx): ${ringAtomIdx}`);
+                console.log(`  Nitrogen atom ID: ${substituentAtomIdx}`);
+                console.log(`  Carbon atom ID: ${carbonWithDoubleBond}`);
+                console.log(`  Substituent name: ${ylideneInfo.name}`);
+              }
+              
+              substituents.push({
+                position: String(ringAtomIdx),
+                type: ylideneInfo.type,
+                size: ylideneInfo.size,
+                name: ylideneInfo.name,
+                startAtomId: substituentAtomIdx,
+                attachedToRingAtomId: ringAtomIdx,
+              });
+              continue; // Skip normal substituent classification
+            }
+          }
         }
 
         // Skip carboxyl groups (-C(=O)OH) - these are principal functional groups that modify the parent name
@@ -1187,6 +1268,98 @@ function nameComplexSubstituent(
   }
 }
 
+function classifyYlideneaminoSubstituent(
+  molecule: Molecule,
+  carbonAtomIdx: number,
+  nitrogenAtomIdx: number,
+  ringAtoms: Set<number>,
+): { type: string; size: number; name: string } | null {
+  // Collect all atoms in the carbon substituent (excluding the nitrogen)
+  const visited = new Set<number>([...ringAtoms, nitrogenAtomIdx]);
+  const substituentAtoms = new Set<number>();
+  const stack = [carbonAtomIdx];
+  visited.add(carbonAtomIdx);
+  substituentAtoms.add(carbonAtomIdx);
+
+  while (stack.length > 0) {
+    const currentIdx = stack.pop()!;
+    for (const bond of molecule.bonds) {
+      let neighborIdx = -1;
+      if (bond.atom1 === currentIdx && !visited.has(bond.atom2)) {
+        neighborIdx = bond.atom2;
+      } else if (bond.atom2 === currentIdx && !visited.has(bond.atom1)) {
+        neighborIdx = bond.atom1;
+      }
+      if (neighborIdx >= 0) {
+        visited.add(neighborIdx);
+        stack.push(neighborIdx);
+        substituentAtoms.add(neighborIdx);
+      }
+    }
+  }
+
+  // Count carbons in the substituent
+  const atoms = Array.from(substituentAtoms)
+    .map((idx) => molecule.atoms[idx])
+    .filter((atom): atom is (typeof molecule.atoms)[0] => atom !== undefined);
+  
+  const carbonCount = atoms.filter((atom) => atom.symbol === "C").length;
+
+  if (carbonCount === 0) {
+    return { type: "ylideneamino", size: 0, name: "(ylideneamino)" };
+  }
+
+  // Get chain name from OPSIN
+  const chainName = ruleEngine.getAlkaneName(carbonCount);
+  if (!chainName) {
+    return { type: "ylideneamino", size: carbonCount, name: `(C${carbonCount}ylideneamino)` };
+  }
+
+  // Build ylidene name based on structure
+  // For simple cases: propan-2-ylidene for (CH3)2C=
+  // TODO: Implement proper locant determination for complex branching
+  let ylideneName: string;
+  
+  if (carbonCount === 1) {
+    ylideneName = "methylidene";
+  } else if (carbonCount === 2) {
+    ylideneName = "ethylidene";
+  } else if (carbonCount === 3) {
+    // Check if the attachment carbon has 2 methyl groups (propan-2-ylidene)
+    const carbonAtom = molecule.atoms[carbonAtomIdx];
+    if (carbonAtom?.symbol === "C") {
+      let carbonNeighbors = 0;
+      for (const bond of molecule.bonds) {
+        if (bond.atom1 === carbonAtomIdx || bond.atom2 === carbonAtomIdx) {
+          const otherIdx = bond.atom1 === carbonAtomIdx ? bond.atom2 : bond.atom1;
+          const otherAtom = molecule.atoms[otherIdx];
+          if (otherAtom?.symbol === "C" && substituentAtoms.has(otherIdx)) {
+            carbonNeighbors++;
+          }
+        }
+      }
+      // If 2 carbon neighbors, it's branched at position 2
+      if (carbonNeighbors === 2) {
+        ylideneName = "propan-2-ylidene";
+      } else {
+        ylideneName = "propylidene";
+      }
+    } else {
+      ylideneName = "propylidene";
+    }
+  } else {
+    // Longer chains - use systematic naming
+    const stem = chainName.replace(/ane$/, "an");
+    ylideneName = `${stem}-2-ylidene`; // Default to position 2
+  }
+
+  return {
+    type: "ylideneamino",
+    size: carbonCount,
+    name: `(${ylideneName}amino)`,
+  };
+}
+
 function classifySubstituent(
   molecule: Molecule,
   startAtomIdx: number,
@@ -1323,7 +1496,8 @@ function classifySubstituent(
     if (startAtom?.symbol === "C") {
       for (const bond of molecule.bonds) {
         if (bond.atom1 === startAtomIdx || bond.atom2 === startAtomIdx) {
-          const otherIdx = bond.atom1 === startAtomIdx ? bond.atom2 : bond.atom1;
+          const otherIdx =
+            bond.atom1 === startAtomIdx ? bond.atom2 : bond.atom1;
           // Check if the other end of the bond is in the ring
           if (ringAtoms.has(otherIdx) && bond.type === BondType.DOUBLE) {
             return { type: "alkylidene", size: 1, name: "methylidene" };

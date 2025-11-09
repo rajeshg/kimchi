@@ -19,6 +19,7 @@ export { INITIAL_STRUCTURE_ANALYSIS_RULE, P44_4_RING_CHAIN_SELECTION_RULE };
 
 /**
  * Export all initial structure layer rules in execution order
+ * NOTE: P-44.4 has been moved to ring-analysis-layer to run before ring-selection-complete
  */
 export const INITIAL_STRUCTURE_LAYER_RULES: IUPACRule[] = [
   // P-2 rules run first to select simple parent hydrides
@@ -29,6 +30,4 @@ export const INITIAL_STRUCTURE_LAYER_RULES: IUPACRule[] = [
   ...P3_SUBSTITUENT_RULES,
   // Initial structure analysis seeds candidates
   INITIAL_STRUCTURE_ANALYSIS_RULE,
-  // P-44.4 selects ring vs chain when no functional groups
-  P44_4_RING_CHAIN_SELECTION_RULE,
 ];

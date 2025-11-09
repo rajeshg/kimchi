@@ -68,23 +68,16 @@ function isFunctionalGroupAttachedToRing(
   fgAtomIndices: number[],
   ringAtomIndices: Set<number>,
   molecule: Molecule,
-  visited: Set<number> = new Set(),
-  depth: number = 0,
-  maxDepth: number = 2,
 ): boolean {
-  // Stop if we've gone too deep (prevent infinite recursion)
-  if (depth > maxDepth) return false;
-
   // Check if any FG atom is in the ring
   if (fgAtomIndices.some((atomIdx) => ringAtomIndices.has(atomIdx))) {
     return true;
   }
 
-  // Check if any FG atom is directly bonded to a ring atom
+  // Check if any FG atom is DIRECTLY bonded to a ring atom (no intermediaries)
+  // This counts exocyclic FGs like N-aryl amines on thiazoline
+  // but excludes benzyl substituents (-CH2-phenyl)
   for (const fgAtomIdx of fgAtomIndices) {
-    if (visited.has(fgAtomIdx)) continue;
-    visited.add(fgAtomIdx);
-
     for (const bond of molecule.bonds) {
       const bondedTo =
         bond.atom1 === fgAtomIdx
@@ -93,29 +86,9 @@ function isFunctionalGroupAttachedToRing(
             ? bond.atom1
             : -1;
 
-      if (bondedTo !== -1) {
-        // Direct connection to ring
-        if (ringAtomIndices.has(bondedTo)) {
-          return true;
-        }
-
-        // Indirect connection through carbon chain (e.g., -CH2-COOH attached to ring)
-        const bondedAtom = molecule.atoms[bondedTo];
-        if (bondedAtom && bondedAtom.symbol === "C" && !visited.has(bondedTo)) {
-          // Recursively check if this carbon is connected to the ring
-          if (
-            isFunctionalGroupAttachedToRing(
-              [bondedTo],
-              ringAtomIndices,
-              molecule,
-              visited,
-              depth + 1,
-              maxDepth,
-            )
-          ) {
-            return true;
-          }
-        }
+      if (bondedTo !== -1 && ringAtomIndices.has(bondedTo)) {
+        // FG atom is directly bonded to a ring atom
+        return true;
       }
     }
   }
@@ -282,18 +255,10 @@ export const P44_1_1_PRINCIPAL_CHARACTERISTIC_GROUPS_RULE: IUPACRule = {
       }
 
       // Count how many principal functional groups have atoms in rings OR attached to rings
-      // IMPORTANT: Skip FGs already counted as part of chains to avoid double-counting
+      // IMPORTANT: Do NOT skip FGs that were counted as part of chains
+      // A functional group can be attached to BOTH a ring and a chain (bridge atom)
+      // Example: N-(thiazolyl)aniline has N attached to both thiazole and benzene rings
       for (const fg of principalFGs) {
-        // Skip if this FG was already counted as part of a chain
-        if (fgsOnChains.has(fg)) {
-          if (process.env.VERBOSE) {
-            console.log(
-              `[P-44.1.1] Skipping FG ${fg.type} - already counted as chain FG`,
-            );
-          }
-          continue;
-        }
-
         // Check if FG is on a ring (considering carbon bearing the FG for alcohols/ethers)
         const isOnRing = isFunctionalGroupOnRing(fg, molecule, ringAtomIndices);
 

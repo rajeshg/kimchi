@@ -33,11 +33,14 @@ import { getChainFunctionalGroupPriority } from "./functional-group-priority";
  *
  * Strategy:
  * 1. Detect and normalize functional groups
- * 2. Exclude functional group atoms and ring atoms from chain search
+ * 2. Exclude functional group atoms from chain search
  * 3. Find all candidate chains (carbon-only and heteroatom-containing)
  * 4. Apply functional group priority filtering
  * 5. Apply carbon count preference
  * 6. Apply IUPAC tie-breaking rules (locants, heteroatom positions, etc.)
+ *
+ * Note: Ring atoms are NOT excluded from chain finding. The comparison
+ * between ring systems and chains happens at the rule level (P-44.4).
  *
  * @param molecule - The molecule to analyze
  * @param predetectedFunctionalGroups - Optional pre-detected functional groups
@@ -120,24 +123,21 @@ export function findMainChain(
     );
   }
 
-  // Exclude ring atoms from acyclic chain finding
-  // The P-44.4 rule will compare rings vs acyclic chains separately
-  if (molecule.rings && molecule.rings.length > 0) {
-    for (const ring of molecule.rings) {
-      for (const atomId of ring) {
-        excludedAtomIds.add(atomId);
-      }
-    }
-    if (process.env.VERBOSE) {
-      console.log(
-        `[findMainChain] Excluded ring atoms: ${Array.from(excludedAtomIds).join(",")}`,
-      );
-    }
-  }
+  // NOTE: We do NOT exclude ring atoms from chain finding here.
+  // The P-44.4 rule will compare rings vs chains at the rule level.
+  // Excluding ring atoms here would bias the comparison and prevent
+  // fair evaluation of ring systems vs acyclic chains.
+  //
+  // EXCEPTION: When functional groups are present, we DO exclude ring atoms
+  // from carbon chain finding. This ensures aromatic rings attached to functional
+  // group chains are treated as substituents (e.g., benzyl groups), not part of
+  // the main chain. Ring-based parent structures (cycloalkanes, etc.) are handled
+  // separately by the ring-finding logic.
 
   // Consider both carbon-only parent candidates and hetero-containing parent candidates.
   // Find all longest carbon-only chains and all longest heavy-atom chains (non-hydrogen).
-  const carbonChains = findAllCarbonChains(molecule, excludedAtomIds);
+  const skipRingAtomsForCarbonChains = functionalGroups.length > 0;
+  const carbonChains = findAllCarbonChains(molecule, excludedAtomIds, skipRingAtomsForCarbonChains);
   let atomChains = findAllAtomChains(molecule, excludedAtomIds);
 
   // Special handling for amines: construct parent chains as [nitrogen] + [longest carbon chain]
@@ -226,6 +226,81 @@ export function findMainChain(
         );
       }
       atomChains = amineChains;
+    }
+  }
+
+  // Special handling for carbon-based functional groups (amides, ketones, carboxylic acids, esters, etc.)
+  // These functional groups should prioritize chains containing their carbonyl carbon,
+  // even if those chains are shorter than other carbon chains in the molecule.
+  const carbonFunctionalGroups = functionalGroups.filter(
+    (fg: { name: string; type: string; atoms: number[] }) =>
+      fg.name === "amide" ||
+      fg.name === "carboxylic acid" ||
+      fg.name === "ester" ||
+      fg.name === "ketone" ||
+      fg.name === "aldehyde" ||
+      fg.name === "acyl halide",
+  );
+
+  if (carbonFunctionalGroups.length > 0) {
+    // Find the carbon atoms in these functional groups (typically the carbonyl carbon)
+    const functionalCarbons = new Set<number>();
+    for (const fg of carbonFunctionalGroups) {
+      for (const atomId of fg.atoms) {
+        const atom = molecule.atoms[atomId];
+        if (atom && atom.symbol === "C" && !excludedAtomIds.has(atomId)) {
+          functionalCarbons.add(atomId);
+        }
+      }
+    }
+
+    if (process.env.VERBOSE) {
+      console.log(
+        `[findMainChain] Found ${carbonFunctionalGroups.length} carbon-based functional groups with carbon atoms: ${Array.from(functionalCarbons).join(",")}`,
+      );
+    }
+
+    // For each functional carbon, find chains containing it
+    const additionalCarbonChains: number[][] = [];
+    for (const fcIdx of functionalCarbons) {
+      // Find all carbon-only chains starting from this functional carbon
+      // Skip ring atoms to prevent traversing into aromatic rings (treat as substituents)
+      const chainsFromFC = findAllCarbonChainsFromStart(
+        molecule,
+        fcIdx,
+        excludedAtomIds,
+        true, // skipRingAtoms
+      );
+
+      if (process.env.VERBOSE) {
+        console.log(
+          `[findMainChain]   From functional carbon ${fcIdx}: found ${chainsFromFC.length} carbon chains`,
+        );
+      }
+
+      for (const chain of chainsFromFC) {
+        additionalCarbonChains.push(chain);
+      }
+    }
+
+    // Add these chains to carbonChains if they're not already there
+    // (avoid duplicates by checking if chain is already in carbonChains)
+    for (const newChain of additionalCarbonChains) {
+      const chainStr = newChain.join(",");
+      const reverseStr = [...newChain].reverse().join(",");
+      const isDuplicate = carbonChains.some(
+        (existingChain) =>
+          existingChain.join(",") === chainStr ||
+          existingChain.join(",") === reverseStr,
+      );
+      if (!isDuplicate) {
+        carbonChains.push(newChain);
+        if (process.env.VERBOSE) {
+          console.log(
+            `[findMainChain]     Added functional group chain: [${newChain.join(",")}]`,
+          );
+        }
+      }
     }
   }
 

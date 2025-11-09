@@ -127,10 +127,16 @@ export function findAllAtomChains(
 export function findAllCarbonChains(
   molecule: Molecule,
   excludedAtomIds: Set<number> = new Set(),
+  skipRingAtoms: boolean = false,
 ): number[][] {
   const carbonIndices = molecule.atoms
     .map((atom, idx) => ({ atom, idx }))
-    .filter(({ atom, idx }) => atom.symbol === "C" && !excludedAtomIds.has(idx))
+    .filter(({ atom, idx }) => {
+      if (atom.symbol !== "C" || excludedAtomIds.has(idx)) return false;
+      // If skipRingAtoms is true, exclude ring carbons
+      if (skipRingAtoms && atom.isInRing) return false;
+      return true;
+    })
     .map(({ idx }) => idx);
 
   if (carbonIndices.length === 0) return [];
@@ -139,12 +145,20 @@ export function findAllCarbonChains(
   for (const idx of carbonIndices) adjList.set(idx, []);
 
   for (const bond of molecule.bonds) {
+    const atom1 = molecule.atoms[bond.atom1];
+    const atom2 = molecule.atoms[bond.atom2];
+    
     if (
-      molecule.atoms[bond.atom1]?.symbol === "C" &&
-      molecule.atoms[bond.atom2]?.symbol === "C" &&
+      atom1?.symbol === "C" &&
+      atom2?.symbol === "C" &&
       !excludedAtomIds.has(bond.atom1) &&
       !excludedAtomIds.has(bond.atom2)
     ) {
+      // If skipRingAtoms is true, don't add edges involving ring atoms
+      if (skipRingAtoms && (atom1.isInRing || atom2.isInRing)) {
+        continue;
+      }
+      
       adjList.get(bond.atom1)?.push(bond.atom2);
       adjList.get(bond.atom2)?.push(bond.atom1);
     }
@@ -248,10 +262,16 @@ export function findAllCarbonChainsFromStart(
   molecule: Molecule,
   startAtom: number,
   excludedAtomIds: Set<number> = new Set(),
+  skipRingAtoms: boolean = false,
 ): number[][] {
   const carbonIndices = molecule.atoms
     .map((atom, idx) => ({ atom, idx }))
-    .filter(({ atom, idx }) => atom.symbol === "C" && !excludedAtomIds.has(idx))
+    .filter(({ atom, idx }) => {
+      if (atom.symbol !== "C" || excludedAtomIds.has(idx)) return false;
+      // If skipRingAtoms is true, only include non-ring carbons (unless it's the start atom)
+      if (skipRingAtoms && idx !== startAtom && atom.isInRing) return false;
+      return true;
+    })
     .map(({ idx }) => idx);
 
   if (carbonIndices.length === 0) return [];
@@ -261,12 +281,22 @@ export function findAllCarbonChainsFromStart(
   for (const idx of carbonIndices) adjList.set(idx, []);
 
   for (const bond of molecule.bonds) {
+    const atom1 = molecule.atoms[bond.atom1];
+    const atom2 = molecule.atoms[bond.atom2];
+    
     if (
-      molecule.atoms[bond.atom1]?.symbol === "C" &&
-      molecule.atoms[bond.atom2]?.symbol === "C" &&
+      atom1?.symbol === "C" &&
+      atom2?.symbol === "C" &&
       !excludedAtomIds.has(bond.atom1) &&
       !excludedAtomIds.has(bond.atom2)
     ) {
+      // If skipRingAtoms is true, don't add edges involving ring atoms (except the start atom)
+      if (skipRingAtoms) {
+        const isAtom1Ring = bond.atom1 !== startAtom && atom1.isInRing;
+        const isAtom2Ring = bond.atom2 !== startAtom && atom2.isInRing;
+        if (isAtom1Ring || isAtom2Ring) continue;
+      }
+      
       adjList.get(bond.atom1)?.push(bond.atom2);
       adjList.get(bond.atom2)?.push(bond.atom1);
     }
