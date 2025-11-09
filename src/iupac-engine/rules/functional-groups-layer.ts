@@ -560,31 +560,69 @@ export const FUNCTIONAL_GROUP_PRIORITY_RULE: IUPACRule = {
     if (hasRingSystem && principalGroup && principalGroup.locants) {
       const fgLocants = principalGroup.locants;
 
-      // For alcohols, ketones, and aldehydes: locants are the carbon atoms
+      // For alcohols, ketones, aldehydes, and amides: locants are the carbon atoms
       // We need to check if the OXYGEN (not the carbon) is part of the ring
+      // Example: imidazolidin-4-one has C=O where O is NOT in ring (correct: keep as principal)
+      // Example: pyridine-N-oxide has N-O where O is NOT in ring (correct: keep as principal)
       if (
         principalGroup.type === "alcohol" ||
         principalGroup.type === "ketone" ||
-        principalGroup.type === "aldehyde"
+        principalGroup.type === "aldehyde" ||
+        principalGroup.type === "amide"
       ) {
-        for (const locant of fgLocants) {
-          // Find oxygen atoms bonded to this carbon
-          const oxygenAtoms = mol.bonds
-            .filter((bond) => bond.atom1 === locant || bond.atom2 === locant)
-            .map((bond) => (bond.atom1 === locant ? bond.atom2 : bond.atom1))
-            .map((atomId) => mol.atoms.find((a) => a.id === atomId))
-            .filter(
-              (atom): atom is Atom => atom !== undefined && atom.symbol === "O",
-            );
+        // Special case for amides: check if it's a lactam (cyclic amide)
+        // Lactam: both carbonyl C and N are in the ring, oxygen is exocyclic
+        // Example: pyrrolidin-2-one (O=C1CCCN1) - C and N in ring, O outside
+        if (principalGroup.type === "amide" && principalGroup.atoms) {
+          const amideAtoms = principalGroup.atoms;
+          // Amide atoms are stored as [C, O, N] (carbonyl carbon, oxygen, nitrogen)
+          if (amideAtoms.length >= 3) {
+            const carbonylC = amideAtoms[0];
+            const nitrogen = amideAtoms[2];
 
-          // Check if any of these oxygens are part of the ring
-          for (const oxygen of oxygenAtoms) {
-            if (ringAtomIds.has(oxygen.id)) {
-              shouldDemotePrincipalGroup = true;
-              break;
+            if (carbonylC && nitrogen) {
+              const carbonylCId =
+                typeof carbonylC === "number" ? carbonylC : carbonylC.id;
+              const nitrogenId =
+                typeof nitrogen === "number" ? nitrogen : nitrogen.id;
+
+              // If both C and N are in ring → it's a lactam → demote
+              if (
+                ringAtomIds.has(carbonylCId) &&
+                ringAtomIds.has(nitrogenId)
+              ) {
+                shouldDemotePrincipalGroup = true;
+                if (process.env.VERBOSE) {
+                  console.log(
+                    "[FUNCTIONAL_GROUP_PRIORITY_RULE] Detected lactam (cyclic amide) - demoting amide group",
+                  );
+                }
+              }
             }
           }
-          if (shouldDemotePrincipalGroup) break;
+        }
+
+        // Only check oxygen if not already demoted (and not a lactam)
+        if (!shouldDemotePrincipalGroup) {
+          for (const locant of fgLocants) {
+            // Find oxygen atoms bonded to this carbon
+            const oxygenAtoms = mol.bonds
+              .filter((bond) => bond.atom1 === locant || bond.atom2 === locant)
+              .map((bond) => (bond.atom1 === locant ? bond.atom2 : bond.atom1))
+              .map((atomId) => mol.atoms.find((a) => a.id === atomId))
+              .filter(
+                (atom): atom is Atom => atom !== undefined && atom.symbol === "O",
+              );
+
+            // Check if any of these oxygens are part of the ring
+            for (const oxygen of oxygenAtoms) {
+              if (ringAtomIds.has(oxygen.id)) {
+                shouldDemotePrincipalGroup = true;
+                break;
+              }
+            }
+            if (shouldDemotePrincipalGroup) break;
+          }
         }
       } else {
         // For other functional groups, check if the locant itself is in the ring
@@ -848,11 +886,11 @@ export const FUNCTIONAL_CLASS_RULE: IUPACRule = {
     // trigger functional class nomenclature even if other functional groups
     // like ethers are present.
     const hasFunctionalClassGroup = functionalGroups.some((fg) =>
-      isFunctionalClassPreferred(fg),
+      isFunctionalClassPreferred(fg, context),
     );
 
     let updatedContext: ImmutableNamingContext;
-    if (hasFunctionalClassGroup || isFunctionalClassPreferred(principalGroup)) {
+    if (hasFunctionalClassGroup || isFunctionalClassPreferred(principalGroup, context)) {
       updatedContext = context.withNomenclatureMethod(
         NomenclatureMethod.FUNCTIONAL_CLASS,
         "functional-class-nomenclature",
@@ -2556,6 +2594,7 @@ function calculateFunctionalGroupPriority(
  */
 function isFunctionalClassPreferred(
   principalGroup: FunctionalGroup | undefined,
+  context?: ImmutableNamingContext,
 ): boolean {
   if (!principalGroup) {
     return false;
@@ -2572,6 +2611,23 @@ function isFunctionalClassPreferred(
     "amide",
     "borane",
   ];
+
+  // Special case: amides in heterocyclic rings should NOT use functional class
+  // nomenclature because the ring name already incorporates the carbonyl
+  // (e.g., "imidazolidin-4-one" not "imidazolidine amide")
+  if (principalGroup.type === "amide" && context) {
+    const molecule = context.getState().molecule;
+    // Check if the carbonyl carbon (first atom in amide group) is in a ring
+    const carbonylCarbon = principalGroup.atoms?.[0];
+    if (carbonylCarbon && carbonylCarbon.isInRing) {
+      if (process.env.VERBOSE) {
+        console.log(
+          "[isFunctionalClassPreferred] Amide is in ring - using substitutive nomenclature",
+        );
+      }
+      return false;
+    }
+  }
 
   return functionalClassPreferred.includes(principalGroup.type);
 }

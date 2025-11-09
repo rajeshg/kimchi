@@ -702,6 +702,69 @@ function getHeterocyclicName(
     }
   }
 
+  // Check for saturated multi-heteroatom 5-membered rings
+  if (isSaturated && ringSize === 5 && totalHetero === 2) {
+    // Imidazolidine: 5-membered ring with 2 nitrogens (N-C-C-N-C pattern)
+    if (hasNitrogen === 2 && hasOxygen === 0 && hasSulfur === 0) {
+      if (hasRingCarbonyl) {
+        return "imidazolidin-4-one";
+      }
+      return "imidazolidine";
+    }
+
+    // Thiazolidine: 5-membered ring with 1 nitrogen + 1 sulfur
+    if (hasNitrogen === 1 && hasSulfur === 1 && hasOxygen === 0) {
+      return "thiazolidine";
+    }
+
+    // Oxazolidine: 5-membered ring with 1 nitrogen + 1 oxygen
+    if (hasNitrogen === 1 && hasOxygen === 1 && hasSulfur === 0) {
+      return "oxazolidine";
+    }
+
+    // Dioxolane: 5-membered ring with 2 oxygens
+    if (hasOxygen === 2 && hasNitrogen === 0 && hasSulfur === 0) {
+      return "dioxolane";
+    }
+  }
+
+  // Check for partially saturated 5-membered rings with 2 heteroatoms (exactly 1 double bond)
+  // These are named with "-oline" suffix (thiazoline, imidazoline, oxazoline)
+  if (!isSaturated && ringSize === 5 && totalHetero === 2 && ringDoubleBonds === 1) {
+    // Thiazoline: 5-membered ring with 1 nitrogen + 1 sulfur + 1 C=N double bond
+    if (hasNitrogen === 1 && hasSulfur === 1 && hasOxygen === 0) {
+      return "thiazoline";
+    }
+
+    // Imidazoline: 5-membered ring with 2 nitrogens + 1 C=N double bond
+    if (hasNitrogen === 2 && hasOxygen === 0 && hasSulfur === 0) {
+      return "imidazoline";
+    }
+
+    // Oxazoline: 5-membered ring with 1 nitrogen + 1 oxygen + 1 C=N double bond
+    if (hasNitrogen === 1 && hasOxygen === 1 && hasSulfur === 0) {
+      return "oxazoline";
+    }
+  }
+
+  // Fully aromatic 5-membered rings with 2 heteroatoms (2+ double bonds)
+  if (!isSaturated && ringSize === 5 && totalHetero === 2 && ringDoubleBonds >= 2) {
+    // Thiazole: 5-membered unsaturated ring with 1 nitrogen + 1 sulfur
+    if (hasNitrogen === 1 && hasSulfur === 1 && hasOxygen === 0) {
+      return "thiazole";
+    }
+
+    // Imidazole: 5-membered unsaturated ring with 2 nitrogens
+    if (hasNitrogen === 2 && hasOxygen === 0 && hasSulfur === 0) {
+      return "imidazole";
+    }
+
+    // Oxazole: 5-membered unsaturated ring with 1 nitrogen + 1 oxygen
+    if (hasNitrogen === 1 && hasOxygen === 1 && hasSulfur === 0) {
+      return "oxazole";
+    }
+  }
+
   // Only name simple heterocycles (one heteroatom, saturated)
   if (totalHetero === 0 || totalHetero > 1) return null;
 
@@ -744,7 +807,11 @@ function getHeterocyclicName(
   }
 
   // Pyrrolidine or azolidine (C1CCNC1)
+  // Can have a carbonyl making it pyrrolidin-2-one (lactam)
   if (ringSize === 5 && hasNitrogen === 1) {
+    if (hasRingCarbonyl) {
+      return "pyrrolidin-2-one";
+    }
     return "pyrrolidine";
   }
 
@@ -759,6 +826,9 @@ function getHeterocyclicName(
   }
 
   if (ringSize === 6 && hasNitrogen === 1) {
+    if (hasRingCarbonyl) {
+      return "piperidin-2-one";
+    }
     return "piperidine";
   }
 
@@ -952,9 +1022,32 @@ function createSubMoleculeFromSubstituent(
     }
   }
 
+  // Preserve ring information from parent molecule
+  const newRings: number[][] = [];
+  if (molecule.rings) {
+    for (const ring of molecule.rings) {
+      // Check if all ring atoms are in the substituent
+      const allAtomsPresent = ring.every((atomId) =>
+        substituentAtoms.has(atomId),
+      );
+
+      if (allAtomsPresent) {
+        // Remap ring atom indices to new numbering
+        const remappedRing = ring
+          .map((atomId) => atomMapping.get(atomId))
+          .filter((id): id is number => id !== undefined);
+
+        if (remappedRing.length === ring.length) {
+          newRings.push(remappedRing);
+        }
+      }
+    }
+  }
+
   return {
     atoms: newAtomsArray as Molecule["atoms"],
     bonds: newBondsArray as Molecule["bonds"],
+    ...(newRings.length > 0 ? { rings: newRings } : {}),
   };
 }
 
@@ -1225,6 +1318,19 @@ function classifySubstituent(
 
   // Simple substituents
   if (carbonCount === 1 && atoms.length === 1) {
+    // Check if this single carbon has a double bond to the ring (exocyclic double bond)
+    // This indicates methylidene (=CH₂) rather than methyl (-CH₃)
+    if (startAtom?.symbol === "C") {
+      for (const bond of molecule.bonds) {
+        if (bond.atom1 === startAtomIdx || bond.atom2 === startAtomIdx) {
+          const otherIdx = bond.atom1 === startAtomIdx ? bond.atom2 : bond.atom1;
+          // Check if the other end of the bond is in the ring
+          if (ringAtoms.has(otherIdx) && bond.type === BondType.DOUBLE) {
+            return { type: "alkylidene", size: 1, name: "methylidene" };
+          }
+        }
+      }
+    }
     return { type: "alkyl", size: 1, name: "methyl" };
   } else if (carbonCount === 2 && atoms.length === 2) {
     return { type: "alkyl", size: 2, name: "ethyl" };
