@@ -253,9 +253,17 @@ export class ImmutableNamingContext {
             console.log(
               `[immutable-context] Creating substituent: name="${s.name}", type="${s.type}", position="${s.position}", size=${s.size}`,
             );
+            console.log(`[immutable-context]   Raw "atoms" field:`, "atoms" in s ? s.atoms : "NOT PRESENT");
+          }
+          // Preserve atoms field if present for advanced naming (e.g., phosphorylsulfanyl)
+          const atoms = "atoms" in s && Array.isArray(s.atoms) 
+            ? (s.atoms as number[]).map(idx => molecule.atoms[idx]).filter(a => a !== undefined)
+            : [];
+          if (process.env.VERBOSE && atoms.length > 0) {
+            console.log(`[immutable-context]   Preserved ${atoms.length} atom objects`);
           }
           return {
-            atoms: [],
+            atoms,
             bonds: [],
             type: s.name,
             locant: parseInt(s.position, 10),

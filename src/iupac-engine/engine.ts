@@ -232,12 +232,24 @@ export class RuleEngine {
     );
     let updatedContext = context;
     for (const rule of sortedRules) {
+      if (process.env.VERBOSE) {
+        console.log(`[ENGINE] Checking rule: ${rule.id} (priority: ${rule.priority})`);
+      }
       // Check if rule can be executed
       if (this.canExecuteRule(rule, updatedContext)) {
+        if (process.env.VERBOSE) {
+          console.log(`[ENGINE] Executing rule: ${rule.id}`);
+        }
         try {
           updatedContext = rule.action(updatedContext);
+          if (process.env.VERBOSE) {
+            console.log(`[ENGINE] Rule ${rule.id} executed successfully`);
+          }
           // Optionally, track executed rules in trace/history
         } catch (_error) {
+          if (process.env.VERBOSE) {
+            console.log(`[ENGINE] Rule ${rule.id} failed: ${_error}`);
+          }
           // Optionally, add conflict to trace/history using withConflict
           updatedContext = updatedContext.withConflict(
             {
@@ -252,6 +264,10 @@ export class RuleEngine {
             ExecutionPhase.PARENT_STRUCTURE,
             `Rule ${rule.id} execution error`,
           );
+        }
+      } else {
+        if (process.env.VERBOSE) {
+          console.log(`[ENGINE] Rule ${rule.id} conditions not met, skipping`);
         }
       }
     }
@@ -270,8 +286,15 @@ export class RuleEngine {
 
     // Check rule conditions
     try {
-      return rule.conditions(context);
+      const canExecute = rule.conditions(context);
+      if (process.env.VERBOSE) {
+        console.log(`[ENGINE] Rule ${rule.id} conditions evaluated to: ${canExecute}`);
+      }
+      return canExecute;
     } catch (_error) {
+      if (process.env.VERBOSE) {
+        console.log(`[ENGINE] Rule ${rule.id} conditions threw error: ${_error}, allowing execution anyway`);
+      }
       // If rule conditions fail, still allow execution for demo
       return true;
     }

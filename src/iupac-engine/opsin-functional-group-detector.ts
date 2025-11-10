@@ -1306,7 +1306,12 @@ export class OPSINFunctionalGroupDetector {
 
       // Must have exactly 1 double bond to oxygen for phosphoryl
       if (oxygenDoubleBonds.length === 1) {
-        return [atom.id];
+        const oxygenBond = oxygenDoubleBonds[0];
+        if (!oxygenBond) return [];
+        const oxygenAtom = this.getBondedAtom(oxygenBond, atom.id, atoms);
+        if (!oxygenAtom) return [];
+        // Claim both P and O atoms to prevent O from being detected as separate "oxide"
+        return [atom.id, oxygenAtom.id];
       }
     }
     return [];

@@ -31,18 +31,76 @@ export function getMultiplicativePrefix(
 }
 
 /**
- * Traverse the molecular graph from a sulfur atom to collect all connected atoms
- * that are part of the substituent (excluding the main chain).
+ * Find the atom that connects a substituent to the main chain.
+ * This is the atom that has a bond to both the substituent and the main chain.
+ *
+ * @param molecule - The molecule
+ * @param rootAtomIdx - Index of the substituent root atom (e.g., phosphorus)
+ * @param mainChainAtoms - Set of atom indices that are part of the main chain
+ * @returns Index of the attachment atom, or undefined if not found
+ */
+export function findAttachmentPoint(
+  molecule: Molecule,
+  rootAtomIdx: number,
+  mainChainAtoms: Set<number>,
+): number | undefined {
+  const rootAtom = molecule.atoms[rootAtomIdx];
+  if (!rootAtom) return undefined;
+
+  // BFS to find the atom that connects to main chain
+  const visited = new Set<number>([rootAtomIdx]);
+  const queue: number[] = [rootAtomIdx];
+
+  while (queue.length > 0) {
+    const currentIdx = queue.shift();
+    if (currentIdx === undefined) continue;
+
+    const currentAtom = molecule.atoms[currentIdx];
+    if (!currentAtom) continue;
+
+    // Find all neighbors
+    for (const bond of molecule.bonds) {
+      let neighborIdx: number | null = null;
+
+      if (bond.atom1 === currentAtom.id) {
+        neighborIdx = molecule.atoms.findIndex((a) => a.id === bond.atom2);
+      } else if (bond.atom2 === currentAtom.id) {
+        neighborIdx = molecule.atoms.findIndex((a) => a.id === bond.atom1);
+      }
+
+      if (neighborIdx !== null && neighborIdx !== -1) {
+        // If this neighbor is in the main chain, current atom is the attachment point
+        if (mainChainAtoms.has(neighborIdx)) {
+          return currentIdx;
+        }
+
+        // Otherwise, continue BFS
+        if (!visited.has(neighborIdx)) {
+          visited.add(neighborIdx);
+          queue.push(neighborIdx);
+        }
+      }
+    }
+  }
+
+  return undefined;
+}
+
+/**
+ * Collect all atoms that are part of a substituent, starting from a root atom (e.g., sulfur)
+ * and traversing outward while excluding main chain atoms and optionally an attachment point.
  *
  * @param molecule - The molecule
  * @param sulfurIdx - Index of the sulfur atom
  * @param mainChainAtoms - Set of atom indices that are part of the main chain (to exclude)
+ * @param excludeAttachmentPoint - Optional atom index to exclude (e.g., the atom connecting to main chain)
  * @returns Set of atom indices that make up the complete substituent
  */
 export function collectSubstituentAtoms(
   molecule: Molecule,
   sulfurIdx: number,
   mainChainAtoms: Set<number>,
+  excludeAttachmentPoint?: number,
 ): Set<number> {
   const substituentAtoms = new Set<number>();
   const visited = new Set<number>();
@@ -76,6 +134,13 @@ export function collectSubstituentAtoms(
         // Skip if this atom is part of the main chain
         if (mainChainAtoms.has(neighborIdx)) continue;
 
+        // Skip if this is the attachment point to exclude
+        if (
+          excludeAttachmentPoint !== undefined &&
+          neighborIdx === excludeAttachmentPoint
+        )
+          continue;
+
         // Add to substituent and continue traversal
         substituentAtoms.add(neighborIdx);
         visited.add(neighborIdx);
@@ -86,7 +151,7 @@ export function collectSubstituentAtoms(
 
   if (process.env.VERBOSE) {
     console.log(
-      `[collectSubstituentAtoms] sulfur=${sulfurIdx}, collected ${substituentAtoms.size} atoms: ${Array.from(substituentAtoms).join(",")}`,
+      `[collectSubstituentAtoms] rootIdx=${sulfurIdx}, excludeAttachmentPoint=${excludeAttachmentPoint}, collected ${substituentAtoms.size} atoms: ${Array.from(substituentAtoms).join(",")}`,
     );
   }
 

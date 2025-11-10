@@ -36,9 +36,16 @@ export function findSubstituents(
     }
   }
 
+  // For amine chains, the nitrogen is not numbered (it's the functional group)
+  // Numbering starts from the carbon next to nitrogen
+  // E.g., for ethanamine: C-C-N, the first C is position 1, second C is position 2
+  const firstAtom = mainChain[0];
+  const isAmineChain = firstAtom !== undefined && 
+    molecule.atoms[firstAtom]?.symbol === 'N';
+
   if (process.env.VERBOSE)
     console.log(
-      `[findSubstituents] mainChain: ${mainChain.join(",")}, fgAtoms: ${Array.from(fgAtomIds).join(",")}`,
+      `[findSubstituents] mainChain: ${mainChain.join(",")}, fgAtoms: ${Array.from(fgAtomIds).join(",")}, isAmineChain: ${isAmineChain}`,
     );
   for (let i = 0; i < mainChain.length; i++) {
     const chainAtomIdx = mainChain[i]!;
@@ -57,7 +64,7 @@ export function findSubstituents(
           fgAtomIds,
         );
         if (substituent) {
-          const position = (i + 1).toString();
+          const position = isAmineChain ? i.toString() : (i + 1).toString();
           if (process.env.VERBOSE)
             console.log(
               `[findSubstituents] i=${i}, chainAtomIdx=${chainAtomIdx}, substituentAtomIdx=${substituentAtomIdx}, position=${position}, type=${substituent.name}`,
@@ -144,7 +151,9 @@ export function findSubstituents(
         substituentAtoms,
         oxygenIdx,
       );
-      const position = (attachedToChainAt + 1).toString();
+      const position = isAmineChain ? 
+        attachedToChainAt.toString() : 
+        (attachedToChainAt + 1).toString();
 
       if (process.env.VERBOSE) {
         console.log(
@@ -159,6 +168,121 @@ export function findSubstituents(
         name: alkoxyName,
         atoms: Array.from(substituentAtoms), // Include atoms for deduplication
       });
+    }
+  }
+
+  // Special handling for sulfanyl groups attached to phosphorus
+  // Pattern: chain-S-P(=O)(OR)(R') where S should be named as "[phosphoryl]sulfanyl"
+  const phosphorylGroups = functionalGroups.filter(
+    (fg) =>
+      (fg.name === "phosphoryl" || fg.name === "phosphanyl") &&
+      fg.atoms &&
+      fg.atoms.length >= 2,
+  );
+
+  for (const phosphorylGroup of phosphorylGroups) {
+    const phosphorusIdx = phosphorylGroup.atoms![0]!;
+    const phosphorusAtom = molecule.atoms[phosphorusIdx];
+    if (!phosphorusAtom || phosphorusAtom.symbol !== "P") continue;
+
+    // Check if phosphorus is bonded to a sulfur that's attached to the main chain
+    for (const bond of molecule.bonds) {
+      if (bond.atom1 === phosphorusIdx || bond.atom2 === phosphorusIdx) {
+        const neighborIdx =
+          bond.atom1 === phosphorusIdx ? bond.atom2 : bond.atom1;
+        const neighborAtom = molecule.atoms[neighborIdx];
+
+        if (neighborAtom && neighborAtom.symbol === "S") {
+          // Check if this sulfur is attached to the main chain
+          let attachedToChainAt = -1;
+          let chainAtomIdx = -1;
+
+          for (const chainBond of molecule.bonds) {
+            if (
+              chainBond.atom1 === neighborIdx ||
+              chainBond.atom2 === neighborIdx
+            ) {
+              const chainNeighbor =
+                chainBond.atom1 === neighborIdx
+                  ? chainBond.atom2
+                  : chainBond.atom1;
+
+              if (chainSet.has(chainNeighbor)) {
+                chainAtomIdx = chainNeighbor;
+                attachedToChainAt = mainChain.indexOf(chainNeighbor);
+                break;
+              }
+            }
+          }
+
+          if (attachedToChainAt >= 0) {
+            // Found a sulfur-phosphorus linkage to the chain!
+            // Collect all atoms in the phosphoryl substituent (excluding the sulfur and chain atoms)
+            const phosphorylSubstituentAtoms = new Set<number>();
+            phosphorylSubstituentAtoms.add(phosphorusIdx);
+
+            // Add the P=O oxygen
+            for (const atomId of phosphorylGroup.atoms!) {
+              if (
+                molecule.atoms[atomId]?.symbol === "O" &&
+                !chainSet.has(atomId)
+              ) {
+                phosphorylSubstituentAtoms.add(atomId);
+              }
+            }
+
+            // Traverse from phosphorus to collect all attached atoms (excluding sulfur)
+            const visited = new Set<number>([...chainSet, neighborIdx]); // Exclude chain and sulfur
+            const stack = [phosphorusIdx];
+            visited.add(phosphorusIdx);
+
+            while (stack.length > 0) {
+              const current = stack.pop()!;
+
+              for (const b of molecule.bonds) {
+                let next = -1;
+                if (b.atom1 === current && !visited.has(b.atom2)) {
+                  next = b.atom2;
+                } else if (b.atom2 === current && !visited.has(b.atom1)) {
+                  next = b.atom1;
+                }
+
+                if (next >= 0) {
+                  visited.add(next);
+                  phosphorylSubstituentAtoms.add(next);
+                  stack.push(next);
+                }
+              }
+            }
+
+            if (process.env.VERBOSE) {
+              console.log(
+                `[findSubstituents] Found sulfanyl-phosphoryl at S=${neighborIdx}, P=${phosphorusIdx}, chain position=${attachedToChainAt + 1}`,
+              );
+              console.log(
+                `  Phosphoryl atoms: ${Array.from(phosphorylSubstituentAtoms).join(",")}`,
+              );
+            }
+
+            // Create a substituent with both sulfur and phosphoryl group
+            // This will be named later in the name assembly layer
+            const position = isAmineChain ? 
+              attachedToChainAt.toString() : 
+              (attachedToChainAt + 1).toString();
+            
+            substituents.push({
+              position: position,
+              type: "functional",
+              size: phosphorylSubstituentAtoms.size + 1, // +1 for sulfur
+              name: "phosphorylsulfanyl", // Placeholder - will be refined in name assembly
+              atoms: [neighborIdx, ...Array.from(phosphorylSubstituentAtoms)], // Include sulfur and phosphoryl atoms
+            });
+
+            // Mark these atoms as processed to avoid re-detection
+            fgAtomIds.add(neighborIdx); // Mark sulfur as processed
+          }
+        }
+      }
     }
   }
 
@@ -607,16 +731,18 @@ export function findSubstituents(
       }
     }
 
+    const position = isAmineChain ? 
+      attachedToChainAt.toString() : 
+      (attachedToChainAt + 1).toString();
+
     if (process.env.VERBOSE) {
       console.log(
-        `[findSubstituents] Sulfur bridge substituent at position ${attachedToChainAt + 1}: ${fullName}`,
+        `[findSubstituents] Sulfur bridge substituent at position ${position}: ${fullName}`,
       );
       console.log(
         `  Bridge: ${sulfurBridge.join(",")}, Substituent atoms: ${Array.from(substituentAtoms).join(",")}`,
       );
     }
-
-    const position = (attachedToChainAt + 1).toString();
     substituents.push({
       position: position,
       type: "functional",
@@ -818,7 +944,9 @@ export function findSubstituents(
       }
     }
 
-    const position = (attachedToChainAt + 1).toString();
+    const position = isAmineChain ? 
+      attachedToChainAt.toString() : 
+      (attachedToChainAt + 1).toString();
 
     if (process.env.VERBOSE) {
       console.log(

@@ -2348,10 +2348,16 @@ export const AMINE_DETECTION_RULE: IUPACRule = {
     context.getState().molecule.atoms.length > 0,
   action: (context: ImmutableNamingContext) => {
     const amines: FunctionalGroup[] = detectAmines(context);
+    if (process.env.VERBOSE) {
+      console.log(`[AMINE_DETECTION_RULE] Detected ${amines.length} amines`);
+    }
     let updatedContext = context;
     if (amines.length > 0) {
       // Append amine detections to pre-existing functional groups
       const existing = context.getState().functionalGroups || [];
+      if (process.env.VERBOSE) {
+        console.log(`[AMINE_DETECTION_RULE] Existing functional groups: ${existing.length}`);
+      }
       updatedContext = updatedContext.withFunctionalGroups(
         existing.concat(amines),
         "amine-detection",
@@ -2360,6 +2366,9 @@ export const AMINE_DETECTION_RULE: IUPACRule = {
         ExecutionPhase.FUNCTIONAL_GROUP,
         "Detected amine groups",
       );
+      if (process.env.VERBOSE) {
+        console.log(`[AMINE_DETECTION_RULE] Updated context with ${existing.concat(amines).length} functional groups`);
+      }
     }
     return updatedContext;
   },
@@ -2766,18 +2775,33 @@ function detectAmines(context: ImmutableNamingContext): RawFunctionalGroup[] {
   const amines: RawFunctionalGroup[] = [];
   const molecules = context.getState().molecule;
 
+  if (process.env.VERBOSE) {
+    console.log(`[detectAmines] Molecule has ${molecules.atoms.length} atoms`);
+  }
+
   for (const atom of molecules.atoms) {
     if (atom.symbol === "N") {
+      if (process.env.VERBOSE) {
+        console.log(`[detectAmines] Found N atom ID ${atom.id}`);
+      }
       const bonds = molecules.bonds.filter(
         (b: Bond) =>
           (b.atom1 === atom.id || b.atom2 === atom.id) && b.type === "single",
       );
+
+      if (process.env.VERBOSE) {
+        console.log(`[detectAmines]   Total single bonds: ${bonds.length}`);
+      }
 
       const carbonBonds = bonds.filter((b: Bond) => {
         const otherId = b.atom1 === atom.id ? b.atom2 : b.atom1;
         const otherAtom = molecules.atoms.find((a: Atom) => a.id === otherId);
         return otherAtom && otherAtom.symbol === "C";
       });
+
+      if (process.env.VERBOSE) {
+        console.log(`[detectAmines]   Carbon bonds: ${carbonBonds.length}`);
+      }
 
       const _hydrogenBonds = bonds.filter((b: Bond) => {
         const otherId = b.atom1 === atom.id ? b.atom2 : b.atom1;
@@ -2786,6 +2810,9 @@ function detectAmines(context: ImmutableNamingContext): RawFunctionalGroup[] {
       });
 
       if (carbonBonds.length > 0) {
+        if (process.env.VERBOSE) {
+          console.log(`[detectAmines]   Adding amine functional group for N atom ${atom.id}`);
+        }
         amines.push({
           type: "amine",
           atoms: [atom],
@@ -2800,6 +2827,10 @@ function detectAmines(context: ImmutableNamingContext): RawFunctionalGroup[] {
         });
       }
     }
+  }
+
+  if (process.env.VERBOSE) {
+    console.log(`[detectAmines] Total amines detected: ${amines.length}`);
   }
 
   return amines;

@@ -108,16 +108,21 @@ export const P44_2_1_RING_SYSTEM_DETECTION_RULE: IUPACRule = {
         const namingSubstituents = findSubstituents(molecule, mainChain);
 
         // Convert NamingSubstituent[] to StructuralSubstituent[]
-        // For name generation, we only need type and locant fields
-        const substituents = namingSubstituents.map((sub) => ({
-          atoms: [], // Not needed for name generation
-          bonds: [], // Not needed for name generation
-          type: sub.name || sub.type,
-          locant: parseInt(sub.position),
-          isPrincipal: false, // Not needed for name generation
-          name: sub.name,
-          position: sub.position,
-        }));
+        // Preserve atoms field for complex substituents like phosphorylsulfanyl
+        const substituents = namingSubstituents.map((sub) => {
+          const atoms = "atoms" in sub && Array.isArray(sub.atoms)
+            ? (sub.atoms as number[]).map(idx => molecule.atoms[idx]).filter(a => a !== undefined)
+            : [];
+          return {
+            atoms, // Preserve for complex substituent naming
+            bonds: [], // Not needed for name generation
+            type: sub.name || sub.type,
+            locant: parseInt(sub.position),
+            isPrincipal: false, // Not needed for name generation
+            name: sub.name,
+            position: sub.position,
+          };
+        });
 
         if (process.env.VERBOSE) {
           console.log(

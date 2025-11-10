@@ -44,6 +44,14 @@ export const PARENT_CHAIN_SELECTION_COMPLETE_RULE: IUPACRule = {
     // Select the final parent chain
     const parentChain = chains[0] as Chain;
     // Create parent structure
+    if (process.env.VERBOSE) {
+      console.log('[parent-chain-selection-complete] parentChain.substituents:', 
+        parentChain.substituents?.map(s => ({
+          type: s.type,
+          atoms: s.atoms?.length || 0,
+          locant: s.locant
+        })));
+    }
     const parentStructure = {
       type: "chain" as const,
       chain: parentChain,
@@ -52,6 +60,14 @@ export const PARENT_CHAIN_SELECTION_COMPLETE_RULE: IUPACRule = {
       locants: parentChain.locants,
       substituents: parentChain.substituents || [],
     };
+    if (process.env.VERBOSE) {
+      console.log('[parent-chain-selection-complete] parentStructure.substituents:', 
+        parentStructure.substituents?.map(s => ({
+          type: s.type,
+          atoms: s.atoms?.length || 0,
+          locant: s.locant
+        })));
+    }
     updatedContext = updatedContext.withParentStructure(
       parentStructure,
       "P-44.3.8",

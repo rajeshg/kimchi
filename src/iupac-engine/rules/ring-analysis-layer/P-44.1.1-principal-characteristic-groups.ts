@@ -255,12 +255,23 @@ export const P44_1_1_PRINCIPAL_CHARACTERISTIC_GROUPS_RULE: IUPACRule = {
       }
 
       // Count how many principal functional groups have atoms in rings OR attached to rings
-      // IMPORTANT: Do NOT skip FGs that were counted as part of chains
-      // A functional group can be attached to BOTH a ring and a chain (bridge atom)
-      // Example: N-(thiazolyl)aniline has N attached to both thiazole and benzene rings
+      // IMPORTANT: Skip FGs that were already counted as part of chains UNLESS they're also on a ring
+      // A functional group that is truly part of a ring should count for the ring, even if also found by chain algorithm
+      // But a functional group that is only on a chain (not on ring) should not count for rings
       for (const fg of principalFGs) {
-        // Check if FG is on a ring (considering carbon bearing the FG for alcohols/ethers)
+        // Check if FG is on a ring FIRST (considering carbon bearing the FG for alcohols/ethers)
         const isOnRing = isFunctionalGroupOnRing(fg, molecule, ringAtomIndices);
+
+        // Skip FGs that are on a chain but NOT on a ring
+        // These belong to the chain only, not the ring
+        if (fgsOnChains.has(fg) && !isOnRing) {
+          if (process.env.VERBOSE) {
+            console.log(
+              `[P-44.1.1] Skipping ring FG count for ${fg.type} - on chain but not on ring`,
+            );
+          }
+          continue;
+        }
 
         // Convert fg.atoms (Atom objects) to atom indices for attachment checking
         const fgAtomIndices = (fg.atoms || [])

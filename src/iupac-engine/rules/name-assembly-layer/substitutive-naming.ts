@@ -15,7 +15,11 @@ import {
 import { getSimpleMultiplierWithVowel, getChainNameFromOPSIN } from "../../opsin-adapter";
 import type { OPSINService } from "../../opsin-service";
 import { getSharedOPSINService } from "../../opsin-service";
-import { getMultiplicativePrefix, collectSubstituentAtoms } from "./utils";
+import {
+  getMultiplicativePrefix,
+  collectSubstituentAtoms,
+  findAttachmentPoint,
+} from "./utils";
 
 type ParentStructureExtended = ParentStructure & {
   assembledName?: string;
@@ -1177,6 +1181,34 @@ export function buildSubstitutiveName(
         const hasSuffix = "suffix" in sub && sub.suffix;
         if (hasSuffix && sub.isPrincipal) continue;
 
+        // Skip N-substituents on amines/imines - they will be detected and handled separately
+        // by detectNSubstituents() later in the process
+        if (
+          principalFG &&
+          (principalFG.type === "amine" || principalFG.type === "imine")
+        ) {
+          const subLocant = "locant" in sub ? sub.locant : undefined;
+          
+          // For amine chains, check if this is attached to the nitrogen
+          // Amine chains have nitrogen as first atom, and substituents at position 0 are N-substituents
+          if (
+            subLocant === 0 &&
+            parentStructure.chain?.atoms &&
+            parentStructure.chain.atoms.length > 0
+          ) {
+            const firstChainAtomId = parentStructure.chain.atoms[0]?.id;
+            const firstChainAtom = molecule.atoms.find((a) => a.id === firstChainAtomId);
+            if (firstChainAtom?.symbol === 'N') {
+              if (process.env.VERBOSE) {
+                console.log(
+                  `[buildSubstitutiveName] Skipping N-substituent ${sub.type} at locant ${subLocant} (attached to N) - will be handled by N-substituent detection`,
+                );
+              }
+              continue;
+            }
+          }
+        }
+
         // For alkoxy groups, use the prefix (e.g., 'methoxy') instead of type ('alkoxy')
         const assembledName =
           "assembledName" in sub ? sub.assembledName : undefined;
@@ -1324,6 +1356,185 @@ export function buildSubstitutiveName(
           }
         }
 
+        // Convert phosphorylsulfanyl to proper name (e.g., "[cyclooctyloxy(propyl)phosphoryl]sulfanyl")
+        if (
+          subName &&
+          (subName === "phosphorylsulfanyl" ||
+            subName.includes("-phosphorylsulfanyl"))
+        ) {
+          if (process.env.VERBOSE) {
+            console.log(`[PHOSPHORYLSULFANYL CHECK] Detected phosphorylsulfanyl substituent, subName="${subName}", has atoms: ${"atoms" in sub}, atoms length: ${sub.atoms?.length || 0}`);
+          }
+
+          const locantMatch = subName.match(/^(\d+)-/);
+          const locantPrefix = locantMatch ? locantMatch[1] + "-" : "";
+
+          let named = false;
+          if ("atoms" in sub && sub.atoms && sub.atoms.length > 0) {
+            const firstAtom = sub.atoms[0];
+            if (typeof firstAtom === "object" && "symbol" in firstAtom) {
+              const atoms = sub.atoms as Atom[];
+              // Find both S and P atoms
+              const sulfurAtom = atoms.find((atom: Atom) => atom.symbol === "S");
+              const phosphorusAtom = atoms.find(
+                (atom: Atom) => atom.symbol === "P",
+              );
+
+              if (sulfurAtom && phosphorusAtom) {
+                const sulfurIdx = molecule.atoms.findIndex(
+                  (a: Atom) => a.id === sulfurAtom.id,
+                );
+                const phosphorusIdx = molecule.atoms.findIndex(
+                  (a: Atom) => a.id === phosphorusAtom.id,
+                );
+
+                if (sulfurIdx !== -1 && phosphorusIdx !== -1) {
+                  // Collect main chain atoms to exclude from traversal
+                  const mainChainAtomIds = new Set<number>();
+                  if (parentStructure.chain?.atoms) {
+                    for (const chainAtom of parentStructure.chain.atoms) {
+                      mainChainAtomIds.add(chainAtom.id);
+                    }
+                  }
+                  if (parentStructure.ring?.atoms) {
+                    for (const ringAtom of parentStructure.ring.atoms) {
+                      mainChainAtomIds.add(ringAtom.id);
+                    }
+                  }
+
+                  const mainChainAtomIndices = new Set<number>();
+                  for (const atomId of mainChainAtomIds) {
+                    const idx = molecule.atoms.findIndex(
+                      (a: Atom) => a.id === atomId,
+                    );
+                    if (idx !== -1) mainChainAtomIndices.add(idx);
+                  }
+
+                  // Find the attachment point (atom connecting sulfur to main chain)
+                  const attachmentPoint = findAttachmentPoint(
+                    molecule,
+                    sulfurIdx,
+                    mainChainAtomIndices,
+                  );
+
+                  // Collect all substituent atoms starting from phosphorus, excluding sulfur
+                  const substituentAtomIndices = collectSubstituentAtoms(
+                    molecule,
+                    phosphorusIdx,
+                    mainChainAtomIndices,
+                    attachmentPoint,
+                  );
+
+                  // Remove sulfur from the substituent for naming the phosphoryl part
+                  const phosphorylOnlyIndices = new Set(substituentAtomIndices);
+                  phosphorylOnlyIndices.delete(sulfurIdx);
+
+                  // Name the phosphoryl part (excluding sulfur)
+                  const phosphorylName = namePhosphorylSubstituent(
+                    molecule,
+                    phosphorylOnlyIndices,
+                    phosphorusIdx,
+                  );
+
+                  // Combine as "[phosphoryl-name]sulfanyl"
+                  // Remove outer parentheses from first substituent only: (cyclooctyloxy)(propyl) -> cyclooctyloxy(propyl)
+                  let formattedPhosphoryl = phosphorylName;
+                  if (formattedPhosphoryl !== "phosphoryl") {
+                    // Remove only the opening parenthesis at the start
+                    // Transform: (sub1)(sub2)phosphoryl -> sub1(sub2)phosphoryl
+                    formattedPhosphoryl = formattedPhosphoryl.replace(/^\(([^)]+)\)/, "$1");
+                  }
+                  subName = locantPrefix + "[" + formattedPhosphoryl + "]sulfanyl";
+                  named = true;
+
+                  if (process.env.VERBOSE) {
+                    console.log(
+                      `[PHOSPHORYLSULFANYL NAMING] Named as: ${subName} (S at ${sulfurIdx}, P at ${phosphorusIdx})`,
+                    );
+                  }
+                }
+              }
+            } else if (typeof firstAtom === "number") {
+              const atomIndices = sub.atoms as number[];
+              // Find both S and P atoms
+              const sulfurIdx = atomIndices.find(
+                (idx: number) => molecule.atoms[idx]?.symbol === "S",
+              );
+              const phosphorusIdx = atomIndices.find(
+                (idx: number) => molecule.atoms[idx]?.symbol === "P",
+              );
+
+              if (sulfurIdx !== undefined && phosphorusIdx !== undefined) {
+                // Collect main chain atoms to exclude from traversal
+                const mainChainAtomIndices = new Set<number>();
+                if (parentStructure.chain?.atoms) {
+                  for (const chainAtom of parentStructure.chain.atoms) {
+                    const idx = molecule.atoms.findIndex(
+                      (a: Atom) => a.id === chainAtom.id,
+                    );
+                    if (idx !== -1) mainChainAtomIndices.add(idx);
+                  }
+                }
+                if (parentStructure.ring?.atoms) {
+                  for (const ringAtom of parentStructure.ring.atoms) {
+                    const idx = molecule.atoms.findIndex(
+                      (a: Atom) => a.id === ringAtom.id,
+                    );
+                    if (idx !== -1) mainChainAtomIndices.add(idx);
+                  }
+                }
+
+                // Find the attachment point (atom connecting sulfur to main chain)
+                const attachmentPoint = findAttachmentPoint(
+                  molecule,
+                  sulfurIdx,
+                  mainChainAtomIndices,
+                );
+
+                // Collect all substituent atoms starting from phosphorus, excluding sulfur
+                const substituentAtomIndices = collectSubstituentAtoms(
+                  molecule,
+                  phosphorusIdx,
+                  mainChainAtomIndices,
+                  attachmentPoint,
+                );
+
+                // Remove sulfur from the substituent for naming the phosphoryl part
+                const phosphorylOnlyIndices = new Set(substituentAtomIndices);
+                phosphorylOnlyIndices.delete(sulfurIdx);
+
+                // Name the phosphoryl part (excluding sulfur)
+                const phosphorylName = namePhosphorylSubstituent(
+                  molecule,
+                  phosphorylOnlyIndices,
+                  phosphorusIdx,
+                );
+
+                // Combine as "[phosphoryl-name]sulfanyl"
+                // Remove outer parentheses from first substituent only: (cyclooctyloxy)(propyl) -> cyclooctyloxy(propyl)
+                let formattedPhosphoryl = phosphorylName;
+                if (formattedPhosphoryl !== "phosphoryl") {
+                  // Remove only the opening parenthesis at the start
+                  // Transform: (sub1)(sub2)phosphoryl -> sub1(sub2)phosphoryl
+                  formattedPhosphoryl = formattedPhosphoryl.replace(/^\(([^)]+)\)/, "$1");
+                }
+                subName = locantPrefix + "[" + formattedPhosphoryl + "]sulfanyl";
+                named = true;
+
+                if (process.env.VERBOSE) {
+                  console.log(
+                    `[PHOSPHORYLSULFANYL NAMING] Named as: ${subName} (S at ${sulfurIdx}, P at ${phosphorusIdx})`,
+                  );
+                }
+              }
+            }
+          }
+
+          if (!named) {
+            subName = "phosphorylsulfanyl";
+          }
+        }
+
         // Convert phosphoryl to proper phosphoryl substituent name
         if (
           subName &&
@@ -1365,10 +1576,18 @@ export function buildSubstitutiveName(
                     if (idx !== -1) mainChainAtomIndices.add(idx);
                   }
 
+                  // Find the attachment point (atom connecting phosphoryl to main chain)
+                  const attachmentPoint = findAttachmentPoint(
+                    molecule,
+                    phosphorusIdx,
+                    mainChainAtomIndices,
+                  );
+
                   const substituentAtomIndices = collectSubstituentAtoms(
                     molecule,
                     phosphorusIdx,
                     mainChainAtomIndices,
+                    attachmentPoint,
                   );
 
                   const baseName = namePhosphorylSubstituent(
@@ -1410,10 +1629,18 @@ export function buildSubstitutiveName(
                   }
                 }
 
+                // Find the attachment point (atom connecting phosphoryl to main chain)
+                const attachmentPoint = findAttachmentPoint(
+                  molecule,
+                  phosphorusIdx,
+                  mainChainAtomIndices,
+                );
+
                 const substituentAtomIndices = collectSubstituentAtoms(
                   molecule,
                   phosphorusIdx,
                   mainChainAtomIndices,
+                  attachmentPoint,
                 );
 
                 const baseName = namePhosphorylSubstituent(
@@ -1821,9 +2048,11 @@ export function buildSubstitutiveName(
         // Use bis/tris for complex substituents (those that need wrapping)
 
         // Check if already wrapped in brackets or parentheses
+        // Also check for [phosphoryl]sulfanyl pattern where brackets wrap part of the name
         const alreadyWrapped =
           (subName.startsWith("(") && subName.endsWith(")")) ||
-          (subName.startsWith("[") && subName.endsWith("]"));
+          (subName.startsWith("[") && subName.endsWith("]")) ||
+          (subName.startsWith("[") && subName.includes("]sulfanyl"));
 
         // Use square brackets ONLY for nested substituents with parentheses
         // Use regular parentheses for simple complex substituents
