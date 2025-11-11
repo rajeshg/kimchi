@@ -113,7 +113,7 @@ function nameAlkylSubstituent(
   substituentAtomId: number,
   nitrogenAtomId: number,
   parentAtomIds: Set<number>,
-  opsinService: OPSINService,
+  _opsinService: OPSINService,
 ): string {
   const substituentAtom = molecule.atoms.find(
     (a) => a.id === substituentAtomId,
@@ -160,14 +160,6 @@ function nameAlkylSubstituent(
 
     if (otherAtom.symbol === "O" && bond.type === "single") {
       // Check if this O has an H (hydroxyl)
-      const oHydrogens =
-        molecule.bonds.filter(
-          (b) =>
-            (b.atom1 === otherAtomId || b.atom2 === otherAtomId) &&
-            b.type === "single",
-        ).length - 1; // Minus the bond to carbon
-
-      const oValence = 2;
       const oBonds = molecule.bonds.filter(
         (b) => b.atom1 === otherAtomId || b.atom2 === otherAtomId,
       ).length;
@@ -2294,10 +2286,12 @@ export function buildSubstitutiveName(
         // Also check for complex yl groups that need wrapping
         const hasComplexYlGroup = /\d+-\w+an-\d+-yl/.test(subName); // Pattern: 2-methylbutan-2-yl
 
-        // Check for ring substituents that need wrapping: oxolan-2-yl, thiolane-3-yl, phenyl derivatives, etc.
+        // Check for ring substituents that need wrapping: oxolan-2-yl, thiolane-3-yl, furan-3-yl, phenyl derivatives, etc.
         // Pattern matches: heterocycle names ending in -an-N-yl or -ol-N-yl
+        // Also matches standalone heterocycle names: furan, pyran, pyrrole, thiophene
         const hasRingYlGroup =
-          /\w+(olan|olane|etane|irane|azol|thiazol)-\d+-yl/.test(subName);
+          /\w+(olan|olane|etane|irane|azol|thiazol)-\d+-yl/.test(subName) ||
+          /(furan|pyran|pyrrole|thiophene)-\d+-yl/.test(subName);
 
         // Check for compound substituents that contain another substituent within them
         // Examples: methylsulfanyl, ethylthio, phenylsulfanyl, methylsulfonyl, trimethylsilyloxy

@@ -50,6 +50,7 @@ export const P_44_2_RING_SENIORITY: IUPACRule = {
         bonds,
         rings: [ringIdxs],
         size: atoms.length,
+        ringCount: 1, // Single ring system
         heteroatoms: atoms.filter((a: Atom) => a.symbol !== "C"),
         type,
         fused: false,

@@ -180,6 +180,44 @@ export const P44_1_1_PRINCIPAL_CHARACTERISTIC_GROUPS_RULE: IUPACRule = {
         }
       }
 
+      // Check if this chain is mostly composed of ring atoms
+      // If so, it's traversing through the ring system and should not be preferred
+      const rings = state.candidateRings || [];
+      const allRingAtomIndices = new Set<number>();
+      for (const ring of rings) {
+        for (const atom of ring.atoms) {
+          const atomIdx = molecule.atoms.findIndex((a) => a === atom);
+          if (atomIdx !== -1) {
+            allRingAtomIndices.add(atomIdx);
+          }
+        }
+      }
+
+      const ringAtomCountInChain = Array.from(chainAtomIndices).filter((idx) =>
+        allRingAtomIndices.has(idx),
+      ).length;
+      const ringAtomPercentage =
+        chainAtomIndices.size > 0
+          ? ringAtomCountInChain / chainAtomIndices.size
+          : 0;
+
+      if (process.env.VERBOSE && ringAtomPercentage > 0) {
+        console.log(
+          `[P-44.1.1] Chain has ${ringAtomCountInChain}/${chainAtomIndices.size} ring atoms (${(ringAtomPercentage * 100).toFixed(1)}%)`,
+        );
+      }
+
+      // If chain is >70% ring atoms, skip counting FGs for it
+      // This handles amine-derived chains that traverse through ring systems
+      if (ringAtomPercentage > 0.7) {
+        if (process.env.VERBOSE) {
+          console.log(
+            `[P-44.1.1] Skipping chain with ${(ringAtomPercentage * 100).toFixed(1)}% ring atoms - not a true acyclic chain`,
+          );
+        }
+        return { chain, fgCount: 0 };
+      }
+
       // Count how many principal functional groups have atoms in this chain OR attached to this chain
       let fgCount = 0;
       for (const fg of principalFGs) {
@@ -188,20 +226,8 @@ export const P44_1_1_PRINCIPAL_CHARACTERISTIC_GROUPS_RULE: IUPACRule = {
           .map((atom) => molecule.atoms.findIndex((a) => a === atom))
           .filter((idx) => idx !== -1);
 
-        // IMPORTANT: Check if FG is on a ring structure FIRST
-        // Build ring atom indices set
-        const allRingAtomIndices = new Set<number>();
-        const rings = state.candidateRings || [];
-        for (const ring of rings) {
-          for (const atom of ring.atoms) {
-            const atomIdx = molecule.atoms.findIndex((a) => a === atom);
-            if (atomIdx !== -1) {
-              allRingAtomIndices.add(atomIdx);
-            }
-          }
-        }
-
         // Check if this FG is on a ring (considering carbon bearing the FG for alcohols/ethers)
+        // (allRingAtomIndices was already computed above for the ring atom percentage check)
         const isOnRing = isFunctionalGroupOnRing(
           fg,
           molecule,

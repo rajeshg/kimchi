@@ -7,6 +7,27 @@ export function identifyPolycyclicPattern(
   rings: number[][],
   molecule: Molecule,
 ): string | null {
+  // For complex polycyclic systems (SSSR rank ≥ 4), skip simple aromatic
+  // heterocycle naming (indole, benzofuran, etc.) and allow von Baeyer
+  // bridged nomenclature to handle them. Only apply aromatic heterocycle
+  // naming for simpler bicyclic and tricyclic systems.
+  const allRingAtoms = new Set<number>();
+  for (const ring of rings)
+    for (const atomIdx of ring) allRingAtoms.add(atomIdx);
+
+  let ringBonds = 0;
+  for (const bond of molecule.bonds) {
+    if (allRingAtoms.has(bond.atom1) && allRingAtoms.has(bond.atom2)) {
+      ringBonds++;
+    }
+  }
+  const sssrRank = ringBonds - allRingAtoms.size + 1;
+
+  // Skip aromatic heterocycle naming for complex polycyclic systems
+  if (sssrRank >= 4) {
+    return null;
+  }
+
   // Be tolerant to imperfect aromatic flags from ring perception:
   // consider a ring aromatic if our strict isRingAromatic says so, or if
   // a large fraction of atoms in the ring have atom.aromatic === true.
@@ -22,9 +43,6 @@ export function identifyPolycyclicPattern(
   const _allRingsAromatic = perRingAromatic.every(Boolean);
   const ringCount = rings.length;
   const ringSizes = rings.map((r) => r.length).sort((a, b) => a - b);
-  const allRingAtoms = new Set<number>();
-  for (const ring of rings)
-    for (const atomIdx of ring) allRingAtoms.add(atomIdx);
   const ringAtoms = Array.from(allRingAtoms)
     .map((idx) => molecule.atoms[idx])
     .filter((a): a is (typeof molecule.atoms)[0] => a !== undefined);

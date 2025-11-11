@@ -88,9 +88,24 @@ export const P2_3_RING_ASSEMBLIES_RULE: IUPACRule = {
     }
     if (ringClassification.bridged.length > 0) {
       // Generate bicyclo/tricyclo name
+      const molecule = context.getState().molecule;
+      // Combine fused and bridged rings to get the polycyclic core
+      // Exclude isolated rings (these are substituents, not part of the core)
+      const polycyclicCoreRings = [
+        ...ringClassification.fused,
+        ...ringClassification.bridged,
+      ];
+      const coreRingCount = polycyclicCoreRings.length;
+
+      if (process.env.VERBOSE) {
+        console.log("[P-2.3 ACTION] polycyclicCoreRings count:", coreRingCount);
+        console.log("[P-2.3 ACTION] (excluding isolated substituent rings)");
+      }
+
       const bridgedNameResult = generateBridgedPolycyclicName(
-        ringClassification.bridged,
-        context.getState().molecule,
+        polycyclicCoreRings,
+        molecule,
+        coreRingCount,
       );
       if (process.env.VERBOSE) {
         console.log("[P-2.3 ACTION] bridgedNameResult:", bridgedNameResult);
@@ -126,10 +141,11 @@ export const P2_3_RING_ASSEMBLIES_RULE: IUPACRule = {
 function generateBridgedPolycyclicName(
   bridgedRings: number[][],
   molecule: Molecule,
+  ringCount: number,
 ): { name: string; vonBaeyerNumbering?: Map<number, number> } | null {
   // Use the engine's own naming function
   const {
     generateClassicPolycyclicName,
   } = require("../../naming/iupac-rings/utils");
-  return generateClassicPolycyclicName(molecule, bridgedRings);
+  return generateClassicPolycyclicName(molecule, bridgedRings, ringCount);
 }

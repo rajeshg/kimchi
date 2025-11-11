@@ -1718,7 +1718,6 @@ function detectAndNumberLactam(
   }
 
   const nCount = ring.atoms.filter((a) => a.symbol === "N").length;
-  const cCount = ring.atoms.filter((a) => a.symbol === "C").length;
 
   if (nCount === 0) {
     return null;

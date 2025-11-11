@@ -206,6 +206,7 @@ export interface ClassicPolycyclicNameResult {
 export function generateClassicPolycyclicName(
   molecule: Molecule,
   rings: number[][],
+  ringCount?: number,
 ): ClassicPolycyclicNameResult | null {
   // Special case: adamantane (C10H16, 3 rings, diamondoid structure)
   if (molecule.atoms.length === 10 && rings.length === 3) {
@@ -236,11 +237,28 @@ export function generateClassicPolycyclicName(
     .map((idx) => molecule.atoms[idx])
     .filter((a): a is (typeof molecule.atoms)[0] => a !== undefined);
 
-  // Allow heteroatoms but reject aromatic systems
-  if (!atoms.every((a) => !a.aromatic)) {
-    if (process.env.VERBOSE)
-      console.log("[VERBOSE] classic polycyclic: contains aromatic atoms");
-    return null;
+  // Calculate SSSR rank if not provided: rank = M - N + 1
+  // where M = bonds in ring system, N = atoms in ring system
+  let ssrRank = ringCount;
+  if (process.env.VERBOSE) {
+    console.log(
+      `[VERBOSE] classic polycyclic: ringCount parameter = ${ringCount}, ssrRank = ${ssrRank}`,
+    );
+  }
+  if (ssrRank === undefined) {
+    const atomSet = new Set(atomIds);
+    let bondCount = 0;
+    for (const bond of molecule.bonds) {
+      if (atomSet.has(bond.atom1) && atomSet.has(bond.atom2)) {
+        bondCount++;
+      }
+    }
+    ssrRank = bondCount - atomIds.length + 1;
+    if (process.env.VERBOSE) {
+      console.log(
+        `[VERBOSE] classic polycyclic: calculated SSSR rank = ${bondCount} - ${atomIds.length} + 1 = ${ssrRank}`,
+      );
+    }
   }
 
   // Collect heteroatoms for naming
@@ -294,8 +312,15 @@ export function generateClassicPolycyclicName(
     return null;
   }
 
+  if (process.env.VERBOSE) {
+    console.log(
+      `[VERBOSE] classic polycyclic: rings.length=${rings.length}, bridgeheads.length=${bridgeheads.length}, ssrRank=${ssrRank}`,
+    );
+  }
+
   // For bicyclo: two bridgeheads, three bridges
-  if (rings.length === 2 && bridgeheads.length === 2) {
+  // Use ssrRank instead of rings.length to properly handle complex polycyclics
+  if (ssrRank === 2 && bridgeheads.length === 2) {
     const bh1 = bridgeheads[0]!;
     const bh2 = bridgeheads[1]!;
 
@@ -468,7 +493,8 @@ export function generateClassicPolycyclicName(
   }
 
   // For tricyclo and higher: three or more rings, three or more bridgeheads
-  if (rings.length >= 3 && bridgeheads.length >= 3) {
+  // Use ssrRank instead of rings.length to properly handle complex polycyclics
+  if (ssrRank >= 3 && bridgeheads.length >= 3) {
     // Build adjacency list once for O(1) neighbor lookups
     const adjacency = new Map<number, Set<number>>();
     for (const bond of molecule.bonds) {
@@ -508,12 +534,12 @@ export function generateClassicPolycyclicName(
       return paths.filter((p) => p.length >= 2);
     }
 
-    // For tricyclo with 4 bridgeheads, we need to find:
+    // For tricyclo+ systems with 4+ bridgeheads, we need to find:
     // 1. Two primary bridgeheads (alpha and omega)
     // 2. Three NODE-DISJOINT paths between them
-    // 3. Secondary bridges between intermediate bridgeheads
+    // 3. Secondary bridges between remaining bridgeheads
 
-    if (bridgeheads.length === 4 && rings.length === 3) {
+    if (bridgeheads.length >= 4 && rings.length >= 3) {
       // Helper function to find node-disjoint paths
       function findNodeDisjointPaths(
         start: number,
@@ -565,6 +591,7 @@ export function generateClassicPolycyclicName(
         paths: number[][];
         bridgeLengths: number[];
         secondaryBridges: Array<{ length: number; from: number; to: number }>;
+        secondaryBridgeLocants?: number[];
         heteroSum?: number;
       } | null = null;
 
@@ -600,30 +627,180 @@ export function generateClassicPolycyclicName(
           }
 
           // Look for secondary bridges between intermediate bridgeheads
-          // The intermediate bridgeheads are the two NOT chosen as alpha/omega
-          const intermediateBridgeheads = bridgeheads.filter(
-            (bh) => bh !== alpha && bh !== omega,
-          );
-
           const secondaryBridges: Array<{
             length: number;
             from: number;
             to: number;
           }> = [];
 
-          if (intermediateBridgeheads.length === 2) {
-            const inter1 = intermediateBridgeheads[0]!;
-            const inter2 = intermediateBridgeheads[1]!;
+          // Find secondary bridges WITHIN each main path (shortcuts)
+          // For pentacyclic+ systems, select the shortest bridge from each path
+          for (let pathIdx = 0; pathIdx < paths.length; pathIdx++) {
+            const path = paths[pathIdx]!;
+            let shortestBridge: {
+              length: number;
+              from: number;
+              to: number;
+            } | null = null;
 
-            // Check if there's a direct connection between them
-            if (adjacency.get(inter1)?.has(inter2)) {
-              secondaryBridges.push({ length: 0, from: inter1, to: inter2 });
-              if (process.env.VERBOSE) {
-                console.log(
-                  `  Secondary bridge found: ${inter1}-${inter2} (length=0)`,
-                );
+            // Check all pairs of non-adjacent atoms in this path
+            for (let i = 0; i < path.length; i++) {
+              for (let j = i + 2; j < path.length; j++) {
+                const atom1 = path[i]!;
+                const atom2 = path[j]!;
+
+                // Direct connection (0-length bridge)?
+                if (adjacency.get(atom1)?.has(atom2)) {
+                  const bridge = { length: 0, from: atom1, to: atom2 };
+                  if (
+                    !shortestBridge ||
+                    bridge.length < shortestBridge.length
+                  ) {
+                    shortestBridge = bridge;
+                  }
+                  if (process.env.VERBOSE) {
+                    console.log(
+                      `  Secondary bridge candidate in path${pathIdx + 1}: ${atom1}-${atom2} (length=0, shortcut)`,
+                    );
+                  }
+                } else {
+                  // Find shortest path between these atoms that doesn't use the main path
+                  const usedNodes = new Set<number>();
+                  // Exclude all intermediate nodes on THIS main path between atom1 and atom2
+                  for (let k = i + 1; k < j; k++) {
+                    usedNodes.add(path[k]!);
+                  }
+
+                  const secondaryPaths = findAllPaths(atom1, atom2, usedNodes);
+                  if (secondaryPaths.length > 0) {
+                    const minLength = Math.min(
+                      ...secondaryPaths.map((p) => p.length - 2),
+                    );
+                    if (minLength >= 0 && minLength < j - i - 1) {
+                      // Only consider if it's actually a shortcut
+                      const bridge = {
+                        length: minLength,
+                        from: atom1,
+                        to: atom2,
+                      };
+                      if (
+                        !shortestBridge ||
+                        bridge.length < shortestBridge.length
+                      ) {
+                        shortestBridge = bridge;
+                      }
+                      if (process.env.VERBOSE) {
+                        console.log(
+                          `  Secondary bridge candidate in path${pathIdx + 1}: ${atom1}-${atom2} (length=${minLength}, shortcut)`,
+                        );
+                      }
+                    }
+                  }
+                }
               }
             }
+
+            // For pentacyclic+ systems, add ALL bridges with minimum length from this path
+            if (shortestBridge) {
+              const minLength = shortestBridge.length;
+              // Collect all bridges with this minimum length
+              const bridgesWithMinLength: Array<{
+                length: number;
+                from: number;
+                to: number;
+              }> = [];
+
+              for (let i = 0; i < path.length; i++) {
+                for (let j = i + 2; j < path.length; j++) {
+                  const atom1 = path[i]!;
+                  const atom2 = path[j]!;
+
+                  // Check for direct connection (length 0)
+                  const directBond = molecule.bonds.find(
+                    (b) =>
+                      (b.atom1 === atom1 && b.atom2 === atom2) ||
+                      (b.atom1 === atom2 && b.atom2 === atom1),
+                  );
+
+                  if (directBond && minLength === 0) {
+                    bridgesWithMinLength.push({
+                      length: 0,
+                      from: atom1,
+                      to: atom2,
+                    });
+                  } else if (!directBond) {
+                    // Find shortest path
+                    const usedNodes = new Set<number>();
+                    for (let k = i + 1; k < j; k++) {
+                      usedNodes.add(path[k]!);
+                    }
+                    const secondaryPaths = findAllPaths(
+                      atom1,
+                      atom2,
+                      usedNodes,
+                    );
+                    if (secondaryPaths.length > 0) {
+                      const pathMinLength = Math.min(
+                        ...secondaryPaths.map((p) => p.length - 2),
+                      );
+                      if (
+                        pathMinLength === minLength &&
+                        pathMinLength < j - i - 1
+                      ) {
+                        bridgesWithMinLength.push({
+                          length: pathMinLength,
+                          from: atom1,
+                          to: atom2,
+                        });
+                      }
+                    }
+                  }
+                }
+              }
+
+              // Add all bridges with minimum length, excluding alpha-omega bridges
+              for (const bridge of bridgesWithMinLength) {
+                // Skip bridges between alpha and omega (redundant with main paths)
+                const isAlphaOmega =
+                  (bridge.from === alpha && bridge.to === omega) ||
+                  (bridge.from === omega && bridge.to === alpha);
+
+                if (!isAlphaOmega) {
+                  secondaryBridges.push(bridge);
+                  if (process.env.VERBOSE) {
+                    console.log(
+                      `  Selected bridge from path${pathIdx + 1}: ${bridge.from}-${bridge.to} (length=${bridge.length})`,
+                    );
+                  }
+                } else if (process.env.VERBOSE) {
+                  console.log(
+                    `  Skipped alpha-omega bridge from path${pathIdx + 1}: ${bridge.from}-${bridge.to} (redundant)`,
+                  );
+                }
+              }
+            }
+          }
+
+          // Check if all heteroatoms are in the main paths (IUPAC requirement)
+          const atomsInPaths = new Set<number>();
+          atomsInPaths.add(alpha);
+          atomsInPaths.add(omega);
+          for (const path of paths) {
+            for (let i = 1; i < path.length - 1; i++) {
+              atomsInPaths.add(path[i]!);
+            }
+          }
+
+          const allHeteroatomsInPaths = heteroatoms.every((ha) => {
+            const atomIdx = molecule.atoms.indexOf(ha);
+            return atomsInPaths.has(atomIdx);
+          });
+
+          if (!allHeteroatomsInPaths && heteroatoms.length > 0) {
+            if (process.env.VERBOSE) {
+              console.log(`  REJECTED: Not all heteroatoms are in main paths`);
+            }
+            continue;
           }
 
           // Calculate von Baeyer numbering for this configuration to evaluate it
@@ -654,12 +831,35 @@ export function generateClassicPolycyclicName(
           heteroLocants.sort((a, b) => a - b);
           const heteroSum = heteroLocants.reduce((sum, val) => sum + val, 0);
 
+          // Calculate secondary bridge locants (P-23.2.6.2.4)
+          // Convert bridge endpoints to Von Baeyer positions and create comparison array
+          const secondaryBridgeLocants: number[] = [];
+          for (const bridge of secondaryBridges) {
+            const pos1 = tempNumbering.get(bridge.from);
+            const pos2 = tempNumbering.get(bridge.to);
+            if (pos1 !== undefined && pos2 !== undefined) {
+              // Add min then max for each bridge
+              secondaryBridgeLocants.push(Math.min(pos1, pos2));
+              secondaryBridgeLocants.push(Math.max(pos1, pos2));
+            }
+          }
+          secondaryBridgeLocants.sort((a, b) => a - b);
+
+          // Score based on IUPAC VB-6.1: prefer configuration with largest sum of two main bridges
+          // Then prefer largest third bridge, then lowest secondary bridge locants (P-23.2.6.2.4), then lowest heteroatom locants
+          const sumOfTwoLargest = lengths[0]! + lengths[1]!;
           const currentScore =
-            lengths[0]! * 1000000 + lengths[1]! * 10000 + lengths[2]! * 100;
+            sumOfTwoLargest * 1000000 + lengths[2]! * 10000 + lengths[0]! * 100;
 
           if (process.env.VERBOSE) {
             console.log(
               `  Heteroatom positions: [${heteroLocants.join(",")}], sum=${heteroSum}`,
+            );
+            console.log(
+              `  Secondary bridge locants: [${secondaryBridgeLocants.join(",")}]`,
+            );
+            console.log(
+              `  Score: ${currentScore} (sum2=${sumOfTwoLargest}, third=${lengths[2]}, first=${lengths[0]})`,
             );
           }
 
@@ -670,19 +870,40 @@ export function generateClassicPolycyclicName(
               paths,
               bridgeLengths: lengths,
               secondaryBridges,
+              secondaryBridgeLocants,
               heteroSum,
             };
           } else {
+            const bestSumOfTwo =
+              bestConfig.bridgeLengths[0]! + bestConfig.bridgeLengths[1]!;
             const bestScore =
-              bestConfig.bridgeLengths[0]! * 1000000 +
-              bestConfig.bridgeLengths[1]! * 10000 +
-              bestConfig.bridgeLengths[2]! * 100;
+              bestSumOfTwo * 1000000 +
+              bestConfig.bridgeLengths[2]! * 10000 +
+              bestConfig.bridgeLengths[0]! * 100;
 
-            // Prefer configuration with higher bridge score (longer bridges first)
+            // Helper function to compare two arrays lexicographically
+            const compareArrays = (arr1: number[], arr2: number[]): number => {
+              const len = Math.min(arr1.length, arr2.length);
+              for (let i = 0; i < len; i++) {
+                if (arr1[i]! < arr2[i]!) return -1;
+                if (arr1[i]! > arr2[i]!) return 1;
+              }
+              return arr1.length - arr2.length;
+            };
+
+            // Prefer configuration with higher bridge score (sum of two largest bridges)
+            // If tied, prefer lower secondary bridge locants (P-23.2.6.2.4)
             // If tied, prefer lower heteroatom locant sum (IUPAC lowest locants rule)
+            const secondaryBridgeComparison = compareArrays(
+              secondaryBridgeLocants,
+              bestConfig.secondaryBridgeLocants ?? [],
+            );
+
             if (
               currentScore > bestScore ||
+              (currentScore === bestScore && secondaryBridgeComparison < 0) ||
               (currentScore === bestScore &&
+                secondaryBridgeComparison === 0 &&
                 heteroSum < (bestConfig.heteroSum ?? Infinity))
             ) {
               bestConfig = {
@@ -691,6 +912,7 @@ export function generateClassicPolycyclicName(
                 paths,
                 bridgeLengths: lengths,
                 secondaryBridges,
+                secondaryBridgeLocants,
                 heteroSum,
               };
             }
@@ -720,16 +942,16 @@ export function generateClassicPolycyclicName(
         // Number omega (end of path 1)
         vonBaeyerNumbering.set(bestConfig.omega, currentPosition++);
 
-        // Number along path 2
+        // Number along path 2 (in reverse, from omega back to alpha)
         const path2 = bestConfig.paths[1]!;
-        for (let i = 1; i < path2.length - 1; i++) {
+        for (let i = path2.length - 2; i > 0; i--) {
           const atomIdx = path2[i]!;
           if (!vonBaeyerNumbering.has(atomIdx)) {
             vonBaeyerNumbering.set(atomIdx, currentPosition++);
           }
         }
 
-        // Number along path 3
+        // Number along path 3 (forward)
         const path3 = bestConfig.paths[2]!;
         for (let i = 1; i < path3.length - 1; i++) {
           const atomIdx = path3[i]!;
@@ -803,28 +1025,102 @@ export function generateClassicPolycyclicName(
           }
         }
 
+        // Detect double bonds in ring system and map to Von Baeyer positions
+        const doubleBondLocants: number[] = [];
+        const atomIdSet = new Set(atomIds);
+        for (const bond of molecule.bonds) {
+          if (
+            bond.type === "double" &&
+            atomIdSet.has(bond.atom1) &&
+            atomIdSet.has(bond.atom2)
+          ) {
+            const pos1 = vonBaeyerNumbering.get(bond.atom1);
+            const pos2 = vonBaeyerNumbering.get(bond.atom2);
+            if (pos1 !== undefined && pos2 !== undefined) {
+              const lowerPos = Math.min(pos1, pos2);
+              doubleBondLocants.push(lowerPos);
+            }
+          }
+        }
+        doubleBondLocants.sort((a, b) => a - b);
+
+        if (process.env.VERBOSE && doubleBondLocants.length > 0) {
+          console.log(
+            `[TRICYCLO] Double bonds at positions: ${doubleBondLocants.join(",")}`,
+          );
+        }
+
         // Build bridge notation with secondary bridges
         let bridgeNotation = `[${bestConfig.bridgeLengths.join(".")}`;
         if (bestConfig.secondaryBridges.length > 0) {
-          for (const sb of bestConfig.secondaryBridges) {
-            const pos1 = vonBaeyerNumbering.get(sb.from);
-            const pos2 = vonBaeyerNumbering.get(sb.to);
-            if (pos1 && pos2) {
+          // Sort secondary bridges by their positions for consistent output
+          const sortedSecondary = bestConfig.secondaryBridges
+            .map((sb) => {
+              const pos1 = vonBaeyerNumbering.get(sb.from);
+              const pos2 = vonBaeyerNumbering.get(sb.to);
+              if (!pos1 || !pos2) return null;
               const [minPos, maxPos] = [pos1, pos2].sort((a, b) => a - b);
-              if (process.env.VERBOSE) {
-                console.log(
-                  `[TRICYCLO] Secondary bridge: atoms ${sb.from}-${sb.from} → positions ${minPos},${maxPos}`,
-                );
-              }
-              bridgeNotation += `.0${minPos},${maxPos}`;
+              return { length: sb.length, minPos, maxPos };
+            })
+            .filter(
+              (x): x is { length: number; minPos: number; maxPos: number } =>
+                x !== null,
+            )
+            .filter((bridge, index, self) => {
+              // Deduplicate: keep only first occurrence of each unique bridge (by positions)
+              return (
+                index ===
+                self.findIndex(
+                  (b) =>
+                    b.minPos === bridge.minPos && b.maxPos === bridge.maxPos,
+                )
+              );
+            })
+            .sort((a, b) => a.minPos - b.minPos || a.maxPos - b.maxPos);
+
+          for (const sb of sortedSecondary) {
+            if (process.env.VERBOSE) {
+              console.log(
+                `[TRICYCLO+] Secondary bridge: positions ${sb.minPos},${sb.maxPos} length=${sb.length}`,
+              );
             }
+            bridgeNotation += `.${sb.length}${sb.minPos},${sb.maxPos}`;
           }
         }
         bridgeNotation += "]";
 
+        // Determine proper prefix based on SSSR ring count
+        let cycloPrefix = "polycyclo"; // fallback
+        const cycloPrefixMap: Record<number, string> = {
+          2: "bicyclo",
+          3: "tricyclo",
+          4: "tetracyclo",
+          5: "pentacyclo",
+          6: "hexacyclo",
+          7: "heptacyclo",
+          8: "octacyclo",
+          9: "nonacyclo",
+          10: "decacyclo",
+        };
+        if (ssrRank in cycloPrefixMap) {
+          cycloPrefix = cycloPrefixMap[ssrRank]!;
+        }
+
         const fullPrefix = heteroPrefix ? `${heteroPrefix}` : "";
+
+        // Build final name with double bond suffix if present
+        let finalName = "";
+        if (doubleBondLocants.length > 0) {
+          // Convert alkane to alkene: "nonadecane" → "nonadec"
+          const alkeneStem = alkaneName.replace(/ane$/, "");
+          const locantStr = doubleBondLocants.join(",");
+          finalName = `${fullPrefix}${cycloPrefix}${bridgeNotation}${alkeneStem}-${locantStr}-en`;
+        } else {
+          finalName = `${fullPrefix}${cycloPrefix}${bridgeNotation}${alkaneName}`;
+        }
+
         return {
-          name: `${fullPrefix}tricyclo${bridgeNotation}${alkaneName}`,
+          name: finalName,
           vonBaeyerNumbering,
         };
       }
@@ -876,9 +1172,10 @@ export function generateClassicPolycyclicName(
     if (uniqueLengths.length >= 3) {
       const alkaneName = getAlkaneBySize(atomIds.length);
 
-      // Determine proper prefix based on number of rings
+      // Determine proper prefix based on SSSR ring count
       let prefix = "polycyclo"; // fallback
       const prefixMap: Record<number, string> = {
+        2: "bicyclo",
         3: "tricyclo",
         4: "tetracyclo",
         5: "pentacyclo",
@@ -888,8 +1185,8 @@ export function generateClassicPolycyclicName(
         9: "nonacyclo",
         10: "decacyclo",
       };
-      if (rings.length in prefixMap) {
-        prefix = prefixMap[rings.length]!;
+      if (ssrRank in prefixMap) {
+        prefix = prefixMap[ssrRank]!;
       }
 
       // Build von Baeyer numbering for tricyclo+ systems
@@ -1003,11 +1300,13 @@ export function generateClassicPolycyclicName(
 
       if (process.env.VERBOSE)
         console.log(
-          "[VERBOSE] classic polycyclic: tricyclo+",
+          `[VERBOSE] classic polycyclic: ${prefix}`,
           uniqueLengths,
           alkaneName,
           "heteroPrefix:",
           heteroPrefix,
+          "ssrRank:",
+          ssrRank,
         );
 
       // Format bridge lengths for von Baeyer notation

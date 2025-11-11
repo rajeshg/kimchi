@@ -79,6 +79,18 @@ export const P44_4_RING_VS_CHAIN_IN_CHAIN_ANALYSIS_RULE: IUPACRule = {
     const longestChain = candidateChains[0]!;
     const chainLength = longestChain.atoms ? longestChain.atoms.length : 0;
 
+    // Check if the candidate chain is mostly composed of ring atoms
+    // If so, it's traversing through the ring system and we should prefer ring naming
+    let ringAtomCount = 0;
+    if (longestChain.atoms && ring.atoms) {
+      const ringAtomIds = new Set(ring.atoms.map((a) => a.id));
+      ringAtomCount = longestChain.atoms.filter((a) =>
+        ringAtomIds.has(a.id),
+      ).length;
+    }
+    const ringAtomPercentage =
+      chainLength > 0 ? ringAtomCount / chainLength : 0;
+
     if (process.env.VERBOSE) {
       console.log(`[P-44.4] candidateRings.length: ${candidateRings.length}`);
       console.log(
@@ -86,12 +98,24 @@ export const P44_4_RING_VS_CHAIN_IN_CHAIN_ANALYSIS_RULE: IUPACRule = {
       );
       console.log(`[P-44.4] Ring size (total atoms): ${ringSize}`);
       console.log(`[P-44.4] Chain length: ${chainLength}`);
+      console.log(
+        `[P-44.4] Chain atoms in ring system: ${ringAtomCount} (${(ringAtomPercentage * 100).toFixed(1)}%)`,
+      );
     }
 
     // P-44.4 criterion: Compare lengths first
-    // Prefer the larger structure (more atoms)
-    // If ring has fewer atoms than the longest acyclic chain, prefer the chain
-    if (chainLength > ringSize) {
+    // But if the chain is mostly composed of ring atoms (>70%), prefer the ring
+    // This handles cases where amine-derived chains traverse through fused ring systems
+    if (ringAtomPercentage > 0.7) {
+      if (process.env.VERBOSE) {
+        console.log(
+          `[P-44.4] Chain is ${(ringAtomPercentage * 100).toFixed(1)}% ring atoms: preferring ring as parent`,
+        );
+      }
+      // Continue to select ring as parent (don't return early)
+    } else if (chainLength > ringSize) {
+      // Prefer the larger structure (more atoms)
+      // If ring has fewer atoms than the longest acyclic chain, prefer the chain
       if (process.env.VERBOSE) {
         console.log(
           `[P-44.4] Chain (${chainLength} atoms) > Ring (${ringSize} atoms): selecting chain as parent`,

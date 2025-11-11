@@ -696,6 +696,155 @@ function getParentChainName(carbonCount: number): string | null {
 }
 
 /**
+ * Helper function to detect and name common heterocyclic rings
+ * Returns the heterocycle name with attachment locant (e.g., "furan-3-yl")
+ */
+function detectHeterocyclicRing(
+  atomId: number,
+  molecule: Molecule,
+  fromAtomId: number,
+): string | null {
+  if (process.env.VERBOSE) {
+    console.log(
+      `[detectHeterocyclicRing] Checking atomId=${atomId}, fromAtomId=${fromAtomId}`,
+    );
+  }
+
+  // Find which ring(s) contain this atom
+  const rings = molecule.rings || [];
+  const ringContainingAtom = rings.find((ring) => ring.includes(atomId));
+
+  if (!ringContainingAtom) {
+    if (process.env.VERBOSE) {
+      console.log(`[detectHeterocyclicRing] Atom ${atomId} not in any ring`);
+    }
+    return null;
+  }
+
+  if (process.env.VERBOSE) {
+    console.log(
+      `[detectHeterocyclicRing] Found ring containing atom ${atomId}: [${ringContainingAtom.join(",")}]`,
+    );
+  }
+
+  const ringSize = ringContainingAtom.length;
+  const ringAtoms = ringContainingAtom
+    .map((id) => molecule.atoms[id])
+    .filter((a): a is Atom => a !== undefined);
+
+  if (ringAtoms.length !== ringSize) {
+    if (process.env.VERBOSE) {
+      console.log(
+        `[detectHeterocyclicRing] Ring atom count mismatch: ${ringAtoms.length} vs ${ringSize}`,
+      );
+    }
+    return null;
+  }
+
+  // Count heteroatoms
+  const heteroAtoms = ringAtoms.filter((a) => a.symbol !== "C");
+  const oxygenCount = heteroAtoms.filter((a) => a.symbol === "O").length;
+  const nitrogenCount = heteroAtoms.filter((a) => a.symbol === "N").length;
+  const sulfurCount = heteroAtoms.filter((a) => a.symbol === "S").length;
+
+  // Check aromaticity
+  const isAromatic = ringAtoms.some((a) => a.aromatic);
+
+  if (process.env.VERBOSE) {
+    console.log(
+      `[detectHeterocyclicRing] Ring size=${ringSize}, O=${oxygenCount}, N=${nitrogenCount}, S=${sulfurCount}, aromatic=${isAromatic}`,
+    );
+  }
+
+  let heterocycleName: string | null = null;
+
+  // 5-membered aromatic rings
+  if (ringSize === 5 && isAromatic) {
+    if (oxygenCount === 1 && nitrogenCount === 0 && sulfurCount === 0) {
+      heterocycleName = "furan";
+    } else if (nitrogenCount === 1 && oxygenCount === 0 && sulfurCount === 0) {
+      heterocycleName = "pyrrole";
+    } else if (sulfurCount === 1 && oxygenCount === 0 && nitrogenCount === 0) {
+      heterocycleName = "thiophene";
+    } else if (nitrogenCount === 2 && oxygenCount === 0 && sulfurCount === 0) {
+      // Could be imidazole or pyrazole - need more analysis
+      heterocycleName = "imidazole"; // Default to imidazole for now
+    }
+  }
+
+  // 6-membered aromatic rings
+  if (ringSize === 6 && isAromatic) {
+    if (nitrogenCount === 1 && oxygenCount === 0 && sulfurCount === 0) {
+      heterocycleName = "pyridine";
+    } else if (nitrogenCount === 2 && oxygenCount === 0 && sulfurCount === 0) {
+      heterocycleName = "pyrimidine"; // or pyrazine/pyridazine - needs more analysis
+    }
+  }
+
+  if (!heterocycleName) {
+    if (process.env.VERBOSE) {
+      console.log(`[detectHeterocyclicRing] No heterocycle name matched`);
+    }
+    return null;
+  }
+
+  if (process.env.VERBOSE) {
+    console.log(
+      `[detectHeterocyclicRing] Matched heterocycle: ${heterocycleName}`,
+    );
+  }
+
+  // Determine attachment locant (position number in the ring)
+  const attachmentIndex = ringContainingAtom.indexOf(atomId);
+  if (attachmentIndex === -1) {
+    return null;
+  }
+
+  // Number the ring to give the attachment point and heteroatoms the lowest locants
+  // For simplicity, we'll number starting from the first heteroatom
+  const heteroatomIndices = ringContainingAtom
+    .map((id, idx) => ({ id, idx }))
+    .filter(({ id }) => {
+      const atom = molecule.atoms[id];
+      return atom && atom.symbol !== "C";
+    })
+    .map(({ idx }) => idx);
+
+  let locant = attachmentIndex + 1; // Default 1-based numbering
+
+  // If there's a heteroatom, renumber from it
+  if (heteroatomIndices.length > 0) {
+    const firstHeteroIndex = heteroatomIndices[0];
+    if (firstHeteroIndex !== undefined) {
+      // Try both directions from the heteroatom and choose the one giving lower locant
+      const clockwise =
+        ((attachmentIndex - firstHeteroIndex + ringSize) % ringSize) + 1;
+      const counterclockwise =
+        ((firstHeteroIndex - attachmentIndex + ringSize) % ringSize) + 1;
+
+      // Choose the direction that gives the lower locant
+      locant = Math.min(clockwise, counterclockwise);
+
+      if (process.env.VERBOSE) {
+        console.log(
+          `[detectHeterocyclicRing] Heteroatom at index ${firstHeteroIndex}, attachment at ${attachmentIndex}`,
+        );
+        console.log(
+          `[detectHeterocyclicRing] Clockwise=${clockwise}, Counterclockwise=${counterclockwise}, chosen=${locant}`,
+        );
+      }
+    }
+  }
+
+  if (process.env.VERBOSE) {
+    console.log(
+      `[detectHeterocyclicRing] Returning: ${heterocycleName}-${locant}-yl`,
+    );
+  }
+  return `${heterocycleName}-${locant}-yl`;
+}
+
+/**
  * Helper function to determine substituent name for ring attachments
  */
 function getRingSubstituentName(
@@ -710,6 +859,22 @@ function getRingSubstituentName(
 
   // Carbon-based substituents
   if (symbol === "C") {
+    // First, check if this carbon is part of a heterocyclic ring
+    const heterocycleName = detectHeterocyclicRing(
+      attachedAtomId,
+      molecule,
+      fromIndex,
+    );
+
+    if (heterocycleName) {
+      if (process.env.VERBOSE) {
+        console.log(
+          `[P-3.2] Detected heterocyclic ring substituent: ${heterocycleName}`,
+        );
+      }
+      return heterocycleName;
+    }
+
     // Analyze the substituent structure
     const structure = analyzeSubstituentStructure(
       attachedAtomId,

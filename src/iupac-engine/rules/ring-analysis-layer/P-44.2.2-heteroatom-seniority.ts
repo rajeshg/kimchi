@@ -60,7 +60,9 @@ export const P44_2_2_HETEROATOM_SENIORITY_RULE: IUPACRule = {
       return false;
     };
 
-    // If any two rings are connected, keep all rings (they form a polycyclic parent)
+    // Check if rings are connected (bonded but not sharing atoms)
+    // If they are connected, we need to decide which should be parent vs substituent
+    // Priority: larger ring systems (more rings, more atoms) should be parent
     let hasConnectedRings = false;
     for (let i = 0; i < candidateRings.length && !hasConnectedRings; i++) {
       for (
@@ -77,10 +79,36 @@ export const P44_2_2_HETEROATOM_SENIORITY_RULE: IUPACRule = {
     if (hasConnectedRings) {
       if (process.env.VERBOSE) {
         console.log(
-          `[P-44.2.2] Rings are connected - keeping all ${candidateRings.length} rings as polycyclic parent`,
+          `[P-44.2.2] Rings are connected - selecting largest ring system as parent`,
         );
       }
-      return context;
+
+      // Select the ring system with the most rings, then most atoms as parent
+      const sortedRings = [...candidateRings].sort((a, b) => {
+        // First compare by number of rings in the system
+        const ringsA = (a as RingSystem).ringCount || 1;
+        const ringsB = (b as RingSystem).ringCount || 1;
+        if (ringsA !== ringsB) return ringsB - ringsA;
+
+        // Then compare by number of atoms
+        return (b as RingSystem).atoms.length - (a as RingSystem).atoms.length;
+      });
+
+      const largestRing = sortedRings[0]!;
+      if (process.env.VERBOSE) {
+        console.log(
+          `[P-44.2.2] Selected ring system with ${(largestRing as RingSystem).ringCount || 1} rings and ${(largestRing as RingSystem).atoms.length} atoms as parent`,
+        );
+      }
+
+      return context.withUpdatedRings(
+        [largestRing],
+        "P-44.2.2",
+        "Connected Ring System Parent Selection",
+        "P-44.2",
+        ExecutionPhase.PARENT_STRUCTURE,
+        `Selected largest ring system (${(largestRing as RingSystem).ringCount || 1} rings, ${(largestRing as RingSystem).atoms.length} atoms) as parent`,
+      );
     }
 
     // Seniority order for heteroatoms in rings

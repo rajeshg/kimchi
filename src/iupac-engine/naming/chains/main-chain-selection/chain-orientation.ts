@@ -109,7 +109,6 @@ export function getFunctionalGroupPositions(
   // This ensures amine-derived chains like "ethanamine" number from the N-bonded carbon
   if (hasTerminusAmine(chain, molecule)) {
     const firstAtom = chain[0]!;
-    const lastAtom = chain[chain.length - 1]!;
 
     // Check which terminus has the amine
     let aminusAtFirstPosition = false;

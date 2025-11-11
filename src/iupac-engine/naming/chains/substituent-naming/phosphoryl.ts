@@ -203,11 +203,11 @@ export function namePhosphanylSubstituent(
   // Identify the linker atom (attachment point to main chain)
   let linkerAtom: number | undefined = attachmentPointIdx;
   let linkerSymbol: string | undefined = undefined;
-  
+
   if (linkerAtom !== undefined) {
     const linkerAtomObj = molecule.atoms[linkerAtom];
     linkerSymbol = linkerAtomObj?.symbol;
-    
+
     if (process.env.VERBOSE) {
       console.log(
         `[namePhosphanylSubstituent] linker atom ${linkerAtom} (${linkerSymbol}) connects to main chain`,
@@ -348,7 +348,7 @@ export function namePhosphanylSubstituent(
 
   // Build base name with substituents
   let baseName = `${parts.join("")}phosphanyl`;
-  
+
   // Add linker suffix if present (e.g., "oxy" for oxygen linker)
   if (linkerSymbol === "O") {
     baseName += "oxy";
@@ -357,7 +357,7 @@ export function namePhosphanylSubstituent(
   } else if (linkerSymbol === "N") {
     baseName += "amino";
   }
-  
+
   if (process.env.VERBOSE) {
     console.log(
       `[namePhosphanylSubstituent] final name: ${baseName} (linker=${linkerSymbol})`,

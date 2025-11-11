@@ -238,7 +238,6 @@ export function findSubstituents(
         if (neighborAtom && neighborAtom.symbol === "S") {
           // Check if this sulfur is attached to the main chain
           let attachedToChainAt = -1;
-          let chainAtomIdx = -1;
 
           for (const chainBond of molecule.bonds) {
             if (
@@ -251,7 +250,6 @@ export function findSubstituents(
                   : chainBond.atom1;
 
               if (chainSet.has(chainNeighbor)) {
-                chainAtomIdx = chainNeighbor;
                 attachedToChainAt = mainChain.indexOf(chainNeighbor);
                 break;
               }

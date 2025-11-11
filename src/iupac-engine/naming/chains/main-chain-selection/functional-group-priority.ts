@@ -414,7 +414,6 @@ export function getChainFunctionalGroupPriority(
         // Check for amine: C-N single bond where N has hydrogens or alkyl groups
         if (nat.symbol === "N" && b.type === BondType.SINGLE) {
           // Make sure this is an amine, not a nitro or other high-priority N group
-          let isAmineN = true;
           let oxygenCount = 0;
           for (const nb of molecule.bonds) {
             if (nb.atom1 !== neigh && nb.atom2 !== neigh) continue;

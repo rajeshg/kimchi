@@ -27,62 +27,6 @@ import {
 } from "./chain-comparison";
 import { getChainFunctionalGroupPriority } from "./functional-group-priority";
 
-/**
- * Helper function to find shortest path between two atoms using BFS.
- * Used for constructing diamine chains (N-C-...-C-N paths).
- *
- * @param molecule - The molecule to search
- * @param startAtomId - Starting atom ID
- * @param endAtomId - Ending atom ID
- * @param excludedAtomIds - Set of atom IDs to exclude from path
- * @returns Array of atom IDs representing the path, or null if no path exists
- */
-function findShortestPath(
-  molecule: Molecule,
-  startAtomId: number,
-  endAtomId: number,
-  excludedAtomIds: Set<number>,
-): number[] | null {
-  if (startAtomId === endAtomId) return [startAtomId];
-
-  const visited = new Set<number>();
-  const queue: Array<{ atomId: number; path: number[] }> = [
-    { atomId: startAtomId, path: [startAtomId] },
-  ];
-  visited.add(startAtomId);
-
-  while (queue.length > 0) {
-    const current = queue.shift();
-    if (!current) continue;
-
-    const { atomId, path } = current;
-    const atom = molecule.atoms[atomId];
-    if (!atom) continue;
-
-    // Check all neighbors
-    for (const bond of molecule.bonds) {
-      if (bond.atom1 !== atomId && bond.atom2 !== atomId) continue;
-
-      const neighborId = bond.atom1 === atomId ? bond.atom2 : bond.atom1;
-
-      // Skip if already visited or excluded
-      if (visited.has(neighborId) || excludedAtomIds.has(neighborId)) continue;
-
-      const newPath = [...path, neighborId];
-
-      // Found the target!
-      if (neighborId === endAtomId) {
-        return newPath;
-      }
-
-      visited.add(neighborId);
-      queue.push({ atomId: neighborId, path: newPath });
-    }
-  }
-
-  return null; // No path found
-}
-
 function isDiamineBackbone(
   chain: number[],
   molecule: Molecule,
@@ -229,7 +173,7 @@ export function findMainChain(
         ringAtomIds.add(atomId);
       }
     }
-    
+
     // Count non-excluded carbon atoms NOT in rings (potential acyclic chain atoms)
     const acyclicCarbons = molecule.atoms.filter(
       (a) =>
@@ -237,13 +181,13 @@ export function findMainChain(
         !excludedAtomIds.has(a.id) &&
         !ringAtomIds.has(a.id),
     ).length;
-    
+
     if (process.env.VERBOSE) {
       console.log(
         `[findMainChain] Ring system analysis: ${ringAtomIds.size} ring atoms, ${acyclicCarbons} acyclic carbons`,
       );
     }
-    
+
     // Heuristic: If ring system has 20+ atoms and acyclic carbons <= 3,
     // this is almost certainly a ring-based parent structure, not a chain.
     // Alternative: if ring system dominates by large ratio (15:1 or more),
@@ -253,8 +197,9 @@ export function findMainChain(
     // - Large bicyclic system with ketone (30+ ring atoms, 1-2 chain carbons) → ring parent
     // - Naphthalene with ester (10 ring atoms, 2 ester carbons) → let normal logic decide
     // - Ethyl benzoate (6 ring atoms, 3 chain carbons) → let normal logic decide
-    const ringToAcyclicRatio = acyclicCarbons > 0 ? ringAtomIds.size / acyclicCarbons : Infinity;
-    
+    const ringToAcyclicRatio =
+      acyclicCarbons > 0 ? ringAtomIds.size / acyclicCarbons : Infinity;
+
     if (
       (ringAtomIds.size >= 20 && acyclicCarbons <= 3) ||
       ringToAcyclicRatio >= 15

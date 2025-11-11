@@ -177,7 +177,7 @@ export function containsHalogen(chain: number[], molecule: Molecule): boolean {
  * Heterocyclic compounds (azines, azoles) would be handled differently.
  */
 export function requiresHeteroatomChains(
-  functionalGroups: Array<{ name: string; type: string; atoms?: number[] }>,
+  _functionalGroups: Array<{ name: string; type: string; atoms?: number[] }>,
 ): boolean {
   // For now, no functional groups require heteroatom chains
   // This may be extended in the future for heterocyclic parent structures

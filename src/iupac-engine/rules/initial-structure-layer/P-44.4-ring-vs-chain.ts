@@ -472,9 +472,7 @@ export const P44_4_RING_CHAIN_SELECTION_RULE: IUPACRule = {
     const principalGroups = functionalGroups.filter((fg) => fg.isPrincipal);
 
     if (process.env.VERBOSE) {
-      console.log(
-        `[P-44.4] principalGroups count: ${principalGroups.length}`,
-      );
+      console.log(`[P-44.4] principalGroups count: ${principalGroups.length}`);
       principalGroups.forEach((pg, idx) => {
         const atomIds = pg.atoms?.map((a) =>
           typeof a === "object" ? a.id : a,
@@ -519,13 +517,11 @@ export const P44_4_RING_CHAIN_SELECTION_RULE: IUPACRule = {
 
         for (const fgAtomId of pgAtomIds) {
           const fgAtom = molecule.atoms[fgAtomId];
-          
+
           // Check if this FG atom is in ring
           if (ringAtomIds.has(fgAtomId)) {
             if (process.env.VERBOSE) {
-              console.log(
-                `[P-44.4]   ✓ FG atom ${fgAtomId} is IN ring`,
-              );
+              console.log(`[P-44.4]   ✓ FG atom ${fgAtomId} is IN ring`);
             }
             isAttachedToRing = true;
             break;
@@ -538,11 +534,17 @@ export const P44_4_RING_CHAIN_SELECTION_RULE: IUPACRule = {
                 bond.atom1 === fgAtomId ? bond.atom2 : bond.atom1;
               if (ringAtomIds.has(otherAtomId)) {
                 const ringAtom = molecule.atoms[otherAtomId];
-                
+
                 // Check if this is an N-aryl or O-aryl pattern:
                 // FG heteroatom (N, O, S) bonded to aromatic ring
-                if (fgAtom && (fgAtom.symbol === 'N' || fgAtom.symbol === 'O' || fgAtom.symbol === 'S') && 
-                    ringAtom && ringAtom.aromatic) {
+                if (
+                  fgAtom &&
+                  (fgAtom.symbol === "N" ||
+                    fgAtom.symbol === "O" ||
+                    fgAtom.symbol === "S") &&
+                  ringAtom &&
+                  ringAtom.aromatic
+                ) {
                   isNArylOrOArylPattern = true;
                   if (process.env.VERBOSE) {
                     console.log(
@@ -551,7 +553,7 @@ export const P44_4_RING_CHAIN_SELECTION_RULE: IUPACRule = {
                   }
                   break;
                 }
-                
+
                 if (process.env.VERBOSE) {
                   console.log(
                     `[P-44.4]   ✓ FG atom ${fgAtomId} bonded to ring atom ${otherAtomId}`,
@@ -570,7 +572,9 @@ export const P44_4_RING_CHAIN_SELECTION_RULE: IUPACRule = {
         // (the aromatic ring is a substituent on the FG, not vice versa)
         if (isNArylOrOArylPattern) {
           if (process.env.VERBOSE) {
-            console.log(`[P-44.4]   → Not counting as ring FG (${pg.type} is N-aryl/O-aryl)`);
+            console.log(
+              `[P-44.4]   → Not counting as ring FG (${pg.type} is N-aryl/O-aryl)`,
+            );
           }
         } else if (isAttachedToRing) {
           ringFGCount++;
@@ -803,6 +807,10 @@ export const P44_4_RING_CHAIN_SELECTION_RULE: IUPACRule = {
           bonds: bondsArray,
           rings: candidateRings.flatMap((r: RingSystem) => r.rings || []),
           size: allAtoms.size,
+          ringCount: candidateRings.reduce(
+            (sum, r) => sum + (r.ringCount || 1),
+            0,
+          ), // Sum of all ring counts
           heteroatoms: heteroatoms,
           type: RingSystemType.AROMATIC, // Will be determined properly by naming logic
           fused: false,

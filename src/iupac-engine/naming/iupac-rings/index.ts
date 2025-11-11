@@ -103,6 +103,7 @@ function createRingSystemFromRings(
     bonds,
     rings: ringObjects,
     size: atoms.length,
+    ringCount: rings.length, // Track number of individual rings
     heteroatoms,
     type,
     fused: rings.length > 1,
@@ -257,38 +258,9 @@ export function generateCyclicName(
         JSON.stringify(ringClassification),
       );
 
-    // Try classic polycyclic naming (bicyclo, tricyclo) FIRST
-    const classicPolycyclicResult = generateClassicPolycyclicName(
-      molecule,
-      meaningfulRings,
-    );
-    if (process.env.VERBOSE)
-      console.log(
-        "[VERBOSE] classic polycyclic name attempt:",
-        classicPolycyclicResult,
-      );
-    if (classicPolycyclicResult) {
-      if (process.env.VERBOSE)
-        console.log(
-          "[VERBOSE] classic polycyclic name=",
-          classicPolycyclicResult.name,
-        );
-      return normalizeCyclicName(
-        classicPolycyclicResult.name,
-        meaningfulRings,
-        molecule,
-      );
-    }
-
-    if (ringClassification.spiro.length > 0) {
-      if (process.env.VERBOSE) console.log("[VERBOSE] generating spiro name");
-      return generateSpiroName(ringClassification.spiro, molecule, options);
-    }
-    if (ringClassification.bridged.length > 0) {
-      if (process.env.VERBOSE) console.log("[VERBOSE] generating bridged name");
-      return generateBridgedName(ringClassification.bridged, molecule, options);
-    }
-
+    // Check for aromatic fused systems FIRST (naphthalene, anthracene, phenanthrene)
+    // This must come before classic polycyclic (bicyclo/tricyclo) naming to avoid
+    // misclassifying aromatic fused systems as bridged aliphatic systems
     if (ringClassification.fused.length > 0) {
       if (process.env.VERBOSE)
         console.log(
@@ -347,6 +319,7 @@ export function generateCyclicName(
       }
     }
 
+    // Try identifyPolycyclicPattern for aromatic fused systems that weren't caught above
     const polycyclicName = identifyPolycyclicPattern(meaningfulRings, molecule);
     if (process.env.VERBOSE)
       console.log("[VERBOSE] polycyclicName=", polycyclicName);
@@ -374,6 +347,39 @@ export function generateCyclicName(
         return normalizeCyclicName(res, meaningfulRings, molecule);
       }
       return normalizeCyclicName(polycyclicName, meaningfulRings, molecule);
+    }
+
+    // Try classic polycyclic naming (bicyclo, tricyclo) for aliphatic bridged systems
+    const classicPolycyclicResult = generateClassicPolycyclicName(
+      molecule,
+      meaningfulRings,
+      ringInfo.rings.length,
+    );
+    if (process.env.VERBOSE)
+      console.log(
+        "[VERBOSE] classic polycyclic name attempt:",
+        classicPolycyclicResult,
+      );
+    if (classicPolycyclicResult) {
+      if (process.env.VERBOSE)
+        console.log(
+          "[VERBOSE] classic polycyclic name=",
+          classicPolycyclicResult.name,
+        );
+      return normalizeCyclicName(
+        classicPolycyclicResult.name,
+        meaningfulRings,
+        molecule,
+      );
+    }
+
+    if (ringClassification.spiro.length > 0) {
+      if (process.env.VERBOSE) console.log("[VERBOSE] generating spiro name");
+      return generateSpiroName(ringClassification.spiro, molecule, options);
+    }
+    if (ringClassification.bridged.length > 0) {
+      if (process.env.VERBOSE) console.log("[VERBOSE] generating bridged name");
+      return generateBridgedName(ringClassification.bridged, molecule, options);
     }
     const advancedFusedName = identifyAdvancedFusedPattern(
       meaningfulRings,
@@ -471,31 +477,12 @@ export function generateBaseCyclicName(
       }
     }
 
-    // Try classic polycyclic naming (bicyclo, tricyclo)
-    const classicPolycyclicResult = generateClassicPolycyclicName(
-      molecule,
-      meaningfulRings,
-    );
-    if (classicPolycyclicResult) {
-      return normalizeCyclicName(
-        classicPolycyclicResult.name,
-        meaningfulRings,
-        molecule,
-      );
-    }
-
     const ringClassification = classifyRingSystems(
       molecule.atoms,
       molecule.bonds,
     );
 
-    if (ringClassification.spiro.length > 0) {
-      return generateSpiroName(ringClassification.spiro, molecule);
-    }
-    if (ringClassification.bridged.length > 0) {
-      return generateBridgedName(ringClassification.bridged, molecule);
-    }
-
+    // Check for aromatic fused systems FIRST (naphthalene, anthracene, phenanthrene)
     if (ringClassification.fused.length > 0) {
       if (process.env.VERBOSE) {
         console.log("[generateBaseCyclicName] FUSED RING BRANCH");
@@ -539,6 +526,27 @@ export function generateBaseCyclicName(
     );
     if (advancedFusedName)
       return normalizeCyclicName(advancedFusedName, meaningfulRings, molecule);
+
+    // Try classic polycyclic naming (bicyclo, tricyclo) for aliphatic bridged systems
+    const classicPolycyclicResult = generateClassicPolycyclicName(
+      molecule,
+      meaningfulRings,
+      ringInfo.rings.length,
+    );
+    if (classicPolycyclicResult) {
+      return normalizeCyclicName(
+        classicPolycyclicResult.name,
+        meaningfulRings,
+        molecule,
+      );
+    }
+
+    if (ringClassification.spiro.length > 0) {
+      return generateSpiroName(ringClassification.spiro, molecule);
+    }
+    if (ringClassification.bridged.length > 0) {
+      return generateBridgedName(ringClassification.bridged, molecule);
+    }
 
     // Special case for test expectation
     if (molecule.atoms.length === 12 && meaningfulRings.length === 2) {

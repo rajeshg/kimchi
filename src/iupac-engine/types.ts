@@ -117,6 +117,7 @@ export interface RingSystem {
   bonds: Bond[];
   rings: Ring[];
   size: number;
+  ringCount: number; // Number of individual rings in this system (e.g., 5 for pentacyclic)
   heteroatoms: HeteroAtom[];
   type: RingSystemType;
   fused: boolean;

@@ -1,4 +1,4 @@
-import { classifyRingSystems } from "../../../utils/ring-analysis";
+import { classifyRingSystems, findSSSR } from "../../../utils/ring-analysis";
 import type { Molecule, Atom, Bond } from "../../../../types";
 import { BondType } from "../../../../types";
 
@@ -146,6 +146,7 @@ export function detectRingSystems(molecule: Molecule): unknown[] {
       atoms,
       bonds,
       size: atoms.length,
+      ringCount: ringIndices.length, // Track number of individual rings in this system
       type: determineRingType({ atoms, bonds }),
       rings: ringIndices.map((idx) => rings[idx]!),
       classification: primaryClassification,
@@ -189,6 +190,7 @@ function determineRingType(ringSystem: {
 export function generateRingName(
   ringSystem: {
     size: number;
+    ringCount?: number; // Number of individual rings in this system
     type: string;
     atoms: Atom[];
     classification: string;
@@ -225,6 +227,7 @@ export function generateRingName(
     const bridgedResult = generateBridgedPolycyclicName(
       ringSystem.rings,
       molecule,
+      ringSystem.ringCount,
     );
     if (bridgedResult && bridgedResult.name) {
       return bridgedResult.name;
@@ -581,12 +584,16 @@ export function generateRingLocants(ringSystem: { atoms: Atom[] }): number[] {
 export function generateBridgedPolycyclicName(
   bridgedRings: number[][],
   molecule: Molecule,
+  ringCount?: number,
 ): { name: string; vonBaeyerNumbering?: Map<number, number> } | null {
   // Use the engine's own naming function
   const {
     generateClassicPolycyclicName,
   } = require("../../naming/iupac-rings/utils");
-  return generateClassicPolycyclicName(molecule, bridgedRings);
+  // If ringCount not provided, compute SSSR
+  const actualRingCount =
+    ringCount ?? findSSSR(molecule.atoms, molecule.bonds).length;
+  return generateClassicPolycyclicName(molecule, bridgedRings, actualRingCount);
 }
 
 /**
