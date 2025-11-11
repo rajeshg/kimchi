@@ -95,6 +95,7 @@ export function buildEsterWithRingAlkylGroup(
 
   // Find the ring attachment position (where ester oxygen connects to ring)
   let ringAttachmentPosition: number | undefined;
+  let ringAtomConnectedToOxygen: number | undefined;
 
   // Find ester oxygen atom (the single-bonded O, not the carbonyl O)
   // Ester structure: R-O-C(=O)-R'
@@ -152,18 +153,18 @@ export function buildEsterWithRingAlkylGroup(
     for (const bond of molecule.bonds) {
       if (bond.atom1 === esterOxygenId && ringAtomIds.has(bond.atom2)) {
         // Found connection - look up the position
-        const ringAtomId = bond.atom2;
+        ringAtomConnectedToOxygen = bond.atom2;
 
         if (process.env.VERBOSE) {
           console.log(
             "[buildEsterWithRingAlkylGroup] Found bond: ester oxygen",
             esterOxygenId,
             "-> ring atom",
-            ringAtomId,
+            ringAtomConnectedToOxygen,
           );
         }
 
-        ringAttachmentPosition = atomIdToPosition.get(ringAtomId);
+        ringAttachmentPosition = atomIdToPosition.get(ringAtomConnectedToOxygen);
 
         if (process.env.VERBOSE) {
           console.log(
@@ -173,18 +174,18 @@ export function buildEsterWithRingAlkylGroup(
         }
         break;
       } else if (bond.atom2 === esterOxygenId && ringAtomIds.has(bond.atom1)) {
-        const ringAtomId = bond.atom1;
+        ringAtomConnectedToOxygen = bond.atom1;
 
         if (process.env.VERBOSE) {
           console.log(
             "[buildEsterWithRingAlkylGroup] Found bond: ring atom",
-            ringAtomId,
+            ringAtomConnectedToOxygen,
             "-> ester oxygen",
             esterOxygenId,
           );
         }
 
-        ringAttachmentPosition = atomIdToPosition.get(ringAtomId);
+        ringAttachmentPosition = atomIdToPosition.get(ringAtomConnectedToOxygen);
 
         if (process.env.VERBOSE) {
           console.log(
@@ -377,27 +378,72 @@ export function buildEsterWithRingAlkylGroup(
     substituentParts.push(`${locantStr}-${multiplier}${group.name}`);
   }
 
-  // Get ring name
+  // Get ring name - check if we should use the polycyclic naming logic
   const ringName = parentStructure.name || "ring";
+  const isPolycyclic = ringName.includes("bicyclo") || ringName.includes("tricyclo") || ringName.includes("spiro");
 
-  // Functional class: ring name ends with -yl suffix with attachment locant
-  const ringBaseName = ringName.replace(/e$/, ""); // oxolane → oxolan
-  const ringWithLocant =
-    ringAttachmentPosition !== undefined
-      ? `${ringBaseName}-${ringAttachmentPosition}-yl`
-      : `${ringBaseName}-yl`;
-  // Assemble the alkyl group name
-  // If the last substituent ends with "-yl", don't add hyphen before ring name
   let alkylGroupName: string;
-  if (substituentParts.length > 0) {
-    const substituentString = substituentParts.join("-");
-    // Check if the last substituent ends with "yl" (e.g., "propan-2-yl")
-    const needsHyphen = !substituentString.endsWith("yl");
-    alkylGroupName = needsHyphen
-      ? `${substituentString}-${ringWithLocant}`
-      : `${substituentString}${ringWithLocant}`;
+
+  // For polycyclic rings, use the comprehensive naming logic from buildRingSubstituentAlkylName
+  if (isPolycyclic && ringAtomConnectedToOxygen !== undefined && esterOxygen) {
+    const esterOxygenId = typeof esterOxygen === "number" ? esterOxygen : esterOxygen.id;
+    const polycyclicName = buildRingSubstituentAlkylName(
+      ringAtomConnectedToOxygen,
+      esterOxygenId,
+      molecule,
+    );
+
+    if (polycyclicName) {
+      if (process.env.VERBOSE) {
+        console.log(
+          "[buildEsterWithRingAlkylGroup] Using polycyclic naming logic, got:",
+          polycyclicName,
+        );
+      }
+      alkylGroupName = polycyclicName;
+    } else {
+      // Fallback to simple logic if polycyclic naming failed
+      if (process.env.VERBOSE) {
+        console.log(
+          "[buildEsterWithRingAlkylGroup] Polycyclic naming returned null, using fallback",
+        );
+      }
+      const ringBaseName = ringName.replace(/e$/, "");
+      const ringWithLocant =
+        ringAttachmentPosition !== undefined
+          ? `${ringBaseName}-${ringAttachmentPosition}-yl`
+          : `${ringBaseName}-yl`;
+      
+      if (substituentParts.length > 0) {
+        const substituentString = substituentParts.join("-");
+        const needsHyphen = !substituentString.endsWith("yl");
+        alkylGroupName = needsHyphen
+          ? `${substituentString}-${ringWithLocant}`
+          : `${substituentString}${ringWithLocant}`;
+      } else {
+        alkylGroupName = ringWithLocant;
+      }
+    }
   } else {
-    alkylGroupName = ringWithLocant;
+    // Simple ring (monocyclic) - use original logic
+    const ringBaseName = ringName.replace(/e$/, ""); // oxolane → oxolan
+    const ringWithLocant =
+      ringAttachmentPosition !== undefined
+        ? `${ringBaseName}-${ringAttachmentPosition}-yl`
+        : `${ringBaseName}-yl`;
+    
+    // Assemble the alkyl group name
+    // If the last substituent ends with "-yl", don't add hyphen before ring name
+    if (substituentParts.length > 0) {
+      const substituentString = substituentParts.join("-");
+      // Check if the last substituent ends with "yl" (e.g., "propan-2-yl")
+      const needsHyphen = !substituentString.endsWith("yl");
+      alkylGroupName = needsHyphen
+        ? `${substituentString}-${ringWithLocant}`
+        : `${substituentString}${ringWithLocant}`;
+    } else {
+      alkylGroupName = ringWithLocant;
+    }
   }
 
   // Extract the acyl portion (C=O side) length
@@ -418,6 +464,10 @@ export function buildEsterWithRingAlkylGroup(
   }
 
   // Functional class format: (alkyl) alkanoate
+  // If alkyl group already has square brackets (polycyclic), don't add parentheses
+  if (alkylGroupName.startsWith("[") && alkylGroupName.endsWith("]")) {
+    return `${alkylGroupName} ${acylName}`;
+  }
   return `(${alkylGroupName}) ${acylName}`;
 }
 

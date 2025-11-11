@@ -845,6 +845,175 @@ function detectHeterocyclicRing(
 }
 
 /**
+ * Helper function to detect and name macrocyclic ring substituents
+ * Handles large rings with heteroatoms (e.g., azacyclohexacos-1-yl)
+ */
+function detectMacrocyclicRingSubstituent(
+  attachedAtomId: number,
+  fromIndex: number,
+  molecule: Molecule,
+): string | null {
+  // Find which ring(s) contain the attached atom
+  const rings = molecule.rings || [];
+  const containingRing = rings.find((ring) => ring.includes(attachedAtomId));
+
+  if (!containingRing) {
+    return null; // Not part of a ring
+  }
+
+  const ringSize = containingRing.length;
+
+  if (process.env.VERBOSE) {
+    console.log(
+      `[detectMacrocyclicRingSubstituent] Found ring of size ${ringSize} containing atom ${attachedAtomId}`,
+    );
+  }
+
+  // Count heteroatoms in the ring
+  const heteroatomCounts: Record<string, number> = {};
+  const heteroatomPositions: Map<string, number[]> = new Map();
+  
+  for (let i = 0; i < containingRing.length; i++) {
+    const atomId = containingRing[i];
+    if (atomId === undefined) continue;
+    const atom = molecule.atoms[atomId];
+    if (!atom) continue;
+    
+    if (atom.symbol !== "C") {
+      heteroatomCounts[atom.symbol] = (heteroatomCounts[atom.symbol] || 0) + 1;
+      if (!heteroatomPositions.has(atom.symbol)) {
+        heteroatomPositions.set(atom.symbol, []);
+      }
+      heteroatomPositions.get(atom.symbol)?.push(i + 1); // 1-based position
+    }
+  }
+
+  const totalHeteroatoms = Object.values(heteroatomCounts).reduce((a, b) => a + b, 0);
+
+  if (process.env.VERBOSE) {
+    console.log(
+      `[detectMacrocyclicRingSubstituent] Heteroatoms:`,
+      heteroatomCounts,
+      `Total: ${totalHeteroatoms}`,
+    );
+  }
+
+  // Only handle simple cases: one heteroatom type
+  if (totalHeteroatoms !== 1 || Object.keys(heteroatomCounts).length !== 1) {
+    return null; // Complex heteroatom pattern - not supported yet
+  }
+
+  // Get the heteroatom type and its prefix
+  const heteroSymbol = Object.keys(heteroatomCounts)[0];
+  if (!heteroSymbol) return null;
+  
+  const heteroPrefix = getHeteroatomPrefix(heteroSymbol);
+  if (!heteroPrefix) return null;
+
+  // Get the multiplier for the ring size from OPSIN
+  const opsinService = getSharedOPSINService();
+  let sizePrefix: string;
+  try {
+    sizePrefix = opsinService.getMultiplicativePrefix(ringSize, "basic") || "";
+  } catch {
+    return null; // Ring size not supported
+  }
+
+  if (!sizePrefix) return null;
+
+  // Check if the ring is saturated
+  let isSaturated = true;
+  for (const bond of molecule.bonds) {
+    const isInRing =
+      containingRing.includes(bond.atom1) && containingRing.includes(bond.atom2);
+    if (isInRing && bond.type === "double") {
+      isSaturated = false;
+      break;
+    }
+  }
+
+  // Detect substituents on the ring (e.g., ketones, hydroxy groups)
+  const ringSubstituents: Array<{ locant: number; name: string }> = [];
+  
+  for (let i = 0; i < containingRing.length; i++) {
+    const atomId = containingRing[i];
+    if (atomId === undefined) continue;
+    const atom = molecule.atoms[atomId];
+    if (!atom) continue;
+
+    // Check for ketone (C=O)
+    if (atom.symbol === "C") {
+      for (const bond of molecule.bonds) {
+        if (bond.type === "double") {
+          const otherAtomId = bond.atom1 === atomId ? bond.atom2 : bond.atom1;
+          if (bond.atom1 === atomId || bond.atom2 === atomId) {
+            const otherAtom = molecule.atoms[otherAtomId];
+            if (otherAtom?.symbol === "O" && !containingRing.includes(otherAtomId)) {
+              // This is a ketone attached to the ring
+              ringSubstituents.push({ locant: i + 1, name: "oxo" });
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Find the attachment point (which carbon in the parent structure is bonded to this ring)
+  let attachmentPosition = 1; // Default to position 1
+  
+  // The attachment point should be at the heteroatom (position 1 after reordering)
+  const heteroatomIndex = containingRing.findIndex((atomId) => atomId === attachedAtomId);
+  if (heteroatomIndex >= 0) {
+    // Reorder ring so heteroatom is at position 1
+    attachmentPosition = 1;
+  }
+
+  // Build the name
+  // Format: [substituents-]aza-cyclo-[size]-[position]-yl
+  // Example: 14-oxo-azacyclohexacos-1-yl
+  // Note: For substituents, we use the base multiplier (hexacos), not alkane (hexacosan)
+  
+  let name = "";
+  
+  // Add substituents
+  if (ringSubstituents.length > 0) {
+    const substituentParts = ringSubstituents.map((sub) => `${sub.locant}-${sub.name}`);
+    name += substituentParts.join(",") + "-";
+  }
+  
+  // Add heteroatom prefix + cyclo + size (use multiplier directly, not alkane form)
+  name += `${heteroPrefix}cyclo${sizePrefix}`;
+  
+  // Add attachment point (always include for clarity)
+  name += `-${attachmentPosition}-yl`;
+  
+
+  if (process.env.VERBOSE) {
+    console.log(
+      `[detectMacrocyclicRingSubstituent] Generated name: ${name}`,
+    );
+  }
+
+  return name;
+}
+
+/**
+ * Get heteroatom prefix for ring nomenclature
+ */
+function getHeteroatomPrefix(symbol: string): string | null {
+  switch (symbol) {
+    case "N":
+      return "aza";
+    case "O":
+      return "oxa";
+    case "S":
+      return "thia";
+    default:
+      return null;
+  }
+}
+
+/**
  * Helper function to determine substituent name for ring attachments
  */
 function getRingSubstituentName(
@@ -1157,6 +1326,18 @@ function getRingSubstituentName(
   // Other common substituents
   if (symbol === "O" && attachedAtom.hydrogens === 1) return "hydroxy";
   if (symbol === "N" && attachedAtom.hydrogens === 2) return "amino";
+
+  // Check if the attached atom is part of a ring system (macrocycle or other ring)
+  if (symbol === "N" || symbol === "O" || symbol === "S" || symbol === "C") {
+    const ringSubstituentName = detectMacrocyclicRingSubstituent(
+      attachedAtomId,
+      fromIndex,
+      molecule,
+    );
+    if (ringSubstituentName) {
+      return ringSubstituentName;
+    }
+  }
 
   return null;
 }

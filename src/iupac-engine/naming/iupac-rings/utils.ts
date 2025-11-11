@@ -26,7 +26,20 @@ export function getAlkaneBySize(n: number): string {
     19: "nonadecane",
     20: "eicosane",
   };
-  return map[n] ?? `C${n}`;
+  // Use rule engine for large rings (>20 carbons)
+  if (map[n]) return map[n];
+  
+  const alkaneName = ruleEngine.getAlkaneName(n);
+  if (alkaneName) {
+    // For von Baeyer nomenclature, we need the stem form
+    // e.g., "henatriacontane" → "hentriaconta" (remove "ane", apply vowel elision)
+    let stem = alkaneName.replace(/ane$/, "");
+    // Apply vowel elision for double vowels (e.g., "henatriacont" → "hentriacont")
+    stem = stem.replace(/aa/, "a").replace(/atriacont/, "triacont");
+    return stem + "a";
+  }
+  
+  return `C${n}`;
 }
 
 export function combineCycloWithSuffix(base: string, suffix: string): string {
