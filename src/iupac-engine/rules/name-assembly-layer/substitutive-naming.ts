@@ -1974,16 +1974,25 @@ export function buildSubstitutiveName(
                     if (idx !== -1) mainChainAtomIndices.add(idx);
                   }
 
+                  // Find the attachment point (atom connecting phosphorus to main chain)
+                  const attachmentPoint = findAttachmentPoint(
+                    molecule,
+                    phosphorusIdx,
+                    mainChainAtomIndices,
+                  );
+
                   const substituentAtomIndices = collectSubstituentAtoms(
                     molecule,
                     phosphorusIdx,
                     mainChainAtomIndices,
+                    attachmentPoint,
                   );
 
                   const baseName = namePhosphanylSubstituent(
                     molecule,
                     substituentAtomIndices,
                     phosphorusIdx,
+                    attachmentPoint,
                   );
                   subName = locantPrefix + baseName;
                   named = true;
@@ -2019,16 +2028,25 @@ export function buildSubstitutiveName(
                   }
                 }
 
+                // Find the attachment point (atom connecting phosphorus to main chain)
+                const attachmentPoint = findAttachmentPoint(
+                  molecule,
+                  phosphorusIdx,
+                  mainChainAtomIndices,
+                );
+
                 const substituentAtomIndices = collectSubstituentAtoms(
                   molecule,
                   phosphorusIdx,
                   mainChainAtomIndices,
+                  attachmentPoint,
                 );
 
                 const baseName = namePhosphanylSubstituent(
                   molecule,
                   substituentAtomIndices,
                   phosphorusIdx,
+                  attachmentPoint,
                 );
                 subName = locantPrefix + baseName;
                 named = true;
@@ -3459,6 +3477,21 @@ export function buildSubstitutiveName(
 
             // Strip multiplicative prefix from name to get base name
             const stripMultiplicativePrefix = (n: string): string => {
+              // Don't strip multiplicative prefixes from complex substituent names
+              // where "di", "tri", etc. are part of the substituent name itself
+              // Examples: "diphenylphosphanyloxy", "triphenylphosphoryl", "dimethylamino"
+              const complexSubstituentPatterns = [
+                "phosph",
+                "sulf",
+                "amino",
+                "phenyl",
+              ];
+              for (const pattern of complexSubstituentPatterns) {
+                if (n.includes(pattern)) {
+                  return n; // Don't strip prefix from complex substituents
+                }
+              }
+
               const prefixes = [
                 "nona", // Check longer prefixes first
                 "octa",
@@ -3558,6 +3591,21 @@ export function buildSubstitutiveName(
 
             // Strip multiplicative prefixes for comparison
             const stripMultiplicativePrefix = (name: string): string => {
+              // Don't strip multiplicative prefixes from complex substituent names
+              // where "di", "tri", etc. are part of the substituent name itself
+              // Examples: "diphenylphosphanyloxy", "triphenylphosphoryl", "dimethylamino"
+              const complexSubstituentPatterns = [
+                "phosph",
+                "sulf",
+                "amino",
+                "phenyl",
+              ];
+              for (const pattern of complexSubstituentPatterns) {
+                if (name.includes(pattern)) {
+                  return name; // Don't strip prefix from complex substituents
+                }
+              }
+
               const prefixes = [
                 "di",
                 "tri",
