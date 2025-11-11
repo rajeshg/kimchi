@@ -244,6 +244,7 @@ export function classifyRingSystems(
   const fused: number[][] = [];
   const spiro: number[][] = [];
   const bridged: number[][] = [];
+
   // Reworked classification: examine pairwise shared atom counts to determine
   // whether a ring is isolated, spiro (shares exactly one atom with another ring),
   // fused (shares 2 adjacent atoms with another ring), or bridged (shares 3+ atoms or 2+ non-adjacent).
@@ -254,6 +255,7 @@ export function classifyRingSystems(
     let maxShared = 0;
     let isBridged = false;
     let isFused = false;
+    const connectedRings: number[] = [];
 
     for (let j = 0; j < rings.length; j++) {
       if (i === j) continue;
@@ -272,12 +274,48 @@ export function classifyRingSystems(
         );
         if (areAdjacent) {
           isFused = true;
+          connectedRings.push(j);
         } else {
           isBridged = true;
         }
       } else if (shared >= 3) {
         // 3+ shared atoms → bridged
         isBridged = true;
+      } else if (shared === 1) {
+        connectedRings.push(j);
+      }
+    }
+
+    // Enhanced bridged detection: check if this ring acts as a central bridge
+    // A ring is a bridging ring if it connects 2+ rings that don't share atoms with each other
+    if (isFused && !isBridged && connectedRings.length >= 2) {
+      // Check if any pair of connected rings share atoms with each other
+      let foundDisconnectedPair = false;
+      for (
+        let k = 0;
+        k < connectedRings.length && !foundDisconnectedPair;
+        k++
+      ) {
+        for (let l = k + 1; l < connectedRings.length; l++) {
+          const ringK = rings[connectedRings[k]!]!;
+          const ringL = rings[connectedRings[l]!]!;
+          const ringKSet = new Set(ringK);
+          const sharedBetweenKL = ringL.filter((atom) =>
+            ringKSet.has(atom),
+          ).length;
+
+          if (sharedBetweenKL === 0) {
+            // These two rings don't share atoms, but both connect to ring1
+            // Therefore ring1 is a bridging ring
+            foundDisconnectedPair = true;
+            break;
+          }
+        }
+      }
+
+      if (foundDisconnectedPair) {
+        isBridged = true;
+        isFused = false;
       }
     }
 

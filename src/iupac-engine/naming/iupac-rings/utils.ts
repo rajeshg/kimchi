@@ -197,6 +197,7 @@ export function classifyFusedSubstituent(
 export interface ClassicPolycyclicNameResult {
   name: string;
   vonBaeyerNumbering?: Map<number, number>; // Map from atom index to von Baeyer position
+  vonBaeyerNumberingOptimized?: boolean; // Track if von Baeyer numbering has been path-reversed/optimized
 }
 
 /**
@@ -592,97 +593,105 @@ export function generateClassicPolycyclicName(
         bridgeLengths: number[];
         secondaryBridges: Array<{ length: number; from: number; to: number }>;
         secondaryBridgeLocants?: number[];
+        heteroLocants?: number[];
+        principalLocants?: number[];
+        substituentLocants?: number[];
         heteroSum?: number;
       } | null = null;
 
       for (let i = 0; i < bridgeheads.length; i++) {
         for (let j = i + 1; j < bridgeheads.length; j++) {
-          const alpha = bridgeheads[i]!;
-          const omega = bridgeheads[j]!;
+          // Test BOTH directions: (i,j) and (j,i)
+          // This ensures we evaluate all possible numbering directions
+          for (const [alphaIdx, omegaIdx] of [
+            [i, j],
+            [j, i],
+          ] as const) {
+            const alpha = bridgeheads[alphaIdx];
+            const omega = bridgeheads[omegaIdx];
+            if (alpha === undefined || omega === undefined) continue;
 
-          // Try to find 3 node-disjoint paths
-          const paths = findNodeDisjointPaths(alpha, omega, 3);
+            // Try to find 3 node-disjoint paths
+            const rawPaths = findNodeDisjointPaths(alpha, omega, 3);
 
-          if (!paths || paths.length !== 3) {
-            continue;
-          }
+            if (!rawPaths || rawPaths.length !== 3) {
+              if (process.env.VERBOSE) {
+                console.log(
+                  `[TRICYCLO] Skipping alpha=${alpha}, omega=${omega} (found ${rawPaths?.length ?? 0} paths, need 3)`,
+                );
+              }
+              continue;
+            }
 
-          // Sort paths by length (descending) for von Baeyer numbering
-          paths.sort((a, b) => b.length - a.length);
+            // Generate all permutations of the 3 paths to find optimal numbering
+            const pathPermutations: number[][][] = [];
+            for (let i = 0; i < 3; i++) {
+              for (let j = 0; j < 3; j++) {
+                if (j === i) continue;
+                for (let k = 0; k < 3; k++) {
+                  if (k === i || k === j) continue;
+                  pathPermutations.push([
+                    rawPaths[i]!,
+                    rawPaths[j]!,
+                    rawPaths[k]!,
+                  ]);
+                }
+              }
+            }
 
-          const lengths = paths.map((p) => p.length - 2).sort((a, b) => b - a);
+            if (process.env.VERBOSE) {
+              console.log(`[TRICYCLO] Testing alpha=${alpha}, omega=${omega}`);
+              console.log(
+                `  Found ${pathPermutations.length} path permutations to evaluate`,
+              );
+            }
 
-          if (process.env.VERBOSE) {
-            console.log(`[TRICYCLO] Testing alpha=${alpha}, omega=${omega}`);
-            console.log(
-              `  Path1: ${paths[0]!.join(",")} (length=${lengths[0]})`,
-            );
-            console.log(
-              `  Path2: ${paths[1]!.join(",")} (length=${lengths[1]})`,
-            );
-            console.log(
-              `  Path3: ${paths[2]!.join(",")} (length=${lengths[2]})`,
-            );
-            console.log(`  Bridge lengths: [${lengths.join(".")}]`);
-          }
+            // Test each path permutation
+            for (const paths of pathPermutations) {
+              const lengths = paths.map((p) => p.length - 2);
+              const sortedLengths = [...lengths].sort((a, b) => b - a);
 
-          // Look for secondary bridges between intermediate bridgeheads
-          const secondaryBridges: Array<{
-            length: number;
-            from: number;
-            to: number;
-          }> = [];
+              if (process.env.VERBOSE) {
+                console.log(
+                  `  [Permutation] Path1: ${paths[0]!.join(",")} (length=${lengths[0]})`,
+                );
+                console.log(
+                  `  [Permutation] Path2: ${paths[1]!.join(",")} (length=${lengths[1]})`,
+                );
+                console.log(
+                  `  [Permutation] Path3: ${paths[2]!.join(",")} (length=${lengths[2]})`,
+                );
+                console.log(
+                  `  [Permutation] Bridge lengths: [${sortedLengths.join(".")}]`,
+                );
+              }
 
-          // Find secondary bridges WITHIN each main path (shortcuts)
-          // For pentacyclic+ systems, select the shortest bridge from each path
-          for (let pathIdx = 0; pathIdx < paths.length; pathIdx++) {
-            const path = paths[pathIdx]!;
-            let shortestBridge: {
-              length: number;
-              from: number;
-              to: number;
-            } | null = null;
+              // Look for secondary bridges between intermediate bridgeheads
+              const secondaryBridges: Array<{
+                length: number;
+                from: number;
+                to: number;
+              }> = [];
 
-            // Check all pairs of non-adjacent atoms in this path
-            for (let i = 0; i < path.length; i++) {
-              for (let j = i + 2; j < path.length; j++) {
-                const atom1 = path[i]!;
-                const atom2 = path[j]!;
+              // Find secondary bridges WITHIN each main path (shortcuts)
+              // For pentacyclic+ systems, select the shortest bridge from each path
+              for (let pathIdx = 0; pathIdx < paths.length; pathIdx++) {
+                const path = paths[pathIdx]!;
+                let shortestBridge: {
+                  length: number;
+                  from: number;
+                  to: number;
+                } | null = null;
 
-                // Direct connection (0-length bridge)?
-                if (adjacency.get(atom1)?.has(atom2)) {
-                  const bridge = { length: 0, from: atom1, to: atom2 };
-                  if (
-                    !shortestBridge ||
-                    bridge.length < shortestBridge.length
-                  ) {
-                    shortestBridge = bridge;
-                  }
-                  if (process.env.VERBOSE) {
-                    console.log(
-                      `  Secondary bridge candidate in path${pathIdx + 1}: ${atom1}-${atom2} (length=0, shortcut)`,
-                    );
-                  }
-                } else {
-                  // Find shortest path between these atoms that doesn't use the main path
-                  const usedNodes = new Set<number>();
-                  // Exclude all intermediate nodes on THIS main path between atom1 and atom2
-                  for (let k = i + 1; k < j; k++) {
-                    usedNodes.add(path[k]!);
-                  }
+                // Check all pairs of non-adjacent atoms in this path
+                for (let i = 0; i < path.length; i++) {
+                  for (let j = i + 2; j < path.length; j++) {
+                    const atom1 = path[i]!;
+                    const atom2 = path[j]!;
 
-                  const secondaryPaths = findAllPaths(atom1, atom2, usedNodes);
-                  if (secondaryPaths.length > 0) {
-                    const minLength = Math.min(
-                      ...secondaryPaths.map((p) => p.length - 2),
-                    );
-                    if (minLength >= 0 && minLength < j - i - 1) {
-                      // Only consider if it's actually a shortcut
-                      const bridge = {
-                        length: minLength,
-                        from: atom1,
-                        to: atom2,
-                      };
+                    // Direct connection (0-length bridge)?
+                    if (adjacency.get(atom1)?.has(atom2)) {
+                      const bridge = { length: 0, from: atom1, to: atom2 };
                       if (
                         !shortestBridge ||
                         bridge.length < shortestBridge.length
@@ -691,292 +700,720 @@ export function generateClassicPolycyclicName(
                       }
                       if (process.env.VERBOSE) {
                         console.log(
-                          `  Secondary bridge candidate in path${pathIdx + 1}: ${atom1}-${atom2} (length=${minLength}, shortcut)`,
+                          `  Secondary bridge candidate in path${pathIdx + 1}: ${atom1}-${atom2} (length=0, shortcut)`,
+                        );
+                      }
+                    } else {
+                      // Find shortest path between these atoms that doesn't use the main path
+                      const usedNodes = new Set<number>();
+                      // Exclude all intermediate nodes on THIS main path between atom1 and atom2
+                      for (let k = i + 1; k < j; k++) {
+                        usedNodes.add(path[k]!);
+                      }
+
+                      const secondaryPaths = findAllPaths(
+                        atom1,
+                        atom2,
+                        usedNodes,
+                      );
+                      if (secondaryPaths.length > 0) {
+                        const minLength = Math.min(
+                          ...secondaryPaths.map((p) => p.length - 2),
+                        );
+                        if (minLength >= 0 && minLength < j - i - 1) {
+                          // Only consider if it's actually a shortcut
+                          const bridge = {
+                            length: minLength,
+                            from: atom1,
+                            to: atom2,
+                          };
+                          if (
+                            !shortestBridge ||
+                            bridge.length < shortestBridge.length
+                          ) {
+                            shortestBridge = bridge;
+                          }
+                          if (process.env.VERBOSE) {
+                            console.log(
+                              `  Secondary bridge candidate in path${pathIdx + 1}: ${atom1}-${atom2} (length=${minLength}, shortcut)`,
+                            );
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+
+                // For pentacyclic+ systems, add ALL bridges with minimum length from this path
+                if (shortestBridge) {
+                  const minLength = shortestBridge.length;
+                  // Collect all bridges with this minimum length
+                  const bridgesWithMinLength: Array<{
+                    length: number;
+                    from: number;
+                    to: number;
+                  }> = [];
+
+                  for (let i = 0; i < path.length; i++) {
+                    for (let j = i + 2; j < path.length; j++) {
+                      const atom1 = path[i]!;
+                      const atom2 = path[j]!;
+
+                      // Check for direct connection (length 0)
+                      const directBond = molecule.bonds.find(
+                        (b) =>
+                          (b.atom1 === atom1 && b.atom2 === atom2) ||
+                          (b.atom1 === atom2 && b.atom2 === atom1),
+                      );
+
+                      if (directBond && minLength === 0) {
+                        bridgesWithMinLength.push({
+                          length: 0,
+                          from: atom1,
+                          to: atom2,
+                        });
+                      } else if (!directBond) {
+                        // Find shortest path
+                        const usedNodes = new Set<number>();
+                        for (let k = i + 1; k < j; k++) {
+                          usedNodes.add(path[k]!);
+                        }
+                        const secondaryPaths = findAllPaths(
+                          atom1,
+                          atom2,
+                          usedNodes,
+                        );
+                        if (secondaryPaths.length > 0) {
+                          const pathMinLength = Math.min(
+                            ...secondaryPaths.map((p) => p.length - 2),
+                          );
+                          if (
+                            pathMinLength === minLength &&
+                            pathMinLength < j - i - 1
+                          ) {
+                            bridgesWithMinLength.push({
+                              length: pathMinLength,
+                              from: atom1,
+                              to: atom2,
+                            });
+                          }
+                        }
+                      }
+                    }
+                  }
+
+                  // Add all bridges with minimum length, excluding alpha-omega bridges
+                  for (const bridge of bridgesWithMinLength) {
+                    // Skip bridges between alpha and omega (redundant with main paths)
+                    const isAlphaOmega =
+                      (bridge.from === alpha && bridge.to === omega) ||
+                      (bridge.from === omega && bridge.to === alpha);
+
+                    if (!isAlphaOmega) {
+                      secondaryBridges.push(bridge);
+                      if (process.env.VERBOSE) {
+                        console.log(
+                          `  Selected bridge from path${pathIdx + 1}: ${bridge.from}-${bridge.to} (length=${bridge.length})`,
+                        );
+                      }
+                    } else if (process.env.VERBOSE) {
+                      console.log(
+                        `  Skipped alpha-omega bridge from path${pathIdx + 1}: ${bridge.from}-${bridge.to} (redundant)`,
+                      );
+                    }
+                  }
+                }
+              }
+
+              // Check if all heteroatoms are in the main paths (IUPAC requirement)
+              const atomsInPaths = new Set<number>();
+              atomsInPaths.add(alpha);
+              atomsInPaths.add(omega);
+              for (const path of paths) {
+                for (let i = 1; i < path.length - 1; i++) {
+                  atomsInPaths.add(path[i]!);
+                }
+              }
+
+              const allHeteroatomsInPaths = heteroatoms.every((ha) => {
+                const atomIdx = molecule.atoms.indexOf(ha);
+                return atomsInPaths.has(atomIdx);
+              });
+
+              if (!allHeteroatomsInPaths && heteroatoms.length > 0) {
+                if (process.env.VERBOSE) {
+                  console.log(
+                    `  REJECTED: Not all heteroatoms are in main paths`,
+                  );
+                }
+                continue;
+              }
+
+              // Calculate von Baeyer numbering for this configuration to evaluate it
+              // IMPORTANT: Must match the final numbering scheme in lines 1074-1104
+              const tempNumbering: Map<number, number> = new Map();
+              let pos = 1;
+              tempNumbering.set(alpha, pos++);
+              for (let i = 1; i < paths[0]!.length - 1; i++) {
+                const atomIdx = paths[0]![i]!;
+                if (!tempNumbering.has(atomIdx))
+                  tempNumbering.set(atomIdx, pos++);
+              }
+              tempNumbering.set(omega, pos++);
+              // Path 2: traverse in REVERSE (from omega back to alpha) to match final numbering
+              for (let i = paths[1]!.length - 2; i > 0; i--) {
+                const atomIdx = paths[1]![i]!;
+                if (!tempNumbering.has(atomIdx))
+                  tempNumbering.set(atomIdx, pos++);
+              }
+              for (let i = 1; i < paths[2]!.length - 1; i++) {
+                const atomIdx = paths[2]![i]!;
+                if (!tempNumbering.has(atomIdx))
+                  tempNumbering.set(atomIdx, pos++);
+              }
+
+              // Calculate heteroatom locant sum for comparison (lower is better per IUPAC)
+              const heteroLocants: number[] = [];
+              for (const ha of heteroatoms) {
+                const atomIdx = molecule.atoms.indexOf(ha);
+                const haPos = tempNumbering.get(atomIdx);
+                if (haPos) heteroLocants.push(haPos);
+              }
+              heteroLocants.sort((a, b) => a - b);
+              const heteroSum = heteroLocants.reduce(
+                (sum, val) => sum + val,
+                0,
+              );
+
+              if (process.env.VERBOSE) {
+                console.log(`  Temp numbering map:`);
+                const sortedEntries = Array.from(tempNumbering.entries()).sort(
+                  (a, b) => a[1] - b[1],
+                );
+                for (const [atomIdx, pos] of sortedEntries) {
+                  const atom = molecule.atoms[atomIdx];
+                  console.log(
+                    `    pos ${pos} -> atom ${atomIdx} (${atom?.symbol})`,
+                  );
+                }
+              }
+
+              // Calculate principal functional group locants (ketones, aldehydes, etc.)
+              const principalLocants: number[] = [];
+              const ringAtomSet = new Set(atomIds);
+              for (
+                let atomIdx = 0;
+                atomIdx < molecule.atoms.length;
+                atomIdx++
+              ) {
+                const atom = molecule.atoms[atomIdx];
+                if (!atom || !ringAtomSet.has(atomIdx)) continue;
+
+                // Detect ketone: sp2 carbon with C=O double bond (within ring)
+                if (atom.symbol === "C" && atom.hybridization === "sp2") {
+                  const carbonylBond = molecule.bonds.find((b) => {
+                    const otherAtomIdx =
+                      b.atom1 === atomIdx
+                        ? b.atom2
+                        : b.atom2 === atomIdx
+                          ? b.atom1
+                          : -1;
+                    if (otherAtomIdx < 0) return false;
+                    const otherAtom = molecule.atoms[otherAtomIdx];
+                    return (
+                      otherAtom &&
+                      otherAtom.symbol === "O" &&
+                      b.type === "double"
+                    );
+                  });
+
+                  if (carbonylBond) {
+                    const pos = tempNumbering.get(atomIdx);
+                    if (pos !== undefined) {
+                      principalLocants.push(pos);
+                      if (process.env.VERBOSE) {
+                        console.log(
+                          `  Ketone at atom ${atomIdx} -> temp position ${pos}`,
                         );
                       }
                     }
                   }
                 }
               }
-            }
+              principalLocants.sort((a, b) => a - b);
 
-            // For pentacyclic+ systems, add ALL bridges with minimum length from this path
-            if (shortestBridge) {
-              const minLength = shortestBridge.length;
-              // Collect all bridges with this minimum length
-              const bridgesWithMinLength: Array<{
-                length: number;
-                from: number;
-                to: number;
-              }> = [];
+              // Calculate substituent locants (methyl groups, etc.) for tie-breaking
+              // Build a set of functional group atoms to exclude (e.g., C=O oxygen)
+              const fgAtomSet = new Set<number>();
+              for (
+                let atomIdx = 0;
+                atomIdx < molecule.atoms.length;
+                atomIdx++
+              ) {
+                const atom = molecule.atoms[atomIdx];
+                if (!atom || !ringAtomSet.has(atomIdx)) continue;
 
-              for (let i = 0; i < path.length; i++) {
-                for (let j = i + 2; j < path.length; j++) {
-                  const atom1 = path[i]!;
-                  const atom2 = path[j]!;
-
-                  // Check for direct connection (length 0)
-                  const directBond = molecule.bonds.find(
-                    (b) =>
-                      (b.atom1 === atom1 && b.atom2 === atom2) ||
-                      (b.atom1 === atom2 && b.atom2 === atom1),
-                  );
-
-                  if (directBond && minLength === 0) {
-                    bridgesWithMinLength.push({
-                      length: 0,
-                      from: atom1,
-                      to: atom2,
-                    });
-                  } else if (!directBond) {
-                    // Find shortest path
-                    const usedNodes = new Set<number>();
-                    for (let k = i + 1; k < j; k++) {
-                      usedNodes.add(path[k]!);
-                    }
-                    const secondaryPaths = findAllPaths(
-                      atom1,
-                      atom2,
-                      usedNodes,
+                // Check if this atom is part of a ketone (C=O with O outside the ring)
+                if (atom.symbol === "C" && atom.hybridization === "sp2") {
+                  const carbonylBond = molecule.bonds.find((b) => {
+                    const otherAtomIdx =
+                      b.atom1 === atomIdx
+                        ? b.atom2
+                        : b.atom2 === atomIdx
+                          ? b.atom1
+                          : -1;
+                    if (otherAtomIdx < 0) return false;
+                    const otherAtom = molecule.atoms[otherAtomIdx];
+                    return (
+                      otherAtom &&
+                      otherAtom.symbol === "O" &&
+                      b.type === "double"
                     );
-                    if (secondaryPaths.length > 0) {
-                      const pathMinLength = Math.min(
-                        ...secondaryPaths.map((p) => p.length - 2),
+                  });
+
+                  if (carbonylBond) {
+                    // Mark the oxygen as a functional group atom
+                    const oxygenIdx =
+                      carbonylBond.atom1 === atomIdx
+                        ? carbonylBond.atom2
+                        : carbonylBond.atom1;
+                    fgAtomSet.add(oxygenIdx);
+                  }
+                }
+              }
+
+              const substituentLocants: number[] = [];
+              for (
+                let atomIdx = 0;
+                atomIdx < molecule.atoms.length;
+                atomIdx++
+              ) {
+                const atom = molecule.atoms[atomIdx];
+                if (!atom || !ringAtomSet.has(atomIdx)) continue;
+
+                // Find substituent atoms: non-H atoms bonded to ring atoms but not in the ring
+                const neighbors = molecule.bonds
+                  .filter((b) => b.atom1 === atomIdx || b.atom2 === atomIdx)
+                  .map((b) => (b.atom1 === atomIdx ? b.atom2 : b.atom1));
+
+                for (const neighborIdx of neighbors) {
+                  const neighbor = molecule.atoms[neighborIdx];
+                  if (!neighbor || neighbor.symbol === "H") continue;
+                  if (ringAtomSet.has(neighborIdx)) continue; // Skip ring atoms
+                  if (fgAtomSet.has(neighborIdx)) continue; // Skip functional group atoms (e.g., C=O oxygen)
+
+                  // This is a substituent attached to this ring atom
+                  const pos = tempNumbering.get(atomIdx);
+                  if (pos !== undefined) {
+                    substituentLocants.push(pos);
+                    if (process.env.VERBOSE) {
+                      console.log(
+                        `  Substituent ${neighbor.symbol} (atom ${neighborIdx}) bonded to ring atom ${atomIdx} -> ring position ${pos}`,
                       );
-                      if (
-                        pathMinLength === minLength &&
-                        pathMinLength < j - i - 1
-                      ) {
-                        bridgesWithMinLength.push({
-                          length: pathMinLength,
-                          from: atom1,
-                          to: atom2,
-                        });
-                      }
                     }
                   }
                 }
               }
+              substituentLocants.sort((a, b) => a - b);
 
-              // Add all bridges with minimum length, excluding alpha-omega bridges
-              for (const bridge of bridgesWithMinLength) {
-                // Skip bridges between alpha and omega (redundant with main paths)
-                const isAlphaOmega =
-                  (bridge.from === alpha && bridge.to === omega) ||
-                  (bridge.from === omega && bridge.to === alpha);
-
-                if (!isAlphaOmega) {
-                  secondaryBridges.push(bridge);
-                  if (process.env.VERBOSE) {
-                    console.log(
-                      `  Selected bridge from path${pathIdx + 1}: ${bridge.from}-${bridge.to} (length=${bridge.length})`,
-                    );
-                  }
-                } else if (process.env.VERBOSE) {
-                  console.log(
-                    `  Skipped alpha-omega bridge from path${pathIdx + 1}: ${bridge.from}-${bridge.to} (redundant)`,
-                  );
+              // Calculate secondary bridge locants (P-23.2.6.2.4)
+              // Convert bridge endpoints to Von Baeyer positions and create comparison array
+              const secondaryBridgeLocants: number[] = [];
+              for (const bridge of secondaryBridges) {
+                const pos1 = tempNumbering.get(bridge.from);
+                const pos2 = tempNumbering.get(bridge.to);
+                if (pos1 !== undefined && pos2 !== undefined) {
+                  // Add min then max for each bridge
+                  secondaryBridgeLocants.push(Math.min(pos1, pos2));
+                  secondaryBridgeLocants.push(Math.max(pos1, pos2));
                 }
               }
-            }
-          }
+              secondaryBridgeLocants.sort((a, b) => a - b);
 
-          // Check if all heteroatoms are in the main paths (IUPAC requirement)
-          const atomsInPaths = new Set<number>();
-          atomsInPaths.add(alpha);
-          atomsInPaths.add(omega);
-          for (const path of paths) {
-            for (let i = 1; i < path.length - 1; i++) {
-              atomsInPaths.add(path[i]!);
-            }
-          }
+              // Score based on IUPAC VB-6.1: prefer configuration with largest sum of two main bridges
+              // Then prefer largest third bridge. Use sortedLengths for consistent scoring across permutations.
+              const sumOfTwoLargest = sortedLengths[0]! + sortedLengths[1]!;
+              const currentScore =
+                sumOfTwoLargest * 1000000 +
+                sortedLengths[2]! * 10000 +
+                sortedLengths[0]! * 100;
 
-          const allHeteroatomsInPaths = heteroatoms.every((ha) => {
-            const atomIdx = molecule.atoms.indexOf(ha);
-            return atomsInPaths.has(atomIdx);
-          });
-
-          if (!allHeteroatomsInPaths && heteroatoms.length > 0) {
-            if (process.env.VERBOSE) {
-              console.log(`  REJECTED: Not all heteroatoms are in main paths`);
-            }
-            continue;
-          }
-
-          // Calculate von Baeyer numbering for this configuration to evaluate it
-          const tempNumbering: Map<number, number> = new Map();
-          let pos = 1;
-          tempNumbering.set(alpha, pos++);
-          for (let i = 1; i < paths[0]!.length - 1; i++) {
-            const atomIdx = paths[0]![i]!;
-            if (!tempNumbering.has(atomIdx)) tempNumbering.set(atomIdx, pos++);
-          }
-          tempNumbering.set(omega, pos++);
-          for (let i = 1; i < paths[1]!.length - 1; i++) {
-            const atomIdx = paths[1]![i]!;
-            if (!tempNumbering.has(atomIdx)) tempNumbering.set(atomIdx, pos++);
-          }
-          for (let i = 1; i < paths[2]!.length - 1; i++) {
-            const atomIdx = paths[2]![i]!;
-            if (!tempNumbering.has(atomIdx)) tempNumbering.set(atomIdx, pos++);
-          }
-
-          // Calculate heteroatom locant sum for comparison (lower is better per IUPAC)
-          const heteroLocants: number[] = [];
-          for (const ha of heteroatoms) {
-            const atomIdx = molecule.atoms.indexOf(ha);
-            const haPos = tempNumbering.get(atomIdx);
-            if (haPos) heteroLocants.push(haPos);
-          }
-          heteroLocants.sort((a, b) => a - b);
-          const heteroSum = heteroLocants.reduce((sum, val) => sum + val, 0);
-
-          // Calculate secondary bridge locants (P-23.2.6.2.4)
-          // Convert bridge endpoints to Von Baeyer positions and create comparison array
-          const secondaryBridgeLocants: number[] = [];
-          for (const bridge of secondaryBridges) {
-            const pos1 = tempNumbering.get(bridge.from);
-            const pos2 = tempNumbering.get(bridge.to);
-            if (pos1 !== undefined && pos2 !== undefined) {
-              // Add min then max for each bridge
-              secondaryBridgeLocants.push(Math.min(pos1, pos2));
-              secondaryBridgeLocants.push(Math.max(pos1, pos2));
-            }
-          }
-          secondaryBridgeLocants.sort((a, b) => a - b);
-
-          // Score based on IUPAC VB-6.1: prefer configuration with largest sum of two main bridges
-          // Then prefer largest third bridge, then lowest secondary bridge locants (P-23.2.6.2.4), then lowest heteroatom locants
-          const sumOfTwoLargest = lengths[0]! + lengths[1]!;
-          const currentScore =
-            sumOfTwoLargest * 1000000 + lengths[2]! * 10000 + lengths[0]! * 100;
-
-          if (process.env.VERBOSE) {
-            console.log(
-              `  Heteroatom positions: [${heteroLocants.join(",")}], sum=${heteroSum}`,
-            );
-            console.log(
-              `  Secondary bridge locants: [${secondaryBridgeLocants.join(",")}]`,
-            );
-            console.log(
-              `  Score: ${currentScore} (sum2=${sumOfTwoLargest}, third=${lengths[2]}, first=${lengths[0]})`,
-            );
-          }
-
-          if (!bestConfig) {
-            bestConfig = {
-              alpha,
-              omega,
-              paths,
-              bridgeLengths: lengths,
-              secondaryBridges,
-              secondaryBridgeLocants,
-              heteroSum,
-            };
-          } else {
-            const bestSumOfTwo =
-              bestConfig.bridgeLengths[0]! + bestConfig.bridgeLengths[1]!;
-            const bestScore =
-              bestSumOfTwo * 1000000 +
-              bestConfig.bridgeLengths[2]! * 10000 +
-              bestConfig.bridgeLengths[0]! * 100;
-
-            // Helper function to compare two arrays lexicographically
-            const compareArrays = (arr1: number[], arr2: number[]): number => {
-              const len = Math.min(arr1.length, arr2.length);
-              for (let i = 0; i < len; i++) {
-                if (arr1[i]! < arr2[i]!) return -1;
-                if (arr1[i]! > arr2[i]!) return 1;
+              if (process.env.VERBOSE) {
+                console.log(
+                  `  Heteroatom positions: [${heteroLocants.join(",")}], sum=${heteroSum}`,
+                );
+                console.log(
+                  `  Secondary bridge locants: [${secondaryBridgeLocants.join(",")}]`,
+                );
+                console.log(
+                  `  Principal FG locants: [${principalLocants.join(",")}]`,
+                );
+                console.log(
+                  `  Substituent locants: [${substituentLocants.join(",")}]`,
+                );
+                console.log(
+                  `  Score: ${currentScore} (sum2=${sumOfTwoLargest}, third=${lengths[2]}, first=${lengths[0]})`,
+                );
+                console.log(
+                  `  --> alpha=${alpha}, omega=${omega}, paths=[${paths[0]!.length - 1},${paths[1]!.length - 1},${paths[2]!.length - 1}]`,
+                );
               }
-              return arr1.length - arr2.length;
-            };
 
-            // Prefer configuration with higher bridge score (sum of two largest bridges)
-            // If tied, prefer lower secondary bridge locants (P-23.2.6.2.4)
-            // If tied, prefer lower heteroatom locant sum (IUPAC lowest locants rule)
-            const secondaryBridgeComparison = compareArrays(
-              secondaryBridgeLocants,
-              bestConfig.secondaryBridgeLocants ?? [],
-            );
+              if (!bestConfig) {
+                bestConfig = {
+                  alpha,
+                  omega,
+                  paths,
+                  bridgeLengths: sortedLengths, // Use sorted lengths for von Baeyer notation
+                  secondaryBridges,
+                  secondaryBridgeLocants,
+                  heteroLocants,
+                  principalLocants,
+                  substituentLocants,
+                  heteroSum,
+                };
+              } else {
+                const bestSumOfTwo =
+                  bestConfig.bridgeLengths[0]! + bestConfig.bridgeLengths[1]!;
+                const bestScore =
+                  bestSumOfTwo * 1000000 +
+                  bestConfig.bridgeLengths[2]! * 10000 +
+                  bestConfig.bridgeLengths[0]! * 100;
 
-            if (
-              currentScore > bestScore ||
-              (currentScore === bestScore && secondaryBridgeComparison < 0) ||
-              (currentScore === bestScore &&
-                secondaryBridgeComparison === 0 &&
-                heteroSum < (bestConfig.heteroSum ?? Infinity))
-            ) {
-              bestConfig = {
-                alpha,
-                omega,
-                paths,
-                bridgeLengths: lengths,
-                secondaryBridges,
-                secondaryBridgeLocants,
-                heteroSum,
-              };
-            }
-          }
+                // Helper function to compare two arrays lexicographically
+                const compareArrays = (
+                  arr1: number[],
+                  arr2: number[],
+                ): number => {
+                  const len = Math.min(arr1.length, arr2.length);
+                  for (let i = 0; i < len; i++) {
+                    if (arr1[i]! < arr2[i]!) return -1;
+                    if (arr1[i]! > arr2[i]!) return 1;
+                  }
+                  return arr1.length - arr2.length;
+                };
+
+                // ============================================================================
+                // IUPAC Priority Order for von Baeyer Numbering Configuration Selection
+                // ============================================================================
+                //
+                // The following priority hierarchy determines which numbering configuration
+                // is selected when multiple valid configurations exist:
+                //
+                // 1. Bridge score (sum of two largest bridges) - VB-6.1
+                //    Higher score is preferred
+                //
+                // 2. Third bridge length - VB-6.2
+                //    Larger third bridge is preferred (already encoded in bridge score)
+                //
+                // 3. Secondary bridge locants - P-23.2.6.2.4
+                //    Lower locants preferred (defines overall numbering system)
+                //
+                // 4. FIRST heteroatom locant - P-14.4
+                //    Lower first heteroatom locant preferred
+                //
+                // 5. Principal functional group locants - P-14.4
+                //    Lower principal group locants preferred
+                //    (ONLY compared when first heteroatom locant ties)
+                //
+                // 6. REMAINING heteroatom locants - P-14.4
+                //    Lower remaining heteroatom locants preferred
+                //    (ONLY compared when principal group locants also tie)
+                //
+                // 7. Substituent locants - P-14.4
+                //    Lower substituent locants preferred (detachable prefixes)
+                //
+                // CRITICAL: Steps 4-6 implement P-14.4's "lowest locants" rule correctly:
+                // When the first heteroatom locant ties, we MUST compare principal groups
+                // BEFORE comparing the second heteroatom locant. This ensures principal
+                // functional groups take priority in tie-breaking situations.
+                //
+                // Example: CC1(CC(=O)C2C3C(C2O1)OC(CC3=O)(C)C)C
+                //   Config A: heteroatoms [3,9], principal [6,12]
+                //   Config B: heteroatoms [3,12], principal [6,9]
+                //   Since first heteroatom ties (3=3), compare principal groups next.
+                //   Config B wins because [6,9] < [6,12], even though [3,9] < [3,12].
+                // ============================================================================
+
+                const secondaryBridgeComparison = compareArrays(
+                  secondaryBridgeLocants,
+                  bestConfig.secondaryBridgeLocants ?? [],
+                );
+
+                // Step 4: Compare FIRST heteroatom locant only
+                const bestHeteroLocants = bestConfig.heteroLocants ?? [];
+                let firstHeteroComparison = 0;
+                if (heteroLocants.length > 0 && bestHeteroLocants.length > 0) {
+                  if (heteroLocants[0]! < bestHeteroLocants[0]!)
+                    firstHeteroComparison = -1;
+                  else if (heteroLocants[0]! > bestHeteroLocants[0]!)
+                    firstHeteroComparison = 1;
+                } else if (heteroLocants.length > 0) {
+                  firstHeteroComparison = -1; // Current has heteroatoms, best doesn't
+                } else if (bestHeteroLocants.length > 0) {
+                  firstHeteroComparison = 1; // Best has heteroatoms, current doesn't
+                }
+
+                // Step 5: Compare principal functional group locants
+                const principalComparison = compareArrays(
+                  principalLocants,
+                  bestConfig.principalLocants ?? [],
+                );
+
+                // Step 6: Compare REMAINING heteroatom locants (after first)
+                // Only used if first heteroatom AND principal groups tie
+                const remainingHeteroComparison = compareArrays(
+                  heteroLocants.slice(1),
+                  bestHeteroLocants.slice(1),
+                );
+
+                // Step 7: Compare substituent locants
+                const substituentComparison = compareArrays(
+                  substituentLocants,
+                  bestConfig.substituentLocants ?? [],
+                );
+
+                if (process.env.VERBOSE) {
+                  console.log(`[VONBAEYER] Comparing configurations:`);
+                  console.log(
+                    `  Current: alpha=${alpha}, omega=${omega}, paths=${JSON.stringify(paths)}`,
+                  );
+                  console.log(
+                    `    secondaryBridgeLocants: ${JSON.stringify(secondaryBridgeLocants)}`,
+                  );
+                  console.log(
+                    `    heteroLocants: ${JSON.stringify(heteroLocants)}`,
+                  );
+                  console.log(
+                    `    principalLocants: ${JSON.stringify(principalLocants)}`,
+                  );
+                  console.log(
+                    `    substituentLocants: ${JSON.stringify(substituentLocants)}`,
+                  );
+                  console.log(
+                    `  Best: alpha=${bestConfig.alpha}, omega=${bestConfig.omega}`,
+                  );
+                  console.log(
+                    `    secondaryBridgeLocants: ${JSON.stringify(bestConfig.secondaryBridgeLocants)}`,
+                  );
+                  console.log(
+                    `    heteroLocants: ${JSON.stringify(bestConfig.heteroLocants)}`,
+                  );
+                  console.log(
+                    `    principalLocants: ${JSON.stringify(bestConfig.principalLocants)}`,
+                  );
+                  console.log(
+                    `    substituentLocants: ${JSON.stringify(bestConfig.substituentLocants)}`,
+                  );
+                  console.log(
+                    `  Comparisons: score=${currentScore > bestScore}, secondaryBridge=${secondaryBridgeComparison}, firstHetero=${firstHeteroComparison}, principal=${principalComparison}, remainingHetero=${remainingHeteroComparison}, substituent=${substituentComparison}`,
+                  );
+                }
+
+                // Apply the priority order to select the best configuration
+                // Each condition represents a tie-breaking step in the hierarchy
+                if (
+                  // Step 1: Higher bridge score wins
+                  currentScore > bestScore ||
+                  // Step 3: Lower secondary bridge locants win (when bridge scores tie)
+                  (currentScore === bestScore &&
+                    secondaryBridgeComparison < 0) ||
+                  // Step 4: Lower first heteroatom locant wins (when secondary bridges tie)
+                  (currentScore === bestScore &&
+                    secondaryBridgeComparison === 0 &&
+                    firstHeteroComparison < 0) ||
+                  // Step 5: Lower principal group locants win (when first heteroatom ties)
+                  (currentScore === bestScore &&
+                    secondaryBridgeComparison === 0 &&
+                    firstHeteroComparison === 0 &&
+                    principalComparison < 0) ||
+                  // Step 6: Lower remaining heteroatom locants win (when principal groups tie)
+                  (currentScore === bestScore &&
+                    secondaryBridgeComparison === 0 &&
+                    firstHeteroComparison === 0 &&
+                    principalComparison === 0 &&
+                    remainingHeteroComparison < 0) ||
+                  // Step 7: Lower substituent locants win (when all above tie)
+                  (currentScore === bestScore &&
+                    secondaryBridgeComparison === 0 &&
+                    firstHeteroComparison === 0 &&
+                    principalComparison === 0 &&
+                    remainingHeteroComparison === 0 &&
+                    substituentComparison < 0)
+                ) {
+                  bestConfig = {
+                    alpha,
+                    omega,
+                    paths,
+                    bridgeLengths: sortedLengths, // Use sorted lengths for von Baeyer notation
+                    secondaryBridges,
+                    secondaryBridgeLocants,
+                    heteroLocants,
+                    principalLocants,
+                    substituentLocants,
+                    heteroSum,
+                  };
+                }
+              }
+            } // Close permutation loop
+          } // Close direction loop (both alpha→omega and omega→alpha)
         }
       }
 
       if (bestConfig && bestConfig.bridgeLengths.length === 3) {
+        if (process.env.VERBOSE) {
+          console.log("[VONBAEYER] Selected best configuration:");
+          console.log("  alpha:", bestConfig.alpha, "omega:", bestConfig.omega);
+          console.log("  bridgeLengths:", bestConfig.bridgeLengths);
+          console.log("  heteroLocants:", bestConfig.heteroLocants);
+          console.log("  principalLocants:", bestConfig.principalLocants);
+          console.log("  substituentLocants:", bestConfig.substituentLocants);
+        }
         const alkaneName = getAlkaneBySize(atomIds.length);
 
-        // Build von Baeyer numbering
-        const vonBaeyerNumbering: Map<number, number> = new Map();
-        let currentPosition = 1;
+        // Helper function to build a numbering from given alpha/omega/paths
+        const buildNumbering = (
+          alpha: number,
+          omega: number,
+          paths: number[][],
+        ): Map<number, number> => {
+          const numbering: Map<number, number> = new Map();
+          let pos = 1;
 
-        // Number alpha
-        vonBaeyerNumbering.set(bestConfig.alpha, currentPosition++);
+          numbering.set(alpha, pos++);
 
-        // Number along path 1 (longest)
-        const path1 = bestConfig.paths[0]!;
-        for (let i = 1; i < path1.length - 1; i++) {
-          const atomIdx = path1[i]!;
-          if (!vonBaeyerNumbering.has(atomIdx)) {
-            vonBaeyerNumbering.set(atomIdx, currentPosition++);
+          const path1 = paths[0]!;
+          for (let i = 1; i < path1.length - 1; i++) {
+            const atomIdx = path1[i]!;
+            if (!numbering.has(atomIdx)) numbering.set(atomIdx, pos++);
           }
-        }
 
-        // Number omega (end of path 1)
-        vonBaeyerNumbering.set(bestConfig.omega, currentPosition++);
+          numbering.set(omega, pos++);
 
-        // Number along path 2 (in reverse, from omega back to alpha)
-        const path2 = bestConfig.paths[1]!;
-        for (let i = path2.length - 2; i > 0; i--) {
-          const atomIdx = path2[i]!;
-          if (!vonBaeyerNumbering.has(atomIdx)) {
-            vonBaeyerNumbering.set(atomIdx, currentPosition++);
+          const path2 = paths[1]!;
+          for (let i = path2.length - 2; i > 0; i--) {
+            const atomIdx = path2[i]!;
+            if (!numbering.has(atomIdx)) numbering.set(atomIdx, pos++);
           }
-        }
 
-        // Number along path 3 (forward)
-        const path3 = bestConfig.paths[2]!;
-        for (let i = 1; i < path3.length - 1; i++) {
-          const atomIdx = path3[i]!;
-          if (!vonBaeyerNumbering.has(atomIdx)) {
-            vonBaeyerNumbering.set(atomIdx, currentPosition++);
+          const path3 = paths[2]!;
+          for (let i = 1; i < path3.length - 1; i++) {
+            const atomIdx = path3[i]!;
+            if (!numbering.has(atomIdx)) numbering.set(atomIdx, pos++);
           }
-        }
 
-        // Number any remaining atoms
-        for (const atomIdx of atomIds) {
-          if (!vonBaeyerNumbering.has(atomIdx)) {
-            vonBaeyerNumbering.set(atomIdx, currentPosition++);
+          for (const atomIdx of atomIds) {
+            if (!numbering.has(atomIdx)) numbering.set(atomIdx, pos++);
           }
-        }
 
-        if (process.env.VERBOSE) {
-          console.log(`[TRICYCLO] Von Baeyer numbering:`);
-          const sorted = Array.from(vonBaeyerNumbering.entries()).sort(
-            (a, b) => a[1] - b[1],
-          );
-          for (const [atomIdx, pos] of sorted) {
+          return numbering;
+        };
+
+        // Helper to compute locants for a given numbering
+        const computeLocants = (numbering: Map<number, number>) => {
+          const heteroLocs: number[] = [];
+          for (const ha of heteroatoms) {
+            const atomIdx = molecule.atoms.indexOf(ha);
+            const pos = numbering.get(atomIdx);
+            if (pos) heteroLocs.push(pos);
+          }
+          heteroLocs.sort((a, b) => a - b);
+
+          const principalLocs: number[] = [];
+          const ringAtomSet = new Set(atomIds);
+          for (let atomIdx = 0; atomIdx < molecule.atoms.length; atomIdx++) {
             const atom = molecule.atoms[atomIdx];
-            console.log(`  Position ${pos}: atom ${atomIdx} (${atom?.symbol})`);
+            if (!atom || !ringAtomSet.has(atomIdx)) continue;
+
+            if (atom.symbol === "C" && atom.hybridization === "sp2") {
+              const carbonylBond = molecule.bonds.find((b) => {
+                const otherIdx =
+                  b.atom1 === atomIdx
+                    ? b.atom2
+                    : b.atom2 === atomIdx
+                      ? b.atom1
+                      : -1;
+                if (otherIdx < 0) return false;
+                const other = molecule.atoms[otherIdx];
+                return other && other.symbol === "O" && b.type === "double";
+              });
+
+              if (carbonylBond) {
+                const pos = numbering.get(atomIdx);
+                if (pos !== undefined) principalLocs.push(pos);
+              }
+            }
           }
-        }
+          principalLocs.sort((a, b) => a - b);
+
+          const substituentLocs: number[] = [];
+          const fgAtomSet = new Set<number>();
+          for (let atomIdx = 0; atomIdx < molecule.atoms.length; atomIdx++) {
+            const atom = molecule.atoms[atomIdx];
+            if (!atom || !ringAtomSet.has(atomIdx)) continue;
+
+            if (atom.symbol === "C" && atom.hybridization === "sp2") {
+              const carbonylBond = molecule.bonds.find((b) => {
+                const otherIdx =
+                  b.atom1 === atomIdx
+                    ? b.atom2
+                    : b.atom2 === atomIdx
+                      ? b.atom1
+                      : -1;
+                if (otherIdx < 0) return false;
+                const other = molecule.atoms[otherIdx];
+                return other && other.symbol === "O" && b.type === "double";
+              });
+              if (carbonylBond) {
+                const oxygenIdx =
+                  carbonylBond.atom1 === atomIdx
+                    ? carbonylBond.atom2
+                    : carbonylBond.atom1;
+                fgAtomSet.add(oxygenIdx);
+              }
+            }
+          }
+
+          for (let atomIdx = 0; atomIdx < molecule.atoms.length; atomIdx++) {
+            const atom = molecule.atoms[atomIdx];
+            if (!atom || ringAtomSet.has(atomIdx) || fgAtomSet.has(atomIdx))
+              continue;
+
+            const bonds = molecule.bonds.filter(
+              (b) => b.atom1 === atomIdx || b.atom2 === atomIdx,
+            );
+            for (const bond of bonds) {
+              const otherIdx = bond.atom1 === atomIdx ? bond.atom2 : bond.atom1;
+              if (ringAtomSet.has(otherIdx)) {
+                const pos = numbering.get(otherIdx);
+                if (pos !== undefined) substituentLocs.push(pos);
+              }
+            }
+          }
+          substituentLocs.sort((a, b) => a - b);
+
+          return { heteroLocs, principalLocs, substituentLocs };
+        };
+
+        // Helper to get secondary bridge locants
+        const getSecondaryBridgeLocants = (numbering: Map<number, number>) => {
+          const locants: number[] = [];
+          for (const sb of bestConfig.secondaryBridges) {
+            const pos1 = numbering.get(sb.from);
+            const pos2 = numbering.get(sb.to);
+            if (pos1 && pos2) {
+              locants.push(Math.min(pos1, pos2), Math.max(pos1, pos2));
+            }
+          }
+          locants.sort((a, b) => a - b);
+          return locants;
+        };
+
+        let vonBaeyerNumbering = buildNumbering(
+          bestConfig.alpha,
+          bestConfig.omega,
+          bestConfig.paths,
+        );
 
         // Build heteroatom prefix
         let heteroPrefix = "";
@@ -1122,6 +1559,7 @@ export function generateClassicPolycyclicName(
         return {
           name: finalName,
           vonBaeyerNumbering,
+          vonBaeyerNumberingOptimized: true, // Tricyclo path reversal optimization applied
         };
       }
     }
@@ -1249,7 +1687,220 @@ export function generateClassicPolycyclicName(
         );
       }
 
+      // Apply cyclic shifting to find optimal von Baeyer numbering per P-14.4
+      // This ensures the lowest complete locant set while preserving higher-priority locants
+
+      // Helper to compute locants for a given numbering
+      const computeLocants = (numbering: Map<number, number>) => {
+        const heteroLocs: number[] = [];
+        const principalLocs: number[] = [];
+        const substituentLocs: number[] = [];
+
+        const ringAtomSet = new Set(atomIds);
+
+        // Detect heteroatoms in the ring
+        for (const ha of heteroatoms) {
+          const atomIdx = molecule.atoms.indexOf(ha);
+          const pos = numbering.get(atomIdx);
+          if (pos !== undefined) {
+            heteroLocs.push(pos);
+          }
+        }
+
+        // Detect ketones: sp2 carbon with C=O double bond
+        for (let atomIdx = 0; atomIdx < molecule.atoms.length; atomIdx++) {
+          const atom = molecule.atoms[atomIdx];
+          if (!atom || !ringAtomSet.has(atomIdx)) continue;
+
+          if (atom.symbol === "C" && atom.hybridization === "sp2") {
+            const carbonylBond = molecule.bonds.find((b) => {
+              const otherAtomIdx =
+                b.atom1 === atomIdx
+                  ? b.atom2
+                  : b.atom2 === atomIdx
+                    ? b.atom1
+                    : -1;
+              if (otherAtomIdx < 0) return false;
+              const otherAtom = molecule.atoms[otherAtomIdx];
+              return (
+                otherAtom && otherAtom.symbol === "O" && b.type === "double"
+              );
+            });
+
+            if (carbonylBond) {
+              const pos = numbering.get(atomIdx);
+              if (pos !== undefined) {
+                principalLocs.push(pos);
+              }
+            }
+          }
+        }
+
+        // Detect substituents (e.g., methyl groups) attached to ring atoms
+        // Build a set of functional group atoms to exclude (e.g., C=O oxygen)
+        const fgAtomSet = new Set<number>();
+        for (let atomIdx = 0; atomIdx < molecule.atoms.length; atomIdx++) {
+          const atom = molecule.atoms[atomIdx];
+          if (!atom || !ringAtomSet.has(atomIdx)) continue;
+
+          if (atom.symbol === "C" && atom.hybridization === "sp2") {
+            const carbonylBond = molecule.bonds.find((b) => {
+              const otherAtomIdx =
+                b.atom1 === atomIdx
+                  ? b.atom2
+                  : b.atom2 === atomIdx
+                    ? b.atom1
+                    : -1;
+              if (otherAtomIdx < 0) return false;
+              const otherAtom = molecule.atoms[otherAtomIdx];
+              return (
+                otherAtom && otherAtom.symbol === "O" && b.type === "double"
+              );
+            });
+
+            if (carbonylBond) {
+              const oxygenIdx =
+                carbonylBond.atom1 === atomIdx
+                  ? carbonylBond.atom2
+                  : carbonylBond.atom1;
+              fgAtomSet.add(oxygenIdx);
+            }
+          }
+        }
+
+        for (let atomIdx = 0; atomIdx < molecule.atoms.length; atomIdx++) {
+          const atom = molecule.atoms[atomIdx];
+          if (!atom || !ringAtomSet.has(atomIdx)) continue;
+
+          const neighbors = molecule.bonds
+            .filter((b) => b.atom1 === atomIdx || b.atom2 === atomIdx)
+            .map((b) => (b.atom1 === atomIdx ? b.atom2 : b.atom1));
+
+          for (const neighborIdx of neighbors) {
+            const neighbor = molecule.atoms[neighborIdx];
+            if (!neighbor || neighbor.symbol === "H") continue;
+            if (ringAtomSet.has(neighborIdx)) continue;
+            if (fgAtomSet.has(neighborIdx)) continue;
+
+            const pos = numbering.get(atomIdx);
+            if (pos !== undefined) {
+              substituentLocs.push(pos);
+            }
+          }
+        }
+
+        heteroLocs.sort((a, b) => a - b);
+        principalLocs.sort((a, b) => a - b);
+        substituentLocs.sort((a, b) => a - b);
+
+        return { heteroLocs, principalLocs, substituentLocs };
+      };
+
+      // Helper to apply cyclic shift to numbering
+      const applyShift = (
+        numbering: Map<number, number>,
+        shift: number,
+        maxPos: number,
+      ): Map<number, number> => {
+        const shifted = new Map<number, number>();
+        for (const [atomIdx, pos] of numbering.entries()) {
+          const newPos = ((pos - 1 + shift) % maxPos) + 1;
+          shifted.set(atomIdx, newPos);
+        }
+        return shifted;
+      };
+
+      // Compare locants according to IUPAC priority
+      const compareArrays = (arr1: number[], arr2: number[]): number => {
+        const len = Math.min(arr1.length, arr2.length);
+        for (let i = 0; i < len; i++) {
+          if (arr1[i]! < arr2[i]!) return -1;
+          if (arr1[i]! > arr2[i]!) return 1;
+        }
+        return arr1.length - arr2.length;
+      };
+
+      // Helper to get complete locant set for comparison (P-14.4)
+      const getCompleteLocantSet = (locants: {
+        heteroLocs: number[];
+        principalLocs: number[];
+        substituentLocs: number[];
+      }): number[] => {
+        return [
+          ...locants.heteroLocs,
+          ...locants.principalLocs,
+          ...locants.substituentLocs,
+        ].sort((a, b) => a - b);
+      };
+
+      // Try all cyclic shifts to find optimal numbering
+      const maxPos = atomIds.length;
+      let bestNumbering = vonBaeyerNumbering;
+      let bestLabel = "original";
+      let bestLocants = computeLocants(vonBaeyerNumbering);
+      let bestCompleteSet = getCompleteLocantSet(bestLocants);
+
+      for (let shift = 1; shift < maxPos; shift++) {
+        const shiftedNumbering = applyShift(vonBaeyerNumbering, shift, maxPos);
+        const locants = computeLocants(shiftedNumbering);
+        const completeSet = getCompleteLocantSet(locants);
+
+        if (process.env.VERBOSE) {
+          console.log(`[TRICYCLO SHIFT] Evaluating shift${shift}:`);
+          console.log(`  Hetero: [${locants.heteroLocs.join(",")}]`);
+          console.log(`  Principal: [${locants.principalLocs.join(",")}]`);
+          console.log(`  Substituent: [${locants.substituentLocs.join(",")}]`);
+          console.log(`  Complete set: [${completeSet.join(",")}]`);
+        }
+
+        // Compare according to IUPAC priority hierarchy:
+        // 1. Heteroatom locants (highest priority after bridge structure)
+        // 2. Principal functional group locants
+        // 3. Complete locant set (P-14.4)
+        const heteroComp = compareArrays(
+          locants.heteroLocs,
+          bestLocants.heteroLocs,
+        );
+        const principalComp = compareArrays(
+          locants.principalLocs,
+          bestLocants.principalLocs,
+        );
+        const completeSetComp = compareArrays(completeSet, bestCompleteSet);
+
+        if (
+          heteroComp < 0 ||
+          (heteroComp === 0 && principalComp < 0) ||
+          (heteroComp === 0 && principalComp === 0 && completeSetComp < 0)
+        ) {
+          bestNumbering = shiftedNumbering;
+          bestLabel = `shift${shift}`;
+          bestLocants = locants;
+          bestCompleteSet = completeSet;
+        }
+      }
+
+      const optimizedVonBaeyerNumbering = bestNumbering;
+
+      if (process.env.VERBOSE) {
+        console.log(`[TRICYCLO SHIFT] Selected ${bestLabel} (best locants)`);
+        console.log(`[TRICYCLO SHIFT] Final optimized von Baeyer numbering:`);
+        const sorted = Array.from(optimizedVonBaeyerNumbering.entries()).sort(
+          (a, b) => a[1] - b[1],
+        );
+        for (const [atomIdx, pos] of sorted) {
+          const atom = molecule.atoms[atomIdx];
+          console.log(`  Position ${pos}: atom ${atomIdx} (${atom?.symbol})`);
+        }
+        console.log(`  Hetero: [${bestLocants.heteroLocs.join(",")}]`);
+        console.log(`  Principal: [${bestLocants.principalLocs.join(",")}]`);
+        console.log(
+          `  Substituent: [${bestLocants.substituentLocs.join(",")}]`,
+        );
+        console.log(`  Complete set: [${bestCompleteSet.join(",")}]`);
+      }
+
       // Build heteroatom prefix if present
+      // IMPORTANT: Use optimizedVonBaeyerNumbering here, not the original vonBaeyerNumbering
       let heteroPrefix = "";
       if (heteroatoms.length > 0) {
         const opsinService = getSharedOPSINService();
@@ -1264,7 +1915,7 @@ export function generateClassicPolycyclicName(
         const heteroPositions: Array<{ pos: number; symbol: string }> = [];
         for (const atom of heteroatoms) {
           const heteroIdx = molecule.atoms.indexOf(atom);
-          const position = vonBaeyerNumbering.get(heteroIdx);
+          const position = optimizedVonBaeyerNumbering.get(heteroIdx);
           if (position !== undefined) {
             const heteroName = heteroMap[atom.symbol];
             if (heteroName) {
@@ -1318,7 +1969,7 @@ export function generateClassicPolycyclicName(
 
       return {
         name: `${fullPrefix}[${bridgeNotation}]${alkaneName}`,
-        vonBaeyerNumbering,
+        vonBaeyerNumbering: optimizedVonBaeyerNumbering,
       };
     }
     if (process.env.VERBOSE)

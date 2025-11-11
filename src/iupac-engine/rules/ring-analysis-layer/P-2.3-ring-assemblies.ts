@@ -75,6 +75,30 @@ export const P2_3_RING_ASSEMBLIES_RULE: IUPACRule = {
       return context;
     }
 
+    // Check if this is a known fused aromatic system (anthracene, phenanthrene, naphthalene, etc.)
+    // These should be handled by P-2.5 (Fused Ring Systems), not P-2.3 (von Baeyer)
+    const {
+      identifyPolycyclicPattern,
+    } = require("../../naming/iupac-rings/fused-naming");
+    const molecule = context.getState().molecule;
+    const allRings = context.getState().molecule.rings || [];
+    const polycyclicPattern = identifyPolycyclicPattern(allRings, molecule);
+
+    if (process.env.VERBOSE) {
+      console.log("[P-2.3 ACTION] polycyclicPattern:", polycyclicPattern);
+    }
+
+    // Skip von Baeyer nomenclature for known fused aromatic systems
+    if (polycyclicPattern) {
+      if (process.env.VERBOSE) {
+        console.log(
+          "[P-2.3 ACTION] Skipping - known fused system:",
+          polycyclicPattern,
+        );
+      }
+      return context;
+    }
+
     // Check if this is a bridged system (not fused, not spiro)
     const ringClassification = classifyRingSystems(
       context.getState().molecule.atoms,
