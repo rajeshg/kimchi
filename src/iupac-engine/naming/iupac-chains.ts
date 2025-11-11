@@ -275,16 +275,32 @@ export function namePhosphanylSubstituent(
   molecule: Molecule,
   substituentAtoms: Set<number>,
   phosphorusAtomIdx: number,
+  attachmentPointIdx?: number,
 ): string {
   if (process.env.VERBOSE) {
     console.log(
-      `[namePhosphanylSubstituent] phosphorus=${phosphorusAtomIdx}, substituentAtoms=${Array.from(substituentAtoms).join(",")}`,
+      `[namePhosphanylSubstituent] phosphorus=${phosphorusAtomIdx}, substituentAtoms=${Array.from(substituentAtoms).join(",")}, attachmentPoint=${attachmentPointIdx}`,
     );
   }
 
   // Find all atoms bonded to phosphorus
   const pAtom = molecule.atoms[phosphorusAtomIdx];
   if (!pAtom) return "phosphanyl";
+
+  // Identify the linker atom (attachment point to main chain)
+  let linkerAtom: number | undefined = attachmentPointIdx;
+  let linkerSymbol: string | undefined = undefined;
+  
+  if (linkerAtom !== undefined) {
+    const linkerAtomObj = molecule.atoms[linkerAtom];
+    linkerSymbol = linkerAtomObj?.symbol;
+    
+    if (process.env.VERBOSE) {
+      console.log(
+        `[namePhosphanylSubstituent] linker atom ${linkerAtom} (${linkerSymbol}) connects to main chain`,
+      );
+    }
+  }
 
   const substituentsOnP: number[] = [];
   for (const bond of molecule.bonds) {
@@ -294,6 +310,16 @@ export function namePhosphanylSubstituent(
     } else if (bond.atom2 === phosphorusAtomIdx) {
       otherAtom = bond.atom1;
     } else {
+      continue;
+    }
+
+    // Skip the linker atom - it's not a substituent ON phosphorus
+    if (otherAtom === linkerAtom) {
+      if (process.env.VERBOSE) {
+        console.log(
+          `[namePhosphanylSubstituent] skipping linker atom ${otherAtom} from substituents on P`,
+        );
+      }
       continue;
     }
 
@@ -392,6 +418,10 @@ export function namePhosphanylSubstituent(
   }
 
   if (substituentGroups.size === 0) {
+    // If there's a linker, add its suffix (e.g., "oxy" for oxygen)
+    if (linkerSymbol === "O") {
+      return "phosphanyloxy";
+    }
     return "phosphanyl";
   }
 
@@ -411,8 +441,26 @@ export function namePhosphanylSubstituent(
     }
   }
 
-  // Format as "diphenylphosphanyl" or "methylethylphosphanyl"
-  return `${parts.join("")}phosphanyl`;
+  // Build base name with substituents
+  let baseName = `${parts.join("")}phosphanyl`;
+  
+  // Add linker suffix if present (e.g., "oxy" for oxygen linker)
+  if (linkerSymbol === "O") {
+    baseName += "oxy";
+  } else if (linkerSymbol === "S") {
+    baseName += "sulfanyl";
+  } else if (linkerSymbol === "N") {
+    baseName += "amino";
+  }
+  
+  if (process.env.VERBOSE) {
+    console.log(
+      `[namePhosphanylSubstituent] final name: ${baseName} (linker=${linkerSymbol})`,
+    );
+  }
+
+  // Format as "diphenylphosphanyloxy" or "methylethylphosphanyl"
+  return baseName;
 }
 
 /**

@@ -1486,6 +1486,18 @@ export class OPSINFunctionalGroupDetector {
       // Only match if it's NOT a phosphoryl group (no P=O)
       if (!hasPhosphoryl) {
         phosphanylAtoms.push(atom.id);
+        
+        // Claim all bonded heteroatoms (O, N, S, etc.) to prevent them from being 
+        // detected as separate functional groups (e.g., "oxide")
+        const pBonds = bonds.filter(
+          (b) => b.atom1 === atom.id || b.atom2 === atom.id,
+        );
+        for (const bond of pBonds) {
+          const neighbor = this.getBondedAtom(bond, atom.id, atoms);
+          if (neighbor && neighbor.symbol !== "C" && neighbor.symbol !== "H") {
+            phosphanylAtoms.push(neighbor.id);
+          }
+        }
       }
     }
 

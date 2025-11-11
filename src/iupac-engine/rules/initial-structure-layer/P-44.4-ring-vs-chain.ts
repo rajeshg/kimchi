@@ -471,6 +471,20 @@ export const P44_4_RING_CHAIN_SELECTION_RULE: IUPACRule = {
     const functionalGroups = context.getState().functionalGroups || [];
     const principalGroups = functionalGroups.filter((fg) => fg.isPrincipal);
 
+    if (process.env.VERBOSE) {
+      console.log(
+        `[P-44.4] principalGroups count: ${principalGroups.length}`,
+      );
+      principalGroups.forEach((pg, idx) => {
+        const atomIds = pg.atoms?.map((a) =>
+          typeof a === "object" ? a.id : a,
+        );
+        console.log(
+          `[P-44.4]   PG ${idx}: name="${pg.name}", type="${pg.type}", atoms=[${atomIds?.join(",")}]`,
+        );
+      });
+    }
+
     if (
       principalGroups.length > 0 &&
       candidateChains &&
@@ -489,39 +503,79 @@ export const P44_4_RING_CHAIN_SELECTION_RULE: IUPACRule = {
         const pgAtoms = pg.atoms || [];
         if (pgAtoms.length === 0) continue;
 
-        // Get the attachment point (first atom in the FG)
-        const attachmentAtom = pgAtoms[0];
-        if (!attachmentAtom) continue;
+        const pgAtomIds = pgAtoms.map((a) =>
+          typeof a === "object" ? a.id : a,
+        );
 
-        const attachmentAtomId =
-          typeof attachmentAtom === "object"
-            ? attachmentAtom.id
-            : attachmentAtom;
-
-        // Check if attachment point is in ring
-        if (ringAtomIds.has(attachmentAtomId)) {
-          ringFGCount++;
-          continue;
+        if (process.env.VERBOSE) {
+          console.log(
+            `[P-44.4] Checking FG "${pg.name}" with atoms [${pgAtomIds.join(",")}]`,
+          );
         }
 
-        // Check if attachment point is directly bonded to a ring atom
-        let isBondedToRing = false;
-        for (const bond of molecule.bonds) {
-          if (
-            bond.atom1 === attachmentAtomId ||
-            bond.atom2 === attachmentAtomId
-          ) {
-            const otherAtomId =
-              bond.atom1 === attachmentAtomId ? bond.atom2 : bond.atom1;
-            if (ringAtomIds.has(otherAtomId)) {
-              isBondedToRing = true;
-              break;
+        // Check if ANY atom in the FG is in the ring or bonded to a ring atom
+        let isAttachedToRing = false;
+        let isNArylOrOArylPattern = false;
+
+        for (const fgAtomId of pgAtomIds) {
+          const fgAtom = molecule.atoms[fgAtomId];
+          
+          // Check if this FG atom is in ring
+          if (ringAtomIds.has(fgAtomId)) {
+            if (process.env.VERBOSE) {
+              console.log(
+                `[P-44.4]   ✓ FG atom ${fgAtomId} is IN ring`,
+              );
+            }
+            isAttachedToRing = true;
+            break;
+          }
+
+          // Check if this FG atom is directly bonded to a ring atom
+          for (const bond of molecule.bonds) {
+            if (bond.atom1 === fgAtomId || bond.atom2 === fgAtomId) {
+              const otherAtomId =
+                bond.atom1 === fgAtomId ? bond.atom2 : bond.atom1;
+              if (ringAtomIds.has(otherAtomId)) {
+                const ringAtom = molecule.atoms[otherAtomId];
+                
+                // Check if this is an N-aryl or O-aryl pattern:
+                // FG heteroatom (N, O, S) bonded to aromatic ring
+                if (fgAtom && (fgAtom.symbol === 'N' || fgAtom.symbol === 'O' || fgAtom.symbol === 'S') && 
+                    ringAtom && ringAtom.aromatic) {
+                  isNArylOrOArylPattern = true;
+                  if (process.env.VERBOSE) {
+                    console.log(
+                      `[P-44.4]   ⚠ FG atom ${fgAtomId} (${fgAtom.symbol}) bonded to aromatic ring atom ${otherAtomId} - treating as ${fgAtom.symbol}-aryl (ring is substituent)`,
+                    );
+                  }
+                  break;
+                }
+                
+                if (process.env.VERBOSE) {
+                  console.log(
+                    `[P-44.4]   ✓ FG atom ${fgAtomId} bonded to ring atom ${otherAtomId}`,
+                  );
+                }
+                isAttachedToRing = true;
+                break;
+              }
             }
           }
+
+          if (isAttachedToRing || isNArylOrOArylPattern) break;
         }
 
-        if (isBondedToRing) {
+        // Don't count as ring FG if it's an N-aryl/O-aryl pattern
+        // (the aromatic ring is a substituent on the FG, not vice versa)
+        if (isNArylOrOArylPattern) {
+          if (process.env.VERBOSE) {
+            console.log(`[P-44.4]   → Not counting as ring FG (${pg.type} is N-aryl/O-aryl)`);
+          }
+        } else if (isAttachedToRing) {
           ringFGCount++;
+        } else if (process.env.VERBOSE) {
+          console.log(`[P-44.4]   ✗ Not attached to ring`);
         }
       }
 

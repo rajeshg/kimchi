@@ -134,6 +134,10 @@ export const P44_1_1_PRINCIPAL_CHARACTERISTIC_GROUPS_RULE: IUPACRule = {
     // Get principal functional groups (already detected in functional-groups-layer)
     // These include: alcohols, ketones, aldehydes, carboxylic acids, amines, etc.
     // EXCLUDE groups that can NEVER be principal (ethers, thioethers, halides, nitro, etc.)
+    // NOTE: We count all FGs that CAN be principal, regardless of isPrincipal flag.
+    // The isPrincipal flag is used for chain selection (only highest-priority type).
+    // But P-44.1.1 needs to count ALL principal-eligible FG types to determine
+    // whether chains or rings should be the parent structure.
     const NON_PRINCIPAL_TYPES = [
       "ether", // ROR - always named as alkoxy
       "thioether", // RSR - always named as alkylsulfanyl
@@ -142,9 +146,12 @@ export const P44_1_1_PRINCIPAL_CHARACTERISTIC_GROUPS_RULE: IUPACRule = {
       "halide", // F, Cl, Br, I
       "nitro", // NO2
       "nitroso", // NO
+      "alkoxy", // -OR substituent form
+      "phosphanyl", // P - treat phosphanyl substituents as non-principal here
+      "P", // pattern name for phosphanyl
     ];
     const principalFGs = functionalGroups.filter(
-      (fg) => fg.isPrincipal && !NON_PRINCIPAL_TYPES.includes(fg.type),
+      (fg) => !NON_PRINCIPAL_TYPES.includes(fg.type),
     );
 
     if (process.env.VERBOSE) {

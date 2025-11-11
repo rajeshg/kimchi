@@ -71,10 +71,10 @@ export function buildChainName(
       .map((bond: MultipleBond) => bond.locant)
       .filter(Boolean)
       .sort((a: number, b: number) => a - b);
-    // IUPAC rule: Include locants for chains ≥3 carbons with triple bonds
-    // prop-1-yne, but-1-yne vs but-2-yne
+    // IUPAC rule: Omit locant for propyne (C3), include for but-1-yne (C4+)
+    // propyne (no locant), but-1-yne vs but-2-yne
     const locantStr =
-      locants.length > 0 && length >= 3 ? `-${locants.join(",")}-` : "";
+      locants.length > 0 && length >= 4 ? `-${locants.join(",")}-` : "";
     baseName = `${baseName}${locantStr}yne`;
   } else if (doubleBonds.length > 0 && tripleBonds.length === 0) {
     baseName = baseName.replace(/[aeiou]+$/, ""); // Remove trailing vowels
@@ -83,10 +83,10 @@ export function buildChainName(
       .filter((loc: number | undefined) => loc !== undefined && loc !== null)
       .sort((a: number, b: number) => a - b);
 
-    // IUPAC 2013 rule: Include locants for alkenes except ethene (unambiguous)
-    // ethene (no locant needed), prop-1-ene, but-1-ene, but-2-ene, etc.
+    // IUPAC 2013 rule: Omit locant for propene (C3), include for but-1-ene (C4+)
+    // ethene (no locant), propene (no locant), but-1-ene vs but-2-ene
     const locantStr =
-      locants.length > 0 && length >= 3 ? `-${locants.join(",")}-` : "";
+      locants.length > 0 && length >= 4 ? `-${locants.join(",")}-` : "";
 
     // If there are multiple double bonds (dienes, trienes, ...), use multiplicative prefix
     // e.g., buta-1,3-diene (doubleBonds.length === 2)

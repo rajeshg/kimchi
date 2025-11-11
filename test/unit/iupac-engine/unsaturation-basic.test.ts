@@ -23,10 +23,11 @@ describe("Unsaturation basic naming", () => {
     expect(result.name.toLowerCase()).toBe("ethyne");
   });
 
-  test("propene (C=CC) -> prop-1-ene", () => {
+  test("propene (C=CC) -> propene", () => {
     const result = namer.generateNameFromSMILES("C=CC");
-    // PubChem authoritative name: "prop-1-ene" (locant required for C3+)
-    expect(result.name.toLowerCase()).toBe("prop-1-ene");
+    // IUPAC 2013 Blue Book P-31.1.2.2.1: "propyne (PIN)" - locant omitted for C3
+    // This is the strict IUPAC preferred name per Blue Book
+    expect(result.name.toLowerCase()).toBe("propene");
   });
 
   test("but-2-ene (CC=CC) -> but-2-ene", () => {
