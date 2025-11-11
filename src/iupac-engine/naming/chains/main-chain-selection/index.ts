@@ -213,6 +213,61 @@ export function findMainChain(
     );
   }
 
+  // CRITICAL CHECK: Before chain finding, check if molecule has significant ring systems.
+  // If ring systems are much larger than any possible acyclic chains, defer to ring selection.
+  // This prevents catastrophic failures where tiny ester/ketone chains (2-3 atoms) are selected
+  // as parent structures for massive polycyclic molecules (e.g., 66-atom ring systems).
+  //
+  // Implementation: Count atoms in ring systems. If ring atoms significantly outnumber
+  // non-ring carbons, return empty array to let ring-based nomenclature handle it.
+  const rings = molecule.rings || [];
+  if (rings.length > 0) {
+    // Count unique atoms in all rings
+    const ringAtomIds = new Set<number>();
+    for (const ring of rings) {
+      for (const atomId of ring) {
+        ringAtomIds.add(atomId);
+      }
+    }
+    
+    // Count non-excluded carbon atoms NOT in rings (potential acyclic chain atoms)
+    const acyclicCarbons = molecule.atoms.filter(
+      (a) =>
+        a.symbol === "C" &&
+        !excludedAtomIds.has(a.id) &&
+        !ringAtomIds.has(a.id),
+    ).length;
+    
+    if (process.env.VERBOSE) {
+      console.log(
+        `[findMainChain] Ring system analysis: ${ringAtomIds.size} ring atoms, ${acyclicCarbons} acyclic carbons`,
+      );
+    }
+    
+    // Heuristic: If ring system has 20+ atoms and acyclic carbons <= 3,
+    // this is almost certainly a ring-based parent structure, not a chain.
+    // Alternative: if ring system dominates by large ratio (15:1 or more),
+    // also defer to ring-based nomenclature.
+    // Examples:
+    // - 66-atom polycyclic with ester (57 ring atoms, 2 ester carbons) → ring parent
+    // - Large bicyclic system with ketone (30+ ring atoms, 1-2 chain carbons) → ring parent
+    // - Naphthalene with ester (10 ring atoms, 2 ester carbons) → let normal logic decide
+    // - Ethyl benzoate (6 ring atoms, 3 chain carbons) → let normal logic decide
+    const ringToAcyclicRatio = acyclicCarbons > 0 ? ringAtomIds.size / acyclicCarbons : Infinity;
+    
+    if (
+      (ringAtomIds.size >= 20 && acyclicCarbons <= 3) ||
+      ringToAcyclicRatio >= 15
+    ) {
+      if (process.env.VERBOSE) {
+        console.log(
+          `[findMainChain] Large ring system detected (${ringAtomIds.size} atoms, ratio=${ringToAcyclicRatio.toFixed(1)}) with few acyclic carbons (${acyclicCarbons}). Deferring to ring-based nomenclature.`,
+        );
+      }
+      return [];
+    }
+  }
+
   // NOTE: We do NOT exclude ring atoms from chain finding here.
   // The P-44.4 rule will compare rings vs chains at the rule level.
   // Excluding ring atoms here would bias the comparison and prevent
