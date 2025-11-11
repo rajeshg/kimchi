@@ -34,6 +34,49 @@ export function getChainFunctionalGroupPriority(
     opsinService.getRawRules().functionalGroupPriorities || {};
 
   let best = 999; // Start with very high (low priority), find minimum
+
+  // Check if first carbon in chain is bonded to an amine nitrogen
+  // This handles cases where amine nitrogen is excluded from chain but influences priority
+  if (chain.length > 0 && chain[0] !== undefined) {
+    const firstIdx = chain[0];
+    const firstAtom = molecule.atoms[firstIdx];
+    if (firstAtom && firstAtom.symbol === "C") {
+      for (const b of molecule.bonds) {
+        if (b.atom1 !== firstIdx && b.atom2 !== firstIdx) continue;
+        const neigh = b.atom1 === firstIdx ? b.atom2 : b.atom1;
+        const nat = molecule.atoms[neigh];
+        if (!nat) continue;
+        // Check for amine: C-N single bond where N is not in chain
+        if (
+          nat.symbol === "N" &&
+          b.type === BondType.SINGLE &&
+          !chain.includes(neigh)
+        ) {
+          // Verify this is an amine nitrogen (not nitro, etc.)
+          let oxygenCount = 0;
+          for (const nb of molecule.bonds) {
+            if (nb.atom1 !== neigh && nb.atom2 !== neigh) continue;
+            const nNeigh = nb.atom1 === neigh ? nb.atom2 : nb.atom1;
+            const nnat = molecule.atoms[nNeigh];
+            if (nnat && nnat.symbol === "O") {
+              oxygenCount++;
+            }
+          }
+          // Amine has < 2 oxygens (nitro has 2)
+          if (oxygenCount < 2) {
+            const opsinPriority = priorityMap["amine"] || 13;
+            best = Math.min(best, opsinPriority);
+            if (process.env.VERBOSE) {
+              console.log(
+                `[getChainFunctionalGroupPriority] Chain [${chain}] bonded to amine N=${neigh}, priority=${best}`,
+              );
+            }
+          }
+        }
+      }
+    }
+  }
+
   for (const idx of chain) {
     const atom = molecule.atoms[idx];
     if (!atom) continue;
@@ -357,6 +400,38 @@ export function getChainFunctionalGroupPriority(
         // amine - use OPSIN priority
         const opsinPriority = priorityMap["amine"] || 13;
         best = Math.min(best, opsinPriority);
+      }
+    }
+
+    // Check for amines attached to chain carbons (carbon in chain with bonded nitrogen)
+    // This handles cases where nitrogen is excluded from the chain but should still influence priority
+    if (atom.symbol === "C") {
+      for (const b of molecule.bonds) {
+        if (b.atom1 !== idx && b.atom2 !== idx) continue;
+        const neigh = b.atom1 === idx ? b.atom2 : b.atom1;
+        const nat = molecule.atoms[neigh];
+        if (!nat) continue;
+        // Check for amine: C-N single bond where N has hydrogens or alkyl groups
+        if (nat.symbol === "N" && b.type === BondType.SINGLE) {
+          // Make sure this is an amine, not a nitro or other high-priority N group
+          let isAmineN = true;
+          let oxygenCount = 0;
+          for (const nb of molecule.bonds) {
+            if (nb.atom1 !== neigh && nb.atom2 !== neigh) continue;
+            const nNeigh = nb.atom1 === neigh ? nb.atom2 : nb.atom1;
+            const nnat = molecule.atoms[nNeigh];
+            if (!nnat) continue;
+            // If nitrogen is bonded to oxygen, it's likely nitro or similar, not amine
+            if (nnat.symbol === "O") {
+              oxygenCount++;
+            }
+          }
+          // Only count as amine if nitrogen has < 2 oxygens (nitro has 2)
+          if (oxygenCount < 2 && best > 7) {
+            const opsinPriority = priorityMap["amine"] || 13;
+            best = Math.min(best, opsinPriority);
+          }
+        }
       }
     }
   }

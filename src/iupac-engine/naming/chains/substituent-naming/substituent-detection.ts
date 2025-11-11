@@ -40,12 +40,53 @@ export function findSubstituents(
   // Numbering starts from the carbon next to nitrogen
   // E.g., for ethanamine: C-C-N, the first C is position 1, second C is position 2
   const firstAtom = mainChain[0];
-  const isAmineChain =
+  const isAmineChainWithNitrogen =
     firstAtom !== undefined && molecule.atoms[firstAtom]?.symbol === "N";
+
+  // Also check if this is a carbon chain derived from an amine chain
+  // (i.e., nitrogen in FG atoms is bonded to either end of the carbon chain)
+  // For these chains, numbering is normal (1-indexed) but we need to know for other logic
+  let isAmineDerivedChain = false;
+  if (!isAmineChainWithNitrogen && firstAtom !== undefined) {
+    const lastAtom = mainChain[mainChain.length - 1];
+    const firstAtomObj = molecule.atoms[firstAtom];
+    const lastAtomObj =
+      lastAtom !== undefined ? molecule.atoms[lastAtom] : undefined;
+
+    if (firstAtomObj?.symbol === "C" || lastAtomObj?.symbol === "C") {
+      // Check if any amine FG nitrogen is bonded to either the first or last carbon
+      const amineFGs = functionalGroups.filter(
+        (fg) => fg.name === "amine" && fg.atoms && fg.atoms.length > 0,
+      );
+      for (const amineFG of amineFGs) {
+        const nitrogenIdx = amineFG.atoms![0]!;
+        // Check if nitrogen is bonded to first or last carbon
+        const isBondedToFirst =
+          firstAtomObj?.symbol === "C" &&
+          molecule.bonds.some(
+            (b) =>
+              (b.atom1 === nitrogenIdx && b.atom2 === firstAtom) ||
+              (b.atom2 === nitrogenIdx && b.atom1 === firstAtom),
+          );
+        const isBondedToLast =
+          lastAtomObj?.symbol === "C" &&
+          lastAtom !== undefined &&
+          molecule.bonds.some(
+            (b) =>
+              (b.atom1 === nitrogenIdx && b.atom2 === lastAtom) ||
+              (b.atom2 === nitrogenIdx && b.atom1 === lastAtom),
+          );
+        if (isBondedToFirst || isBondedToLast) {
+          isAmineDerivedChain = true;
+          break;
+        }
+      }
+    }
+  }
 
   if (process.env.VERBOSE)
     console.log(
-      `[findSubstituents] mainChain: ${mainChain.join(",")}, fgAtoms: ${Array.from(fgAtomIds).join(",")}, isAmineChain: ${isAmineChain}`,
+      `[findSubstituents] mainChain: ${mainChain.join(",")}, fgAtoms: ${Array.from(fgAtomIds).join(",")}, isAmineChainWithNitrogen: ${isAmineChainWithNitrogen}, isAmineDerivedChain: ${isAmineDerivedChain}`,
     );
   for (let i = 0; i < mainChain.length; i++) {
     const chainAtomIdx = mainChain[i]!;
@@ -64,7 +105,9 @@ export function findSubstituents(
           fgAtomIds,
         );
         if (substituent) {
-          const position = isAmineChain ? i.toString() : (i + 1).toString();
+          const position = isAmineChainWithNitrogen
+            ? i.toString()
+            : (i + 1).toString();
           if (process.env.VERBOSE)
             console.log(
               `[findSubstituents] i=${i}, chainAtomIdx=${chainAtomIdx}, substituentAtomIdx=${substituentAtomIdx}, position=${position}, type=${substituent.name}`,
@@ -151,7 +194,7 @@ export function findSubstituents(
         substituentAtoms,
         oxygenIdx,
       );
-      const position = isAmineChain
+      const position = isAmineChainWithNitrogen
         ? attachedToChainAt.toString()
         : (attachedToChainAt + 1).toString();
 
@@ -266,7 +309,7 @@ export function findSubstituents(
 
             // Create a substituent with both sulfur and phosphoryl group
             // This will be named later in the name assembly layer
-            const position = isAmineChain
+            const position = isAmineChainWithNitrogen
               ? attachedToChainAt.toString()
               : (attachedToChainAt + 1).toString();
 
@@ -731,7 +774,7 @@ export function findSubstituents(
       }
     }
 
-    const position = isAmineChain
+    const position = isAmineChainWithNitrogen
       ? attachedToChainAt.toString()
       : (attachedToChainAt + 1).toString();
 
@@ -944,7 +987,7 @@ export function findSubstituents(
       }
     }
 
-    const position = isAmineChain
+    const position = isAmineChainWithNitrogen
       ? attachedToChainAt.toString()
       : (attachedToChainAt + 1).toString();
 

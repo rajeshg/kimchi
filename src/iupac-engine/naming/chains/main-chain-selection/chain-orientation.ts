@@ -21,14 +21,121 @@ export function getPriorityLocants(
 }
 
 /**
+ * Check if a chain terminus is bonded to a simple amine functional group
+ * Returns true if the first or last atom in the chain is bonded to a nitrogen atom
+ * that is NOT part of the chain itself, AND the nitrogen is not bonded to formyl/acyl groups
+ *
+ * This distinguishes:
+ * - Simple amines: -NH2, -NH-CH3, -N(CH3)2 → return true
+ * - Tertiary amines with formyl: -N(CHO)-, -N(C=O)- → return false
+ */
+function hasTerminusAmine(chain: number[], molecule: Molecule): boolean {
+  if (chain.length === 0) return false;
+
+  const firstAtom = chain[0]!;
+  const lastAtom = chain[chain.length - 1]!;
+
+  // Helper: Check if nitrogen has formyl/acyl substituents (C=O groups)
+  const nitrogenHasFormylAcyl = (nitrogenIdx: number): boolean => {
+    for (const b of molecule.bonds) {
+      if (b.atom1 !== nitrogenIdx && b.atom2 !== nitrogenIdx) continue;
+      const carbonIdx = b.atom1 === nitrogenIdx ? b.atom2 : b.atom1;
+      const carbonAtom = molecule.atoms[carbonIdx];
+
+      // If nitrogen is bonded to a carbon
+      if (carbonAtom?.symbol === "C" && b.type === BondType.SINGLE) {
+        // Check if this carbon has a C=O double bond
+        for (const cb of molecule.bonds) {
+          if (cb.atom1 !== carbonIdx && cb.atom2 !== carbonIdx) continue;
+          const oxygenIdx = cb.atom1 === carbonIdx ? cb.atom2 : cb.atom1;
+          const oxygenAtom = molecule.atoms[oxygenIdx];
+          if (oxygenAtom?.symbol === "O" && cb.type === BondType.DOUBLE) {
+            // Found C=O attached to nitrogen → this is formyl/acyl
+            return true;
+          }
+        }
+      }
+    }
+    return false;
+  };
+
+  // Check if first or last atom is bonded to nitrogen (not in chain)
+  for (const bond of molecule.bonds) {
+    const atom1 = bond.atom1;
+    const atom2 = bond.atom2;
+
+    if (atom1 === firstAtom || atom1 === lastAtom) {
+      const neighbor = atom2;
+      const neighborAtom = molecule.atoms[neighbor];
+      if (
+        neighborAtom?.symbol === "N" &&
+        !chain.includes(neighbor) &&
+        bond.type === BondType.SINGLE &&
+        !nitrogenHasFormylAcyl(neighbor)
+      ) {
+        return true;
+      }
+    }
+    if (atom2 === firstAtom || atom2 === lastAtom) {
+      const neighbor = atom1;
+      const neighborAtom = molecule.atoms[neighbor];
+      if (
+        neighborAtom?.symbol === "N" &&
+        !chain.includes(neighbor) &&
+        bond.type === BondType.SINGLE &&
+        !nitrogenHasFormylAcyl(neighbor)
+      ) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+/**
  * Get positions of functional groups (C=O, C-OH, etc.) in a chain
  * Returns 1-indexed positions
+ *
+ * For amine-derived chains (where nitrogen is bonded to chain terminus),
+ * returns [1] to indicate the terminus should be numbered as position 1
  */
 export function getFunctionalGroupPositions(
   chain: number[],
   molecule: Molecule,
 ): number[] {
   const positions: number[] = [];
+
+  // Special case: if chain terminus is bonded to amine, orient toward that terminus
+  // This ensures amine-derived chains like "ethanamine" number from the N-bonded carbon
+  if (hasTerminusAmine(chain, molecule)) {
+    const firstAtom = chain[0]!;
+    const lastAtom = chain[chain.length - 1]!;
+
+    // Check which terminus has the amine
+    let aminusAtFirstPosition = false;
+    for (const bond of molecule.bonds) {
+      const atom1 = bond.atom1;
+      const atom2 = bond.atom2;
+      if (
+        (atom1 === firstAtom || atom2 === firstAtom) &&
+        bond.type === BondType.SINGLE
+      ) {
+        const neighbor = atom1 === firstAtom ? atom2 : atom1;
+        const neighborAtom = molecule.atoms[neighbor];
+        if (neighborAtom?.symbol === "N" && !chain.includes(neighbor)) {
+          aminusAtFirstPosition = true;
+          break;
+        }
+      }
+    }
+
+    // Return [1] to indicate we want this end to be position 1
+    // The comparison logic will prefer the orientation that gives this result
+    if (aminusAtFirstPosition) {
+      return [1];
+    }
+  }
+
   for (let i = 0; i < chain.length; i++) {
     const atomIdx = chain[i]!;
     const atom = molecule.atoms[atomIdx];

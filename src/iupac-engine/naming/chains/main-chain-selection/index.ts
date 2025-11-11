@@ -83,6 +83,40 @@ function findShortestPath(
   return null; // No path found
 }
 
+function isDiamineBackbone(
+  chain: number[],
+  molecule: Molecule,
+  amineNitrogens: Set<number>,
+): boolean {
+  if (chain.length < 2 || amineNitrogens.size < 2) return false;
+
+  const firstAtom = chain[0];
+  const lastAtom = chain[chain.length - 1];
+
+  if (firstAtom === undefined || lastAtom === undefined) return false;
+  if (firstAtom === lastAtom) return false;
+
+  let firstAmineId: number | null = null;
+  let lastAmineId: number | null = null;
+
+  for (const bond of molecule.bonds) {
+    const n1 = bond.atom1;
+    const n2 = bond.atom2;
+
+    if (n1 === firstAtom && amineNitrogens.has(n2)) firstAmineId = n2;
+    if (n2 === firstAtom && amineNitrogens.has(n1)) firstAmineId = n1;
+
+    if (n1 === lastAtom && amineNitrogens.has(n2)) lastAmineId = n2;
+    if (n2 === lastAtom && amineNitrogens.has(n1)) lastAmineId = n1;
+  }
+
+  return (
+    firstAmineId !== null &&
+    lastAmineId !== null &&
+    firstAmineId !== lastAmineId
+  );
+}
+
 /**
  * Main chain selection orchestrator - implements IUPAC rules for selecting
  * the principal chain in a molecule.
@@ -283,14 +317,27 @@ export function findMainChain(
     // Example: ethane-1,2-diamine has parent "ethane" (C-C) with -NH2 groups at positions 1,2
     // Nitrogen should only be in the parent chain for heterocyclic compounds (azines, azoles, etc.)
 
-    // Use amine chains only if they're longer than pure carbon chains
+    // Convert amine chains [N, C, C, ...] to carbon-only chains [C, C, ...]
+    // These carbon chains will be given amine priority during chain selection
     if (amineChains.length > 0) {
       if (process.env.VERBOSE) {
         console.log(
           `[findMainChain] Found ${amineChains.length} amine-specific chains`,
         );
       }
-      atomChains = amineChains;
+      // Extract carbon-only portions from amine chains and add to carbon chain pool
+      for (const amineChain of amineChains) {
+        // Skip the nitrogen (first atom) and get the carbon chain
+        if (amineChain.length > 1) {
+          const carbonOnlyChain = amineChain.slice(1); // Remove N, keep [C, C, ...]
+          carbonChains.push(carbonOnlyChain);
+          if (process.env.VERBOSE) {
+            console.log(
+              `[findMainChain]   Added carbon chain from amine: [${carbonOnlyChain.join(",")}]`,
+            );
+          }
+        }
+      }
     }
   }
 
@@ -429,7 +476,77 @@ export function findMainChain(
   }
 
   // Step 2: Find the highest functional group priority (lowest number = highest priority)
-  const minPriority = Math.min(...allPriorities);
+  let minPriority = Math.min(...allPriorities);
+
+  // Step 2.5: Check for diamine backbone override
+  const amineNitrogens = new Set<number>(
+    amineGroups.flatMap((fg: { atoms: number[] }) => fg.atoms || []),
+  );
+
+  if (process.env.VERBOSE) {
+    console.log(
+      `[findMainChain] Diamine check: amineNitrogens.size=${amineNitrogens.size}, minPriority=${minPriority}`,
+    );
+  }
+
+  if (amineNitrogens.size >= 2 && minPriority === 10) {
+    const diamineBackbones: number[][] = [];
+    const diamineBackbonePriorities: number[] = [];
+
+    for (let i = 0; i < allChains.length; i++) {
+      const chain = allChains[i];
+      if (chain && isDiamineBackbone(chain, molecule, amineNitrogens)) {
+        diamineBackbones.push(chain);
+        diamineBackbonePriorities.push(allPriorities[i] || 999);
+        if (process.env.VERBOSE) {
+          console.log(
+            `[findMainChain] Found diamine backbone: [${chain}] with priority=${allPriorities[i]}`,
+          );
+        }
+      }
+    }
+
+    if (process.env.VERBOSE) {
+      console.log(
+        `[findMainChain] Found ${diamineBackbones.length} diamine backbone(s)`,
+      );
+    }
+
+    if (diamineBackbones.length > 0) {
+      const bestDiaminePriority = Math.min(...diamineBackbonePriorities);
+
+      if (process.env.VERBOSE) {
+        console.log(
+          `[findMainChain] Best diamine priority: ${bestDiaminePriority}`,
+        );
+      }
+
+      if (bestDiaminePriority === 13) {
+        const hasSingleCarbonAlcohols = allChains.some(
+          (c, i) =>
+            allPriorities[i] === 10 &&
+            c.length === 1 &&
+            c[0] !== undefined &&
+            molecule.atoms[c[0]]?.symbol === "C",
+        );
+
+        if (process.env.VERBOSE) {
+          console.log(
+            `[findMainChain] Has single-carbon alcohols: ${hasSingleCarbonAlcohols}`,
+          );
+        }
+
+        if (hasSingleCarbonAlcohols) {
+          if (process.env.VERBOSE) {
+            console.log(
+              `[findMainChain] Diamine backbone override: using priority=13 instead of priority=10`,
+            );
+          }
+          minPriority = 13;
+        }
+      }
+    }
+  }
 
   // Step 3: Filter to chains with best priority
   const bestPriorityChains: number[][] = [];
@@ -602,7 +719,9 @@ export function findMainChain(
     }
 
     let shouldReverse = false;
-    if (fgPositions.length > 0 && fgPositionsReversed.length > 0) {
+    if (fgPositions.length > 0 || fgPositionsReversed.length > 0) {
+      // If one orientation has functional groups and the other doesn't, prefer the one with FG
+      // If both have FG, compare their positions (lower is better)
       shouldReverse = isBetterLocants(fgPositionsReversed, fgPositions);
       if (process.env.VERBOSE) {
         console.log(
