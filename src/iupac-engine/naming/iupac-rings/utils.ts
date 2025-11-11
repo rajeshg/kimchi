@@ -1835,12 +1835,27 @@ export function generateClassicPolycyclicName(
 
       // Try all cyclic shifts to find optimal numbering
       const maxPos = atomIds.length;
+      const originalLocants = computeLocants(vonBaeyerNumbering);
       let bestNumbering = vonBaeyerNumbering;
       let bestLabel = "original";
-      let bestLocants = computeLocants(vonBaeyerNumbering);
+      let bestLocants = originalLocants;
       let bestCompleteSet = getCompleteLocantSet(bestLocants);
 
-      for (let shift = 1; shift < maxPos; shift++) {
+      // IMPORTANT: For polycyclic von Baeyer systems with heteroatoms, the numbering
+      // is determined by the bridge structure and should NOT be changed by cyclic shifts.
+      // The heteroatom positions (e.g., 8,15,19-trioxa) are structural features of the
+      // parent hydride, not optimization targets.
+      const hasHeteroatoms = originalLocants.heteroLocs.length > 0;
+      if (hasHeteroatoms) {
+        if (process.env.VERBOSE) {
+          console.log(
+            `[TRICYCLO SHIFT] Heteroatoms present - skipping cyclic shift optimization`,
+          );
+        }
+        // Keep original numbering - no cyclic shift optimization needed
+      } else {
+        // Only apply cyclic shift optimization when no heteroatoms are present
+        for (let shift = 1; shift < maxPos; shift++) {
         const shiftedNumbering = applyShift(vonBaeyerNumbering, shift, maxPos);
         const locants = computeLocants(shiftedNumbering);
         const completeSet = getCompleteLocantSet(locants);
@@ -1853,29 +1868,33 @@ export function generateClassicPolycyclicName(
           console.log(`  Complete set: [${completeSet.join(",")}]`);
         }
 
-        // Compare according to IUPAC priority hierarchy:
-        // 1. Heteroatom locants (highest priority after bridge structure)
-        // 2. Principal functional group locants
-        // 3. Complete locant set (P-14.4)
-        const heteroComp = compareArrays(
-          locants.heteroLocs,
-          bestLocants.heteroLocs,
-        );
+        // Compare according to IUPAC priority hierarchy for von Baeyer nomenclature:
+        // Note: Heteroatom positions are structural features determined by the parent
+        // hydride and should NOT be minimized during cyclic shift optimization.
+        // 1. Principal functional group locants (P-14.3)
+        // 2. Complete locant set (P-14.4)
         const principalComp = compareArrays(
           locants.principalLocs,
           bestLocants.principalLocs,
         );
         const completeSetComp = compareArrays(completeSet, bestCompleteSet);
 
+        if (process.env.VERBOSE) {
+          console.log(`  principalComp=${principalComp}, completeSetComp=${completeSetComp}`);
+        }
+
         if (
-          heteroComp < 0 ||
-          (heteroComp === 0 && principalComp < 0) ||
-          (heteroComp === 0 && principalComp === 0 && completeSetComp < 0)
+          principalComp < 0 ||
+          (principalComp === 0 && completeSetComp < 0)
         ) {
+          if (process.env.VERBOSE) {
+            console.log(`[TRICYCLO SHIFT] shift${shift} is BETTER - updating best`);
+          }
           bestNumbering = shiftedNumbering;
           bestLabel = `shift${shift}`;
           bestLocants = locants;
           bestCompleteSet = completeSet;
+        }
         }
       }
 

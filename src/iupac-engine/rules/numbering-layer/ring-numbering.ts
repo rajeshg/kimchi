@@ -369,85 +369,105 @@ export const RING_NUMBERING_RULE: IUPACRule = {
           console.log(`  Complete: [${originalCompleteSet.join(",")}]`);
         }
 
+        // IMPORTANT: For polycyclic von Baeyer systems with heteroatoms, the numbering
+        // is determined by the bridge structure and should NOT be changed by cyclic shifts.
+        // The heteroatom positions (e.g., 8,15,19-trioxa) are structural features of the
+        // parent hydride, not optimization targets.
         let bestNumbering = originalNumbering;
         let bestLabel = "original";
         let bestLocants = originalLocants;
         let bestCompleteSet = originalCompleteSet;
 
-        // Test all shifts against the ORIGINAL baseline, not incremental best
-        // IMPORTANT: Per IUPAC P-23.2.6.2.4, secondary bridge locants "define the overall
-        // numbering system" and must remain fixed. Only consider shifts that maintain the
-        // original secondary bridge locants established during initial von Baeyer selection.
-        for (let shift = 1; shift < maxPos; shift++) {
-          const shiftedNumbering = applyShift(originalNumbering, shift);
-          const locants = computeLocants(shiftedNumbering);
-          const completeSet = [
-            ...locants.heteroLocs,
-            ...locants.principalLocs,
-            ...locants.substituentLocs,
-          ].sort((a, b) => a - b);
+        const hasHeteroatoms = originalLocants.heteroLocs.length > 0;
+        if (hasHeteroatoms) {
+          if (process.env.VERBOSE) {
+            console.log(
+              `[TRICYCLO SHIFT] Heteroatoms present - skipping cyclic shift optimization`,
+            );
+          }
+          // Keep original numbering - no cyclic shift optimization needed
+        } else {
+          // Only apply cyclic shift optimization when no heteroatoms are present
+
+          // Test all shifts against the ORIGINAL baseline, not incremental best
+          // IMPORTANT: Per IUPAC P-23.2.6.2.4, secondary bridge locants "define the overall
+          // numbering system" and must remain fixed. Only consider shifts that maintain the
+          // original secondary bridge locants established during initial von Baeyer selection.
+          for (let shift = 1; shift < maxPos; shift++) {
+            const shiftedNumbering = applyShift(originalNumbering, shift);
+            const locants = computeLocants(shiftedNumbering);
+            const completeSet = [
+              ...locants.heteroLocs,
+              ...locants.principalLocs,
+              ...locants.substituentLocs,
+            ].sort((a, b) => a - b);
+
+            if (process.env.VERBOSE) {
+              console.log(`[TRICYCLO SHIFT] Evaluating shift${shift}:`);
+              console.log(
+                `  Secondary bridge: [${locants.secondaryBridgeLocs.join(",")}]`,
+              );
+              console.log(`  Hetero: [${locants.heteroLocs.join(",")}]`);
+              console.log(`  Principal: [${locants.principalLocs.join(",")}]`);
+              console.log(
+                `  Substituent: [${locants.substituentLocs.join(",")}]`,
+              );
+              console.log(`  Complete set: [${completeSet.join(",")}]`);
+            }
+
+            // FILTER: Only consider shifts that maintain the original secondary bridge locants
+            // Per IUPAC P-23.2.6.2.4, the secondary bridge locants define the numbering system
+            const secondaryBridgeComp = compareArrays(
+              locants.secondaryBridgeLocs,
+              originalLocants.secondaryBridgeLocs,
+            );
+            if (secondaryBridgeComp !== 0) {
+              if (process.env.VERBOSE) {
+                console.log(
+                  `[TRICYCLO SHIFT] shift${shift} SKIPPED - secondary bridge changed from [${originalLocants.secondaryBridgeLocs.join(",")}] to [${locants.secondaryBridgeLocs.join(",")}]`,
+                );
+              }
+              continue; // Skip this shift - it changes the secondary bridge locants
+            }
+
+            // Compare according to IUPAC priority hierarchy for von Baeyer nomenclature:
+            // Note: Heteroatom positions are structural features determined by the parent
+            // hydride and should NOT be minimized during cyclic shift optimization.
+            // 1. Principal functional group locants (P-14.3)
+            // 2. Complete locant set (P-14.4)
+            const principalComp = compareArrays(
+              locants.principalLocs,
+              bestLocants.principalLocs,
+            );
+            const completeSetComp = compareArrays(completeSet, bestCompleteSet);
+
+            if (
+              principalComp < 0 ||
+              (principalComp === 0 && completeSetComp < 0)
+            ) {
+              bestNumbering = shiftedNumbering;
+              bestLabel = `shift${shift}`;
+              bestLocants = locants;
+              bestCompleteSet = completeSet;
+              if (process.env.VERBOSE) {
+                console.log(
+                  `[TRICYCLO SHIFT] shift${shift} is BETTER - updating best`,
+                );
+              }
+            }
+          }
+
+          // Update originalNumbering with optimized version
+          originalNumbering = bestNumbering;
 
           if (process.env.VERBOSE) {
-            console.log(`[TRICYCLO SHIFT] Evaluating shift${shift}:`);
-            console.log(
-              `  Secondary bridge: [${locants.secondaryBridgeLocs.join(",")}]`,
-            );
-            console.log(`  Hetero: [${locants.heteroLocs.join(",")}]`);
-            console.log(`  Principal: [${locants.principalLocs.join(",")}]`);
-            console.log(
-              `  Substituent: [${locants.substituentLocs.join(",")}]`,
-            );
-            console.log(`  Complete set: [${completeSet.join(",")}]`);
-          }
-
-          // FILTER: Only consider shifts that maintain the original secondary bridge locants
-          // Per IUPAC P-23.2.6.2.4, the secondary bridge locants define the numbering system
-          const secondaryBridgeComp = compareArrays(
-            locants.secondaryBridgeLocs,
-            originalLocants.secondaryBridgeLocs,
-          );
-          if (secondaryBridgeComp !== 0) {
-            if (process.env.VERBOSE) {
-              console.log(
-                `[TRICYCLO SHIFT] shift${shift} SKIPPED - secondary bridge changed from [${originalLocants.secondaryBridgeLocs.join(",")}] to [${locants.secondaryBridgeLocs.join(",")}]`,
-              );
-            }
-            continue; // Skip this shift - it changes the secondary bridge locants
-          }
-
-          // Compare according to IUPAC P-14.4 hierarchy:
-          // 1. Heteroatom locants
-          // 2. Principal functional group locants
-          // 3. Substituent locants (via complete set)
-          const heteroComp = compareArrays(
-            locants.heteroLocs,
-            bestLocants.heteroLocs,
-          );
-          const principalComp = compareArrays(
-            locants.principalLocs,
-            bestLocants.principalLocs,
-          );
-          const completeSetComp = compareArrays(completeSet, bestCompleteSet);
-
-          if (
-            heteroComp < 0 ||
-            (heteroComp === 0 && principalComp < 0) ||
-            (heteroComp === 0 && principalComp === 0 && completeSetComp < 0)
-          ) {
-            bestNumbering = shiftedNumbering;
-            bestLabel = `shift${shift}`;
-            bestLocants = locants;
-            bestCompleteSet = completeSet;
-            if (process.env.VERBOSE) {
-              console.log(
-                `[TRICYCLO SHIFT] shift${shift} is BETTER - updating best`,
-              );
-            }
+            console.log(`[TRICYCLO SHIFT] Selected ${bestLabel} (best locants)`);
+            console.log(`  Hetero: [${bestLocants.heteroLocs.join(",")}]`);
+            console.log(`  Principal: [${bestLocants.principalLocs.join(",")}]`);
+            console.log(`  Substituent: [${bestLocants.substituentLocs.join(",")}]`);
+            console.log(`  Complete set: [${bestCompleteSet.join(",")}]`);
           }
         }
-
-        // Update originalNumbering with optimized version
-        originalNumbering = bestNumbering;
 
         // Update the parent structure's von Baeyer numbering
         if (parentStructure.vonBaeyerNumbering) {
@@ -500,53 +520,59 @@ export const RING_NUMBERING_RULE: IUPACRule = {
         }
 
         // Choose the numbering with the lowest set of locants
-        // First check if secondary bridge locants are maintained
-        const secondaryBridgeComp = compareArrays(
-          reversedLocants.secondaryBridgeLocs,
-          bestLocants.secondaryBridgeLocs,
-        );
-        if (secondaryBridgeComp === 0) {
-          // Secondary bridge is maintained, now compare other locants
-          // Priority: heteroatoms > principal groups > substituents
-          const heteroComp = compareArrays(
-            reversedLocants.heteroLocs,
-            bestLocants.heteroLocs,
+        // IMPORTANT: For systems with heteroatoms, skip reversed comparison entirely.
+        // The numbering is already determined by the bridge structure.
+        if (!hasHeteroatoms) {
+          // Only compare reversed numbering when no heteroatoms are present
+          // First check if secondary bridge locants are maintained
+          const secondaryBridgeComp = compareArrays(
+            reversedLocants.secondaryBridgeLocs,
+            bestLocants.secondaryBridgeLocs,
           );
-          const principalComp = compareArrays(
-            reversedLocants.principalLocs,
-            bestLocants.principalLocs,
-          );
-          const substituentComp = compareArrays(
-            reversedLocants.substituentLocs,
-            bestLocants.substituentLocs,
-          );
+          if (secondaryBridgeComp === 0) {
+            // Secondary bridge is maintained, now compare other locants
+            // Priority: principal groups > substituents
+            const principalComp = compareArrays(
+              reversedLocants.principalLocs,
+              bestLocants.principalLocs,
+            );
+            const substituentComp = compareArrays(
+              reversedLocants.substituentLocs,
+              bestLocants.substituentLocs,
+            );
 
-          if (
-            heteroComp < 0 ||
-            (heteroComp === 0 && principalComp < 0) ||
-            (heteroComp === 0 && principalComp === 0 && substituentComp < 0)
-          ) {
-            bestNumbering = reversedNumbering;
-            bestLabel = "reversed";
-            bestLocants = reversedLocants;
-            bestCompleteSet = reversedCompleteSet;
+            if (
+              principalComp < 0 ||
+              (principalComp === 0 && substituentComp < 0)
+            ) {
+              bestNumbering = reversedNumbering;
+              bestLabel = "reversed";
+              bestLocants = reversedLocants;
+              bestCompleteSet = reversedCompleteSet;
 
-            if (process.env.VERBOSE) {
-              console.log(
-                `[TRICYCLO REVERSE] Choosing reversed numbering - better locants`,
-              );
+              if (process.env.VERBOSE) {
+                console.log(
+                  `[TRICYCLO REVERSE] Choosing reversed numbering - better locants`,
+                );
+              }
+            } else {
+              if (process.env.VERBOSE) {
+                console.log(
+                  `[TRICYCLO REVERSE] Keeping original numbering - already optimal`,
+                );
+              }
             }
           } else {
             if (process.env.VERBOSE) {
               console.log(
-                `[TRICYCLO REVERSE] Keeping original numbering - already optimal`,
+                `[TRICYCLO REVERSE] Reversed numbering SKIPPED - secondary bridge changed`,
               );
             }
           }
         } else {
           if (process.env.VERBOSE) {
             console.log(
-              `[TRICYCLO REVERSE] Reversed numbering SKIPPED - secondary bridge changed from [${bestLocants.secondaryBridgeLocs.join(",")}] to [${reversedLocants.secondaryBridgeLocs.join(",")}]`,
+              `[TRICYCLO REVERSE] Heteroatoms present - skipping reversed numbering comparison`,
             );
           }
         }
