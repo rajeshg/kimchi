@@ -705,6 +705,30 @@ export const P44_4_RING_CHAIN_SELECTION_RULE: IUPACRule = {
     const molecule = context.getState().molecule;
     const ringInfo = context.getState().cachedRingInfo!;
 
+    // Preserve von Baeyer numbering from P-2.3 if it exists
+    const existingParentStructure = context.getState().parentStructure;
+    const existingVonBaeyerNumbering =
+      existingParentStructure?.vonBaeyerNumbering;
+
+    if (process.env.VERBOSE) {
+      console.log(
+        `[P-44.4 ACTION] existingParentStructure:`,
+        !!existingParentStructure,
+      );
+      console.log(
+        `[P-44.4 ACTION] existingVonBaeyerNumbering:`,
+        existingVonBaeyerNumbering
+          ? `Map with ${existingVonBaeyerNumbering.size} entries`
+          : "undefined",
+      );
+      if (existingVonBaeyerNumbering) {
+        console.log(
+          `[P-44.4 ACTION] vonBaeyer mapping:`,
+          Array.from(existingVonBaeyerNumbering.entries()),
+        );
+      }
+    }
+
     if (!candidateRings) {
       return context;
     }
@@ -838,6 +862,9 @@ export const P44_4_RING_CHAIN_SELECTION_RULE: IUPACRule = {
           name: generateBaseCyclicName(molecule, ringInfo),
           locants: generateRingLocants(parentRing),
           substituents: polycyclicSubstituents,
+          ...(existingVonBaeyerNumbering && {
+            vonBaeyerNumbering: existingVonBaeyerNumbering,
+          }),
         };
 
         return context.withParentStructure(
@@ -898,6 +925,9 @@ export const P44_4_RING_CHAIN_SELECTION_RULE: IUPACRule = {
       name: generateBaseCyclicName(molecule, filteredRingInfo),
       locants: generateRingLocants(parentRing),
       substituents: [] as (StructuralSubstituent | NamingSubstituent)[], // Will be filled in after principal group selection
+      ...(existingVonBaeyerNumbering && {
+        vonBaeyerNumbering: existingVonBaeyerNumbering,
+      }),
     };
 
     const functionalGroups = context.getState().functionalGroups || [];
@@ -1073,6 +1103,18 @@ export const P44_4_RING_CHAIN_SELECTION_RULE: IUPACRule = {
     // When a ring is the parent, functional groups on side chains are excluded.
     // We need to promote ALL functional groups with the highest priority to principal.
     if (filteredFunctionalGroups.length > 0) {
+      if (process.env.VERBOSE) {
+        console.log(
+          `[P-44.4] Functional groups before re-selection:`,
+          filteredFunctionalGroups.map((fg) => ({
+            type: fg.type,
+            priority: fg.priority,
+            isPrincipal: fg.isPrincipal,
+            locants: fg.locants,
+          })),
+        );
+      }
+
       // First, clear all isPrincipal flags
       for (const fg of filteredFunctionalGroups) {
         fg.isPrincipal = false;
@@ -1100,7 +1142,12 @@ export const P44_4_RING_CHAIN_SELECTION_RULE: IUPACRule = {
       if (process.env.VERBOSE) {
         console.log(
           `[P-44.4] Re-selected ${principalGroups.length} principal group(s) after filtering:`,
-          principalGroups.map((fg) => `${fg.type} (priority ${maxPriority})`),
+          principalGroups.map((fg) => ({
+            type: fg.type,
+            priority: fg.priority,
+            isPrincipal: fg.isPrincipal,
+            locants: fg.locants,
+          })),
         );
       }
     }

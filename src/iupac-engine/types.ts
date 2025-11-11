@@ -150,6 +150,7 @@ export interface ParentStructure {
   name: string;
   locants: number[];
   vonBaeyerNumbering?: Map<number, number>; // For bicyclo/tricyclo systems
+  vonBaeyerNumberingOptimized?: boolean; // Track if von Baeyer numbering has been path-reversed/optimized
   assembledName?: string;
   ringNumberingApplied?: boolean; // Track if ring numbering rule has already been applied
   substituents?: (StructuralSubstituent | NamingSubstituent)[]; // Ring substituents attached to the parent structure

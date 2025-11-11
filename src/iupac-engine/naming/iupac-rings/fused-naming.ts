@@ -7,10 +7,6 @@ export function identifyPolycyclicPattern(
   rings: number[][],
   molecule: Molecule,
 ): string | null {
-  // For complex polycyclic systems (SSSR rank ≥ 4), skip simple aromatic
-  // heterocycle naming (indole, benzofuran, etc.) and allow von Baeyer
-  // bridged nomenclature to handle them. Only apply aromatic heterocycle
-  // naming for simpler bicyclic and tricyclic systems.
   const allRingAtoms = new Set<number>();
   for (const ring of rings)
     for (const atomIdx of ring) allRingAtoms.add(atomIdx);
@@ -23,7 +19,28 @@ export function identifyPolycyclicPattern(
   }
   const sssrRank = ringBonds - allRingAtoms.size + 1;
 
-  // Skip aromatic heterocycle naming for complex polycyclic systems
+  const ringCount = rings.length;
+  const ringSizes = rings.map((r) => r.length).sort((a, b) => a - b);
+  const ringAtoms = Array.from(allRingAtoms)
+    .map((idx) => molecule.atoms[idx])
+    .filter((a): a is (typeof molecule.atoms)[0] => a !== undefined);
+  const heteroAtoms = findHeteroatomsInRing(Array.from(allRingAtoms), molecule);
+
+  // Check for retained PAH names FIRST (before early return for complex systems)
+  // These are IUPAC retained names that must be recognized regardless of SSSR rank
+  if (
+    ringCount === 4 &&
+    ringSizes.every((size) => size === 6) &&
+    heteroAtoms.length === 0
+  ) {
+    return "pyrene";
+  }
+
+  // For complex polycyclic systems (SSSR rank ≥ 4), skip simple aromatic
+  // heterocycle naming (indole, benzofuran, etc.) and allow von Baeyer
+  // bridged nomenclature to handle them. Only apply aromatic heterocycle
+  // naming for simpler bicyclic and tricyclic systems.
+  // NOTE: Retained PAH names (pyrene, etc.) are checked BEFORE this early return
   if (sssrRank >= 4) {
     return null;
   }
@@ -41,12 +58,6 @@ export function identifyPolycyclicPattern(
     return aroCount >= Math.floor(r.length / 2);
   });
   const _allRingsAromatic = perRingAromatic.every(Boolean);
-  const ringCount = rings.length;
-  const ringSizes = rings.map((r) => r.length).sort((a, b) => a - b);
-  const ringAtoms = Array.from(allRingAtoms)
-    .map((idx) => molecule.atoms[idx])
-    .filter((a): a is (typeof molecule.atoms)[0] => a !== undefined);
-  const heteroAtoms = findHeteroatomsInRing(Array.from(allRingAtoms), molecule);
 
   // Quick SMARTS-based detection for common fused heterocycles (robust to ring decomposition differences)
   try {
@@ -295,12 +306,6 @@ export function identifyPolycyclicPattern(
     heteroAtoms.length === 0
   )
     return "azulene";
-  if (
-    ringCount === 4 &&
-    ringSizes.every((size) => size === 6) &&
-    heteroAtoms.length === 0
-  )
-    return "pyrene";
 
   // Conservative fallback: sometimes SSSR returns non-6 ring sizes for linear/angled
   // three-ring systems (anthracene/phenanthrene). If the fused region contains
