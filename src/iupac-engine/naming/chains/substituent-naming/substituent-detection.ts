@@ -40,8 +40,8 @@ export function findSubstituents(
   // Numbering starts from the carbon next to nitrogen
   // E.g., for ethanamine: C-C-N, the first C is position 1, second C is position 2
   const firstAtom = mainChain[0];
-  const isAmineChain = firstAtom !== undefined && 
-    molecule.atoms[firstAtom]?.symbol === 'N';
+  const isAmineChain =
+    firstAtom !== undefined && molecule.atoms[firstAtom]?.symbol === "N";
 
   if (process.env.VERBOSE)
     console.log(
@@ -151,9 +151,9 @@ export function findSubstituents(
         substituentAtoms,
         oxygenIdx,
       );
-      const position = isAmineChain ? 
-        attachedToChainAt.toString() : 
-        (attachedToChainAt + 1).toString();
+      const position = isAmineChain
+        ? attachedToChainAt.toString()
+        : (attachedToChainAt + 1).toString();
 
       if (process.env.VERBOSE) {
         console.log(
@@ -266,10 +266,10 @@ export function findSubstituents(
 
             // Create a substituent with both sulfur and phosphoryl group
             // This will be named later in the name assembly layer
-            const position = isAmineChain ? 
-              attachedToChainAt.toString() : 
-              (attachedToChainAt + 1).toString();
-            
+            const position = isAmineChain
+              ? attachedToChainAt.toString()
+              : (attachedToChainAt + 1).toString();
+
             substituents.push({
               position: position,
               type: "functional",
@@ -731,9 +731,9 @@ export function findSubstituents(
       }
     }
 
-    const position = isAmineChain ? 
-      attachedToChainAt.toString() : 
-      (attachedToChainAt + 1).toString();
+    const position = isAmineChain
+      ? attachedToChainAt.toString()
+      : (attachedToChainAt + 1).toString();
 
     if (process.env.VERBOSE) {
       console.log(
@@ -944,9 +944,9 @@ export function findSubstituents(
       }
     }
 
-    const position = isAmineChain ? 
-      attachedToChainAt.toString() : 
-      (attachedToChainAt + 1).toString();
+    const position = isAmineChain
+      ? attachedToChainAt.toString()
+      : (attachedToChainAt + 1).toString();
 
     if (process.env.VERBOSE) {
       console.log(

@@ -147,6 +147,12 @@ export class OPSINFunctionalGroupDetector {
         finder: this.findAminePattern.bind(this),
       },
       {
+        pattern: "C(=O)N<",
+        name: "N-acyl",
+        priority: 50, // Very low priority - it's a substituent, not a parent group
+        finder: this.findNAcylPattern.bind(this),
+      },
+      {
         pattern: "C=N(ring)",
         name: "imine",
         priority: 11,
@@ -225,6 +231,7 @@ export class OPSINFunctionalGroupDetector {
               "C(=O)O": "oate",
               "C(=O)S": "thioate",
               "C(=O)N": "amide",
+              "C(=O)N<": "", // N-acyl has no suffix, it's a substituent
               "C#N": "nitrile",
               "SC#N": "thiocyanate",
               "S(=O)(=O)": "sulfonyl",
@@ -240,6 +247,7 @@ export class OPSINFunctionalGroupDetector {
               "[CX3](=O)[CX4]": "oxo",
               "C(=O)[OX2H1]": "carboxy",
               "C(=O)S": "sulfanylformyl",
+              "C(=O)N<": "acyl", // Generic prefix, will be specialized (formyl, acetyl, etc.)
               "SC#N": "thiocyano",
               "S(=O)(=O)": "sulfonyl",
               "S(=O)": "sulfinyl",
@@ -775,7 +783,9 @@ export class OPSINFunctionalGroupDetector {
     bonds: readonly Bond[],
     rings?: readonly (readonly number[])[],
   ): number[] {
-    // Look for nitrogen bonded to carbon
+    // Look for ALL nitrogen atoms bonded to carbon (collect all amines, not just first)
+    const allAmines: number[] = [];
+
     for (let i = 0; i < atoms.length; i++) {
       const atom = atoms[i];
       if (!atom || atom.symbol !== "N") continue;
@@ -801,26 +811,115 @@ export class OPSINFunctionalGroupDetector {
       );
 
       // If the nitrogen is bonded to a carbonyl carbon (amide), treat as amide
-      const hasAmideBond = carbonSingleBonds.some((b) => {
-        const bonded = this.getBondedAtom(b, atom.id, atoms);
-        if (!bonded) return false;
-        const doubleToO = bonds.find(
-          (bb) =>
-            (bb.atom1 === bonded.id || bb.atom2 === bonded.id) &&
-            bb.type === "double" &&
-            this.getBondedAtom(bb, bonded.id, atoms)?.symbol === "O",
-        );
-        return !!doubleToO;
-      });
+      // UNLESS nitrogen is tertiary (3+ non-H neighbors), which means C=O is an N-acyl substituent
+      const nitrogenBonds = bonds.filter(
+        (b) => b.atom1 === atom.id || b.atom2 === atom.id,
+      );
+      const nitrogenNeighbors = nitrogenBonds
+        .map((b) => this.getBondedAtom(b, atom.id, atoms))
+        .filter((a): a is Atom => a !== undefined && a.symbol !== "H");
+
+      const isTertiaryAmine = nitrogenNeighbors.length >= 3;
+
+      const hasAmideBond =
+        !isTertiaryAmine &&
+        carbonSingleBonds.some((b) => {
+          const bonded = this.getBondedAtom(b, atom.id, atoms);
+          if (!bonded) return false;
+          const doubleToO = bonds.find(
+            (bb) =>
+              (bb.atom1 === bonded.id || bb.atom2 === bonded.id) &&
+              bb.type === "double" &&
+              this.getBondedAtom(bb, bonded.id, atoms)?.symbol === "O",
+          );
+          return !!doubleToO;
+        });
 
       if (
         !hasAmideBond &&
         (carbonSingleBonds.length >= 1 || hydrogenBonds.length >= 1)
       ) {
-        return [atom.id];
+        if (process.env.VERBOSE) {
+          console.log(
+            `[findAminePattern] Found amine at N=${atom.id} (tertiary=${isTertiaryAmine})`,
+          );
+        }
+        allAmines.push(atom.id);
       }
     }
-    return [];
+    return allAmines;
+  }
+
+  private findNAcylPattern(
+    atoms: readonly Atom[],
+    bonds: readonly Bond[],
+  ): number[] {
+    // Detect N-acyl substituents: R-C(=O)-N< where N is tertiary
+    // Examples: N-formyl (CHO-N<), N-acetyl (CH3CO-N<), etc.
+    // Returns the acyl carbon atoms (the C in C=O bonded to tertiary N)
+    const acylCarbons: number[] = [];
+
+    for (let i = 0; i < atoms.length; i++) {
+      const atom = atoms[i];
+      if (!atom || atom.symbol !== "C") continue;
+
+      // Check if this carbon has C=O
+      let hasDoubleO = false;
+      let carbonylOxygenId = -1;
+      let nitrogenNeighborId = -1;
+
+      for (const bond of bonds) {
+        if (bond.atom1 !== i && bond.atom2 !== i) continue;
+        const neighborId = bond.atom1 === i ? bond.atom2 : bond.atom1;
+        const neighbor = atoms[neighborId];
+        if (!neighbor) continue;
+
+        if (neighbor.symbol === "O" && bond.type === "double") {
+          hasDoubleO = true;
+          carbonylOxygenId = neighborId;
+        } else if (neighbor.symbol === "N" && bond.type === "single") {
+          nitrogenNeighborId = neighborId;
+        }
+      }
+
+      // Check if this is C(=O)-N where N is tertiary
+      if (hasDoubleO && nitrogenNeighborId >= 0) {
+        const nitrogen = atoms[nitrogenNeighborId];
+        if (!nitrogen) continue;
+
+        // Count non-H neighbors of nitrogen
+        let nonHNeighborCount = 0;
+        for (const bond of bonds) {
+          if (
+            bond.atom1 !== nitrogenNeighborId &&
+            bond.atom2 !== nitrogenNeighborId
+          )
+            continue;
+          const neighborId =
+            bond.atom1 === nitrogenNeighborId ? bond.atom2 : bond.atom1;
+          const neighbor = atoms[neighborId];
+          if (neighbor && neighbor.symbol !== "H") {
+            nonHNeighborCount++;
+          }
+        }
+
+        // If nitrogen is tertiary (3 non-H neighbors), this is N-acyl
+        if (nonHNeighborCount === 3) {
+          if (process.env.VERBOSE) {
+            console.log(
+              `[findNAcylPattern] Found N-acyl at C=${i} bonded to tertiary N=${nitrogenNeighborId}`,
+            );
+          }
+          acylCarbons.push(i);
+          // Also include the carbonyl oxygen
+          if (carbonylOxygenId >= 0) {
+            acylCarbons.push(carbonylOxygenId);
+          }
+        }
+      }
+    }
+
+    return acylCarbons;
   }
 
   private findImineInRingPattern(
@@ -1112,6 +1211,26 @@ export class OPSINFunctionalGroupDetector {
       if (nitrogenBond) {
         const oxygen = this.getBondedAtom(doubleBondOxygen, atom.id, atoms)!;
         const nitrogen = this.getBondedAtom(nitrogenBond, atom.id, atoms)!;
+
+        // Check if nitrogen is tertiary (bonded to 3 non-H atoms)
+        // If so, this is an N-acyl tertiary amine, not a primary/secondary amide
+        const nitrogenBonds = bonds.filter(
+          (b) => b.atom1 === nitrogen.id || b.atom2 === nitrogen.id,
+        );
+        const nitrogenNeighbors = nitrogenBonds
+          .map((b) => this.getBondedAtom(b, nitrogen.id, atoms))
+          .filter((a): a is Atom => a !== undefined && a.symbol !== "H");
+
+        // If nitrogen has 3 non-hydrogen neighbors (tertiary amine), skip this as amide
+        // This is an N-acyl substituent on a tertiary amine, not a primary/secondary amide
+        if (nitrogenNeighbors.length >= 3) {
+          if (process.env.VERBOSE) {
+            console.log(
+              `[findAmidePattern] Skipping C(=O)-N at C=${atom.id}, N=${nitrogen.id}: nitrogen is tertiary (${nitrogenNeighbors.length} non-H neighbors)`,
+            );
+          }
+          continue;
+        }
 
         // Check if carbonyl is incorporated into a heterocycle with "-one" suffix
         // If C and N are both in the same ring, this might be a lactam/cyclic amide
@@ -1451,6 +1570,31 @@ export class OPSINFunctionalGroupDetector {
         .filter((a) => a && a.symbol !== "O");
 
       const oxygen = this.getBondedAtom(doubleBondOxygen, atom.id, atoms)!;
+
+      // Check if C=O is bonded to a tertiary nitrogen (N-acyl substituent, not aldehyde)
+      // For N-formyl groups attached to tertiary amines, the C=O should not be classified as aldehyde
+      const nitrogenNeighbor = nonOxygenNeighbors.find(
+        (a) => a?.symbol === "N",
+      );
+      if (nitrogenNeighbor) {
+        const nitrogenBonds = bonds.filter(
+          (b) =>
+            b.atom1 === nitrogenNeighbor.id || b.atom2 === nitrogenNeighbor.id,
+        );
+        const nitrogenNeighborCount = nitrogenBonds
+          .map((b) => this.getBondedAtom(b, nitrogenNeighbor.id, atoms))
+          .filter((a): a is Atom => a !== undefined && a.symbol !== "H").length;
+
+        // If nitrogen has 3+ non-H neighbors, it's tertiary, so C=O is N-acyl substituent
+        if (nitrogenNeighborCount >= 3) {
+          if (process.env.VERBOSE) {
+            console.log(
+              `[findAldehydePattern] Skipping C=O at C=${atom.id}: bonded to tertiary nitrogen N=${nitrogenNeighbor.id}`,
+            );
+          }
+          continue; // Skip this C=O, it's an N-acyl substituent
+        }
+      }
 
       // Check if carbon is bonded to an oxygen that is further bonded to carbon
       const bondedOxygens = singleBonds

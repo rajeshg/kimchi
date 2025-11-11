@@ -169,7 +169,10 @@ export function nameRingSubstituent(
 
   // For benzene rings with multiple substituents, determine optimal numbering direction
   let optimalDirection: "forward" | "reverse" | undefined;
-  if ((ringName === "benzene" || ringName === "phenyl") && ringSubstituents.length > 0) {
+  if (
+    (ringName === "benzene" || ringName === "phenyl") &&
+    ringSubstituents.length > 0
+  ) {
     optimalDirection = determineOptimalBenzeneDirection(
       ring,
       ringSubstituents,
@@ -634,7 +637,7 @@ export function determineRingAttachmentPosition(
     // Calculate position relative to attachment point
     // Attachment point is numbered 1, then we continue around the ring
     // Direction is determined by which way gives the lowest substituent locants
-    
+
     let relativePos: number;
     if (direction === "reverse") {
       // Go counter-clockwise (reverse direction through array)
@@ -719,7 +722,7 @@ function determineOptimalBenzeneDirection(
 
   for (let i = 0; i < ring.length; i++) {
     const ringAtomIdx = ring[i]!;
-    
+
     for (const bond of molecule.bonds) {
       const otherAtom =
         bond.atom1 === ringAtomIdx
@@ -757,11 +760,13 @@ function determineOptimalBenzeneDirection(
 
   for (const sub of ringSubstituents) {
     // Forward direction: go clockwise from attachment point
-    const forwardRelPos = (sub.ringPosition - attachmentIdx + ring.length) % ring.length;
+    const forwardRelPos =
+      (sub.ringPosition - attachmentIdx + ring.length) % ring.length;
     forwardLocants.push(forwardRelPos + 1);
 
     // Reverse direction: go counter-clockwise from attachment point
-    const reverseRelPos = (attachmentIdx - sub.ringPosition + ring.length) % ring.length;
+    const reverseRelPos =
+      (attachmentIdx - sub.ringPosition + ring.length) % ring.length;
     reverseLocants.push(reverseRelPos + 1);
   }
 
@@ -779,7 +784,11 @@ function determineOptimalBenzeneDirection(
   }
 
   // Compare locant sets lexicographically
-  for (let i = 0; i < Math.min(forwardLocants.length, reverseLocants.length); i++) {
+  for (
+    let i = 0;
+    i < Math.min(forwardLocants.length, reverseLocants.length);
+    i++
+  ) {
     if (forwardLocants[i]! < reverseLocants[i]!) {
       return "forward";
     }

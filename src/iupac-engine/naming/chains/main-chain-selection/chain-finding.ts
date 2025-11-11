@@ -147,7 +147,7 @@ export function findAllCarbonChains(
   for (const bond of molecule.bonds) {
     const atom1 = molecule.atoms[bond.atom1];
     const atom2 = molecule.atoms[bond.atom2];
-    
+
     if (
       atom1?.symbol === "C" &&
       atom2?.symbol === "C" &&
@@ -158,7 +158,7 @@ export function findAllCarbonChains(
       if (skipRingAtoms && (atom1.isInRing || atom2.isInRing)) {
         continue;
       }
-      
+
       adjList.get(bond.atom1)?.push(bond.atom2);
       adjList.get(bond.atom2)?.push(bond.atom1);
     }
@@ -283,7 +283,7 @@ export function findAllCarbonChainsFromStart(
   for (const bond of molecule.bonds) {
     const atom1 = molecule.atoms[bond.atom1];
     const atom2 = molecule.atoms[bond.atom2];
-    
+
     if (
       atom1?.symbol === "C" &&
       atom2?.symbol === "C" &&
@@ -296,7 +296,7 @@ export function findAllCarbonChainsFromStart(
         const isAtom2Ring = bond.atom2 !== startAtom && atom2.isInRing;
         if (isAtom1Ring || isAtom2Ring) continue;
       }
-      
+
       adjList.get(bond.atom1)?.push(bond.atom2);
       adjList.get(bond.atom2)?.push(bond.atom1);
     }

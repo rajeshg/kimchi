@@ -233,12 +233,12 @@ function expandKetoneToAcylGroup(
   while (queue.length > 0) {
     const currentIdx = queue.shift()!;
     const currentAtom = mol.atoms[currentIdx];
-    
+
     // STOP if we encounter a ring atom (don't include it or traverse beyond it)
     if (currentAtom?.isInRing) {
       continue;
     }
-    
+
     acylAtoms.push(currentIdx);
 
     for (const bond of mol.bonds) {
@@ -316,7 +316,45 @@ export const FUNCTIONAL_GROUP_PRIORITY_RULE: IUPACRule = {
       type?: string;
       atomIds: number[];
     }> = [];
-    const functionalGroups: FunctionalGroup[] = detected.map(
+
+    // Special handling: Split multi-atom amine detections into separate entries
+    // SMARTS pattern [NX3][CX4] matches multiple nitrogen atoms in one entry,
+    // but we need separate entries to match the structure from detectAmines()
+    const expandedDetected: DetectedFunctionalGroup[] = [];
+    for (const d of detected) {
+      const rawName = (d.name || d.type || d.pattern || "")
+        .toString()
+        .toLowerCase();
+      const type = rawName.replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "");
+
+      if (type === "amine" && d.atoms && d.atoms.length > 1) {
+        // Check if we have multiple nitrogen atoms
+        const nitrogenAtoms = d.atoms.filter(
+          (idx: number) => mol.atoms[idx]?.symbol === "N",
+        );
+
+        if (nitrogenAtoms.length > 1) {
+          // Split into separate amine entries, one per nitrogen
+          for (const nAtomIdx of nitrogenAtoms) {
+            expandedDetected.push({
+              ...d,
+              atoms: [nAtomIdx],
+            });
+          }
+          if (process.env.VERBOSE) {
+            console.log(
+              `[FUNCTIONAL_GROUP_PRIORITY_RULE] Split amine with ${nitrogenAtoms.length} nitrogen atoms into ${nitrogenAtoms.length} separate entries`,
+            );
+          }
+          continue;
+        }
+      }
+
+      // Not an amine or single-atom amine - keep as-is
+      expandedDetected.push(d);
+    }
+
+    const functionalGroups: FunctionalGroup[] = expandedDetected.map(
       (d: DetectedFunctionalGroup) => {
         const rawName = (d.name || d.type || d.pattern || "")
           .toString()
@@ -2356,7 +2394,9 @@ export const AMINE_DETECTION_RULE: IUPACRule = {
       // Append amine detections to pre-existing functional groups
       const existing = context.getState().functionalGroups || [];
       if (process.env.VERBOSE) {
-        console.log(`[AMINE_DETECTION_RULE] Existing functional groups: ${existing.length}`);
+        console.log(
+          `[AMINE_DETECTION_RULE] Existing functional groups: ${existing.length}`,
+        );
       }
       updatedContext = updatedContext.withFunctionalGroups(
         existing.concat(amines),
@@ -2367,7 +2407,9 @@ export const AMINE_DETECTION_RULE: IUPACRule = {
         "Detected amine groups",
       );
       if (process.env.VERBOSE) {
-        console.log(`[AMINE_DETECTION_RULE] Updated context with ${existing.concat(amines).length} functional groups`);
+        console.log(
+          `[AMINE_DETECTION_RULE] Updated context with ${existing.concat(amines).length} functional groups`,
+        );
       }
     }
     return updatedContext;
@@ -2537,6 +2579,27 @@ function selectPrincipalGroup(
 
       // Not bonded - sulfinyl is preferred as principal (original logic)
       return sulfinylGroup;
+    }
+  }
+
+  // Special-case: Diamine detection - when 2+ amine atoms are present, amine should be principal over alcohol
+  const amineGroups = functionalGroups.filter((g) => g.type === "amine");
+  const alcoholGroups = functionalGroups.filter((g) => g.type === "alcohol");
+  if (amineGroups.length > 0 && alcoholGroups.length > 0) {
+    // Count total amine nitrogen atoms across all amine groups
+    const totalAmineNitrogens = amineGroups.reduce((sum, g) => {
+      return sum + (g.locants?.length || 0);
+    }, 0);
+
+    if (totalAmineNitrogens >= 2) {
+      // Diamine detected - amine should be principal group
+      if (process.env.VERBOSE) {
+        console.log(
+          `[selectPrincipalGroup] Diamine detected (${totalAmineNitrogens} nitrogen atoms) - amine takes precedence over alcohol`,
+        );
+      }
+      // Return the first amine group (they have the same priority)
+      return amineGroups[0];
     }
   }
 
@@ -2811,7 +2874,9 @@ function detectAmines(context: ImmutableNamingContext): RawFunctionalGroup[] {
 
       if (carbonBonds.length > 0) {
         if (process.env.VERBOSE) {
-          console.log(`[detectAmines]   Adding amine functional group for N atom ${atom.id}`);
+          console.log(
+            `[detectAmines]   Adding amine functional group for N atom ${atom.id}`,
+          );
         }
         amines.push({
           type: "amine",

@@ -12,7 +12,10 @@ import {
   nameAmideSubstituent,
   nameRingSubstituent,
 } from "../../naming/iupac-chains";
-import { getSimpleMultiplierWithVowel, getChainNameFromOPSIN } from "../../opsin-adapter";
+import {
+  getSimpleMultiplierWithVowel,
+  getChainNameFromOPSIN,
+} from "../../opsin-adapter";
 import type { OPSINService } from "../../opsin-service";
 import { getSharedOPSINService } from "../../opsin-service";
 import {
@@ -49,49 +52,49 @@ function nameYlideneSubstituent(
     }
     return "ylideneamino";
   }
-  
+
   // Collect all atoms in the substituent (carbon + its neighbors, excluding nitrogen)
   const substituentAtoms = new Set<number>();
   const toVisit: number[] = [carbonId];
   const visited = new Set<number>();
-  
+
   while (toVisit.length > 0) {
     const currentId = toVisit.pop()!;
     if (visited.has(currentId)) continue;
     visited.add(currentId);
-    
+
     // Don't include parent atoms or the nitrogen
     if (parentAtomIds.has(currentId) || currentId === nitrogenId) continue;
-    
+
     substituentAtoms.add(currentId);
-    
+
     // Find neighbors
     for (const bond of molecule.bonds) {
       let neighborId: number | undefined;
       if (bond.atom1 === currentId) neighborId = bond.atom2;
       else if (bond.atom2 === currentId) neighborId = bond.atom1;
-      
+
       if (neighborId !== undefined && !visited.has(neighborId)) {
         toVisit.push(neighborId);
       }
     }
   }
-  
+
   // Count carbons in the substituent
   const substituentAtomsArray = Array.from(substituentAtoms);
   const carbonCount = substituentAtomsArray.filter(
-    (id) => molecule.atoms[id]?.symbol === "C"
+    (id) => molecule.atoms[id]?.symbol === "C",
   ).length;
-  
+
   if (carbonCount === 0) {
     return "ylideneamino"; // Edge case: no carbons
   }
-  
+
   // Build the ylidene name
   // For simple cases without branching or specific locants, use chain name + "ylidene"
   // Example: C1 with 2 methyls = propan-2-ylidene
   const chainName = getChainNameFromOPSIN(carbonCount, opsinService);
-  
+
   // Determine locant (position of the double bond in the carbon chain)
   // For now, assume simple case where double bond is at position 2 for propane (2 methyls on C)
   // TODO: Implement proper chain traversal and locant determination
@@ -101,8 +104,95 @@ function nameYlideneSubstituent(
   } else if (carbonCount > 3) {
     locant = "-2-"; // Default to position 2 for now
   }
-  
+
   return `${chainName}${locant}ylidene`;
+}
+
+function nameAlkylSubstituent(
+  molecule: Molecule,
+  substituentAtomId: number,
+  nitrogenAtomId: number,
+  parentAtomIds: Set<number>,
+  opsinService: OPSINService,
+): string {
+  const substituentAtom = molecule.atoms.find(
+    (a) => a.id === substituentAtomId,
+  );
+  if (!substituentAtom || substituentAtom.symbol !== "C") {
+    return "methyl";
+  }
+
+  // Check if this is a formyl group (C=O bonded to N)
+  const hasDoubleBondedO = molecule.bonds.some((bond) => {
+    if (
+      (bond.atom1 === substituentAtomId || bond.atom2 === substituentAtomId) &&
+      bond.type === "double"
+    ) {
+      const otherAtomId =
+        bond.atom1 === substituentAtomId ? bond.atom2 : bond.atom1;
+      const otherAtom = molecule.atoms.find((a) => a.id === otherAtomId);
+      return otherAtom?.symbol === "O";
+    }
+    return false;
+  });
+
+  if (hasDoubleBondedO) {
+    return "formyl";
+  }
+
+  // Check what else is bonded to this carbon (besides the nitrogen)
+  const bonds = molecule.bonds.filter(
+    (bond) =>
+      bond.atom1 === substituentAtomId || bond.atom2 === substituentAtomId,
+  );
+
+  let hasOH = false;
+  let carbonCount = 1;
+
+  for (const bond of bonds) {
+    const otherAtomId =
+      bond.atom1 === substituentAtomId ? bond.atom2 : bond.atom1;
+    if (otherAtomId === nitrogenAtomId || parentAtomIds.has(otherAtomId))
+      continue;
+
+    const otherAtom = molecule.atoms.find((a) => a.id === otherAtomId);
+    if (!otherAtom) continue;
+
+    if (otherAtom.symbol === "O" && bond.type === "single") {
+      // Check if this O has an H (hydroxyl)
+      const oHydrogens =
+        molecule.bonds.filter(
+          (b) =>
+            (b.atom1 === otherAtomId || b.atom2 === otherAtomId) &&
+            b.type === "single",
+        ).length - 1; // Minus the bond to carbon
+
+      const oValence = 2;
+      const oBonds = molecule.bonds.filter(
+        (b) => b.atom1 === otherAtomId || b.atom2 === otherAtomId,
+      ).length;
+
+      if (oBonds === 1) {
+        hasOH = true;
+      }
+    } else if (otherAtom.symbol === "C") {
+      carbonCount++;
+    }
+  }
+
+  if (hasOH && carbonCount === 1) {
+    return "hydroxymethyl";
+  }
+
+  if (carbonCount === 1) {
+    return "methyl";
+  }
+
+  if (carbonCount === 2) {
+    return "ethyl";
+  }
+
+  return "alkyl";
 }
 
 /**
@@ -114,59 +204,65 @@ export function detectNSubstituents(
   parentStructure: ParentStructureExtended,
   molecule: Molecule,
   opsinService?: OPSINService,
-): string {
-  // Detect N-substituents on amine/imine groups
-  // For imine: principalGroup.atoms[0] is the C=N carbon, need to find bonded N
-  // For amine: principalGroup.atoms[0] is the N itself
+): { prefix: string; atomIds: Set<number> } {
   if (!principalGroup.atoms || principalGroup.atoms.length === 0) {
-    return "";
+    return { prefix: "", atomIds: new Set() };
   }
 
   if (!molecule || !molecule.atoms || !molecule.bonds) {
-    return "";
+    return { prefix: "", atomIds: new Set() };
   }
 
-  const firstAtom = principalGroup.atoms[0];
-  if (!firstAtom) return "";
+  // Collect all nitrogen atoms in the principal group
+  const nitrogenAtoms: Atom[] = [];
+  for (const atom of principalGroup.atoms) {
+    if (atom.symbol === "N") {
+      nitrogenAtoms.push(atom);
+    }
+  }
 
-  let amineNitrogenId: number | undefined;
+  if (process.env.VERBOSE) {
+    console.log(
+      `[detectNSubstituents] Found ${nitrogenAtoms.length} nitrogen atoms in principal group:`,
+      nitrogenAtoms.map((n) => n.id),
+    );
+  }
 
-  // Determine if this is an imine or amine
-  if (firstAtom.symbol === "N") {
-    // Amine: nitrogen is the principal group atom
-    amineNitrogenId = firstAtom.id;
-  } else if (firstAtom.symbol === "C") {
-    // Imine: need to find nitrogen bonded to the C=N carbon
-    const imineCarbonId = firstAtom.id;
-    for (const bond of molecule.bonds) {
-      if (bond.type !== "single") continue;
-      let potentialNitrogenId: number | undefined;
-      if (bond.atom1 === imineCarbonId) {
-        potentialNitrogenId = bond.atom2;
-      } else if (bond.atom2 === imineCarbonId) {
-        potentialNitrogenId = bond.atom1;
-      }
+  // If no nitrogen atoms found, might be imine (C=N)
+  if (nitrogenAtoms.length === 0) {
+    const firstAtom = principalGroup.atoms[0];
+    if (firstAtom?.symbol === "C") {
+      const imineCarbonId = firstAtom.id;
+      for (const bond of molecule.bonds) {
+        if (bond.type !== "single") continue;
+        let potentialNitrogenId: number | undefined;
+        if (bond.atom1 === imineCarbonId) {
+          potentialNitrogenId = bond.atom2;
+        } else if (bond.atom2 === imineCarbonId) {
+          potentialNitrogenId = bond.atom1;
+        }
 
-      if (potentialNitrogenId !== undefined) {
-        const potentialNitrogen = molecule.atoms.find(
-          (a: Atom) => a.id === potentialNitrogenId,
-        );
-        if (potentialNitrogen?.symbol === "N" && !potentialNitrogen.isInRing) {
-          amineNitrogenId = potentialNitrogenId;
-          break;
+        if (potentialNitrogenId !== undefined) {
+          const potentialNitrogen = molecule.atoms.find(
+            (a: Atom) => a.id === potentialNitrogenId,
+          );
+          if (
+            potentialNitrogen?.symbol === "N" &&
+            !potentialNitrogen.isInRing
+          ) {
+            nitrogenAtoms.push(potentialNitrogen);
+            break;
+          }
         }
       }
     }
   }
 
-  if (amineNitrogenId === undefined) {
-    return "";
+  if (nitrogenAtoms.length === 0) {
+    return { prefix: "", atomIds: new Set() };
   }
 
-  const amineNitrogen = molecule.atoms.find((a) => a.id === amineNitrogenId);
-  if (!amineNitrogen) return "";
-
-  // Find parent structure attachment point (which atom is part of parent)
+  // Find parent structure atoms
   const parentAtomIds = new Set<number>();
   if (parentStructure.type === "chain" && parentStructure.chain?.atoms) {
     for (const atom of parentStructure.chain.atoms) {
@@ -178,157 +274,209 @@ export function detectNSubstituents(
     }
   }
 
-  // Find all substituents bonded to the amine nitrogen
-  const nSubstituents: Array<{
+  type NSubstituent = {
     name: string;
     atomId: number;
+    nitrogenId: number;
+    nLocant: string;
     isRing: boolean;
     isDoubleBond: boolean;
-  }> = [];
+  };
 
-  for (const bond of molecule.bonds) {
-    let substituentAtomId: number | undefined;
-    if (bond.atom1 === amineNitrogenId) {
-      substituentAtomId = bond.atom2;
-    } else if (bond.atom2 === amineNitrogenId) {
-      substituentAtomId = bond.atom1;
-    }
+  const allNSubstituents: NSubstituent[] = [];
 
-    if (substituentAtomId === undefined) continue;
+  // Process each nitrogen atom and collect its substituents
+  for (
+    let nitrogenIndex = 0;
+    nitrogenIndex < nitrogenAtoms.length;
+    nitrogenIndex++
+  ) {
+    const amineNitrogen = nitrogenAtoms[nitrogenIndex];
+    if (!amineNitrogen) continue;
 
-    // Skip if this atom is part of the parent structure
-    if (parentAtomIds.has(substituentAtomId)) {
-      continue;
-    }
+    const nLocant = nitrogenIndex === 0 ? "N" : `N${"'".repeat(nitrogenIndex)}`;
 
-    const substituentAtom = molecule.atoms.find(
-      (a) => a.id === substituentAtomId,
-    );
-    if (!substituentAtom || substituentAtom.symbol !== "C") continue;
-
-    // Check for C=N double bond (ylideneamino pattern)
-    const isDoubleBond = bond.type === "double";
-    
-    if (!isDoubleBond && bond.type !== "single") continue;
-
-    // Check if this carbon is part of an aromatic ring (N-aryl substituent)
-    if (substituentAtom.isInRing && substituentAtom.aromatic) {
-      if (process.env.VERBOSE) {
-        console.log(
-          `[detectNSubstituents] Found N-aryl substituent: aromatic ring starting at atom ${substituentAtomId}`,
-        );
+    for (const bond of molecule.bonds) {
+      let substituentAtomId: number | undefined;
+      if (bond.atom1 === amineNitrogen.id) {
+        substituentAtomId = bond.atom2;
+      } else if (bond.atom2 === amineNitrogen.id) {
+        substituentAtomId = bond.atom1;
       }
 
-      // Name the aromatic ring system with substituents using nameRingSubstituent
-      // Pass parentAtomIds as "chainAtoms" to exclude them from the substituent
-      const ringSubInfo = nameRingSubstituent(
-        molecule,
-        substituentAtomId,
-        parentAtomIds,
-        0,
-        3,
+      if (substituentAtomId === undefined) continue;
+      if (parentAtomIds.has(substituentAtomId)) continue;
+
+      const substituentAtom = molecule.atoms.find(
+        (a) => a.id === substituentAtomId,
       );
+      if (!substituentAtom || substituentAtom.symbol !== "C") continue;
 
-      if (ringSubInfo && ringSubInfo.name) {
-        if (process.env.VERBOSE) {
-          console.log(
-            `[detectNSubstituents] Named N-aryl substituent: ${ringSubInfo.name}`,
-          );
-        }
-        nSubstituents.push({
-          name: ringSubInfo.name,
-          atomId: substituentAtomId,
-          isRing: true,
-          isDoubleBond: isDoubleBond,
-        });
-      } else {
-        // Fallback to "phenyl" if naming fails
-        nSubstituents.push({
-          name: "phenyl",
-          atomId: substituentAtomId,
-          isRing: true,
-          isDoubleBond: isDoubleBond,
-        });
-      }
-    } else if (!substituentAtom.isInRing) {
-      // Alkyl or ylidene substituent
+      const isDoubleBond = bond.type === "double";
+      if (!isDoubleBond && bond.type !== "single") continue;
+
       let substituentName: string;
-      
-      if (isDoubleBond) {
-        // C=N double bond: use ylidene nomenclature
-        // For now, handle simple case (single carbon with branches)
-        // TODO: Handle longer chains with proper locants
-        substituentName = nameYlideneSubstituent(
+      let isRing = false;
+
+      if (substituentAtom.isInRing && substituentAtom.aromatic) {
+        isRing = true;
+        const ringSubInfo = nameRingSubstituent(
           molecule,
           substituentAtomId,
-          amineNitrogenId,
           parentAtomIds,
-          opsinService ?? getSharedOPSINService(),
+          0,
+          3,
         );
+        substituentName = ringSubInfo?.name || "phenyl";
+      } else if (!substituentAtom.isInRing) {
+        if (isDoubleBond) {
+          substituentName = nameYlideneSubstituent(
+            molecule,
+            substituentAtomId,
+            amineNitrogen.id,
+            parentAtomIds,
+            opsinService ?? getSharedOPSINService(),
+          );
+        } else {
+          substituentName = nameAlkylSubstituent(
+            molecule,
+            substituentAtomId,
+            amineNitrogen.id,
+            parentAtomIds,
+            opsinService ?? getSharedOPSINService(),
+          );
+        }
       } else {
-        // Simple alkyl substituent
-        // TODO: Handle longer chains (ethyl, propyl, etc.)
-        substituentName = "methyl";
+        continue;
       }
-      
-      nSubstituents.push({
+
+      allNSubstituents.push({
         name: substituentName,
         atomId: substituentAtomId,
-        isRing: false,
-        isDoubleBond: isDoubleBond,
+        nitrogenId: amineNitrogen.id,
+        nLocant,
+        isRing,
+        isDoubleBond,
       });
     }
   }
 
-  if (nSubstituents.length === 0) {
-    return "";
+  if (allNSubstituents.length === 0) {
+    return { prefix: "", atomIds: new Set() };
   }
 
-  // Format N-substituents
-  if (nSubstituents.length === 1) {
-    const sub = nSubstituents[0]!;
-    // For ylidene substituents, use "3-(ylideneamino)" format with position number
-    if (sub.isDoubleBond) {
-      return `(${sub.name}amino)`;
-    }
-    // For aromatic rings, use parentheses
-    if (sub.isRing) {
-      return `N-(${sub.name})`;
-    }
-    return `N-${sub.name}`;
-  }
-
-  // Multiple substituents
-  const firstSubName = nSubstituents[0]!.name;
-  const allIdentical = nSubstituents.every((sub) => sub.name === firstSubName);
-
-  if (allIdentical && !nSubstituents[0]!.isRing) {
-    // Multiple identical alkyl groups: N,N-dimethyl
-    const multiplier = getSimpleMultiplierWithVowel(
-      nSubstituents.length,
-      firstSubName.charAt(0),
-      opsinService ?? getSharedOPSINService(),
+  // Collect all atom IDs from N-substituents (including the N atoms themselves and all connected atoms)
+  const nSubstituentAtomIds = new Set<number>();
+  for (const sub of allNSubstituents) {
+    // Add the nitrogen atom
+    nSubstituentAtomIds.add(sub.nitrogenId);
+    // Add the substituent root atom
+    nSubstituentAtomIds.add(sub.atomId);
+    // Collect all atoms in this substituent chain
+    const subAtoms = collectSubstituentAtoms(
+      molecule,
+      sub.atomId,
+      parentAtomIds,
+      sub.nitrogenId,
     );
-    const nLocants = Array.from(
-      { length: nSubstituents.length },
-      () => "N",
-    ).join(",");
-    return `${nLocants}-${multiplier}${firstSubName}`;
+    for (const atomId of subAtoms) {
+      nSubstituentAtomIds.add(atomId);
+    }
   }
 
-  // Different substituents or aromatic rings - format individually
-  return nSubstituents
-    .map((sub) => {
+  // Group substituents by name
+  const substituentGroups = new Map<string, NSubstituent[]>();
+  for (const sub of allNSubstituents) {
+    const existing = substituentGroups.get(sub.name);
+    if (existing) {
+      existing.push(sub);
+    } else {
+      substituentGroups.set(sub.name, [sub]);
+    }
+  }
+
+  const formattedParts: string[] = [];
+
+  // Process each group of substituents
+  for (const [name, subs] of substituentGroups) {
+    if (subs.length === 1) {
+      const sub = subs[0]!;
       if (sub.isDoubleBond) {
-        return `(${sub.name}amino)`;
+        formattedParts.push(`(${sub.name}amino)`);
+      } else if (sub.isRing) {
+        formattedParts.push(`${sub.nLocant}-(${sub.name})`);
+      } else {
+        formattedParts.push(`${sub.nLocant}-${sub.name}`);
       }
-      if (sub.isRing) {
-        return `N-(${sub.name})`;
+    } else {
+      // Multiple identical substituents across different nitrogens
+      const locants = subs
+        .map((s) => s.nLocant)
+        .sort()
+        .join(",");
+
+      // Check if this is a complex substituent (contains another functional group)
+      // Complex substituents need bis(), tris(), etc. with parentheses
+      // Simple substituents (methyl, ethyl, propyl, formyl, etc.) use di-, tri-, tetra-
+      const simpleSubstituents = [
+        "methyl",
+        "ethyl",
+        "propyl",
+        "butyl",
+        "formyl",
+        "acetyl",
+      ];
+      const isSimpleSubstituent = simpleSubstituents.includes(name);
+      const isComplexSubstituent =
+        !isSimpleSubstituent &&
+        name.includes("yl") &&
+        (name.includes("hydroxy") ||
+          name.includes("oxo") ||
+          name.includes("amino") ||
+          name.includes("carboxy") ||
+          name.includes("phenyl"));
+
+      if (subs[0]!.isRing || isComplexSubstituent) {
+        const multiplier = getMultiplicativePrefix(
+          subs.length,
+          true,
+          opsinService ?? getSharedOPSINService(),
+        );
+        formattedParts.push(`${locants}-${multiplier}(${name})`);
+      } else {
+        const multiplier = getSimpleMultiplierWithVowel(
+          subs.length,
+          name.charAt(0),
+          opsinService ?? getSharedOPSINService(),
+        );
+        formattedParts.push(`${locants}-${multiplier}${name}`);
       }
-      return `N-${sub.name}`;
+    }
+  }
+
+  // Sort by the base substituent name (ignoring multiplicative prefixes)
+  // Extract the part after the last hyphen and inside parentheses if present
+  const prefix = formattedParts
+    .sort((a, b) => {
+      // Extract base name: "N,N'-diformyl" -> "formyl", "N,N'-bis(hydroxymethyl)" -> "hydroxymethyl"
+      const getBaseName = (s: string): string => {
+        const afterLastHyphen = s.split("-").pop() || s;
+        // Remove multiplicative prefixes like "di", "tri", "bis", "tris"
+        const withoutPrefix = afterLastHyphen.replace(
+          /^(di|tri|tetra|bis|tris|tetrakis)\(?/,
+          "",
+        );
+        // Remove trailing parenthesis if present
+        return withoutPrefix.replace(/\)$/, "");
+      };
+
+      const baseA = getBaseName(a);
+      const baseB = getBaseName(b);
+      return baseA.localeCompare(baseB);
     })
-    .sort((a, b) => a.localeCompare(b))
     .join("-");
+
+  return { prefix, atomIds: nSubstituentAtomIds };
 }
 
 export function buildSubstitutiveName(
@@ -947,10 +1095,116 @@ export function buildSubstitutiveName(
     return true;
   });
 
-  const allStructuralSubstituents = [
+  let allStructuralSubstituents = [
     ...fgStructuralSubstituentsFinal,
     ...deduplicatedParentSubs,
   ];
+
+  // ============================================================================
+  // EARLY N-SUBSTITUENT DETECTION AND FILTERING
+  // ============================================================================
+  // For amines/imines, detect N-substituents early to filter out functional
+  // groups that are part of N-substituents before they're added to the name.
+  // This prevents incorrect substituents like "5-acyl-3-hydroxy" from appearing
+  // when they should be handled as N-substituents (e.g., "N-formyl-N-hydroxymethyl").
+  // ============================================================================
+  const principalAmineGroups = functionalGroups.filter(
+    (fg) =>
+      fg.isPrincipal &&
+      (fg.type === "amine" || fg.type === "imine") &&
+      fg.suffix === "amine",
+  );
+
+  if (principalAmineGroups.length > 0) {
+    // Build a temporary principalGroup for N-substituent detection
+    let tempPrincipalGroup: FunctionalGroup | undefined;
+    if (principalAmineGroups.length > 1) {
+      // Multiple amines → aggregate into multiplicative group
+      const firstGroup = principalAmineGroups[0];
+      if (!firstGroup) {
+        throw new Error(
+          "[buildSubstitutiveName] Expected at least one principal amine group",
+        );
+      }
+      const allAtoms: Atom[] = [];
+      const locants: number[] = [];
+      for (const group of principalAmineGroups) {
+        if (group.atoms) {
+          allAtoms.push(...group.atoms);
+        }
+        if (group.locant !== undefined) {
+          locants.push(group.locant);
+        }
+      }
+      tempPrincipalGroup = {
+        ...firstGroup,
+        atoms: allAtoms,
+        multiplicity: principalAmineGroups.length,
+        isMultiplicative: true,
+        locantString: locants.sort((a, b) => a - b).join(","),
+        locants: locants,
+      };
+    } else {
+      tempPrincipalGroup = principalAmineGroups[0];
+    }
+
+    if (!tempPrincipalGroup) {
+      throw new Error(
+        "[buildSubstitutiveName] tempPrincipalGroup should not be undefined",
+      );
+    }
+
+    // Detect N-substituents early to get atom IDs
+    const earlyNSubstResult = detectNSubstituents(
+      tempPrincipalGroup,
+      parentStructure,
+      molecule,
+      opsinService,
+    );
+    const earlyNSubstituentAtomIds = earlyNSubstResult.atomIds;
+
+    if (process.env.VERBOSE) {
+      console.log(
+        `[buildSubstitutiveName] Early N-substituent detection: found ${earlyNSubstituentAtomIds.size} atoms in N-substituents`,
+      );
+      console.log(
+        `[buildSubstitutiveName] Early N-substituent atom IDs: ${Array.from(earlyNSubstituentAtomIds).join(",")}`,
+      );
+    }
+
+    // Filter allStructuralSubstituents to exclude functional groups whose atoms
+    // are part of N-substituents
+    if (earlyNSubstituentAtomIds.size > 0) {
+      const beforeFilterCount = allStructuralSubstituents.length;
+      allStructuralSubstituents = allStructuralSubstituents.filter((sub) => {
+        // Check if this substituent has atoms
+        if (!("atoms" in sub) || !sub.atoms || sub.atoms.length === 0) {
+          return true; // Keep substituents without atom info
+        }
+
+        // Check if any atom of this substituent is in N-substituent atoms
+        const atoms = sub.atoms as (Atom | number)[];
+        const hasNSubstituentAtom = atoms.some((atom) => {
+          const atomId = typeof atom === "number" ? atom : atom.id;
+          return earlyNSubstituentAtomIds.has(atomId);
+        });
+
+        if (hasNSubstituentAtom && process.env.VERBOSE) {
+          console.log(
+            `[buildSubstitutiveName] Filtering out substituent "${sub.type}" at locant ${("locant" in sub && sub.locant) || ("locants" in sub && sub.locants?.[0])} - part of N-substituent`,
+          );
+        }
+
+        return !hasNSubstituentAtom;
+      });
+
+      if (process.env.VERBOSE) {
+        console.log(
+          `[buildSubstitutiveName] Filtered allStructuralSubstituents: ${beforeFilterCount} → ${allStructuralSubstituents.length} (removed ${beforeFilterCount - allStructuralSubstituents.length} N-substituent atoms)`,
+        );
+      }
+    }
+  }
 
   if (process.env.VERBOSE) {
     console.log(
@@ -1188,7 +1442,7 @@ export function buildSubstitutiveName(
           (principalFG.type === "amine" || principalFG.type === "imine")
         ) {
           const subLocant = "locant" in sub ? sub.locant : undefined;
-          
+
           // For amine chains, check if this is attached to the nitrogen
           // Amine chains have nitrogen as first atom, and substituents at position 0 are N-substituents
           if (
@@ -1197,8 +1451,10 @@ export function buildSubstitutiveName(
             parentStructure.chain.atoms.length > 0
           ) {
             const firstChainAtomId = parentStructure.chain.atoms[0]?.id;
-            const firstChainAtom = molecule.atoms.find((a) => a.id === firstChainAtomId);
-            if (firstChainAtom?.symbol === 'N') {
+            const firstChainAtom = molecule.atoms.find(
+              (a) => a.id === firstChainAtomId,
+            );
+            if (firstChainAtom?.symbol === "N") {
               if (process.env.VERBOSE) {
                 console.log(
                   `[buildSubstitutiveName] Skipping N-substituent ${sub.type} at locant ${subLocant} (attached to N) - will be handled by N-substituent detection`,
@@ -1363,7 +1619,9 @@ export function buildSubstitutiveName(
             subName.includes("-phosphorylsulfanyl"))
         ) {
           if (process.env.VERBOSE) {
-            console.log(`[PHOSPHORYLSULFANYL CHECK] Detected phosphorylsulfanyl substituent, subName="${subName}", has atoms: ${"atoms" in sub}, atoms length: ${sub.atoms?.length || 0}`);
+            console.log(
+              `[PHOSPHORYLSULFANYL CHECK] Detected phosphorylsulfanyl substituent, subName="${subName}", has atoms: ${"atoms" in sub}, atoms length: ${sub.atoms?.length || 0}`,
+            );
           }
 
           const locantMatch = subName.match(/^(\d+)-/);
@@ -1375,7 +1633,9 @@ export function buildSubstitutiveName(
             if (typeof firstAtom === "object" && "symbol" in firstAtom) {
               const atoms = sub.atoms as Atom[];
               // Find both S and P atoms
-              const sulfurAtom = atoms.find((atom: Atom) => atom.symbol === "S");
+              const sulfurAtom = atoms.find(
+                (atom: Atom) => atom.symbol === "S",
+              );
               const phosphorusAtom = atoms.find(
                 (atom: Atom) => atom.symbol === "P",
               );
@@ -1442,9 +1702,13 @@ export function buildSubstitutiveName(
                   if (formattedPhosphoryl !== "phosphoryl") {
                     // Remove only the opening parenthesis at the start
                     // Transform: (sub1)(sub2)phosphoryl -> sub1(sub2)phosphoryl
-                    formattedPhosphoryl = formattedPhosphoryl.replace(/^\(([^)]+)\)/, "$1");
+                    formattedPhosphoryl = formattedPhosphoryl.replace(
+                      /^\(([^)]+)\)/,
+                      "$1",
+                    );
                   }
-                  subName = locantPrefix + "[" + formattedPhosphoryl + "]sulfanyl";
+                  subName =
+                    locantPrefix + "[" + formattedPhosphoryl + "]sulfanyl";
                   named = true;
 
                   if (process.env.VERBOSE) {
@@ -1516,9 +1780,13 @@ export function buildSubstitutiveName(
                 if (formattedPhosphoryl !== "phosphoryl") {
                   // Remove only the opening parenthesis at the start
                   // Transform: (sub1)(sub2)phosphoryl -> sub1(sub2)phosphoryl
-                  formattedPhosphoryl = formattedPhosphoryl.replace(/^\(([^)]+)\)/, "$1");
+                  formattedPhosphoryl = formattedPhosphoryl.replace(
+                    /^\(([^)]+)\)/,
+                    "$1",
+                  );
                 }
-                subName = locantPrefix + "[" + formattedPhosphoryl + "]sulfanyl";
+                subName =
+                  locantPrefix + "[" + formattedPhosphoryl + "]sulfanyl";
                 named = true;
 
                 if (process.env.VERBOSE) {
@@ -2628,8 +2896,17 @@ export function buildSubstitutiveName(
       .filter((loc): loc is number => loc !== undefined)
       .sort((a, b) => a - b);
 
+    // Aggregate all atoms from all principal groups
+    const allAtoms: Atom[] = [];
+    for (const group of allPrincipalGroups) {
+      if (group.atoms) {
+        allAtoms.push(...group.atoms);
+      }
+    }
+
     principalGroup = {
       ...firstGroup,
+      atoms: allAtoms,
       multiplicity: allPrincipalGroups.length,
       isMultiplicative: true,
       locantString: locants.join(","),
@@ -2738,6 +3015,12 @@ export function buildSubstitutiveName(
       principalGroup.isMultiplicative = true;
     }
 
+    // Check for N-substituents on amine groups (for imine/amine)
+    // Declare these variables before the if-else block so they're available in both branches
+    let nSubstituentsPrefix = "";
+    let nSubstituentAtomIds = new Set<number>();
+    const nSubstituentEntries: Array<{ locant: string; name: string }> = [];
+
     // Handle multiplicative suffix (e.g., dione, trione)
     if (
       principalGroup.isMultiplicative &&
@@ -2768,6 +3051,88 @@ export function buildSubstitutiveName(
         name += `-${locants}-${multipliedSuffix}`;
       } else {
         name += multipliedSuffix;
+      }
+
+      // For multiplicative amines (e.g., "diamine"), detect N-substituents
+      if (
+        (principalGroup.type === "imine" || principalGroup.type === "amine") &&
+        principalGroup.suffix === "amine"
+      ) {
+        if (process.env.VERBOSE) {
+          console.log(
+            `[buildSubstitutiveName] Calling detectNSubstituents for multiplicative amine`,
+          );
+        }
+        const nSubstResult = detectNSubstituents(
+          principalGroup,
+          parentStructure,
+          molecule,
+          opsinService,
+        );
+        nSubstituentsPrefix = nSubstResult.prefix;
+        nSubstituentAtomIds = nSubstResult.atomIds;
+        if (process.env.VERBOSE) {
+          console.log(
+            `[buildSubstitutiveName] N-substituents detected: "${nSubstituentsPrefix}"`,
+          );
+          console.log(
+            `[buildSubstitutiveName] N-substituent atom IDs: ${Array.from(nSubstituentAtomIds).join(",")}`,
+          );
+        }
+
+        // Parse N-substituent string to extract locants and base name
+        // Input format: "N,N'-diformyl-N,N'-dihydroxymethyl" or "N-methyl-N'-ethyl"
+        if (nSubstituentsPrefix) {
+          // Split by the pattern that separates different substituent groups
+          // We need to match patterns like: N,N'-diformyl or N-methyl or N'-ethyl or N,N,N',N'-tetramethyl
+          // The regex matches: (N locants with commas and primes)-(substituent name)
+          // Pattern breakdown: N(?:,N'?|')* matches N followed by zero or more of: ,N (with optional '), or just '
+          const regex = /(N(?:,N'?|')*)-([a-z()]+)/gi;
+          const matches = nSubstituentsPrefix.matchAll(regex);
+          for (const match of matches) {
+            const locantsPart = match[1];
+            const namePart = match[2];
+            if (locantsPart && namePart) {
+              nSubstituentEntries.push({
+                locant: locantsPart,
+                name: namePart,
+              });
+            }
+          }
+
+          if (process.env.VERBOSE) {
+            console.log(
+              `[buildSubstitutiveName] Parsed N-substituents for multiplicative amine:`,
+              JSON.stringify(nSubstituentEntries),
+            );
+          }
+        }
+      }
+
+      // Prepend N-substituents to the name for multiplicative amines
+      if (nSubstituentEntries.length > 0) {
+        if (process.env.VERBOSE) {
+          console.log(
+            `[buildSubstitutiveName] Prepending N-substituents to multiplicative amine name: "${name}"`,
+          );
+        }
+
+        // Build the N-substituent prefix
+        // Join N-substituents with hyphens
+        const nSubstParts = nSubstituentEntries.map(
+          (entry) => `${entry.locant}-${entry.name}`,
+        );
+        const nSubstPrefix = nSubstParts.join("-");
+
+        // For multiplicative amines, N-substituents attach directly to parent name without hyphen
+        // Example: N,N'-diformyl-N,N'-bis(hydroxymethyl)ethane-1,2-diamine (not ...)-ethane-...)
+        name = `${nSubstPrefix}${name}`;
+
+        if (process.env.VERBOSE) {
+          console.log(
+            `[buildSubstitutiveName] Name after prepending N-substituents: "${name}"`,
+          );
+        }
       }
     } else {
       // Single functional group - replace terminal 'e' if suffix starts with vowel
@@ -2875,11 +3240,6 @@ export function buildSubstitutiveName(
         );
       }
 
-      // Check for N-substituents on amine groups (for imine/amine)
-      // These will be merged with other substituents for alphabetization
-      let nSubstituentsPrefix = "";
-      const nSubstituentEntries: Array<{ locant: string; name: string }> = [];
-
       if (
         (principalGroup.type === "imine" || principalGroup.type === "amine") &&
         principalGroup.suffix === "amine"
@@ -2889,15 +3249,20 @@ export function buildSubstitutiveName(
             `[buildSubstitutiveName] Calling detectNSubstituents for principalGroup.type="${principalGroup.type}", suffix="${principalGroup.suffix}"`,
           );
         }
-        nSubstituentsPrefix = detectNSubstituents(
+        const nSubstResult = detectNSubstituents(
           principalGroup,
           parentStructure,
           molecule,
           opsinService,
         );
+        nSubstituentsPrefix = nSubstResult.prefix;
+        nSubstituentAtomIds = nSubstResult.atomIds;
         if (process.env.VERBOSE) {
           console.log(
             `[buildSubstitutiveName] N-substituents detected: "${nSubstituentsPrefix}"`,
+          );
+          console.log(
+            `[buildSubstitutiveName] N-substituent atom IDs: ${Array.from(nSubstituentAtomIds).join(",")}`,
           );
         }
 

@@ -45,12 +45,14 @@ export const PARENT_CHAIN_SELECTION_COMPLETE_RULE: IUPACRule = {
     const parentChain = chains[0] as Chain;
     // Create parent structure
     if (process.env.VERBOSE) {
-      console.log('[parent-chain-selection-complete] parentChain.substituents:', 
-        parentChain.substituents?.map(s => ({
+      console.log(
+        "[parent-chain-selection-complete] parentChain.substituents:",
+        parentChain.substituents?.map((s) => ({
           type: s.type,
           atoms: s.atoms?.length || 0,
-          locant: s.locant
-        })));
+          locant: s.locant,
+        })),
+      );
     }
     const parentStructure = {
       type: "chain" as const,
@@ -61,12 +63,14 @@ export const PARENT_CHAIN_SELECTION_COMPLETE_RULE: IUPACRule = {
       substituents: parentChain.substituents || [],
     };
     if (process.env.VERBOSE) {
-      console.log('[parent-chain-selection-complete] parentStructure.substituents:', 
-        parentStructure.substituents?.map(s => ({
+      console.log(
+        "[parent-chain-selection-complete] parentStructure.substituents:",
+        parentStructure.substituents?.map((s) => ({
           type: s.type,
           atoms: s.atoms?.length || 0,
-          locant: s.locant
-        })));
+          locant: s.locant,
+        })),
+      );
     }
     updatedContext = updatedContext.withParentStructure(
       parentStructure,

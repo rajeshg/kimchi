@@ -28,6 +28,62 @@ import {
 import { getChainFunctionalGroupPriority } from "./functional-group-priority";
 
 /**
+ * Helper function to find shortest path between two atoms using BFS.
+ * Used for constructing diamine chains (N-C-...-C-N paths).
+ *
+ * @param molecule - The molecule to search
+ * @param startAtomId - Starting atom ID
+ * @param endAtomId - Ending atom ID
+ * @param excludedAtomIds - Set of atom IDs to exclude from path
+ * @returns Array of atom IDs representing the path, or null if no path exists
+ */
+function findShortestPath(
+  molecule: Molecule,
+  startAtomId: number,
+  endAtomId: number,
+  excludedAtomIds: Set<number>,
+): number[] | null {
+  if (startAtomId === endAtomId) return [startAtomId];
+
+  const visited = new Set<number>();
+  const queue: Array<{ atomId: number; path: number[] }> = [
+    { atomId: startAtomId, path: [startAtomId] },
+  ];
+  visited.add(startAtomId);
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!current) continue;
+
+    const { atomId, path } = current;
+    const atom = molecule.atoms[atomId];
+    if (!atom) continue;
+
+    // Check all neighbors
+    for (const bond of molecule.bonds) {
+      if (bond.atom1 !== atomId && bond.atom2 !== atomId) continue;
+
+      const neighborId = bond.atom1 === atomId ? bond.atom2 : bond.atom1;
+
+      // Skip if already visited or excluded
+      if (visited.has(neighborId) || excludedAtomIds.has(neighborId)) continue;
+
+      const newPath = [...path, neighborId];
+
+      // Found the target!
+      if (neighborId === endAtomId) {
+        return newPath;
+      }
+
+      visited.add(neighborId);
+      queue.push({ atomId: neighborId, path: newPath });
+    }
+  }
+
+  return null; // No path found
+}
+
+/**
  * Main chain selection orchestrator - implements IUPAC rules for selecting
  * the principal chain in a molecule.
  *
@@ -137,7 +193,11 @@ export function findMainChain(
   // Consider both carbon-only parent candidates and hetero-containing parent candidates.
   // Find all longest carbon-only chains and all longest heavy-atom chains (non-hydrogen).
   const skipRingAtomsForCarbonChains = functionalGroups.length > 0;
-  const carbonChains = findAllCarbonChains(molecule, excludedAtomIds, skipRingAtomsForCarbonChains);
+  const carbonChains = findAllCarbonChains(
+    molecule,
+    excludedAtomIds,
+    skipRingAtomsForCarbonChains,
+  );
   let atomChains = findAllAtomChains(molecule, excludedAtomIds);
 
   // Special handling for amines: construct parent chains as [nitrogen] + [longest carbon chain]
@@ -218,11 +278,16 @@ export function findMainChain(
       }
     }
 
-    // Replace atomChains with amine-specific chains
+    // NOTE: Removed incorrect diamine special handling
+    // For IUPAC naming, primary/secondary amines are functional groups, NOT part of the parent chain
+    // Example: ethane-1,2-diamine has parent "ethane" (C-C) with -NH2 groups at positions 1,2
+    // Nitrogen should only be in the parent chain for heterocyclic compounds (azines, azoles, etc.)
+
+    // Use amine chains only if they're longer than pure carbon chains
     if (amineChains.length > 0) {
       if (process.env.VERBOSE) {
         console.log(
-          `[findMainChain] Replacing atomChains with ${amineChains.length} amine-specific chains`,
+          `[findMainChain] Found ${amineChains.length} amine-specific chains`,
         );
       }
       atomChains = amineChains;
@@ -337,12 +402,14 @@ export function findMainChain(
   }
 
   // Add all hetero chains ONLY if a functional group requires heteroatom chains
-  // (e.g., amines need nitrogen in the parent chain)
+  // NOTE: Primary/secondary amines do NOT require nitrogen in parent chain - they are functional groups
+  // Heterocyclic nitrogen compounds (azines, azoles) would be handled differently
   if (requiresHeteroatomChains(functionalGroups)) {
     for (const c of atomChains) {
       if (!containsHalogen(c, molecule)) {
         allChains.push(c);
-        allPriorities.push(getChainFunctionalGroupPriority(c, molecule));
+        const priority = getChainFunctionalGroupPriority(c, molecule);
+        allPriorities.push(priority);
       }
     }
   }

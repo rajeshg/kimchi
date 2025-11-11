@@ -1285,16 +1285,16 @@ function countNonRingSubstituents(
   let count = 0;
   for (const bond of molecule.bonds) {
     let otherAtomId: number | null = null;
-    
+
     if (bond.atom1 === atom.id && !ringAtomSet.has(bond.atom2)) {
       otherAtomId = bond.atom2;
     } else if (bond.atom2 === atom.id && !ringAtomSet.has(bond.atom1)) {
       otherAtomId = bond.atom1;
     }
-    
+
     if (otherAtomId !== null) {
-      const otherAtom = molecule.atoms.find(a => a.id === otherAtomId);
-      if (otherAtom?.symbol === 'O' && bond.type === 'double') {
+      const otherAtom = molecule.atoms.find((a) => a.id === otherAtomId);
+      if (otherAtom?.symbol === "O" && bond.type === "double") {
         continue;
       }
       count++;
@@ -1417,7 +1417,12 @@ function detectAndNumberFiveMemberedHeterocycle(
   }
 
   if (nCount === 2) {
-    const candidates: Array<{ atoms: Atom[]; start: number; n1Subs: number; n3Subs: number }> = [];
+    const candidates: Array<{
+      atoms: Atom[];
+      start: number;
+      n1Subs: number;
+      n3Subs: number;
+    }> = [];
 
     for (let startIdx = 0; startIdx < ring.atoms.length; startIdx++) {
       const cwAtoms = [
@@ -1473,8 +1478,16 @@ function detectAndNumberFiveMemberedHeterocycle(
 
         if (molecule) {
           const ringAtomSet = new Set(ccwAtoms.map((a) => a.id));
-          n1Subs = countNonRingSubstituents(ccwAtoms[0]!, ringAtomSet, molecule);
-          n3Subs = countNonRingSubstituents(ccwAtoms[2]!, ringAtomSet, molecule);
+          n1Subs = countNonRingSubstituents(
+            ccwAtoms[0]!,
+            ringAtomSet,
+            molecule,
+          );
+          n3Subs = countNonRingSubstituents(
+            ccwAtoms[2]!,
+            ringAtomSet,
+            molecule,
+          );
         }
 
         if (process.env.VERBOSE) {
@@ -1534,7 +1547,7 @@ function detectAndNumberFiveMemberedHeterocycle(
           }
           return isValid;
         });
-        
+
         if (validCandidates.length === 0) {
           if (process.env.VERBOSE) {
             console.log(
@@ -1547,7 +1560,7 @@ function detectAndNumberFiveMemberedHeterocycle(
 
       let best = validCandidates[0]!;
       let bestLocants: number[] = [];
-      
+
       if (molecule) {
         const ringAtomSet = new Set(best.atoms.map((a) => a.id));
         bestLocants = [];
@@ -1560,10 +1573,10 @@ function detectAndNumberFiveMemberedHeterocycle(
         }
         bestLocants.sort((a, b) => a - b);
       }
-      
+
       for (const candidate of validCandidates) {
         let currentLocants: number[] = [];
-        
+
         if (molecule) {
           const ringAtomSet = new Set(candidate.atoms.map((a) => a.id));
           currentLocants = [];
@@ -1576,13 +1589,13 @@ function detectAndNumberFiveMemberedHeterocycle(
           }
           currentLocants.sort((a, b) => a - b);
         }
-        
+
         if (process.env.VERBOSE) {
           console.log(
             `[detectAndNumberFiveMemberedHeterocycle] Candidate arrangement locants: ${JSON.stringify(currentLocants)}`,
           );
         }
-        
+
         if (compareLocantSets(currentLocants, bestLocants) < 0) {
           best = candidate;
           bestLocants = currentLocants;
@@ -1692,11 +1705,14 @@ function detectAndNumberLactam(
   molecule: Molecule,
 ): { atoms: Atom[]; start: number } | null {
   const ringSize = ring.atoms.length;
-  
+
   if (process.env.VERBOSE) {
-    console.log(`[detectAndNumberLactam] Called with ring of size ${ringSize}:`, ring.atoms.map((a, i) => `${i}:${a.symbol}(id=${a.id})`));
+    console.log(
+      `[detectAndNumberLactam] Called with ring of size ${ringSize}:`,
+      ring.atoms.map((a, i) => `${i}:${a.symbol}(id=${a.id})`),
+    );
   }
-  
+
   if (ringSize !== 5 && ringSize !== 6) {
     return null;
   }
@@ -1746,11 +1762,23 @@ function detectAndNumberLactam(
   }
 
   if (ringSize === 5 && nCount === 1) {
-    return handleFiveMemberedSingleNitrogenLactam(ring, carbonylCarbonId, molecule);
+    return handleFiveMemberedSingleNitrogenLactam(
+      ring,
+      carbonylCarbonId,
+      molecule,
+    );
   } else if (ringSize === 6 && nCount === 1) {
-    return handleSixMemberedSingleNitrogenLactam(ring, carbonylCarbonId, molecule);
+    return handleSixMemberedSingleNitrogenLactam(
+      ring,
+      carbonylCarbonId,
+      molecule,
+    );
   } else if (ringSize === 6 && nCount === 2) {
-    return handleSixMemberedDualNitrogenLactam(ring, carbonylCarbonId, molecule);
+    return handleSixMemberedDualNitrogenLactam(
+      ring,
+      carbonylCarbonId,
+      molecule,
+    );
   }
 
   return null;
@@ -1762,40 +1790,51 @@ function handleFiveMemberedSingleNitrogenLactam(
   molecule: Molecule,
 ): { atoms: Atom[]; start: number } | null {
   const candidates: Array<{ atoms: Atom[]; locants: number[] }> = [];
-  
+
   // Find nitrogen atom
-  const nitrogenAtom = ring.atoms.find(a => a.symbol === "N");
+  const nitrogenAtom = ring.atoms.find((a) => a.symbol === "N");
   if (!nitrogenAtom) return null;
-  
-  const nitrogenIdx = ring.atoms.findIndex(a => a.id === nitrogenAtom.id);
-  
+
+  const nitrogenIdx = ring.atoms.findIndex((a) => a.id === nitrogenAtom.id);
+
   // Generate two candidate sequences: forward and backward from N
   // Direction 1: Follow ring.atoms order
   const dir1Atoms = [
     ...ring.atoms.slice(nitrogenIdx),
     ...ring.atoms.slice(0, nitrogenIdx),
   ] as Atom[];
-  
+
   // Direction 2: Reverse ring.atoms order from N
   const dir2Atoms = [
     nitrogenAtom,
     ...ring.atoms.slice(0, nitrogenIdx).reverse(),
     ...ring.atoms.slice(nitrogenIdx + 1).reverse(),
   ] as Atom[];
-  
+
   if (process.env.VERBOSE) {
-    console.log(`[handleFiveMemberedSingleNitrogenLactam] Nitrogen at index ${nitrogenIdx} (atom ${nitrogenAtom.id})`);
-    console.log(`[handleFiveMemberedSingleNitrogenLactam] Dir1: ${dir1Atoms.map(a => `${a.id}:${a.symbol}`).join(',')}`);
-    console.log(`[handleFiveMemberedSingleNitrogenLactam] Dir2: ${dir2Atoms.map(a => `${a.id}:${a.symbol}`).join(',')}`);
+    console.log(
+      `[handleFiveMemberedSingleNitrogenLactam] Nitrogen at index ${nitrogenIdx} (atom ${nitrogenAtom.id})`,
+    );
+    console.log(
+      `[handleFiveMemberedSingleNitrogenLactam] Dir1: ${dir1Atoms.map((a) => `${a.id}:${a.symbol}`).join(",")}`,
+    );
+    console.log(
+      `[handleFiveMemberedSingleNitrogenLactam] Dir2: ${dir2Atoms.map((a) => `${a.id}:${a.symbol}`).join(",")}`,
+    );
   }
-  
+
   // Check both directions
-  for (const [dirName, atoms] of [['Dir1', dir1Atoms], ['Dir2', dir2Atoms]] as const) {
+  for (const [dirName, atoms] of [
+    ["Dir1", dir1Atoms],
+    ["Dir2", dir2Atoms],
+  ] as const) {
     const carbonylPos = atoms.findIndex((a) => a.id === carbonylCarbonId);
     if (process.env.VERBOSE) {
-      console.log(`[handleFiveMemberedSingleNitrogenLactam] ${dirName}: carbonylPos=${carbonylPos}`);
+      console.log(
+        `[handleFiveMemberedSingleNitrogenLactam] ${dirName}: carbonylPos=${carbonylPos}`,
+      );
     }
-    
+
     if (carbonylPos === 1) {
       const ringAtomSet = new Set(atoms.map((a) => a.id));
       const locants: number[] = [];
@@ -1807,7 +1846,9 @@ function handleFiveMemberedSingleNitrogenLactam(
       }
       locants.sort((a, b) => a - b);
       if (process.env.VERBOSE) {
-        console.log(`[handleFiveMemberedSingleNitrogenLactam] ${dirName} candidate: locants=${JSON.stringify(locants)}`);
+        console.log(
+          `[handleFiveMemberedSingleNitrogenLactam] ${dirName} candidate: locants=${JSON.stringify(locants)}`,
+        );
       }
       candidates.push({ atoms: atoms as Atom[], locants });
     }
@@ -1818,10 +1859,14 @@ function handleFiveMemberedSingleNitrogenLactam(
   }
 
   if (process.env.VERBOSE) {
-    console.log(`[detectAndNumberLactam] 5-membered: Found ${candidates.length} candidates:`);
+    console.log(
+      `[detectAndNumberLactam] 5-membered: Found ${candidates.length} candidates:`,
+    );
     for (let i = 0; i < candidates.length; i++) {
       const c = candidates[i]!;
-      console.log(`  Candidate ${i}: atoms=${c.atoms.map(a => `${a.id}:${a.symbol}`).join(',')}, locants=${JSON.stringify(c.locants)}`);
+      console.log(
+        `  Candidate ${i}: atoms=${c.atoms.map((a) => `${a.id}:${a.symbol}`).join(",")}, locants=${JSON.stringify(c.locants)}`,
+      );
     }
   }
 
@@ -1860,7 +1905,11 @@ function handleSixMemberedSingleNitrogenLactam(
         const ringAtomSet = new Set(cwAtoms.map((a) => a.id));
         const locants: number[] = [];
         for (let i = 0; i < cwAtoms.length; i++) {
-          const subs = countNonRingSubstituents(cwAtoms[i]!, ringAtomSet, molecule);
+          const subs = countNonRingSubstituents(
+            cwAtoms[i]!,
+            ringAtomSet,
+            molecule,
+          );
           for (let j = 0; j < subs; j++) {
             locants.push(i + 1);
           }
@@ -1881,7 +1930,11 @@ function handleSixMemberedSingleNitrogenLactam(
         const ringAtomSet = new Set(ccwAtoms.map((a) => a.id));
         const locants: number[] = [];
         for (let i = 0; i < ccwAtoms.length; i++) {
-          const subs = countNonRingSubstituents(ccwAtoms[i]!, ringAtomSet, molecule);
+          const subs = countNonRingSubstituents(
+            ccwAtoms[i]!,
+            ringAtomSet,
+            molecule,
+          );
           for (let j = 0; j < subs; j++) {
             locants.push(i + 1);
           }
@@ -1927,9 +1980,18 @@ function handleSixMemberedDualNitrogenLactam(
   }
 
   if (process.env.VERBOSE) {
-    console.log('[handleSixMemberedDualNitrogenLactam] Ring atoms:', ring.atoms.map((a, i) => `${i}:${a.symbol}(id=${a.id})`));
-    console.log('[handleSixMemberedDualNitrogenLactam] Nitrogen indices:', nitrogenIndices);
-    console.log('[handleSixMemberedDualNitrogenLactam] Carbonyl carbon ID:', carbonylCarbonId);
+    console.log(
+      "[handleSixMemberedDualNitrogenLactam] Ring atoms:",
+      ring.atoms.map((a, i) => `${i}:${a.symbol}(id=${a.id})`),
+    );
+    console.log(
+      "[handleSixMemberedDualNitrogenLactam] Nitrogen indices:",
+      nitrogenIndices,
+    );
+    console.log(
+      "[handleSixMemberedDualNitrogenLactam] Carbonyl carbon ID:",
+      carbonylCarbonId,
+    );
   }
 
   for (const startIdx of nitrogenIndices) {
@@ -1939,26 +2001,38 @@ function handleSixMemberedDualNitrogenLactam(
     ] as Atom[];
 
     if (process.env.VERBOSE) {
-      console.log(`[handleSixMemberedDualNitrogenLactam] CW from startIdx=${startIdx}:`, cwAtoms.map((a, i) => `${i}:${a.symbol}(id=${a.id})`));
+      console.log(
+        `[handleSixMemberedDualNitrogenLactam] CW from startIdx=${startIdx}:`,
+        cwAtoms.map((a, i) => `${i}:${a.symbol}(id=${a.id})`),
+      );
     }
 
     if (cwAtoms[0]?.symbol === "N") {
       const carbonylPos = cwAtoms.findIndex((a) => a.id === carbonylCarbonId);
       if (process.env.VERBOSE) {
-        console.log(`[handleSixMemberedDualNitrogenLactam] CW carbonylPos=${carbonylPos}`);
+        console.log(
+          `[handleSixMemberedDualNitrogenLactam] CW carbonylPos=${carbonylPos}`,
+        );
       }
       if (carbonylPos === 1) {
         const ringAtomSet = new Set(cwAtoms.map((a) => a.id));
         const locants: number[] = [];
         for (let i = 0; i < cwAtoms.length; i++) {
-          const subs = countNonRingSubstituents(cwAtoms[i]!, ringAtomSet, molecule);
+          const subs = countNonRingSubstituents(
+            cwAtoms[i]!,
+            ringAtomSet,
+            molecule,
+          );
           for (let j = 0; j < subs; j++) {
             locants.push(i + 1);
           }
         }
         locants.sort((a, b) => a - b);
         if (process.env.VERBOSE) {
-          console.log(`[handleSixMemberedDualNitrogenLactam] Added CW candidate with locants:`, locants);
+          console.log(
+            `[handleSixMemberedDualNitrogenLactam] Added CW candidate with locants:`,
+            locants,
+          );
         }
         candidates.push({ atoms: cwAtoms, locants });
       }
@@ -1970,26 +2044,38 @@ function handleSixMemberedDualNitrogenLactam(
     const ccwAtoms = [atom, ...before, ...after.reverse()] as Atom[];
 
     if (process.env.VERBOSE) {
-      console.log(`[handleSixMemberedDualNitrogenLactam] CCW from startIdx=${startIdx}:`, ccwAtoms.map((a, i) => `${i}:${a.symbol}(id=${a.id})`));
+      console.log(
+        `[handleSixMemberedDualNitrogenLactam] CCW from startIdx=${startIdx}:`,
+        ccwAtoms.map((a, i) => `${i}:${a.symbol}(id=${a.id})`),
+      );
     }
 
     if (ccwAtoms[0]?.symbol === "N") {
       const carbonylPos = ccwAtoms.findIndex((a) => a.id === carbonylCarbonId);
       if (process.env.VERBOSE) {
-        console.log(`[handleSixMemberedDualNitrogenLactam] CCW carbonylPos=${carbonylPos}`);
+        console.log(
+          `[handleSixMemberedDualNitrogenLactam] CCW carbonylPos=${carbonylPos}`,
+        );
       }
       if (carbonylPos === 1) {
         const ringAtomSet = new Set(ccwAtoms.map((a) => a.id));
         const locants: number[] = [];
         for (let i = 0; i < ccwAtoms.length; i++) {
-          const subs = countNonRingSubstituents(ccwAtoms[i]!, ringAtomSet, molecule);
+          const subs = countNonRingSubstituents(
+            ccwAtoms[i]!,
+            ringAtomSet,
+            molecule,
+          );
           for (let j = 0; j < subs; j++) {
             locants.push(i + 1);
           }
         }
         locants.sort((a, b) => a - b);
         if (process.env.VERBOSE) {
-          console.log(`[handleSixMemberedDualNitrogenLactam] Added CCW candidate with locants:`, locants);
+          console.log(
+            `[handleSixMemberedDualNitrogenLactam] Added CCW candidate with locants:`,
+            locants,
+          );
         }
         candidates.push({ atoms: ccwAtoms, locants });
       }
@@ -1998,15 +2084,19 @@ function handleSixMemberedDualNitrogenLactam(
 
   if (candidates.length === 0) {
     if (process.env.VERBOSE) {
-      console.log('[handleSixMemberedDualNitrogenLactam] No candidates found!');
+      console.log("[handleSixMemberedDualNitrogenLactam] No candidates found!");
     }
     return null;
   }
 
   if (process.env.VERBOSE) {
-    console.log(`[handleSixMemberedDualNitrogenLactam] Total candidates: ${candidates.length}`);
+    console.log(
+      `[handleSixMemberedDualNitrogenLactam] Total candidates: ${candidates.length}`,
+    );
     candidates.forEach((c, i) => {
-      console.log(`  Candidate ${i}: locants=${JSON.stringify(c.locants)}, atoms=${c.atoms.map(a => `${a.symbol}${a.id}`).join(',')}`);
+      console.log(
+        `  Candidate ${i}: locants=${JSON.stringify(c.locants)}, atoms=${c.atoms.map((a) => `${a.symbol}${a.id}`).join(",")}`,
+      );
     });
   }
 

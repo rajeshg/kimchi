@@ -189,7 +189,7 @@ function isChainNArylFromRing(
       ringBondCount++;
     }
   }
-  
+
   // A 6-membered ring has exactly 6 bonds
   if (ringBondCount === 6) {
     if (process.env.VERBOSE) {
@@ -595,13 +595,7 @@ export const P44_4_RING_CHAIN_SELECTION_RULE: IUPACRule = {
                 `[P-44.4] Checking chain with ${chainAtomIds.length} atoms: [${chainAtomIds.join(",")}]`,
               );
             }
-            if (
-              isChainNArylFromRing(
-                chainAtomIds,
-                molecule,
-                candidateRings,
-              )
-            ) {
+            if (isChainNArylFromRing(chainAtomIds, molecule, candidateRings)) {
               hasNArylPattern = true;
               if (process.env.VERBOSE) {
                 console.log(
@@ -612,12 +606,13 @@ export const P44_4_RING_CHAIN_SELECTION_RULE: IUPACRule = {
             }
           }
         }
-        
+
         // If no N-aryl pattern, compare sizes
         if (!hasNArylPattern) {
-          const ringSize = candidateRings[0]?.size || candidateRings[0]?.atoms?.length || 0;
+          const ringSize =
+            candidateRings[0]?.size || candidateRings[0]?.atoms?.length || 0;
           const chainLength = candidateChains[0]?.atoms?.length || 0;
-          
+
           if (chainLength > ringSize) {
             // Chain is longer - defer to chain selection per P-44.4.1
             if (process.env.VERBOSE) {
@@ -627,7 +622,7 @@ export const P44_4_RING_CHAIN_SELECTION_RULE: IUPACRule = {
             }
             return false;
           }
-          
+
           if (process.env.VERBOSE) {
             console.log(
               `[P-44.4] FG counts equal (${chainFGCount}), ring size >= chain length (${ringSize} >= ${chainLength}), ring has priority per P-44.4.1`,

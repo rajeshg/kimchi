@@ -397,7 +397,7 @@
   },
   {
     "smiles": "C(CN(CO)C=O)N(CO)C=O",
-    "iupac": "N-[2-[formyl(hydroxymethyl)amino]ethyl]-N-(hydroxymethyl)formamide"
+    "iupac": "N,N'-diformyl-N,N'-bis(hydroxymethyl)ethane-1,2-diamine"
   },
   {
     "smiles": "C=C1CN=C(S1)NC2=CC(=C(C=C2)F)Cl",

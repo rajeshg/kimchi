@@ -2999,7 +2999,9 @@ export function getAlkoxyGroupName(
           multiplicity,
           opsinService ?? getSharedOPSINService(),
         );
-        branchPrefixParts.push(`${positionString}-${multiplicativePrefix}${name}`);
+        branchPrefixParts.push(
+          `${positionString}-${multiplicativePrefix}${name}`,
+        );
       }
     }
 

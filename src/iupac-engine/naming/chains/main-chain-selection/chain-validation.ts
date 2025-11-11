@@ -24,9 +24,21 @@ export function shouldExcludeAtomFromChain(
     return true; // Exclude all atoms in thiocyanate group
   }
 
-  // Amines: include N in parent chain (special case)
+  // Amines: exclude N from parent chain (amines are functional groups, not parent)
+  // NOTE: For primary/secondary amines (-NH2, -NHR), nitrogen is a functional group
+  // Nitrogen is only in parent chain for heterocyclic compounds (azines, azoles, etc.)
   if (lowerName.includes("amine") || lowerName === "amino") {
-    return false; // Don't exclude - N is part of parent chain
+    return true; // Exclude N - it's a functional group, not part of parent chain
+  }
+
+  // N-acyl groups (N-formyl, N-acetyl, etc.): exclude entire C(=O) group
+  // These are substituents on nitrogen, not part of the parent chain
+  if (
+    lowerName.includes("n-acyl") ||
+    lowerName.includes("acyl") ||
+    fgType === "C(=O)N<"
+  ) {
+    return true; // Exclude both C and O atoms in N-acyl groups
   }
 
   // Carbonyl-containing groups: exclude O, keep C
@@ -160,19 +172,15 @@ export function containsHalogen(chain: number[], molecule: Molecule): boolean {
 
 /**
  * Check if any detected functional group requires heteroatom chains.
- * Only amines and certain heteroatom parents need heteroatoms in the parent chain.
+ * NOTE: Primary/secondary amines (-NH2, -NHR, -NR2) do NOT require nitrogen in parent chain
+ * They are functional groups attached to a carbon skeleton.
+ * Heterocyclic compounds (azines, azoles) would be handled differently.
  */
 export function requiresHeteroatomChains(
   functionalGroups: Array<{ name: string; type: string; atoms?: number[] }>,
 ): boolean {
-  for (const fg of functionalGroups) {
-    const lowerName = fg.name.toLowerCase();
-    // Amines need nitrogen in the parent chain (e.g., "ethanamine")
-    if (lowerName.includes("amine")) {
-      return true;
-    }
-    // Add other cases here if needed (e.g., phosphines, arsines, etc.)
-  }
+  // For now, no functional groups require heteroatom chains
+  // This may be extended in the future for heterocyclic parent structures
   return false;
 }
 
