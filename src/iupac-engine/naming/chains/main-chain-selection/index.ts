@@ -479,8 +479,12 @@ export function findMainChain(
   let minPriority = Math.min(...allPriorities);
 
   // Step 2.5: Check for diamine backbone override
+  // Detect ALL nitrogen atoms in the molecule, not just those labeled as "amine" functional groups.
+  // This is crucial for diamines where nitrogens may be part of amide/other groups.
   const amineNitrogens = new Set<number>(
-    amineGroups.flatMap((fg: { atoms: number[] }) => fg.atoms || []),
+    molecule.atoms
+      .map((a, idx) => (a.symbol === "N" ? idx : -1))
+      .filter((idx) => idx !== -1),
   );
 
   if (process.env.VERBOSE) {
@@ -489,7 +493,10 @@ export function findMainChain(
     );
   }
 
-  if (amineNitrogens.size >= 2 && minPriority === 10) {
+  // Check for diamine backbones whenever we have 2+ amine nitrogens
+  // This needs to run regardless of current minPriority to handle cases where
+  // high-priority functional groups (amides, aldehydes) are attached to the nitrogens
+  if (amineNitrogens.size >= 2) {
     const diamineBackbones: number[][] = [];
     const diamineBackbonePriorities: number[] = [];
 
@@ -521,29 +528,17 @@ export function findMainChain(
         );
       }
 
+      // Override minPriority to use amine priority (13) if we found a diamine backbone
+      // This ensures the ethane chain connecting two amines becomes the parent structure,
+      // even when higher-priority functional groups (amides, aldehydes, alcohols) are
+      // attached to the nitrogen atoms
       if (bestDiaminePriority === 13) {
-        const hasSingleCarbonAlcohols = allChains.some(
-          (c, i) =>
-            allPriorities[i] === 10 &&
-            c.length === 1 &&
-            c[0] !== undefined &&
-            molecule.atoms[c[0]]?.symbol === "C",
-        );
-
         if (process.env.VERBOSE) {
           console.log(
-            `[findMainChain] Has single-carbon alcohols: ${hasSingleCarbonAlcohols}`,
+            `[findMainChain] Diamine backbone override: using priority=13 (amine) instead of priority=${minPriority}`,
           );
         }
-
-        if (hasSingleCarbonAlcohols) {
-          if (process.env.VERBOSE) {
-            console.log(
-              `[findMainChain] Diamine backbone override: using priority=13 instead of priority=10`,
-            );
-          }
-          minPriority = 13;
-        }
+        minPriority = 13;
       }
     }
   }

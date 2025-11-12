@@ -103,6 +103,8 @@ export function findSubstituents(
           substituentAtomIdx,
           chainSet,
           fgAtomIds,
+          0,
+          detector,
         );
         if (substituent) {
           const position = isAmineChainWithNitrogen
@@ -465,8 +467,18 @@ export function findSubstituents(
       }
     }
 
-    // Only collect substituents from non-chain sulfur atoms
-    const nonChainSulfurs = sulfurBridge.slice(1);
+    // Collect substituents from non-chain sulfur atoms
+    // For disulfide bridges (2+ sulfurs), only collect from sulfurBridge[1] onwards
+    // For single-sulfur functional groups (sulfinyl/sulfonyl), include the sulfur itself
+    let nonChainSulfurs: number[];
+    if (sulfurBridge.length === 1) {
+      // Single sulfur: this is sulfinyl or sulfonyl, include it
+      nonChainSulfurs = sulfurBridge;
+    } else {
+      // Multiple sulfurs: skip the first one (attached to chain)
+      nonChainSulfurs = sulfurBridge.slice(1);
+    }
+    
     const substituentStarts: number[] = [];
     for (const sulfur of nonChainSulfurs) {
       const starts = sulfurToSubstituentStarts.get(sulfur) || [];

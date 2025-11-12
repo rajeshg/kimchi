@@ -2255,8 +2255,13 @@ export function buildSubstitutiveName(
           isSaturated &&
           hasNoHeteroatoms;
 
+        // For C1 chains (methane), always omit position 1 locant
+        const isC1Chain =
+          isChainParent && (parentStructure.chain?.length ?? 0) === 1;
+        const shouldOmitC1Locant = isC1Chain && isTerminalPosition;
+        
         const needsLocant =
-          !isSingleStructuralSubstituentOnly && !isSimpleTerminalHalogen;
+          !isSingleStructuralSubstituentOnly && !isSimpleTerminalHalogen && !shouldOmitC1Locant;
 
         // For amines, replace numeric position "1" with "N" if position 1 is nitrogen
         const isAmine = principalFG?.type === "amine";
@@ -2307,14 +2312,20 @@ export function buildSubstitutiveName(
         // Determine if this substituent needs ANY wrapping (brackets or parentheses)
         const hasAcylWithInternalLocants =
           /\d+-\w+oyl$/.test(subName) && subName.split("-").length > 1;
+        // For C1 chains with single substituent and no locant, don't wrap
+        // Example: CS(=O)C -> "methylsulfinylmethane" not "(methylsulfinyl)methane"
+        const isC1ChainSingleSub =
+          isC1Chain && isSingleSubstituent && isTerminalPosition;
+        
         const needsWrapping =
-          hasNestedParentheses ||
-          hasComplexYlGroup ||
-          hasRingYlGroup ||
-          hasCompoundSubstituent ||
-          /\d+,\d+/.test(subName) ||
-          // Acyl groups with internal locants (e.g., "2-methylpropanoyl")
-          hasAcylWithInternalLocants;
+          !isC1ChainSingleSub &&
+          (hasNestedParentheses ||
+            hasComplexYlGroup ||
+            hasRingYlGroup ||
+            hasCompoundSubstituent ||
+            /\d+,\d+/.test(subName) ||
+            // Acyl groups with internal locants (e.g., "2-methylpropanoyl")
+            hasAcylWithInternalLocants);
 
         if (subName.includes("oyl")) {
           if (process.env.VERBOSE) {
@@ -2941,7 +2952,29 @@ export function buildSubstitutiveName(
       JSON.stringify(principalGroup),
     );
   }
-  if (principalGroup && principalGroup.suffix) {
+  
+  // Check if the principal group is already incorporated into a substituent
+  // For symmetric molecules like CS(=O)C, the sulfinyl functional group is part of
+  // the "methylsulfinyl" substituent, so we shouldn't add the suffix again
+  let principalGroupIsInSubstituent = false;
+  if (principalGroup && principalGroup.prefix && parentStructure.substituents) {
+    const fgPrefix = principalGroup.prefix; // e.g., "sulfinyl" for sulfinyl group
+    for (const sub of parentStructure.substituents) {
+      // Check if substituent name contains the functional group prefix
+      // e.g., "methylsulfinyl" contains "sulfinyl"
+      if (sub.type && sub.type.includes(fgPrefix)) {
+        principalGroupIsInSubstituent = true;
+        if (process.env.VERBOSE) {
+          console.log(
+            `[buildSubstitutiveName] Principal group "${fgPrefix}" is already in substituent "${sub.type}" - will not add suffix`,
+          );
+        }
+        break;
+      }
+    }
+  }
+  
+  if (principalGroup && principalGroup.suffix && !principalGroupIsInSubstituent) {
     // PREFERRED NAMES: Use retained names for simple carboxylic acids (C1-C3)
     // According to IUPAC Blue Book:
     // - formic acid (C1): HCOOH - no substituents (nowhere to put them)
@@ -3233,6 +3266,22 @@ export function buildSubstitutiveName(
       ];
       const isTerminalGroup = terminalGroups.includes(principalGroup.type);
 
+      // Check if this is an unsubstituted monocyclic ketone with a single carbonyl at position 1
+      // IUPAC 2013 Blue Book allows omitting the "-1-" locant for unsubstituted cyclic ketones:
+      //   - "cyclopentanone" (not "cyclopentan-1-one")
+      //   - "cyclohexanone" (not "cyclohexan-1-one")
+      // IMPORTANT: Only the "-1-" locant is optional; "-2-", "-3-", etc. must always be included.
+      // If there are substituents, the "-1-" locant must be kept for clarity:
+      //   - "4-methoxycycloheptan-1-one" (not "4-methoxycycloheptanone")
+      // This prevents ambiguity about which carbon bears the ketone vs. the substituent.
+      const isSingleCyclicKetone =
+        principalGroup.type === "ketone" &&
+        principalGroup.suffix === "one" &&
+        parentStructure.type === "ring" &&
+        fgLocant === 1 &&
+        (principalGroup.multiplicity ?? 1) === 1 &&
+        allStructuralSubstituents.length === 0;
+
       // Omit locant for:
       // 1. C1 and C2 chains with functional groups at position 1
       //    C1: methanol (not methan-1-ol), methanamine (not methan-1-amine)
@@ -3240,11 +3289,16 @@ export function buildSubstitutiveName(
       //    C3+: propan-1-ol, propan-1-amine, prop-1-ene (locant required)
       // 2. Terminal groups (amide, carboxylic acid, aldehyde, nitrile) at position 1, regardless of chain length
       //    e.g., "hexanal" not "hexan-1-al", "heptanoic acid" not "heptan-1-oic acid"
+      // 3. Unsubstituted monocyclic ketones with single carbonyl at position 1 (IUPAC 2013 Blue Book)
+      //    e.g., "cyclopentanone" not "cyclopentan-1-one", "cyclohexanone" not "cyclohexan-1-one"
+      //    NOTE: Only "-1-" is optional; other locants like "-2-", "-3-" must always be included.
+      //    If substituents are present, "-1-" must be kept: "4-methoxycycloheptan-1-one"
       const shouldOmitLocant =
         (chainLength <= 2 &&
           fgLocant === 1 &&
           parentStructure.type === "chain") ||
-        (isTerminalGroup && fgLocant === 1 && parentStructure.type === "chain");
+        (isTerminalGroup && fgLocant === 1 && parentStructure.type === "chain") ||
+        isSingleCyclicKetone;
 
       if (process.env.VERBOSE) {
         console.log(
@@ -3701,7 +3755,18 @@ export function buildSubstitutiveName(
       }
 
       if (needsLocant && fgLocant && !shouldOmitLocant) {
-        name += `-${fgLocant}-${principalGroup.suffix}`;
+        // When adding a suffix with locant, check for vowel elision
+        // IUPAC rule: Drop final "e" from parent name before adding suffix starting with vowel
+        // Example: "thiazole" + "-2-amine" → "thiazol-2-amine" (not "thiazole-2-amine")
+        let parentForSuffix = name;
+        if (
+          name.endsWith("e") &&
+          principalGroup.suffix &&
+          /^[aeiou]/i.test(principalGroup.suffix)
+        ) {
+          parentForSuffix = name.slice(0, -1);
+        }
+        name = `${parentForSuffix}-${fgLocant}-${principalGroup.suffix}`;
       } else {
         // For nitrile suffix, we need to add 'e' before it (hexane + nitrile = hexanenitrile)
         // For other suffixes starting with vowels, the 'e' is already dropped (hexan + al = hexanal)

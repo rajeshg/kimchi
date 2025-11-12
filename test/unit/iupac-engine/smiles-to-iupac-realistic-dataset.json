@@ -406,5 +406,130 @@
   {
     "smiles": "CC(=O)OC1=C(C2=C(C(=C1)CCCCCCCCCCCCCCCCCCCCCCCCC2)N3CCCCCCCCCCCCC(=O)CCCCCCCCCCCC3)OC(=O)C",
     "iupac": "[30-acetyloxy-31-(14-oxo-azacyclohexacos-1-yl)-29-bicyclo[25.3.1]hentriaconta-1(30),27(31),28-trienyl] acetate"
+  },
+  {
+    "smiles": "c1ccncc1",
+    "iupac": "pyridine",
+    "comment": "Basic nitrogen heterocycle"
+  },
+  {
+    "smiles": "c1ccoc1",
+    "iupac": "furan",
+    "comment": "Basic oxygen heterocycle"
+  },
+  {
+    "smiles": "c1ccsc1",
+    "iupac": "thiophene",
+    "comment": "Basic sulfur heterocycle"
+  },
+  {
+    "smiles": "c1c[nH]cc1",
+    "iupac": "pyrrole",
+    "comment": "Basic nitrogen heterocycle with NH"
+  },
+  {
+    "smiles": "c1ccc2ccccc2c1",
+    "iupac": "naphthalene",
+    "comment": "Bicyclic aromatic"
+  },
+  {
+    "smiles": "Cc1ccc2ccccc2c1",
+    "iupac": "1-methylnaphthalene",
+    "comment": "Substituted bicyclic aromatic"
+  },
+  {
+    "smiles": "c1ccc2ncccc2c1",
+    "iupac": "quinoline",
+    "comment": "Nitrogen-containing bicyclic aromatic"
+  },
+  {
+    "smiles": "c1ccc(cc1)CCO",
+    "iupac": "2-phenylethanol",
+    "comment": "Aromatic with alcohol chain"
+  },
+  {
+    "smiles": "Cc1ccccn1",
+    "iupac": "2-methylpyridine",
+    "comment": "Substituted pyridine"
+  },
+  {
+    "smiles": "Cc1cccnc1",
+    "iupac": "3-methylpyridine",
+    "comment": "Substituted pyridine"
+  },
+  {
+    "smiles": "Cc1ccncc1",
+    "iupac": "4-methylpyridine",
+    "comment": "Substituted pyridine"
+  },
+  {
+    "smiles": "Cc1ccco1",
+    "iupac": "2-methylfuran",
+    "comment": "Substituted furan"
+  },
+  {
+    "smiles": "Cc1cccs1",
+    "iupac": "2-methylthiophene",
+    "comment": "Substituted thiophene"
+  },
+  {
+    "smiles": "Cc1ccsc1",
+    "iupac": "3-methylthiophene",
+    "comment": "Substituted thiophene"
+  },
+  {
+    "smiles": "C1COCCN1",
+    "iupac": "morpholine",
+    "comment": "Saturated heterocycle with O and N - currently failing"
+  },
+  {
+    "smiles": "C1CNCCN1",
+    "iupac": "piperazine",
+    "comment": "Saturated heterocycle with two N"
+  },
+  {
+    "smiles": "c1csc(n1)N",
+    "iupac": "thiazol-2-amine",
+    "comment": "Thiazole with amine - close (generates thiazole-2-amine)"
+  },
+  {
+    "smiles": "c1cnco1",
+    "iupac": "oxazole",
+    "comment": "Five-membered ring with O and N"
+  },
+  {
+    "smiles": "c1ccc2[nH]ccc2c1",
+    "iupac": "indole",
+    "comment": "Bicyclic nitrogen heterocycle"
+  },
+  {
+    "smiles": "CS(=O)C",
+    "iupac": "methylsulfinylmethane",
+    "comment": "Sulfoxide - strict IUPAC systematic name (trivial: dimethyl sulfoxide)"
+  },
+  {
+    "smiles": "CS(=O)(=O)C",
+    "iupac": "methylsulfonylmethane",
+    "comment": "Sulfone - strict IUPAC systematic name (trivial: dimethyl sulfone)"
+  },
+  {
+    "smiles": "O=C1CCCC1",
+    "iupac": "cyclopentanone",
+    "comment": "Cyclic ketone - close (generates cyclopentan-1-one)"
+  },
+  {
+    "smiles": "C1CCC(=O)CC1",
+    "iupac": "cyclohexanone",
+    "comment": "Cyclic ketone - close (generates cyclohexan-1-one)"
+  },
+  {
+    "smiles": "CC(=O)N(C)C",
+    "iupac": "N,N-dimethylethanamide",
+    "comment": "Tertiary amide - strict IUPAC systematic name (trivial: N,N-dimethylacetamide)"
+  },
+  {
+    "smiles": "CC(=O)Nc1ccccc1",
+    "iupac": "N-phenylethanamide",
+    "comment": "Anilide - strict IUPAC systematic name (trivial: N-phenylacetamide)"
   }
 ]

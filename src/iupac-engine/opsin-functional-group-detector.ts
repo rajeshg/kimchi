@@ -161,19 +161,19 @@ export class OPSINFunctionalGroupDetector {
       {
         pattern: "RSR",
         name: "thioether",
-        priority: 11.5,
+        priority: 17,
         finder: this.findThioetherPattern.bind(this),
       },
       {
         pattern: "S(=O)(=O)",
         name: "sulfonyl",
-        priority: 15,
+        priority: 11.5,
         finder: this.findSulfonylPattern.bind(this),
       },
       {
         pattern: "S(=O)",
         name: "sulfinyl",
-        priority: 16,
+        priority: 12,
         finder: this.findSulfinylPattern.bind(this),
       },
       {
@@ -201,6 +201,9 @@ export class OPSINFunctionalGroupDetector {
         finder: this.findEtherPattern.bind(this),
       },
     ];
+
+    // Sort by priority (lower number = higher priority)
+    builtinChecks.sort((a, b) => a.priority - b.priority);
 
     for (const check of builtinChecks) {
       try {
@@ -1212,24 +1215,25 @@ export class OPSINFunctionalGroupDetector {
         const oxygen = this.getBondedAtom(doubleBondOxygen, atom.id, atoms)!;
         const nitrogen = this.getBondedAtom(nitrogenBond, atom.id, atoms)!;
 
-        // Check if nitrogen is tertiary (bonded to 3 non-H atoms)
-        // If so, this is an N-acyl tertiary amine, not a primary/secondary amide
-        const nitrogenBonds = bonds.filter(
-          (b) => b.atom1 === nitrogen.id || b.atom2 === nitrogen.id,
-        );
-        const nitrogenNeighbors = nitrogenBonds
-          .map((b) => this.getBondedAtom(b, nitrogen.id, atoms))
-          .filter((a): a is Atom => a !== undefined && a.symbol !== "H");
+        // Count total nitrogen atoms in molecule
+        const nitrogenCount = atoms.filter((a) => a.symbol === "N").length;
 
-        // If nitrogen has 3 non-hydrogen neighbors (tertiary amine), skip this as amide
-        // This is an N-acyl substituent on a tertiary amine, not a primary/secondary amide
-        if (nitrogenNeighbors.length >= 3) {
-          if (process.env.VERBOSE) {
-            console.log(
-              `[findAmidePattern] Skipping C(=O)-N at C=${atom.id}, N=${nitrogen.id}: nitrogen is tertiary (${nitrogenNeighbors.length} non-H neighbors)`,
-            );
+        // Skip tertiary nitrogens (3+ non-H neighbors) ONLY in diamine cases (2+ N atoms)
+        // This handles diamines with formyl/acetyl/other acyl groups: e.g., N,N'-diformyl-ethane-1,2-diamine
+        // For single nitrogen molecules, this is a legitimate amide (e.g., N,N-dimethylacetamide)
+        if (nitrogenCount >= 2) {
+          const nitrogenBonds = bonds.filter(
+            (b) => b.atom1 === nitrogen.id || b.atom2 === nitrogen.id,
+          );
+          const nitrogenNeighbors = nitrogenBonds
+            .map((b) => this.getBondedAtom(b, nitrogen.id, atoms))
+            .filter((a): a is Atom => a !== undefined && a.symbol !== "H");
+          const isTertiaryNitrogen = nitrogenNeighbors.length >= 3;
+
+          if (isTertiaryNitrogen) {
+            // Skip this C=O-N pattern - it's an N-acyl substituent on a tertiary amine in a diamine
+            continue;
           }
-          continue;
         }
 
         // Check if carbonyl is incorporated into a heterocycle with "-one" suffix
@@ -1361,7 +1365,11 @@ export class OPSINFunctionalGroupDetector {
         );
 
         if (singleBonds.length >= 1) {
-          return [atom.id];
+          // Return sulfur and both oxygen atoms to prevent them being detected separately
+          const oxygenIds = oxygenDoubleBonds.map(
+            (bond) => this.getBondedAtom(bond, atom.id, atoms)!.id,
+          );
+          return [atom.id, ...oxygenIds];
         }
       }
     }
@@ -1397,7 +1405,13 @@ export class OPSINFunctionalGroupDetector {
         );
 
         if (singleBonds.length >= 2) {
-          return [atom.id];
+          // Return sulfur and oxygen atom to prevent oxygen being detected separately
+          const oxygenId = this.getBondedAtom(
+            oxygenDoubleBonds[0]!,
+            atom.id,
+            atoms,
+          )!.id;
+          return [atom.id, oxygenId];
         }
       }
     }

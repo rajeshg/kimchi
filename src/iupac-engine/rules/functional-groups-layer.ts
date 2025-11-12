@@ -2532,17 +2532,58 @@ function selectPrincipalGroup(
   molecule: Molecule | undefined,
   detector: OPSINFunctionalGroupDetector,
 ): FunctionalGroup | undefined {
+  if (process.env.VERBOSE) {
+    console.log(
+      "[selectPrincipalGroup] Called with",
+      functionalGroups.length,
+      "groups:",
+      functionalGroups.map((g) => ({ type: g.type, priority: g.priority, locants: g.locants })),
+    );
+  }
+  
   if (functionalGroups.length === 0) {
     return undefined;
   }
 
+  // Filter out groups that can NEVER be principal (ethers, thioethers, halides, nitro, etc.)
+  // These should always be named as substituents
+  const NON_PRINCIPAL_TYPES = [
+    "ether", // ROR - always named as alkoxy
+    "thioether", // RSR - always named as alkylsulfanyl
+    "RSR", // Same as thioether (pattern name)
+    "ROR", // Same as ether (pattern name)
+    "halide", // F, Cl, Br, I
+    "nitro", // NO2
+    "nitroso", // NO
+    "alkoxy", // -OR substituent form
+    "phosphanyl", // P - treat phosphanyl substituents as non-principal here
+    "P", // pattern name for phosphanyl
+  ];
+
+  const principalEligibleGroups = functionalGroups.filter(
+    (fg) => !NON_PRINCIPAL_TYPES.includes(fg.type),
+  );
+
+  // If all groups are non-principal types, return undefined (no principal group)
+  if (principalEligibleGroups.length === 0) {
+    if (process.env.VERBOSE) {
+      console.log(
+        "[selectPrincipalGroup] All functional groups are non-principal types (thioethers, ethers, halides, etc.) - no principal group selected",
+      );
+    }
+    return undefined;
+  }
+
+  // Continue with only principal-eligible groups
+  const groupsToConsider = principalEligibleGroups;
+
   // Special-case: when both sulfinyl and sulfonyl are present, check if they form a sulfur bridge
   // If they're directly bonded (S-S bond), they should be treated as a substituent, not principal groups
-  const hasSulfinyl = functionalGroups.some((g) => g.type === "sulfinyl");
-  const hasSulfonyl = functionalGroups.some((g) => g.type === "sulfonyl");
+  const hasSulfinyl = groupsToConsider.some((g) => g.type === "sulfinyl");
+  const hasSulfonyl = groupsToConsider.some((g) => g.type === "sulfonyl");
   if (hasSulfinyl && hasSulfonyl && molecule) {
-    const sulfinylGroup = functionalGroups.find((g) => g.type === "sulfinyl");
-    const sulfonylGroup = functionalGroups.find((g) => g.type === "sulfonyl");
+    const sulfinylGroup = groupsToConsider.find((g) => g.type === "sulfinyl");
+    const sulfonylGroup = groupsToConsider.find((g) => g.type === "sulfonyl");
 
     if (
       sulfinylGroup &&
@@ -2567,7 +2608,7 @@ function selectPrincipalGroup(
           );
         }
         // Filter out sulfinyl and sulfonyl from consideration as principal groups
-        const filteredGroups = functionalGroups.filter(
+        const filteredGroups = groupsToConsider.filter(
           (g) => g.type !== "sulfinyl" && g.type !== "sulfonyl",
         );
         if (filteredGroups.length === 0) {
@@ -2582,36 +2623,60 @@ function selectPrincipalGroup(
     }
   }
 
-  // Special-case: Diamine detection - when 2+ amine atoms are present, amine should be principal over alcohol
-  const amineGroups = functionalGroups.filter((g) => g.type === "amine");
-  const alcoholGroups = functionalGroups.filter((g) => g.type === "alcohol");
-  if (amineGroups.length > 0 && alcoholGroups.length > 0) {
+  // Sort by the assigned priority on the FunctionalGroup object first.
+  // After normalization, priorities use the engine scale (HIGHER numeric value = HIGHER priority).
+  // Fall back to OPSIN detector lookup or 0 when missing.
+  const sortedGroups = groupsToConsider.sort((a, b) => {
+    const priorityA =
+      typeof a.priority === "number"
+        ? a.priority
+        : detector.getFunctionalGroupPriority(a.type) || 0;
+    const priorityB =
+      typeof b.priority === "number"
+        ? b.priority
+        : detector.getFunctionalGroupPriority(b.type) || 0;
+    return priorityB - priorityA; // Higher priority number = higher priority (engine convention after normalization)
+  });
+
+  // Special-case: Diamine detection - when 2+ amine atoms are present, amine should be principal
+  // This check happens AFTER sorting but BEFORE returning the highest priority group
+  // This applies when competing with alcohols OR when the amines form a diamine backbone
+  const amineGroups = groupsToConsider.filter((g) => g.type === "amine");
+  if (amineGroups.length > 0) {
     // Count total amine nitrogen atoms across all amine groups
     const totalAmineNitrogens = amineGroups.reduce((sum, g) => {
       return sum + (g.locants?.length || 0);
     }, 0);
-
+    
     if (totalAmineNitrogens >= 2) {
-      // Diamine detected - amine should be principal group
-      if (process.env.VERBOSE) {
-        console.log(
-          `[selectPrincipalGroup] Diamine detected (${totalAmineNitrogens} nitrogen atoms) - amine takes precedence over alcohol`,
-        );
+      // Diamine detected - check if it should override other functional groups
+      const alcoholGroups = groupsToConsider.filter((g) => g.type === "alcohol");
+      const amideGroups = groupsToConsider.filter((g) => g.type === "amide");
+      
+      // Diamine takes precedence over alcohols or when amides are present
+      // (amides attached to diamine nitrogens should be N-substituents, not principal)
+      if (alcoholGroups.length > 0 || amideGroups.length > 0) {
+        if (process.env.VERBOSE) {
+          const topGroup = sortedGroups[0];
+          console.log(
+            `[selectPrincipalGroup] Diamine detected (${totalAmineNitrogens} nitrogen atoms) - amine takes precedence${topGroup ? ` over ${topGroup.type}` : ""}`,
+          );
+        }
+        // Return the first amine group (they have the same priority)
+        return amineGroups[0];
       }
-      // Return the first amine group (they have the same priority)
-      return amineGroups[0];
     }
   }
 
   // Special-case: For ring systems, ketones should take precedence over ethers
   // Ethers attached to rings should be named as alkoxy substituents (e.g., "methoxy")
   // while ketones should be the principal functional group (e.g., "cycloheptan-1-one")
-  const hasKetone = functionalGroups.some((g) => g.type === "ketone");
-  const hasEther = functionalGroups.some((g) => g.type === "ether");
+  const hasKetone = groupsToConsider.some((g) => g.type === "ketone");
+  const hasEther = groupsToConsider.some((g) => g.type === "ether");
 
   if (hasKetone && hasEther && molecule) {
     // Check if any ketone is in a ring (most ketones in rings should be principal)
-    const ketoneInRing = functionalGroups.find(
+    const ketoneInRing = groupsToConsider.find(
       (g) =>
         g.type === "ketone" &&
         g.atoms &&
@@ -2630,21 +2695,6 @@ function selectPrincipalGroup(
       return ketoneInRing;
     }
   }
-
-  // Sort by the assigned priority on the FunctionalGroup object first.
-  // After normalization, priorities use the engine scale (HIGHER numeric value = HIGHER priority).
-  // Fall back to OPSIN detector lookup or 0 when missing.
-  const sortedGroups = functionalGroups.sort((a, b) => {
-    const priorityA =
-      typeof a.priority === "number"
-        ? a.priority
-        : detector.getFunctionalGroupPriority(a.type) || 0;
-    const priorityB =
-      typeof b.priority === "number"
-        ? b.priority
-        : detector.getFunctionalGroupPriority(b.type) || 0;
-    return priorityB - priorityA; // Higher priority number = higher priority (engine convention after normalization)
-  });
 
   return sortedGroups[0];
 }

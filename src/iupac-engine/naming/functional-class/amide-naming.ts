@@ -115,14 +115,14 @@ export function buildAmideName(
         console.log(`[buildAmideName] Added aromatic substituent: ${ringName}`);
       }
     }
-    // Check for other substituents (alkyl groups, etc.)
-    else if (neighbor.symbol === "C" || neighbor.symbol === "H") {
-      // For now, skip non-aromatic substituents
-      // TODO: Handle alkyl substituents like N-methyl, N-ethyl, etc.
-      if (process.env.VERBOSE) {
-        console.log(
-          `[buildAmideName] Skipping non-aromatic carbon substituent at ${neighborId}`,
-        );
+    // Handle alkyl substituents (methyl, ethyl, etc.)
+    else if (neighbor.symbol === "C") {
+      const alkylName = getAlkylSubstituentName(neighborId, molecule, [amideNitrogenId, carbonylCarbonId || -1]);
+      if (alkylName) {
+        nSubstituents.push({ atomId: neighborId, name: alkylName });
+        if (process.env.VERBOSE) {
+          console.log(`[buildAmideName] Added alkyl substituent: ${alkylName}`);
+        }
       }
     }
   }
@@ -159,11 +159,25 @@ export function buildAmideName(
   // Sort substituent parts alphabetically
   substituentParts.sort();
 
-  // Build N-prefixes
-  const nPrefixes = nSubstituents
-    .map((sub) => `N-${sub.name}`)
-    .sort()
-    .join("-");
+  // Build N-prefixes with proper multipliers for identical groups
+  // Group by substituent name
+  const nSubMap = new Map<string, number>();
+  for (const sub of nSubstituents) {
+    nSubMap.set(sub.name, (nSubMap.get(sub.name) || 0) + 1);
+  }
+
+  // Build N-prefixes: "N-methyl", "N,N-dimethyl", "N-ethyl-N-methyl", etc.
+  const nPrefixParts: string[] = [];
+  for (const [name, count] of Array.from(nSubMap.entries()).sort()) {
+    if (count === 1) {
+      nPrefixParts.push(`N-${name}`);
+    } else {
+      const locants = Array(count).fill("N").join(",");
+      const multiplier = getMultiplier(count);
+      nPrefixParts.push(`${locants}-${multiplier}${name}`);
+    }
+  }
+  const nPrefixes = nPrefixParts.join("-");
 
   // Combine: substituents + N-substituents + base name
   // Example: 2-(tert-butylamino)oxy-3,3-dimethyl-N-phenylbutanamide
@@ -189,6 +203,62 @@ export function buildAmideName(
 function getMultiplier(count: number): string {
   const opsinService = getSharedOPSINService();
   return getSimpleMultiplier(count, opsinService);
+}
+
+/**
+ * Get the name of an alkyl substituent attached to nitrogen
+ * Traces from the starting carbon to build names like "methyl", "ethyl", "propyl", etc.
+ */
+function getAlkylSubstituentName(
+  startAtomId: number,
+  molecule: Molecule,
+  excludeAtoms: number[]
+): string | null {
+  const startAtom = molecule.atoms[startAtomId];
+  if (!startAtom || startAtom.symbol !== "C") return null;
+
+  // Count carbons in this alkyl chain (simple linear chain only for now)
+  const visited = new Set<number>(excludeAtoms);
+  const queue: number[] = [startAtomId];
+  const carbonIds: number[] = [];
+
+  while (queue.length > 0) {
+    const atomId = queue.shift()!;
+    if (visited.has(atomId)) continue;
+    visited.add(atomId);
+
+    const atom = molecule.atoms[atomId];
+    if (!atom || atom.symbol !== "C") continue;
+    
+    carbonIds.push(atomId);
+
+    // Add neighbors
+    for (const bond of molecule.bonds) {
+      if (bond.type !== "single") continue;
+      
+      let neighborId: number | undefined;
+      if (bond.atom1 === atomId) neighborId = bond.atom2;
+      else if (bond.atom2 === atomId) neighborId = bond.atom1;
+
+      if (neighborId !== undefined && !visited.has(neighborId)) {
+        const neighbor = molecule.atoms[neighborId];
+        if (neighbor?.symbol === "C") {
+          queue.push(neighborId);
+        }
+      }
+    }
+  }
+
+  // Build alkyl name based on carbon count
+  const chainLength = carbonIds.length;
+  const alkylNames = ["", "methyl", "ethyl", "propyl", "butyl", "pentyl", "hexyl"];
+  
+  if (chainLength > 0 && chainLength < alkylNames.length) {
+    const name = alkylNames[chainLength];
+    return name || null;
+  }
+
+  return null;
 }
 
 /**

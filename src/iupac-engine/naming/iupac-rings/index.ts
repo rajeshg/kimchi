@@ -806,6 +806,17 @@ export function getHeterocyclicName(
     return "piperazine";
   }
 
+  // Morpholine (C1COCCN1) - 6-membered ring with 1 oxygen + 1 nitrogen
+  if (
+    isSaturated &&
+    ringSize === 6 &&
+    hasNitrogen === 1 &&
+    hasOxygen === 1 &&
+    hasSulfur === 0
+  ) {
+    return "morpholine";
+  }
+
   // Only name simple heterocycles (one heteroatom, saturated)
   if (totalHetero === 0 || totalHetero > 1) return null;
 

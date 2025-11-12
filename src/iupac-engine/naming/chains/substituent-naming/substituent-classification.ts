@@ -1,5 +1,6 @@
 import type { Molecule } from "types";
 import type { NamingSubstituentInfo } from "../../iupac-types";
+import type { OPSINFunctionalGroupDetector } from "../../../opsin-functional-group-detector";
 import { getAlkylName } from "../../iupac-helpers";
 import { nameRingSubstituent } from "./ring";
 import { nameAlkoxySubstituent } from "./alkoxy";
@@ -11,6 +12,7 @@ export function classifySubstituent(
   chainAtoms: Set<number>,
   fgAtomIds: Set<number> = new Set(),
   depth = 0,
+  detector?: OPSINFunctionalGroupDetector,
 ): NamingSubstituentInfo | null {
   if (process.env.VERBOSE && startAtomIdx === 0) {
     console.log(
@@ -419,61 +421,111 @@ export function classifySubstituent(
   } else if (atoms.some((atom) => atom.symbol === "I")) {
     return { type: "halo", size: 1, name: "iodo" };
   } else if (atoms.some((atom) => atom.symbol === "S")) {
-    // Check for thiocyanate first: -S-C≡N pattern
+    // Find the sulfur atom index
     const sulfurAtomIdx = Array.from(substituentAtoms).find(
       (idx) => molecule.atoms[idx]?.symbol === "S",
     );
-    if (sulfurAtomIdx !== undefined) {
-      // Look for carbon bonded to sulfur
-      const carbonBondedToS = molecule.bonds.find(
-        (bond) =>
-          (bond.atom1 === sulfurAtomIdx &&
-            substituentAtoms.has(bond.atom2) &&
-            molecule.atoms[bond.atom2]?.symbol === "C") ||
-          (bond.atom2 === sulfurAtomIdx &&
-            substituentAtoms.has(bond.atom1) &&
-            molecule.atoms[bond.atom1]?.symbol === "C"),
+    
+    if (sulfurAtomIdx === undefined) {
+      return null;
+    }
+
+    // Use detector to check for sulfinyl S(=O) or sulfonyl S(=O)(=O) patterns
+    if (detector) {
+      // Run detector on full molecule, then filter to functional groups that overlap with this substituent
+      const fgs = detector.detectFunctionalGroups(molecule);
+      
+      // Check for sulfonyl S(=O)(=O) first (higher priority)
+      const sulfonylFG = fgs.find(
+        (fg) =>
+          fg.name === "sulfonyl" &&
+          fg.atoms &&
+          fg.atoms.some((atomIdx) => atomIdx === sulfurAtomIdx),
       );
-
-      if (carbonBondedToS) {
-        const carbonIdx =
-          carbonBondedToS.atom1 === sulfurAtomIdx
-            ? carbonBondedToS.atom2
-            : carbonBondedToS.atom1;
-
-        // Check if this carbon has a triple bond to nitrogen
-        const tripleBondToN = molecule.bonds.find(
-          (bond) =>
-            (bond.atom1 === carbonIdx || bond.atom2 === carbonIdx) &&
-            bond.type === "triple" &&
-            ((bond.atom1 === carbonIdx &&
-              molecule.atoms[bond.atom2]?.symbol === "N") ||
-              (bond.atom2 === carbonIdx &&
-                molecule.atoms[bond.atom1]?.symbol === "N")),
-        );
-
-        if (tripleBondToN) {
-          // This is a thiocyanate group: -S-C≡N → thiocyano
-          return { type: "functional", size: 3, name: "thiocyano" };
+      
+      if (sulfonylFG) {
+        // This is a sulfonyl group: R-S(=O)(=O)-R'
+        if (carbonCount > 0) {
+          // Alkylsulfonyl: -S(=O)(=O)-alkyl → alkylsulfonyl
+          const name = nameAlkylSulfanylSubstituent(
+            molecule,
+            substituentAtoms,
+            sulfurAtomIdx,
+          ).replace("sulfanyl", "sulfonyl");
+          return { type: "functional", size: substituentAtoms.size, name };
         }
+        return { type: "functional", size: substituentAtoms.size, name: "sulfonyl" };
+      }
+
+      // Check for sulfinyl S(=O)
+      const sulfinylFG = fgs.find(
+        (fg) =>
+          fg.name === "sulfinyl" &&
+          fg.atoms &&
+          fg.atoms.some((atomIdx) => atomIdx === sulfurAtomIdx),
+      );
+      
+      if (sulfinylFG) {
+        // This is a sulfinyl group: R-S(=O)-R'
+        if (carbonCount > 0) {
+          // Alkylsulfinyl: -S(=O)-alkyl → alkylsulfinyl
+          const name = nameAlkylSulfanylSubstituent(
+            molecule,
+            substituentAtoms,
+            sulfurAtomIdx,
+          ).replace("sulfanyl", "sulfinyl");
+          return { type: "functional", size: substituentAtoms.size, name };
+        }
+        return { type: "functional", size: substituentAtoms.size, name: "sulfinyl" };
       }
     }
 
-    // Sulfur-containing substituents
+    // Check for thiocyanate: -S-C≡N pattern
+    const carbonBondedToS = molecule.bonds.find(
+      (bond) =>
+        (bond.atom1 === sulfurAtomIdx &&
+          substituentAtoms.has(bond.atom2) &&
+          molecule.atoms[bond.atom2]?.symbol === "C") ||
+        (bond.atom2 === sulfurAtomIdx &&
+          substituentAtoms.has(bond.atom1) &&
+          molecule.atoms[bond.atom1]?.symbol === "C"),
+    );
+
+    if (carbonBondedToS) {
+      const carbonIdx =
+        carbonBondedToS.atom1 === sulfurAtomIdx
+          ? carbonBondedToS.atom2
+          : carbonBondedToS.atom1;
+
+      // Check if this carbon has a triple bond to nitrogen
+      const tripleBondToN = molecule.bonds.find(
+        (bond) =>
+          (bond.atom1 === carbonIdx || bond.atom2 === carbonIdx) &&
+          bond.type === "triple" &&
+          ((bond.atom1 === carbonIdx &&
+            molecule.atoms[bond.atom2]?.symbol === "N") ||
+            (bond.atom2 === carbonIdx &&
+              molecule.atoms[bond.atom1]?.symbol === "N")),
+      );
+
+      if (tripleBondToN) {
+        // This is a thiocyanate group: -S-C≡N → thiocyano
+        return { type: "functional", size: 3, name: "thiocyano" };
+      }
+    }
+
+    // Regular sulfur-containing substituents
     if (atoms.length === 1 && carbonCount === 0) {
       // Just sulfur: -SH → sulfanyl (or mercapto in older nomenclature)
       return { type: "functional", size: 1, name: "sulfanyl" };
     } else if (carbonCount > 0) {
       // Alkylsulfanyl: -S-alkyl → alkylsulfanyl (e.g., methylsulfanyl, ethylsulfanyl, prop-1-ynylsulfanyl)
-      if (sulfurAtomIdx !== undefined) {
-        const name = nameAlkylSulfanylSubstituent(
-          molecule,
-          substituentAtoms,
-          sulfurAtomIdx,
-        );
-        return { type: "functional", size: carbonCount + 1, name };
-      }
-      return { type: "functional", size: carbonCount + 1, name: "sulfanyl" };
+      const name = nameAlkylSulfanylSubstituent(
+        molecule,
+        substituentAtoms,
+        sulfurAtomIdx,
+      );
+      return { type: "functional", size: carbonCount + 1, name };
     }
   }
   if (carbonCount > 0) {
