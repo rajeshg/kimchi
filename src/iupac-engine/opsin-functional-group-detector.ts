@@ -244,7 +244,7 @@ export class OPSINFunctionalGroupDetector {
               "C#N": "nitrile",
               "SC#N": "thiocyanate",
               "[N+](=O)[O-]": "", // nitro has no suffix, it's a substituent only
-              "S(=O)(=O)": "sulfonyl",
+              "S(=O)(=O)": "sulfonyl", // NOTE: Does not distinguish sulfonate esters S(=O)(=O)O-R
               "S(=O)": "sulfinyl",
               "P(=O)": "phosphoryl",
               P: "phosphanyl",
