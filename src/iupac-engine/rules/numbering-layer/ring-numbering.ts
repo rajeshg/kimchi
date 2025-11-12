@@ -982,13 +982,226 @@ export const RING_NUMBERING_RULE: IUPACRule = {
       );
     }
 
+    // Check if this is a known fused system that requires specialized numbering
+    const molecule = state.molecule;
+    const functionalGroups = state.functionalGroups || [];
+    
+    // Known fused systems that have IUPAC-defined numbering schemes
+    const knownFusedSystems = ['quinoline', 'isoquinoline', 'indole', 'benzofuran', 'benzothiophene'];
+    const parentName = parentStructure.name?.toLowerCase() || '';
+    const isFusedSystem = knownFusedSystems.some(name => parentName.includes(name));
+    
+    if (isFusedSystem && parentName.includes('quinoline')) {
+      // Use specialized quinoline numbering
+      const { numberQuinoline } = require('../../naming/iupac-rings/numbering');
+      const { classifyRingSystems } = require('../../../utils/ring-analysis');
+      
+      // Get the fused rings from the molecule
+      const ringClassification = classifyRingSystems(molecule.atoms, molecule.bonds);
+      const fusedRings = ringClassification.fused;
+      
+      if (process.env.VERBOSE) {
+        console.log('[Ring Numbering] Detected quinoline - using specialized numbering');
+        console.log('[Ring Numbering] Fused rings:', fusedRings);
+      }
+      
+      // Build a FusedSystem object for quinoline numbering
+      const fusedSystem = {
+        rings: fusedRings,
+        name: 'quinoline',
+      };
+      
+      // Create atom ID to position mapping using quinoline numbering
+      const atomIdToPosition = new Map<number, number>();
+      const allRingAtoms = new Set<number>();
+      for (const r of fusedRings) {
+        for (const atomIdx of r) {
+          allRingAtoms.add(atomIdx);
+        }
+      }
+      
+      // Apply quinoline numbering to each atom in the fused system
+      for (const atomIdx of allRingAtoms) {
+        const locant = numberQuinoline(atomIdx, fusedSystem, molecule);
+        // Handle fusion atom designations like "4a" and "8a"
+        let position: number;
+        if (locant === "4a") {
+          position = 4; // In IUPAC, 4a comes between 4 and 5, but we use 4 for substituent numbering
+        } else if (locant === "8a") {
+          position = 8; // Similarly, 8a comes between 8 and 1, but we use 8
+        } else {
+          position = Number.parseInt(locant, 10);
+        }
+        atomIdToPosition.set(atomIdx, position);
+      }
+      
+      if (process.env.VERBOSE) {
+        console.log(
+          '[Ring Numbering] Quinoline atom ID to position mapping:',
+          Array.from(atomIdToPosition.entries()),
+        );
+      }
+      
+      // Build reordered atoms array based on quinoline numbering
+      const reorderedAtoms: Atom[] = [];
+      const maxPosition = Math.max(...Array.from(atomIdToPosition.values()));
+      for (let pos = 1; pos <= maxPosition; pos++) {
+        for (const [atomId, position] of atomIdToPosition.entries()) {
+          if (position === pos) {
+            const atom = molecule.atoms[atomId];
+            if (atom) reorderedAtoms.push(atom);
+            break;
+          }
+        }
+      }
+      
+      const ringAtomIds = new Set(reorderedAtoms.map((a: Atom) => a.id));
+      
+      // Update functional group locants
+      const updatedFunctionalGroups = functionalGroups.map(
+        (fg: FunctionalGroup) => {
+          if (process.env.VERBOSE) {
+            console.log(
+              `[Ring Numbering] Processing functional group ${fg.type}: atoms=${fg.atoms?.map((a: Atom) => a.id).join(",")}, old locants=${fg.locants}`,
+            );
+          }
+
+          const attachedRingPositions: number[] = [];
+
+          if (fg.atoms && fg.atoms.length > 0) {
+            const atomsToProcess =
+              fg.type === "ketone" && fg.atoms[0] !== undefined
+                ? [fg.atoms[0]]
+                : fg.atoms;
+
+            for (const groupAtom of atomsToProcess) {
+              const groupAtomId =
+                typeof groupAtom === "object" ? groupAtom.id : groupAtom;
+
+              if (atomIdToPosition.has(groupAtomId)) {
+                attachedRingPositions.push(atomIdToPosition.get(groupAtomId)!);
+              } else {
+                const bonds = molecule.bonds.filter(
+                  (bond: Bond) =>
+                    bond.atom1 === groupAtomId || bond.atom2 === groupAtomId,
+                );
+
+                for (const bond of bonds) {
+                  const otherAtomId =
+                    bond.atom1 === groupAtomId ? bond.atom2 : bond.atom1;
+                  if (ringAtomIds.has(otherAtomId)) {
+                    const position = atomIdToPosition.get(otherAtomId);
+                    if (
+                      position !== undefined &&
+                      !attachedRingPositions.includes(position)
+                    ) {
+                      attachedRingPositions.push(position);
+                      if (process.env.VERBOSE) {
+                        console.log(
+                          `[Ring Numbering] Functional group ${fg.type} attached to ring position ${position} (atom ${otherAtomId})`,
+                        );
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+
+          if (attachedRingPositions.length > 0) {
+            attachedRingPositions.sort((a, b) => a - b);
+
+            if (process.env.VERBOSE) {
+              console.log(
+                `[Ring Numbering] Updated functional group ${fg.type}: new locants=${JSON.stringify(attachedRingPositions)}`,
+              );
+            }
+
+            return {
+              ...fg,
+              locants: [...attachedRingPositions],
+              locant: attachedRingPositions[0],
+              locantsConverted: true,
+            };
+          }
+
+          if (fg.locants && fg.locants.length > 0) {
+            const newLocants = fg.locants.map((atomId: number) => {
+              const position = atomIdToPosition.get(atomId);
+              return position !== undefined ? position : atomId;
+            });
+
+            const newLocant =
+              fg.locant !== undefined && atomIdToPosition.has(fg.locant)
+                ? atomIdToPosition.get(fg.locant)
+                : fg.locant;
+
+            return {
+              ...fg,
+              locants: newLocants,
+              locant: newLocant,
+              locantsConverted: true,
+            };
+          }
+
+          return fg;
+        },
+      );
+
+      // Update substituent positions
+      const updatedSubstituents = parentStructure.substituents?.map((sub) => {
+        let atomId: number;
+        const hasRingAttachment =
+          "attachedToRingAtomId" in sub && sub.attachedToRingAtomId !== undefined;
+        if (hasRingAttachment) {
+          atomId = sub.attachedToRingAtomId!;
+        } else {
+          atomId = "position" in sub ? Number(sub.position) : sub.locant;
+        }
+
+        const newPosition = atomIdToPosition.get(atomId);
+        if (newPosition !== undefined) {
+          if (hasRingAttachment) {
+            return {
+              ...sub,
+              position: String(newPosition),
+              locant: newPosition,
+            };
+          } else {
+            return {
+              ...sub,
+              position: String(newPosition),
+              locant: newPosition,
+            };
+          }
+        }
+        return sub;
+      });
+
+      // Return updated context with quinoline numbering applied
+      return context.withStateUpdate(
+        (prevState) => ({
+          ...prevState,
+          functionalGroups: updatedFunctionalGroups,
+          parentStructure: {
+            ...parentStructure,
+            ringNumberingApplied: true,
+            substituents: updatedSubstituents,
+          },
+        }),
+        "ring-numbering",
+        "Ring System Numbering",
+        "Ring numbering conventions",
+        ExecutionPhase.NUMBERING,
+        `Applied specialized quinoline numbering`,
+      );
+    }
+    
     // Otherwise, use standard ring numbering
     // Number ring starting from heteroatom or unsaturation
     const ringLocants = generateRingLocants(ring);
 
     // Apply numbering starting from preferred position (considering substituents for lowest locants)
-    const molecule = state.molecule;
-    const functionalGroups = state.functionalGroups || [];
     const startingPosition = findRingStartingPosition(
       ring,
       molecule,

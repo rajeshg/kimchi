@@ -346,6 +346,49 @@ export const FUNCTIONAL_GROUP_PRIORITY_RULE: IUPACRule = {
         })),
       );
     }
+
+    // SPECIAL HANDLING: Detect carboxamide (amide attached to ring) vs simple amide
+    // For carboxamides, the carbonyl carbon is NOT part of the parent ring structure.
+    // The suffix should be "-carboxamide" instead of "-amide".
+    // Example: quinoline-4-carboxamide (not quinoline-4-amide)
+    for (const fg of functionalGroups) {
+      if (fg.type === "amide" && fg.atoms && fg.atoms.length >= 3) {
+        const carbonylCarbon = fg.atoms[0]; // First atom is C=O carbon
+        
+        // Check if carbonyl carbon is NOT in a ring but IS bonded to a ring atom
+        if (carbonylCarbon && !carbonylCarbon.isInRing) {
+          // Find if carbonyl carbon is bonded to a ring atom
+          let isAttachedToRing = false;
+          for (const bond of mol.bonds) {
+            let neighborAtomId: number | undefined;
+            if (bond.atom1 === carbonylCarbon.id) {
+              neighborAtomId = bond.atom2;
+            } else if (bond.atom2 === carbonylCarbon.id) {
+              neighborAtomId = bond.atom1;
+            }
+
+            if (neighborAtomId !== undefined) {
+              const neighborAtom = mol.atoms[neighborAtomId];
+              if (neighborAtom?.isInRing) {
+                isAttachedToRing = true;
+                break;
+              }
+            }
+          }
+
+          if (isAttachedToRing) {
+            // This is a carboxamide, update the suffix
+            fg.suffix = "carboxamide";
+            if (process.env.VERBOSE) {
+              console.log(
+                "[FUNCTIONAL_GROUP_PRIORITY_RULE] Detected carboxamide (amide attached to ring), updated suffix to 'carboxamide'",
+              );
+            }
+          }
+        }
+      }
+    }
+
     // sort by priority (higher numeric value = higher priority)
     functionalGroups.sort((a, b) => (b.priority || 0) - (a.priority || 0));
 

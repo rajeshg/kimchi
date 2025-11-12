@@ -1197,19 +1197,31 @@ export const P44_4_RING_CHAIN_SELECTION_RULE: IUPACRule = {
 
     // Collect principal group atom IDs, but skip ring attachment atoms
     // Ring attachment atoms are part of substituents and should not be excluded
+    // EXCEPTION: For carboxamide and carboxylic acid, ALL atoms should be excluded
+    // including the carbonyl carbon that's attached to the ring
     for (const fg of filteredFunctionalGroups) {
       if (fg.isPrincipal && fg.atoms) {
+        // Check if this is a carboxamide or carboxylic acid (where all atoms should be excluded)
+        const isCarboxamideOrAcid = fg.suffix === "carboxamide" || fg.suffix === "carboxylic acid" || fg.type === "carboxylic_acid";
+        
         for (const fgAtom of fg.atoms) {
           const fgAtomId = typeof fgAtom === "object" ? fgAtom.id : fgAtom;
           principalAtomIds.add(fgAtomId);
 
-          // Only exclude this atom if it's NOT a ring attachment point
-          if (!ringAttachmentAtoms.has(fgAtomId)) {
+          // For carboxamide/carboxylic acid, exclude ALL atoms (including ring attachment)
+          // For other functional groups, only exclude atoms that are NOT ring attachment points
+          if (isCarboxamideOrAcid || !ringAttachmentAtoms.has(fgAtomId)) {
             fgAtomIds.add(fgAtomId);
             if (process.env.VERBOSE) {
-              console.log(
-                `[P-44.4] Excluding principal FG atom ${fgAtomId} (not ring attachment)`,
-              );
+              if (isCarboxamideOrAcid && ringAttachmentAtoms.has(fgAtomId)) {
+                console.log(
+                  `[P-44.4] Excluding carboxamide/acid atom ${fgAtomId} (including ring attachment point)`,
+                );
+              } else {
+                console.log(
+                  `[P-44.4] Excluding principal FG atom ${fgAtomId} (not ring attachment)`,
+                );
+              }
             }
           } else {
             if (process.env.VERBOSE) {

@@ -13,27 +13,22 @@ export function getTemplateBasedNumberingFunction(
   baseName: string,
 ): (atomIdx: number, fusedSystem: FusedSystem, molecule: Molecule) => string {
   return (atomIdx, fusedSystem, molecule) => {
-    // First, try generic template matching
+    // Use specialized numbering functions for specific ring systems
+    if (baseName === "quinoline" || baseName.includes("quinolin")) {
+      return numberQuinoline(atomIdx, fusedSystem, molecule);
+    }
+    
+    if (baseName === "indole" || baseName.includes("indol")) {
+      return numberIndole(atomIdx, fusedSystem, molecule);
+    }
+    
+    // Try generic template matching
     const template = findMatchingFusionTemplate(fusedSystem, molecule);
     if (template) {
       const parsed = parseFusionTemplate(template);
       if (parsed) {
         let perimeter = buildPerimeterFromRings(fusedSystem);
-        // For indole, ensure N is at position 7 (locant 1)
-        if (baseName === "indole") {
-          const nIdx = perimeter.findIndex(
-            (idx) => molecule.atoms[idx]?.symbol === "N",
-          );
-          if (nIdx !== -1) {
-            // Rotate so that N is at position 7
-            const targetPos = 7;
-            const shift =
-              (nIdx - targetPos + perimeter.length) % perimeter.length;
-            perimeter = perimeter
-              .slice(shift)
-              .concat(perimeter.slice(0, shift));
-          }
-        }
+        
         const pos = perimeter.indexOf(atomIdx);
         if (pos !== -1 && pos < parsed.template.labels.length) {
           return parsed.template.labels[pos] || (pos + 1).toString();
@@ -284,6 +279,230 @@ export function numberIndole(
   return (atomIdx + 1).toString();
 }
 
+export function numberQuinoline(
+  atomIdx: number,
+  fusedSystem: FusedSystem,
+  molecule: Molecule,
+): string {
+  const rings: number[][] = fusedSystem.rings || [];
+  
+  // Find the ring containing N (the nitrogen-containing 6-membered ring)
+  const nRing = rings.find((r: number[]) =>
+    r.some((idx) => molecule.atoms[idx]?.symbol === "N")
+  );
+  
+  if (!nRing) {
+    return (atomIdx + 1).toString();
+  }
+  
+  // Find N atom
+  const nIdx = nRing.find((idx: number) => molecule.atoms[idx]?.symbol === "N");
+  if (nIdx === undefined) {
+    return (atomIdx + 1).toString();
+  }
+  
+  // Find the benzene ring (the other 6-membered ring)
+  const benzeneRing = rings.find((r: number[]) => r !== nRing && r.length >= 6);
+  
+  if (!benzeneRing) {
+    return (atomIdx + 1).toString();
+  }
+  
+  // Find shared atoms between the two rings (fusion points)
+  const shared = nRing.filter((a) => benzeneRing.includes(a));
+  
+  if (shared.length !== 2) {
+    return (atomIdx + 1).toString();
+  }
+  
+  if (process.env.VERBOSE) {
+    console.log('[numberQuinoline] N-ring:', nRing);
+    console.log('[numberQuinoline] Benzene ring:', benzeneRing);
+    console.log('[numberQuinoline] N index:', nIdx);
+    console.log('[numberQuinoline] Shared atoms:', shared);
+  }
+  
+  // Build the numbering map
+  const locantMap: Record<number, number> = {};
+  
+  // Position 1 is N
+  locantMap[nIdx] = 1;
+  
+  // Find N's neighbors in the ring
+  const nNeighbors = molecule.bonds
+    .reduce((acc: number[], b) => {
+      if (b.atom1 === nIdx && nRing.includes(b.atom2)) acc.push(b.atom2);
+      else if (b.atom2 === nIdx && nRing.includes(b.atom1)) acc.push(b.atom1);
+      return acc;
+    }, []);
+  
+  if (nNeighbors.length !== 2) {
+    return (atomIdx + 1).toString();
+  }
+  
+  if (process.env.VERBOSE) {
+    console.log('[numberQuinoline] N neighbors:', nNeighbors);
+  }
+  
+  // Determine which neighbor is position 2
+  // Position 2 should be the one that IS a shared atom (fusion point)
+  const [neighA, neighB] = nNeighbors;
+  
+  // Position 2 should be the neighbor that is NOT a shared atom
+  // In quinoline numbering, we number the unique atoms (2, 3, 4) before hitting the fusion
+  let pos2: number;
+  
+  if (!shared.includes(neighA!)) {
+    pos2 = neighA!;
+  } else if (!shared.includes(neighB!)) {
+    pos2 = neighB!;
+  } else {
+    // Neither neighbor is shared - this shouldn't happen for quinoline
+    // Fall back to choosing based on distance to shared atoms
+    const distA = (() => {
+      if (shared.includes(neighA!)) return 0;
+      const visited = new Set<number>([nIdx]);
+      let current = [neighA!];
+      let dist = 1;
+      while (current.length > 0 && dist < 10) {
+        for (const c of current) {
+          if (shared.includes(c)) return dist;
+          visited.add(c);
+        }
+        const next: number[] = [];
+        for (const c of current) {
+          for (const b of molecule.bonds) {
+            const nbr = b.atom1 === c ? b.atom2 : b.atom2 === c ? b.atom1 : -1;
+            if (nbr >= 0 && nRing.includes(nbr) && !visited.has(nbr)) {
+              next.push(nbr);
+            }
+          }
+        }
+        current = next;
+        dist++;
+      }
+      return Infinity;
+    })();
+    
+    const distB = (() => {
+      if (shared.includes(neighB!)) return 0;
+      const visited = new Set<number>([nIdx]);
+      let current = [neighB!];
+      let dist = 1;
+      while (current.length > 0 && dist < 10) {
+        for (const c of current) {
+          if (shared.includes(c)) return dist;
+          visited.add(c);
+        }
+        const next: number[] = [];
+        for (const c of current) {
+          for (const b of molecule.bonds) {
+            const nbr = b.atom1 === c ? b.atom2 : b.atom2 === c ? b.atom1 : -1;
+            if (nbr >= 0 && nRing.includes(nbr) && !visited.has(nbr)) {
+              next.push(nbr);
+            }
+          }
+        }
+        current = next;
+        dist++;
+      }
+      return Infinity;
+    })();
+    
+    pos2 = distA <= distB ? neighA! : neighB!;
+  }
+  
+  if (process.env.VERBOSE) {
+    console.log('[numberQuinoline] Position 2:', pos2);
+  }
+  
+  locantMap[pos2] = 2;
+  
+  // Walk the ring to assign positions 3, 4
+  const visited = new Set<number>([nIdx, pos2]);
+  let current = pos2;
+  let position = 3;
+  
+  while (position <= 4) {
+    // Find next atom in the ring
+    const next = molecule.bonds
+      .reduce((acc: number[], b) => {
+        if (b.atom1 === current && nRing.includes(b.atom2) && !visited.has(b.atom2)) {
+          acc.push(b.atom2);
+        } else if (b.atom2 === current && nRing.includes(b.atom1) && !visited.has(b.atom1)) {
+          acc.push(b.atom1);
+        }
+        return acc;
+      }, [])[0];
+    
+    if (next === undefined) break;
+    
+    if (process.env.VERBOSE) {
+      console.log(`[numberQuinoline] Position ${position}: atom ${next}`);
+    }
+    
+    locantMap[next] = position;
+    visited.add(next);
+    current = next;
+    position++;
+  }
+  
+  // Now handle the benzene ring (positions 5, 6, 7, 8)
+  // Find which shared atom comes after position 4
+  const sharedAfter4 = shared.find((s) => locantMap[s] === undefined) ?? shared[0];
+  const otherShared = shared.find((s) => s !== sharedAfter4) ?? shared[1];
+  
+  if (sharedAfter4 !== undefined && otherShared !== undefined) {
+    // Assign 4a and 8a to shared atoms
+    locantMap[sharedAfter4] = 4.5; // represents "4a"
+    locantMap[otherShared] = 8.5; // represents "8a"
+    
+    if (process.env.VERBOSE) {
+      console.log('[numberQuinoline] sharedAfter4 (4a):', sharedAfter4);
+      console.log('[numberQuinoline] otherShared (8a):', otherShared);
+    }
+    
+    // Walk the benzene ring from sharedAfter4 (4a) to otherShared (8a)
+    // This ensures correct numbering direction: 5, 6, 7, 8
+    const benzVisited = new Set<number>([sharedAfter4, otherShared]);
+    let benzCurrent = sharedAfter4;
+    let benzPos = 5;
+    
+    while (benzPos <= 8) {
+      const next = molecule.bonds
+        .reduce((acc: number[], b) => {
+          if (b.atom1 === benzCurrent && benzeneRing.includes(b.atom2) && !benzVisited.has(b.atom2)) {
+            acc.push(b.atom2);
+          } else if (b.atom2 === benzCurrent && benzeneRing.includes(b.atom1) && !benzVisited.has(b.atom1)) {
+            acc.push(b.atom1);
+          }
+          return acc;
+        }, [])[0];
+      
+      if (next === undefined || next === otherShared) break;
+      
+      if (process.env.VERBOSE) {
+        console.log(`[numberQuinoline] Position ${benzPos}: atom ${next}`);
+      }
+      
+      locantMap[next] = benzPos;
+      benzVisited.add(next);
+      benzCurrent = next;
+      benzPos++;
+    }
+  }
+  
+  // Return the locant for the requested atom
+  if (locantMap[atomIdx] !== undefined) {
+    const pos = locantMap[atomIdx];
+    if (pos === 4.5) return "4a";
+    if (pos === 8.5) return "8a";
+    return pos.toString();
+  }
+  
+  return (atomIdx + 1).toString();
+}
+
 export function numberBenzofuran(
   atomIdx: number,
   fusedSystem: FusedSystem,
@@ -310,19 +529,6 @@ export function numberBenzothiophene(
       (idx: number) => molecule.atoms[idx]?.symbol === "S",
     );
     if (sIdx !== undefined) return "1";
-  }
-  return (atomIdx + 1).toString();
-}
-
-export function numberQuinoline(
-  atomIdx: number,
-  fusedSystem: FusedSystem,
-  molecule: Molecule,
-): string {
-  const six = fusedSystem.rings.find((r: number[]) => r.length === 6);
-  if (six) {
-    const nIdx = six.find((idx: number) => molecule.atoms[idx]?.symbol === "N");
-    if (nIdx !== undefined) return nIdx === atomIdx ? "1" : "2";
   }
   return (atomIdx + 1).toString();
 }

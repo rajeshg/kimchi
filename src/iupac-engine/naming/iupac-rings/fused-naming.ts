@@ -434,6 +434,12 @@ export function identifyAdvancedFusedPattern(
     // More deterministic detection: locate 5- and 6-member rings explicitly
     const fiveRing = rings.find((r: number[]) => r.length === 5);
     const sixRing = rings.find((r: number[]) => r.length === 6);
+    
+    // Key distinction: Indole has 9 unique atoms, Quinoline has 10 unique atoms
+    // SSSR can represent quinoline as [5,6] or [6,6] depending on SMILES structure,
+    // but the total unique atom count is always 10 for quinoline vs 9 for indole.
+    const uniqueAtomCount = allRingAtoms.size;
+    
     if (fiveRing) {
       const nIdx = fiveRing.find(
         (idx: number) => molecule.atoms[idx]?.symbol === "N",
@@ -444,29 +450,19 @@ export function identifyAdvancedFusedPattern(
       const sIdx = fiveRing.find(
         (idx: number) => molecule.atoms[idx]?.symbol === "S",
       );
-      if (nIdx !== undefined) return "indole";
+      // Only identify as indole if we have exactly 9 unique atoms
+      if (nIdx !== undefined && uniqueAtomCount === 9) return "indole";
       if (oIdx !== undefined) return "benzofuran";
       if (sIdx !== undefined) return "benzothiophene";
     }
-    // If the heteroatom is in the six-membered ring, prefer quinoline/isoquinoline
-    // but prefer indole if any small ring (<=5) contains the nitrogen - this
-    // avoids misclassifying noisy decompositions (where a 5-member ring was
-    // split into 6 or 4+7 fragments) as quinolines when the N is actually in
-    // the smaller heterocycle.
+    // If the heteroatom is in the six-membered ring, check for quinoline
+    // Quinoline has 10 unique atoms (6-membered pyridine + 6-membered benzene)
     if (sixRing) {
       const nIdx6 = sixRing.find(
         (idx: number) => molecule.atoms[idx]?.symbol === "N",
       );
-      const smallRingWithN = rings.find(
-        (r: number[]) =>
-          r.length <= 5 && r.some((idx) => molecule.atoms[idx]?.symbol === "N"),
-      );
-      if (smallRingWithN) return "indole";
-      if (nIdx6 !== undefined) return "quinoline";
+      if (nIdx6 !== undefined && uniqueAtomCount === 10) return "quinoline";
     }
-    // Additional check: if there's a 5-membered ring with N, prefer indole
-    if (fiveRing && fiveRing.some((idx) => molecule.atoms[idx]?.symbol === "N"))
-      return "indole";
   }
   if (ringCount === 2 && ringSizes.includes(5) && ringSizes.includes(6)) {
     const nCount = ringAtoms.filter((a) => a.symbol === "N").length;

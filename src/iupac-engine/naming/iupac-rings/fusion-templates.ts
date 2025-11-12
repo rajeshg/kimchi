@@ -288,6 +288,15 @@ export function findMatchingFusionTemplate(
     ).length;
     if (nCount === 1) {
       const ringSizes = rings.map((r: number[]) => r.length).sort();
+      
+      // Check for quinoline/isoquinoline (two 6-membered rings with N)
+      if (ringSizes.every((s: number) => s === 6)) {
+        // Determine if quinoline or isoquinoline based on N position
+        // For now, default to quinoline (would need more sophisticated logic)
+        return FUSION_TEMPLATES.find((t) => t.name === "quinolino") || null;
+      }
+      
+      // Check for indole (5-membered + 6/7-membered with N)
       if (
         ringSizes.includes(5) &&
         (ringSizes.includes(6) || ringSizes.includes(7))
