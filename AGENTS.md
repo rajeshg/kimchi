@@ -119,6 +119,26 @@
 - **SVG renderer**: `src/generators/svg-renderer.ts` (main module)
 - **SVG rendering support**: `src/generators/svg-renderer/` (coordinate-utils, stereo-bonds, double-bond-renderer, etc.)
 
+### IUPAC Name Generation
+- **Entry point**: `src/iupac-engine/iupac-name-generator.ts` — `generateIUPACName(molecule)`
+- **Rule layers**: `src/iupac-engine/rules/` (8 layers: atomic, functional-groups, parent-chain-selection, numbering, name-assembly, etc.)
+- **Naming logic**: `src/iupac-engine/naming/` (substituent-namer, functional-class-namer, locants)
+- **OPSIN data**: `src/iupac-engine/opsin-functional-group-detector.ts`, `opsin-iupac-data/LOOKUP.json`
+
+**Documentation:**
+- **[IUPAC Documentation Hub](docs/iupac-readme.md)** — Central navigation for all IUPAC docs
+- **[User Overview](docs/iupac-name-generation.md)** — High-level explanation of the naming pipeline
+- **[Implementation Guide](docs/iupac-implementation.md)** — Technical architecture, algorithms, state management
+- **[Capabilities & Limitations](docs/iupac-capabilities.md)** — What works (93.5% accuracy on 127 molecules), known limitations, roadmap
+- **[Rules Reference](docs/iupac-rules-reference.md)** — Detailed IUPAC Blue Book rule coverage (P-14, P-44, P-51, etc.)
+- **[Large Molecules Analysis](docs/iupac-large-molecules.md)** — Strategic limitations for complex natural products
+
+**Quick Reference:**
+- **Accuracy**: 93.5% on realistic dataset (124/127 molecules, 3 alkaloids skipped)
+- **Strengths**: Simple chains (100%), branched alkanes (100%), functional groups (100%), aromatic systems (100%), basic heterocycles (93%)
+- **High Priority Gaps**: Saturated heterocycles (morpholine, piperazine), tertiary amides
+- **Test Files**: `test/unit/iupac-engine/` (60+ test files, 400+ tests)
+
 ## Dependencies
 - **Runtime**: `es-toolkit` for utility functions (prefer over lodash)
 - **Dev/Testing**: `bun:test` for testing, `@rdkit/rdkit` for validation

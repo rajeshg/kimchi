@@ -1,6 +1,12 @@
-# SMILES → IUPAC Name (Overview)
+# SMILES → IUPAC Name Generation (User Overview)
 
-A concise, non-verbose explanation of how the library converts a SMILES string into an IUPAC name. This is intended to give readers a clear mental model rather than an exhaustive API reference.
+A concise, non-verbose explanation of how openchem converts a SMILES string into an IUPAC name. This is intended to give readers a clear mental model rather than an exhaustive API reference.
+
+**Related Documentation:**
+- **[IUPAC Documentation Hub](iupac-readme.md)** — Central navigation for all IUPAC docs
+- **[Implementation Guide](iupac-implementation.md)** — Technical architecture and algorithms
+- **[Capabilities & Limitations](iupac-capabilities.md)** — What works, what doesn't, roadmap
+- **[Rules Reference](iupac-rules-reference.md)** — Detailed IUPAC Blue Book rule coverage
 
 ```mermaid
 flowchart LR
@@ -77,20 +83,38 @@ console.log(iupac);
 - The system uses caching (where present) and heuristics to reduce repeated SMARTS and ring computations for the same molecule.
 - For very large molecules, heuristic chain candidate generation is used to avoid combinatorial explosion.
 
-## Where to look for more detail (non-exhaustive)
+## Where to Look for More Detail
 
-- High-level generator logic: `src/utils/iupac/iupac-generator.ts`
-- Chain candidate & tie-break heuristics: `src/utils/iupac/iupac-chains.ts`
-- SMARTS matcher & ring-closure validation: `src/matchers/smarts-matcher.ts`
-- Name assembly pipeline: `src/utils/iupac/pipeline.ts`
-- Structured name builder: `src/utils/iupac/name-constructor.ts`
+### User Documentation
+- **[Capabilities & Limitations](iupac-capabilities.md)** — What the engine can name (93.5% accuracy on 127 molecules)
+- **[Large Molecules Analysis](iupac-large-molecules.md)** — Strategic limitations for complex natural products
 
-## Contributing / extending (brief)
+### Developer Documentation
+- **[Implementation Guide](iupac-implementation.md)** — Architecture overview, layered pipeline, state management
+- **[Rules Reference](iupac-rules-reference.md)** — IUPAC Blue Book rules (P-14, P-44, P-51, etc.)
 
+### Source Code (Key Files)
+- **High-level entry point:** `src/iupac-engine/iupac-name-generator.ts`
+- **Rule layers:** `src/iupac-engine/rules/` (8 layers: atomic, functional-groups, parent-chain-selection, numbering, name-assembly, etc.)
+- **Naming logic:** `src/iupac-engine/naming/` (substituent-namer, functional-class-namer, locants)
+- **OPSIN data integration:** `src/iupac-engine/opsin-functional-group-detector.ts`, `opsin-iupac-data/LOOKUP.json`
+
+## Contributing / Extending (Brief)
+
+For detailed instructions on extending the engine, see **[Implementation Guide: Extending the Engine](iupac-implementation.md#extending-the-engine)**.
+
+**Quick Tips:**
 - Add new functional-group SMARTS to the rule engine to support more suffixes. Prefer cheap pre-filters or caching for expensive SMARTS.
 - For large-molecule performance improvements, focus on memoizing per-molecule results and limiting chain candidates.
 - Add unit and performance tests when changing candidate generation or SMARTS rule sets.
 
+**Current Priorities (from [Capabilities Roadmap](iupac-capabilities.md#roadmap)):**
+1. **High Priority:** Saturated heterocycles (morpholine, piperazine), tertiary amides
+2. **Medium Priority:** Sulfoxides/sulfones, locant optimization
+3. **Low Priority:** Trivial name preferences, natural product extensions
+
 ---
 
-This document is intentionally concise — if you want a more detailed developer-oriented doc (file-level details, call graphs, or contributor checklist), I can produce that as a follow-up.
+**Note:** This document is intentionally concise for end users. For detailed developer documentation, see:
+- **[Implementation Guide](iupac-implementation.md)** — Architecture, algorithms, state management
+- **[Rules Reference](iupac-rules-reference.md)** — Detailed IUPAC rule coverage
