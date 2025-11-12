@@ -271,6 +271,7 @@ export function calculateFunctionalGroupPriority(
  */
 export function isFunctionalClassPreferred(
   principalGroup: FunctionalGroup | undefined,
+  molecule?: Molecule,
 ): boolean {
   if (!principalGroup) {
     return false;
@@ -288,19 +289,61 @@ export function isFunctionalClassPreferred(
     "borane",
   ];
 
-  // Special case: amides in heterocyclic rings should NOT use functional class
-  // nomenclature because the ring name already incorporates the carbonyl
-  // (e.g., "imidazolidin-4-one" not "imidazolidine amide")
-  if (principalGroup.type === "amide") {
+  // Special case: amides in heterocyclic rings OR attached to heterocyclic rings
+  // should NOT use functional class nomenclature.
+  // Examples:
+  // - "imidazolidin-4-one" not "imidazolidine amide" (carbonyl IN ring)
+  // - "quinoline-4-carboxamide" not "N-phenylquinolineamide" (carboxamide ATTACHED TO ring)
+  if (principalGroup.type === "amide" && molecule) {
     // Check if the carbonyl carbon (first atom in amide group) is in a ring
     const carbonylCarbon = principalGroup.atoms?.[0];
     if (carbonylCarbon && carbonylCarbon.isInRing) {
       if (process.env.VERBOSE) {
         console.log(
-          "[isFunctionalClassPreferred] Amide is in ring - using substitutive nomenclature",
+          "[isFunctionalClassPreferred] Amide carbonyl is IN ring - using substitutive nomenclature",
         );
       }
       return false;
+    }
+
+    // Check if the carbonyl carbon is attached to a heterocyclic ring
+    // This handles cases like quinoline-4-carboxamide where the C=O is attached to
+    // a ring carbon but not part of the ring itself
+    if (carbonylCarbon && molecule.bonds) {
+      for (const bond of molecule.bonds) {
+        let neighborAtomId: number | undefined;
+        if (bond.atom1 === carbonylCarbon.id) {
+          neighborAtomId = bond.atom2;
+        } else if (bond.atom2 === carbonylCarbon.id) {
+          neighborAtomId = bond.atom1;
+        }
+
+        if (neighborAtomId !== undefined) {
+          const neighborAtom = molecule.atoms[neighborAtomId];
+          // Check if neighbor is in a ring and is a heteroatom or part of a heterocyclic ring
+          if (neighborAtom?.isInRing) {
+            // Find if this ring atom is part of a heterocyclic ring
+            const rings = molecule.rings || [];
+            for (const ring of rings) {
+              if (ring.includes(neighborAtomId)) {
+                // Check if this ring contains any heteroatoms
+                const hasHeteroatom = ring.some((atomId) => {
+                  const atom = molecule.atoms[atomId];
+                  return atom && atom.symbol !== "C" && atom.symbol !== "H";
+                });
+                if (hasHeteroatom) {
+                  if (process.env.VERBOSE) {
+                    console.log(
+                      "[isFunctionalClassPreferred] Amide carbonyl is ATTACHED TO heterocyclic ring - using substitutive nomenclature",
+                    );
+                  }
+                  return false;
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }
 

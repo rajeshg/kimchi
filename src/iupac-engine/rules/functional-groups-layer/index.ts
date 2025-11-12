@@ -711,6 +711,7 @@ export const FUNCTIONAL_CLASS_RULE: IUPACRule = {
     // later rules clobbering them.
     const principalGroup = context.getState().principalGroup;
     const functionalGroups = context.getState().functionalGroups;
+    const molecule = context.getState().molecule;
     const existingMethod = context.getState().nomenclatureMethod;
     if (existingMethod) {
       if (process.env.VERBOSE) {
@@ -726,11 +727,11 @@ export const FUNCTIONAL_CLASS_RULE: IUPACRule = {
     // trigger functional class nomenclature even if other functional groups
     // like ethers are present.
     const hasFunctionalClassGroup = functionalGroups.some((fg) =>
-      isFunctionalClassPreferred(fg),
+      isFunctionalClassPreferred(fg, molecule),
     );
 
     let updatedContext: ImmutableNamingContext;
-    if (hasFunctionalClassGroup || isFunctionalClassPreferred(principalGroup)) {
+    if (hasFunctionalClassGroup || isFunctionalClassPreferred(principalGroup, molecule)) {
       updatedContext = context.withNomenclatureMethod(
         NomenclatureMethod.FUNCTIONAL_CLASS,
         "functional-class-nomenclature",
