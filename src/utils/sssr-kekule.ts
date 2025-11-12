@@ -10,142 +10,240 @@ function buildAdj(atoms: Atom[], bonds: Bond[]): Record<number, Set<number>> {
   return adj;
 }
 
-// Find all simple cycles in the molecular graph.
-// Dynamically adjusts maxLen based on graph density to prevent exponential explosion in polycyclic systems.
+// Build spanning tree using DFS, recording tree/back edge classification.
+// Returns back edges which generate fundamental cycles (one per back edge).
+// This avoids exponential path exploration of exhaustive DFS.
+interface SpanningTreeResult {
+  parent: Map<number, number>;
+  ancestors: Map<number, number[]>;
+  backEdges: [number, number][];
+}
+
+function buildSpanningTreeOptimized(
+  atoms: Atom[],
+  adj: Record<number, Set<number>>,
+  startNodes: Set<number>,
+): SpanningTreeResult {
+  const parent = new Map<number, number>();
+  const ancestors = new Map<number, number[]>();
+  const visited = new Set<number>();
+  const backEdges: [number, number][] = [];
+
+  function dfs(node: number, fromNode: number = -1): void {
+    visited.add(node);
+
+    const neighbors = adj[node] || new Set();
+    for (const next of neighbors) {
+      if (!visited.has(next)) {
+        // Tree edge: first visit to 'next'
+        parent.set(next, node);
+        dfs(next, node);
+      } else if (next !== fromNode) {
+        // Back edge: connection to already-visited node
+        // Normalize edge direction to avoid duplicates
+        const edgeKey = [Math.min(next, node), Math.max(next, node)] as const;
+        if (!backEdges.some((e) => e[0] === edgeKey[0] && e[1] === edgeKey[1])) {
+          backEdges.push([edgeKey[0], edgeKey[1]]);
+        }
+      }
+    }
+  }
+
+  // Start DFS from atoms with degree >= 2 (chemistry constraint)
+  for (const atom of atoms) {
+    if (startNodes.has(atom.id) && !visited.has(atom.id)) {
+      parent.set(atom.id, -1);
+      dfs(atom.id);
+    }
+  }
+
+  // Build ancestor paths for each node (for LCA queries)
+  for (const atom of atoms) {
+    const path: number[] = [];
+    let current: number | undefined = atom.id;
+    while (current !== undefined && current !== -1) {
+      path.unshift(current);
+      current = parent.get(current);
+    }
+    ancestors.set(atom.id, path);
+  }
+
+  return { parent, ancestors, backEdges };
+}
+
+// Extract fundamental cycle from a back edge in the spanning tree.
+// Fundamental cycle = path(u→LCA) + path(LCA→v) where u-v is the back edge.
+function extractFundamentalCycle(
+  u: number,
+  v: number,
+  parent: Map<number, number>,
+  ancestors: Map<number, number[]>,
+): number[] {
+  const pathU = ancestors.get(u) || [];
+  const pathV = ancestors.get(v) || [];
+
+  if (pathU.length === 0 || pathV.length === 0) {
+    return [];
+  }
+
+  // Find LCA: deepest (lowest) common node in ancestor paths
+  // Iterate pathV in REVERSE to find the deepest common ancestor
+  const pathUSet = new Set(pathU);
+  let lca = -1;
+  for (let i = pathV.length - 1; i >= 0; i--) {
+    const node = pathV[i];
+    if (node !== undefined && pathUSet.has(node)) {
+      lca = node;
+      break;
+    }
+  }
+
+  if (lca === -1) return [];
+
+  // Build cycle: u → lca (via parent pointers) + lca → v (reverse path)
+  const cycle: number[] = [];
+
+  // Path from u up to lca
+  let current: number | undefined = u;
+  while (current !== undefined && current !== -1 && current !== lca) {
+    cycle.push(current);
+    current = parent.get(current);
+  }
+  cycle.push(lca);
+
+  // Path from lca down to v (via parent pointers, traversed backward)
+  const pathFromLcaToV: number[] = [];
+  current = v;
+  while (current !== undefined && current !== -1 && current !== lca) {
+    pathFromLcaToV.unshift(current);
+    current = parent.get(current);
+  }
+  cycle.push(...pathFromLcaToV);
+
+  // Remove duplicates and validate
+  const uniqueCycle = Array.from(new Set(cycle));
+  return uniqueCycle.length >= 3 ? uniqueCycle : [];
+}
+
+// Find all simple cycles using spanning tree algorithm (optimized method).
+// CHEMISTRY OPTIMIZATION: Uses spanning tree + back edges for cycle detection
+// supplemented with limited BFS for small cycles.
+//
+// Strategy:
+// 1. Extract fundamental cycles from back edges (O(M) method, generates M-N+1 cycles)
+// 2. Use BFS to find small cycles up to size 12 (practical ring size for drugs)
+//    BFS is efficient for small cycles even in complex molecules
+// 3. Combine and deduplicate all cycles for SSSR selection
+//
+// Chemistry constraint: Ring atoms must have degree >= 2, so we skip degree-1 atoms.
 export function findAllCycles(
   atoms: Atom[],
   bonds: Bond[],
   maxLen: number = 40,
 ): number[][] {
-  // Smart adaptive limit based on graph density and size
   const n = atoms.length;
   const m = bonds.length;
 
-  // Estimate graph density: typical drug-like ≈ 1.0-1.2, polycyclic ≈ 1.2-1.5
-  const density = m / n;
-
-  // Adaptive limit based on density to prevent exponential explosion in polycyclic systems.
-  // Sparse trees use full maxLen; high-density systems cap at 15-25 atoms depending on molecule size.
-  if (density >= 1.15) {
-    // High density: definitely polycyclic, limit aggressively
-    if (n > 150) {
-      maxLen = Math.min(maxLen, 15);
-    } else if (n > 100) {
-      maxLen = Math.min(maxLen, 16);
-    } else if (n > 60) {
-      maxLen = Math.min(maxLen, 17);
-    }
-    // else: n ≤ 60, use maxLen=18 (small dense molecules are still manageable)
-    else {
-      maxLen = Math.min(maxLen, 18);
-    }
-  } else if (density >= 1.05) {
-    // Moderate density: polycyclic but not extremely bridged
-    if (n > 150) {
-      maxLen = Math.min(maxLen, 20);
-    } else if (n > 100) {
-      maxLen = Math.min(maxLen, 22);
-    } else if (n > 60) {
-      maxLen = Math.min(maxLen, 25);
-    }
-    // else: n ≤ 60, keep full maxLen (reasonable for small moderate-density molecules)
-  }
-  // else: density < 1.05, keep full maxLen (sparse graphs are fast, trees/chains)
+  // Quick exit for acyclic graphs
+  if (m <= n - 1) return [];
 
   const adj = buildAdj(atoms, bonds);
-  const cycles: number[][] = [];
-  const nodes = atoms.map((a) => a.id);
 
-  function dfs(
-    path: number[],
-    visited: Set<number>,
-    curr: number,
-    depth: number,
-  ) {
-    if (depth > maxLen) return;
-    const neighbors = adj[curr];
-    if (!neighbors) return;
-    for (const next of neighbors) {
-      const nextInPath = path.indexOf(next);
-      if (nextInPath !== -1 && path.length - nextInPath > 2) {
-        // Found cycle
-        const cycle = path.slice(nextInPath);
-        const minIdx = cycle.indexOf(Math.min(...cycle));
-        const norm = [...cycle.slice(minIdx), ...cycle.slice(0, minIdx)];
-        const ring = norm.sort((a, b) => a - b);
-        if (
-          !cycles.some(
-            (c) => c.length === ring.length && c.every((v, i) => v === ring[i]),
-          )
-        ) {
-          cycles.push(ring);
-        }
-      } else if (!visited.has(next)) {
-        visited.add(next);
-        dfs([...path, next], visited, next, depth + 1);
-        visited.delete(next);
-      }
+  // OPTIMIZATION 1: Skip degree-1 atoms (chemistry constraint)
+  // Ring atoms must have degree >= 2 in the molecular graph
+  const minDegreeAtoms = new Set<number>();
+  for (const atom of atoms) {
+    if ((adj[atom.id]?.size ?? 0) >= 2) {
+      minDegreeAtoms.add(atom.id);
     }
   }
-  for (const n of nodes) {
-    dfs([n], new Set([n]), n, 1);
+
+  if (minDegreeAtoms.size === 0) return [];
+
+  // OPTIMIZATION 2: Build spanning tree efficiently (single DFS pass)
+  // This avoids exponential path exploration of exhaustive DFS
+  const treeResult = buildSpanningTreeOptimized(atoms, adj, minDegreeAtoms);
+
+  if (treeResult.backEdges.length === 0) return [];
+
+  // OPTIMIZATION 3: Extract fundamental cycles from back edges
+  // Each back edge generates exactly one fundamental cycle
+  const cycles: number[][] = [];
+  const cycleSet = new Set<string>();
+
+  for (const [u, v] of treeResult.backEdges) {
+    try {
+      const cycle = extractFundamentalCycle(
+        u,
+        v,
+        treeResult.parent,
+        treeResult.ancestors,
+      );
+
+      if (cycle && cycle.length <= maxLen && cycle.length >= 3) {
+        // Normalize: sort atom IDs
+        const normalized = [...cycle].sort((a, b) => a - b);
+        const cycleKey = normalized.join(",");
+        if (!cycleSet.has(cycleKey)) {
+          cycleSet.add(cycleKey);
+          cycles.push(normalized);
+        }
+      }
+    } catch {
+      // Skip malformed cycles
+      continue;
+    }
   }
-  return cycles;
+
+  // OPTIMIZATION 4: Use BFS for small cycles (up to size 12)
+  // This finds small cycles that BFS is efficient for, especially in dense rings
+  // BFS finds cycles starting from each node up to practical drug-like ring sizes
+  const smallCycles = _findSmallCyclesBFS(atoms, adj, 12, cycleSet);
+  cycles.push(...smallCycles);
+
+  // Sort by size (smallest first) for better SSSR selection
+  return cycles.sort((a, b) => a.length - b.length);
 }
 
-// BFS-based cycle finding for large molecules (more efficient than DFS for large rings)
-function _findCyclesBFS(
+// BFS-based small cycle finding (efficient for cycles up to ~12 atoms)
+// Avoids combinatorial explosion by limiting search to practical ring sizes
+// Used to supplement fundamental cycles for complete SSSR basis
+function _findSmallCyclesBFS(
   atoms: Atom[],
-  bonds: Bond[],
+  adj: Record<number, Set<number>>,
   maxLen: number,
+  existingCycles: Set<string>,
 ): number[][] {
-  const adj = buildAdj(atoms, bonds);
   const cycles: number[][] = [];
-  const visited = new Set<number>();
 
   for (const start of atoms.map((a) => a.id)) {
-    if (visited.has(start)) continue;
-
     // BFS from start node
-    const queue: Array<{ node: number; path: number[]; visited: Set<number> }> =
-      [{ node: start, path: [start], visited: new Set([start]) }];
+    const queue: Array<{ node: number; path: number[]; pathSet: Set<number> }> =
+      [{ node: start, path: [start], pathSet: new Set([start]) }];
 
     while (queue.length > 0) {
-      const { node, path, visited: pathVisited } = queue.shift()!;
+      const { node, path, pathSet } = queue.shift()!;
       const neighbors = adj[node];
 
-      if (!neighbors) continue;
+      if (!neighbors || path.length > maxLen) continue;
 
       for (const next of neighbors) {
-        if (path.length >= maxLen) continue;
-
         if (next === start && path.length > 2) {
           // Found cycle back to start
-          const cycle = [...path, start];
-          const minIdx = cycle.indexOf(Math.min(...cycle));
-          const norm = [...cycle.slice(minIdx), ...cycle.slice(0, minIdx)];
-          const ring = norm.sort((a, b) => a - b);
-          if (
-            !cycles.some(
-              (c) =>
-                c.length === ring.length && c.every((v, i) => v === ring[i]),
-            )
-          ) {
+          const ring = [...path].sort((a, b) => a - b);
+          const cycleKey = ring.join(",");
+          if (!existingCycles.has(cycleKey)) {
+            existingCycles.add(cycleKey);
             cycles.push(ring);
           }
-        } else if (!pathVisited.has(next)) {
-          const newVisited = new Set(pathVisited);
-          newVisited.add(next);
-          queue.push({
-            node: next,
-            path: [...path, next],
-            visited: newVisited,
-          });
+        } else if (!pathSet.has(next) && path.length < maxLen) {
+          const newPath = [...path, next];
+          const newPathSet = new Set(pathSet);
+          newPathSet.add(next);
+          queue.push({ node: next, path: newPath, pathSet: newPathSet });
         }
       }
     }
-
-    visited.add(start);
   }
 
   return cycles;
