@@ -258,8 +258,25 @@ export function findMatchingFusionTemplate(
   }
 
   if (ringCount === 3 && heteroAtoms.length === 0) {
-    // Could be anthracene or phenanthrene
-    return FUSION_TEMPLATES.find((t) => t.name === "anthraceno") || null;
+    const ringSizes = rings.map((r: number[]) => r.length).sort((a, b) => a - b);
+    
+    // Check for fluorene (5-6-6 system with CH2 bridge)
+    if (ringSizes[0] === 5 && ringSizes[1] === 6 && ringSizes[2] === 6) {
+      const nonAromaticAtoms = Array.from(allRingAtoms).filter((idx) => {
+        const atom = molecule.atoms[idx];
+        return atom && !atom.aromatic;
+      });
+      if (nonAromaticAtoms.length === 1) {
+        return FUSION_TEMPLATES.find((t) => t.name === "fluoreno") || null;
+      }
+    }
+    
+    // For 6-6-6 systems, check geometry to distinguish anthracene from phenanthrene
+    if (ringSizes.every((s: number) => s === 6)) {
+      // This is a simplified heuristic - ideally would do proper geometry analysis
+      // For now, default to anthracene (linear) - could improve with better matching
+      return FUSION_TEMPLATES.find((t) => t.name === "anthraceno") || null;
+    }
   }
 
   if (

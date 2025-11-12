@@ -270,6 +270,26 @@ export function identifyPolycyclicPattern(
     if (perRingAromatic[0] || perRingAromatic[1]) return "naphthalene";
     return null;
   }
+  // Check for fluorene first (5-6-6 system with CH2 bridge)
+  if (
+    ringCount === 3 &&
+    heteroAtoms.length === 0
+  ) {
+    const sortedSizes = [...ringSizes].sort();
+    if (sortedSizes[0] === 5 && sortedSizes[1] === 6 && sortedSizes[2] === 6) {
+      // Check if there's exactly one non-aromatic carbon in the 5-membered ring (CH2 bridge)
+      const fiveRing = rings.find((r) => r.length === 5);
+      if (fiveRing) {
+        const nonAromaticInFiveRing = fiveRing.filter(
+          (idx) => !molecule.atoms[idx]?.aromatic,
+        );
+        if (nonAromaticInFiveRing.length === 1 && aromaticRingCount >= 2) {
+          return "fluorene";
+        }
+      }
+    }
+  }
+
   if (
     ringCount === 3 &&
     ringSizes.every((s) => s === 6) &&
