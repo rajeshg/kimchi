@@ -54,12 +54,7 @@ export function assembleHeteroatomSubstituents(
   for (const [subName, count] of groupedSubs.entries()) {
     const prefix =
       count > 1
-        ? getMultiplicativePrefix(
-            count,
-            false,
-            opsinService,
-            subName.charAt(0),
-          )
+        ? getMultiplicativePrefix(count, false, opsinService, subName.charAt(0))
         : "";
     substituentParts.push(`${prefix}${subName}`);
   }

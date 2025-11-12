@@ -1,8 +1,5 @@
 import type { Molecule, Atom } from "types";
-import {
-  generateClassicPolycyclicName,
-  type ClassicPolycyclicNameResult,
-} from "../iupac-rings/utils";
+import { generateClassicPolycyclicName } from "../iupac-rings/utils";
 import { IUPACRuleEngine } from "../iupac-rule-engine";
 
 export interface RingSubstituentInfo {
@@ -595,7 +592,6 @@ export function buildRingSubstituentAlkylName(
       // Check for external ring substituents (e.g., azacycles attached to the bicyclic system)
       // Find all rings in the molecule that are NOT part of ringsInAlkoxy
       const allRings = molecule.rings || [];
-      const bicyclicRingSet = new Set(ringsInAlkoxy.flat());
 
       for (let ringIdx = 0; ringIdx < allRings.length; ringIdx++) {
         const externalRing = allRings[ringIdx];

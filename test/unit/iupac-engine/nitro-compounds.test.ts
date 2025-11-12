@@ -78,7 +78,8 @@ describe("IUPAC: Nitro Compounds", () => {
     });
 
     it("should name 1,4-dinitrobenzene", () => {
-      const mol = parseSMILES("[O-][N+](=O)c1ccc([N+](=O)[O-])cc1").molecules[0];
+      const mol = parseSMILES("[O-][N+](=O)c1ccc([N+](=O)[O-])cc1")
+        .molecules[0];
       if (!mol) throw new Error("failed to parse");
       const result = generateIUPACName(mol);
       expect(result.name).toBe("1,4-dinitrobenzene");

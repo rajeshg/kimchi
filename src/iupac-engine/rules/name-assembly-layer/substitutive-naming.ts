@@ -5,17 +5,8 @@ import type {
 } from "../../types";
 import type { NamingSubstituent } from "../../naming/iupac-types";
 import type { Molecule, Atom } from "types";
-import {
-  nameAlkylSulfanylSubstituent,
-  namePhosphorylSubstituent,
-  namePhosphanylSubstituent,
-  nameAmideSubstituent,
-} from "../../naming/iupac-chains";
 import type { OPSINService } from "../../opsin-service";
-import {
-  getMultiplicativePrefix,
-  findAttachmentPoint,
-} from "./utils";
+import { getMultiplicativePrefix } from "./utils";
 import { filterFunctionalGroupsByRingAtoms } from "./filtering/ring-atom-filter";
 import { filterFunctionalGroupsByName } from "./filtering/functional-group-filter";
 import { deduplicateSubstituents } from "./filtering/locant-deduplicator";
@@ -87,8 +78,11 @@ export function buildSubstitutiveName(
 
   // Add substituents from functional groups (excluding principal group)
   // Also filter out ketones that are already represented as acyl substituents
-  const fgStructuralSubstituents: FunctionalGroupExtended[] =
-    filterAcylKetones(functionalGroups, parentStructure, molecule);
+  const fgStructuralSubstituents: FunctionalGroupExtended[] = filterAcylKetones(
+    functionalGroups,
+    parentStructure,
+    molecule,
+  );
 
   // Find principal functional group atoms to exclude from substituents
   const principalFG = functionalGroups.find((group) => group.isPrincipal);
@@ -454,7 +448,6 @@ export function buildSubstitutiveName(
         }
 
         // Try special naming for thioether, phosphoryl, phosphanyl, amide
-        let specialNameApplied = false;
         if (subName) {
           const specialName = nameSpecialSubstituent({
             molecule,
@@ -464,7 +457,6 @@ export function buildSubstitutiveName(
           });
           if (specialName) {
             subName = specialName;
-            specialNameApplied = true;
           }
         }
 
@@ -481,12 +473,18 @@ export function buildSubstitutiveName(
             if (!substituentGroups.has(subName)) {
               substituentGroups.set(subName, []);
             }
-            
+
             // Special handling for multiplicative groups (e.g., dinitro with locants=[1,3])
             // These groups have already been aggregated and have all locants in the array
-            const isMultiplicative = "isMultiplicative" in sub && sub.isMultiplicative;
-            
-            if (isMultiplicative && "locants" in sub && sub.locants && sub.locants.length > 1) {
+            const isMultiplicative =
+              "isMultiplicative" in sub && sub.isMultiplicative;
+
+            if (
+              isMultiplicative &&
+              "locants" in sub &&
+              sub.locants &&
+              sub.locants.length > 1
+            ) {
               // Push all locants for multiplicative groups
               substituentGroups.get(subName)!.push(...sub.locants);
             } else {
@@ -525,22 +523,26 @@ export function buildSubstitutiveName(
       const totalStructuralSubstituents = Array.from(
         substituentGroups.values(),
       ).reduce((sum, locs) => sum + locs.length, 0);
-      
+
       // Count substituents that already have locants in their assembledName (e.g., "4-nitro")
       // These are not in substituentGroups but will be added directly to substituentParts
-      const preAssembledSubstituentsCount = allStructuralSubstituents.filter((sub) => {
-        const assembledName = "assembledName" in sub ? sub.assembledName : undefined;
-        return assembledName && /^\d+-/.test(assembledName);
-      }).length;
-      
+      const preAssembledSubstituentsCount = allStructuralSubstituents.filter(
+        (sub) => {
+          const assembledName =
+            "assembledName" in sub ? sub.assembledName : undefined;
+          return assembledName && /^\d+-/.test(assembledName);
+        },
+      ).length;
+
       // Total count including both grouped and pre-assembled substituents
-      const totalAllSubstituentsCount = totalStructuralSubstituents + preAssembledSubstituentsCount;
-      
+      const totalAllSubstituentsCount =
+        totalStructuralSubstituents + preAssembledSubstituentsCount;
+
       if (process.env.VERBOSE) {
         console.log(
           `[LOCANT OMISSION DEBUG] totalStructuralSubstituents=${totalStructuralSubstituents}, ` +
-          `preAssembledCount=${preAssembledSubstituentsCount}, totalAll=${totalAllSubstituentsCount}, ` +
-          `substituentGroups.size=${substituentGroups.size}`,
+            `preAssembledCount=${preAssembledSubstituentsCount}, totalAll=${totalAllSubstituentsCount}, ` +
+            `substituentGroups.size=${substituentGroups.size}`,
         );
       }
 
@@ -701,8 +703,9 @@ export function buildSubstitutiveName(
 
         // Check if substituent name already has a multiplicative prefix (e.g., "dinitro")
         // This happens when groups are pre-aggregated in the name assembly layer
-        const alreadyHasMultiplicativePrefix = /^(di|tri|tetra|penta|hexa|hepta|octa|nona|deca)/.test(subName);
-        
+        const alreadyHasMultiplicativePrefix =
+          /^(di|tri|tetra|penta|hexa|hepta|octa|nona|deca)/.test(subName);
+
         const multiplicativePrefix =
           locants.length > 1 && !alreadyHasMultiplicativePrefix
             ? getMultiplicativePrefix(
@@ -1024,7 +1027,8 @@ export function buildSubstitutiveName(
         // Parse N-substituent string to extract locants and base name
         // Input format: "N,N'-diformyl-N,N'-dihydroxymethyl" or "N-methyl-N'-ethyl"
         if (nSubstituentsPrefix) {
-          nSubstituentEntries = parseNSubstituentsMultiplicative(nSubstituentsPrefix);
+          nSubstituentEntries =
+            parseNSubstituentsMultiplicative(nSubstituentsPrefix);
 
           if (process.env.VERBOSE) {
             console.log(
@@ -1231,7 +1235,12 @@ export function buildSubstitutiveName(
 
       // Merge N-substituents with existing substituents and re-sort alphabetically
       if (nSubstituentEntries.length > 0) {
-        name = mergeNSubstituentsWithName(name, nSubstituentEntries, parentStructure, opsinService);
+        name = mergeNSubstituentsWithName(
+          name,
+          nSubstituentEntries,
+          parentStructure,
+          opsinService,
+        );
       }
 
       if (needsLocant && fgLocant && !shouldOmitLocant) {

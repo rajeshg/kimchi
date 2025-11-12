@@ -82,10 +82,7 @@ export function filterSubstituents(
       return !containsHydroxy; // Filter out simple hydroxy substituents
     });
 
-    if (
-      process.env.VERBOSE &&
-      beforeFilter.length !== filtered.length
-    ) {
+    if (process.env.VERBOSE && beforeFilter.length !== filtered.length) {
       console.log(
         `[filterSubstituents] Hydroxy filter removed: ${beforeFilter.filter((p) => !filtered.includes(p)).join(", ")}`,
       );
@@ -112,12 +109,8 @@ export function filterSubstituents(
     console.log(
       "[filterSubstituents] Skipping adding substituentParts because parent already contains them (approx match)",
     );
-    console.log(
-      `[filterSubstituents] filtered: ${JSON.stringify(filtered)}`,
-    );
-    console.log(
-      `[filterSubstituents] normalizedParent: "${normalizedParent}"`,
-    );
+    console.log(`[filterSubstituents] filtered: ${JSON.stringify(filtered)}`);
+    console.log(`[filterSubstituents] normalizedParent: "${normalizedParent}"`);
   }
 
   return missingParts;
@@ -156,10 +149,7 @@ export function joinSubstituents(
   const fixedParts = missingParts.map(fixLocantHyphenation);
 
   if (process.env.VERBOSE) {
-    console.log(
-      "[joinSubstituents] fixedParts:",
-      JSON.stringify(fixedParts),
-    );
+    console.log("[joinSubstituents] fixedParts:", JSON.stringify(fixedParts));
   }
 
   if (fixedParts.length === 1) {

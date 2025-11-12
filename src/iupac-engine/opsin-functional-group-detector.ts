@@ -435,7 +435,10 @@ export class OPSINFunctionalGroupDetector {
               // Claim this atom
               claimedAtoms.add(oxygenId);
             }
-          } else if (check.pattern === "[N+](=O)[O-]" && atomsMatched.length > 3) {
+          } else if (
+            check.pattern === "[N+](=O)[O-]" &&
+            atomsMatched.length > 3
+          ) {
             // Special case: For nitro groups, create one functional group per NO2 triple
             // since each nitro should be counted separately for dinitro, trinitro, etc.
             // atomsMatched contains triples: [N1, O1, O2, N2, O3, O4, ...]
@@ -912,7 +915,10 @@ export class OPSINFunctionalGroupDetector {
         }
       }
 
-      if (oxygenDoubleCount === 2 || (oxygenDoubleCount === 1 && oxygenSingleCount === 1)) {
+      if (
+        oxygenDoubleCount === 2 ||
+        (oxygenDoubleCount === 1 && oxygenSingleCount === 1)
+      ) {
         if (process.env.VERBOSE) {
           console.log(
             `[findNitroPattern] Found nitro at N=${atom.id} (O=: ${oxygenDoubleCount}, O-: ${oxygenSingleCount})`,

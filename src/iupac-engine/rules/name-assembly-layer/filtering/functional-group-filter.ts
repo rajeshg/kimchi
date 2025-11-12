@@ -181,23 +181,17 @@ export function filterFunctionalGroupsByName(
   }
 
   // Apply the filter: remove FGs that are already incorporated in names
-  return fgStructuralSubstituents.filter(
-    (fgSub: FunctionalGroupExtended) => {
-      // GUARD: Validate fgSub structure
-      if (
-        !fgSub ||
-        typeof fgSub !== "object" ||
-        typeof fgSub.type !== "string"
-      ) {
-        if (process.env.VERBOSE) {
-          console.warn(
-            `[filterFunctionalGroupsByName] WARNING: Invalid fgSub structure, keeping it:`,
-            fgSub,
-          );
-        }
-        return true; // Keep invalid entries to avoid silent data loss
+  return fgStructuralSubstituents.filter((fgSub: FunctionalGroupExtended) => {
+    // GUARD: Validate fgSub structure
+    if (!fgSub || typeof fgSub !== "object" || typeof fgSub.type !== "string") {
+      if (process.env.VERBOSE) {
+        console.warn(
+          `[filterFunctionalGroupsByName] WARNING: Invalid fgSub structure, keeping it:`,
+          fgSub,
+        );
       }
-      return !fgTypesToFilter.has(fgSub.type);
-    },
-  );
+      return true; // Keep invalid entries to avoid silent data loss
+    }
+    return !fgTypesToFilter.has(fgSub.type);
+  });
 }

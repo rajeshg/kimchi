@@ -6,10 +6,7 @@ import type { FunctionalGroup } from "../../types";
 import { buildChainName } from "./chain-naming";
 import { buildFunctionalClassName } from "./special-naming";
 import { getMultiplicativePrefix } from "./utils";
-import {
-  buildRingName,
-  buildHeteroatomName,
-} from "./ring-naming";
+import { buildRingName, buildHeteroatomName } from "./ring-naming";
 import { buildSubstitutiveName } from "./substitutive-naming";
 import {
   validateIUPACName,
@@ -163,26 +160,26 @@ export const LOCANT_ASSIGNMENT_ASSEMBLY_RULE: IUPACRule = {
       // Per IUPAC: for unbranched chains with a single terminal substituent, omit locant "1"
       // Only omit for C1 (methane) and C2 (ethane); C3+ chains MUST keep terminal locants
       const chainLength = parentStructure.chain?.length ?? 0;
-      const isShortChain = parentStructure.type === "chain" && chainLength === 2;
+      const isShortChain =
+        parentStructure.type === "chain" && chainLength === 2;
       const nonPrincipalSubstituentCount = functionalGroups.filter(
         (fg: FunctionalGroup) => !fg.isPrincipal,
       ).length;
       const shouldOmitTerminalLocant =
-        isShortChain &&
-        locants === "1" &&
-        nonPrincipalSubstituentCount === 1;
+        isShortChain && locants === "1" && nonPrincipalSubstituentCount === 1;
 
       if (process.env.VERBOSE && locants === "1") {
         console.log(
           `[LOCANT_ASSEMBLY] Terminal locant check: chainLength=${chainLength}, isShortChain=${isShortChain}, ` +
-          `nonPrincipalSubstituentCount=${nonPrincipalSubstituentCount}, shouldOmitTerminalLocant=${shouldOmitTerminalLocant}`,
+            `nonPrincipalSubstituentCount=${nonPrincipalSubstituentCount}, shouldOmitTerminalLocant=${shouldOmitTerminalLocant}`,
         );
       }
 
       // Check if we can omit locant "1" for single substituent on symmetric rings
       // Per IUPAC P-14.3.4.1: For symmetric rings (benzene, cyclohexane, etc.),
       // a single substituent at position 1 doesn't need a locant
-      const parentName = parentStructure.assembledName || parentStructure.name || "";
+      const parentName =
+        parentStructure.assembledName || parentStructure.name || "";
       const isSymmetricRing =
         parentStructure.type === "ring" &&
         (parentName.includes("benzene") || parentName.includes("cyclo"));
@@ -197,7 +194,10 @@ export const LOCANT_ASSIGNMENT_ASSEMBLY_RULE: IUPACRule = {
       // Example: alcohol (non-principal) → "hydroxy" not "hydroxyalcoholol"
       if (!group.isPrincipal && prefix) {
         name =
-          locants && !shouldOmitC1Locant && !shouldOmitTerminalLocant && !shouldOmitRingLocant
+          locants &&
+          !shouldOmitC1Locant &&
+          !shouldOmitTerminalLocant &&
+          !shouldOmitRingLocant
             ? `${locants}-${prefix}`
             : prefix;
       }
@@ -205,13 +205,21 @@ export const LOCANT_ASSIGNMENT_ASSEMBLY_RULE: IUPACRule = {
       // So we don't append the type 'alkoxy'
       else if (type === "alkoxy" && prefix) {
         name =
-          locants && !shouldOmitC1Locant && !shouldOmitTerminalLocant && !shouldOmitRingLocant
+          locants &&
+          !shouldOmitC1Locant &&
+          !shouldOmitTerminalLocant &&
+          !shouldOmitRingLocant
             ? `${locants}-${prefix}`
             : prefix;
       }
       // For PRINCIPAL functional groups, use the full name assembly
       else {
-        if (locants && !shouldOmitC1Locant && !shouldOmitTerminalLocant && !shouldOmitRingLocant) {
+        if (
+          locants &&
+          !shouldOmitC1Locant &&
+          !shouldOmitTerminalLocant &&
+          !shouldOmitRingLocant
+        ) {
           name = `${locants}-${prefix}${type}${suffix}`;
         } else {
           name = `${prefix}${type}${suffix}`;
@@ -220,7 +228,7 @@ export const LOCANT_ASSIGNMENT_ASSEMBLY_RULE: IUPACRule = {
 
       // If we omitted the locant in the assembled name, clear the locants array
       // to prevent substitutive-naming.ts from re-adding it
-      const shouldClearLocants = 
+      const shouldClearLocants =
         shouldOmitC1Locant || shouldOmitTerminalLocant || shouldOmitRingLocant;
 
       return {

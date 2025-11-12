@@ -1,9 +1,11 @@
-import type { FunctionalGroup, ParentStructure } from "../../../types";
+import type {
+  FunctionalGroup,
+  ParentStructure,
+  StructuralSubstituent,
+} from "../../../types";
+import type { NamingSubstituent } from "../../../naming/iupac-types";
 import type { Molecule, Atom } from "types";
-import {
-  getMultiplicativePrefix,
-  collectSubstituentAtoms,
-} from "../utils";
+import { getMultiplicativePrefix, collectSubstituentAtoms } from "../utils";
 import { nameYlideneSubstituent } from "../substituent-helpers/ylidene-naming";
 import { nameAlkylSubstituent } from "../substituent-helpers/alkyl-naming";
 import { nameRingSubstituent } from "../../../naming/iupac-chains";
@@ -13,7 +15,7 @@ import { getSharedOPSINService } from "../../../opsin-service";
 
 type ParentStructureExtended = ParentStructure & {
   assembledName?: string;
-  substituents?: any[];
+  substituents?: (StructuralSubstituent | NamingSubstituent)[];
   size?: number;
 };
 

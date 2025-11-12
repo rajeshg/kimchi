@@ -19,8 +19,6 @@ export type HierarchyAnalysis = {
   primaryEsterAtoms?: number[];
 };
 
-
-
 /**
  * Analyze ester connectivity to detect hierarchical vs symmetric diesters
  *
@@ -257,7 +255,10 @@ export function analyzeEsterHierarchy(
  * For esters detected by OPSIN, esterGroup.atoms contains:
  * [carbonyl C id, carbonyl O id, ester O id] (3 atom IDs as numbers)
  */
-export function isEsterInRing(mol: Molecule, esters: FunctionalGroup[]): boolean {
+export function isEsterInRing(
+  mol: Molecule,
+  esters: FunctionalGroup[],
+): boolean {
   // First detect all rings in the molecule
   const rings = findAllRings(mol);
   if (rings.length === 0) return false;

@@ -1,5 +1,5 @@
 import type { FunctionalGroup } from "../../types";
-import type { Molecule, Atom } from "../../../../types";
+import type { Molecule, Atom, Bond } from "../../../../types";
 import type { OPSINFunctionalGroupDetector } from "../../opsin-functional-group-detector";
 import { normalizePriority } from "./utils";
 
@@ -11,7 +11,7 @@ type DetectedFunctionalGroup = {
   prefix?: string;
   priority: number;
   atoms: number[];
-  bonds?: any[];
+  bonds?: Bond[];
   pattern?: string;
 };
 

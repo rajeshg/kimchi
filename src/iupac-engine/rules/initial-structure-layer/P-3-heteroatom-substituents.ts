@@ -925,13 +925,13 @@ function detectMacrocyclicRingSubstituent(
   if (!sizePrefix) return null;
 
   // Check if the ring is saturated
-  let isSaturated = true;
+  let _isSaturated = true;
   for (const bond of molecule.bonds) {
     const isInRing =
       containingRing.includes(bond.atom1) &&
       containingRing.includes(bond.atom2);
     if (isInRing && bond.type === "double") {
-      isSaturated = false;
+      _isSaturated = false;
       break;
     }
   }

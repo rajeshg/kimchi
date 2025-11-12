@@ -3,7 +3,6 @@ import { RulePriority } from "../../types";
 import type { ImmutableNamingContext } from "../../immutable-context";
 import { ExecutionPhase, NomenclatureMethod } from "../../immutable-context";
 import type { Molecule, Atom, Bond } from "../../../../types";
-import type { OPSINFunctionalGroupDetector } from "../../opsin-functional-group-detector";
 import { getAcyloxyNameFromOPSIN } from "../../opsin-adapter";
 import {
   CARBOXYLIC_ACID_RULE,
@@ -13,8 +12,6 @@ import {
 } from "./simple-detectors";
 import {
   normalizePriority,
-  isCarbonyl,
-  getCarbonFromCarbonyl,
   findAcylChain,
   expandKetoneToAcylGroup,
 } from "./utils";
@@ -58,8 +55,6 @@ type DetectedFunctionalGroup = {
  * stored in context.state.functionalGroupTrace. This provides full traceability of
  * which OPSIN rules were applied during functional group detection and prioritization.
  */
-
-
 
 /**
  * Rule: Principal Group Priority Detection
@@ -735,10 +730,7 @@ export const FUNCTIONAL_CLASS_RULE: IUPACRule = {
     );
 
     let updatedContext: ImmutableNamingContext;
-    if (
-      hasFunctionalClassGroup ||
-      isFunctionalClassPreferred(principalGroup)
-    ) {
+    if (hasFunctionalClassGroup || isFunctionalClassPreferred(principalGroup)) {
       updatedContext = context.withNomenclatureMethod(
         NomenclatureMethod.FUNCTIONAL_CLASS,
         "functional-class-nomenclature",

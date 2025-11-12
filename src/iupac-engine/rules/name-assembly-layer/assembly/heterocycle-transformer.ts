@@ -4,7 +4,7 @@ import type { Atom } from "types";
 /**
  * Transforms partially saturated heterocycles to indicated hydrogen format.
  * Per IUPAC P-25.2: Use indicated hydrogen nomenclature for partially saturated heterocycles.
- * 
+ *
  * Examples:
  * - "thiazoline" → "4H-1,3-thiazol"
  * - "imidazoline" → "2H-1,3-imidazol"
@@ -59,7 +59,9 @@ export function transformPartiallySaturatedHeterocycle(
         .map((h) => `${h.atom.symbol}@${h.locant}(idx:${h.atomIndex})`)
         .join(", "),
     );
-    console.log(`[transformPartiallySaturatedHeterocycle]   ring.size=${ring.size}`);
+    console.log(
+      `[transformPartiallySaturatedHeterocycle]   ring.size=${ring.size}`,
+    );
   }
 
   // Check if this is a partially saturated 5-membered heterocycle
@@ -68,7 +70,10 @@ export function transformPartiallySaturatedHeterocycle(
   const match = name.match(partiallySaturatedPattern);
 
   if (process.env.VERBOSE) {
-    console.log(`[transformPartiallySaturatedHeterocycle]   pattern match:`, match);
+    console.log(
+      `[transformPartiallySaturatedHeterocycle]   pattern match:`,
+      match,
+    );
   }
 
   if (!match || heteroatomsWithLocants.length < 2) {

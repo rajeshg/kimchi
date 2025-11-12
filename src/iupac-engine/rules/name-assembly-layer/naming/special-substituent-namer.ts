@@ -36,12 +36,7 @@ export function nameSpecialSubstituent(
 
   // Try thioether naming
   if (subName === "thioether" || subName.includes("-thioether")) {
-    const named = nameThioether(
-      molecule,
-      parentStructure,
-      sub,
-      locantPrefix,
-    );
+    const named = nameThioether(molecule, parentStructure, sub, locantPrefix);
     if (named) return named;
   }
 
@@ -61,23 +56,13 @@ export function nameSpecialSubstituent(
 
   // Try phosphoryl naming
   if (subName === "phosphoryl" || subName.includes("-phosphoryl")) {
-    const named = namePhosphoryl(
-      molecule,
-      parentStructure,
-      sub,
-      locantPrefix,
-    );
+    const named = namePhosphoryl(molecule, parentStructure, sub, locantPrefix);
     if (named) return named;
   }
 
   // Try phosphanyl naming
   if (subName === "phosphanyl" || subName.includes("-phosphanyl")) {
-    const named = namePhosphanyl(
-      molecule,
-      parentStructure,
-      sub,
-      locantPrefix,
-    );
+    const named = namePhosphanyl(molecule, parentStructure, sub, locantPrefix);
     if (named) return named;
   }
 

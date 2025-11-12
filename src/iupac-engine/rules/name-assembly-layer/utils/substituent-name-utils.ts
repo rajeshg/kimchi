@@ -18,12 +18,7 @@ export function stripMultiplicativePrefix(name: string): string {
   // Don't strip multiplicative prefixes from complex substituent names
   // where "di", "tri", etc. are part of the substituent name itself
   // Examples: "diphenylphosphanyloxy", "triphenylphosphoryl", "dimethylamino"
-  const complexSubstituentPatterns = [
-    "phosph",
-    "sulf",
-    "amino",
-    "phenyl",
-  ];
+  const complexSubstituentPatterns = ["phosph", "sulf", "amino", "phenyl"];
   for (const pattern of complexSubstituentPatterns) {
     if (name.includes(pattern)) {
       return name; // Don't strip prefix from complex substituents

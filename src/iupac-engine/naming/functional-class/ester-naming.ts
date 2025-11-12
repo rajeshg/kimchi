@@ -1464,7 +1464,6 @@ export function buildEsterWithRingAcylGroup(
   return `${alkoxyName} ${acylName}`;
 }
 
-
 /**
  * Find the longest carbon chain starting from a given carbon,
  * excluding a specific direction (e.g., ester oxygen for acyl side).

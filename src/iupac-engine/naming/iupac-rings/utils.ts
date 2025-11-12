@@ -1323,7 +1323,7 @@ export function generateClassicPolycyclicName(
         };
 
         // Helper to compute locants for a given numbering
-        const computeLocants = (numbering: Map<number, number>) => {
+        const _computeLocants = (numbering: Map<number, number>) => {
           const heteroLocs: number[] = [];
           for (const ha of heteroatoms) {
             const atomIdx = molecule.atoms.indexOf(ha);
@@ -1409,7 +1409,7 @@ export function generateClassicPolycyclicName(
         };
 
         // Helper to get secondary bridge locants
-        const getSecondaryBridgeLocants = (numbering: Map<number, number>) => {
+        const _getSecondaryBridgeLocants = (numbering: Map<number, number>) => {
           const locants: number[] = [];
           for (const sb of bestConfig.secondaryBridges) {
             const pos1 = numbering.get(sb.from);
