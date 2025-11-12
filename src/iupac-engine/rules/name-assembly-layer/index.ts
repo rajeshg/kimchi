@@ -1,21 +1,21 @@
-import type { IUPACRule } from "../types";
-import { RulePriority } from "../types";
-import { ExecutionPhase, type ContextState } from "../immutable-context";
-import type { ImmutableNamingContext } from "../immutable-context";
-import type { FunctionalGroup } from "../types";
-import { buildChainName } from "./name-assembly-layer/chain-naming";
-import { buildFunctionalClassName } from "./name-assembly-layer/special-naming";
-import { getMultiplicativePrefix } from "./name-assembly-layer/utils";
+import type { IUPACRule } from "../../types";
+import { RulePriority } from "../../types";
+import { ExecutionPhase, type ContextState } from "../../immutable-context";
+import type { ImmutableNamingContext } from "../../immutable-context";
+import type { FunctionalGroup } from "../../types";
+import { buildChainName } from "./chain-naming";
+import { buildFunctionalClassName } from "./special-naming";
+import { getMultiplicativePrefix } from "./utils";
 import {
   buildRingName,
   buildHeteroatomName,
-} from "./name-assembly-layer/ring-naming";
-import { buildSubstitutiveName } from "./name-assembly-layer/substitutive-naming";
+} from "./ring-naming";
+import { buildSubstitutiveName } from "./substitutive-naming";
 import {
   validateIUPACName,
   applyFinalFormatting,
   calculateNameConfidence,
-} from "./name-assembly-layer/validation";
+} from "./validation";
 
 /**
  * Name Assembly Layer Rules

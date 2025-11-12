@@ -92,7 +92,7 @@ describe("IUPAC Engine Validation", () => {
   test("should handle carboxylic acids", () => {
     const namer = new IUPACNamer();
 
-    // Parse acetic acid from SMILES
+    // Parse ethanoic acid from SMILES
     const parseResult = parseSMILES("CC(=O)O");
     expect(parseResult.molecules.length).toBeGreaterThan(0);
 

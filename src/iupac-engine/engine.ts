@@ -516,14 +516,14 @@ export class RuleEngine {
 
     if (carbonCount === 1) {
       if (oxygenCount === 1 && nitrogenCount === 0) return "methanol";
-      if (oxygenCount === 2 && nitrogenCount === 0) return "formic acid";
+      if (oxygenCount === 2 && nitrogenCount === 0) return "methanoic acid";
       if (nitrogenCount === 1) return "methanamine";
       return "methane";
     }
 
     if (carbonCount === 2) {
       if (oxygenCount === 1 && nitrogenCount === 0) return "ethanol";
-      if (oxygenCount === 2 && nitrogenCount === 0) return "acetic acid";
+      if (oxygenCount === 2 && nitrogenCount === 0) return "ethanoic acid";
       if (nitrogenCount === 1) return "ethanamine";
       return "ethane";
     }
@@ -551,9 +551,9 @@ export class RuleEngine {
       .molecule.atoms.filter((a) => a.symbol === "C").length;
     const acidNames = [
       "",
-      "formic",
-      "acetic",
-      "propionic",
+      "methanoic",
+      "ethanoic",
+      "propanoic",
       "butanoic",
       "pentanoic",
     ];

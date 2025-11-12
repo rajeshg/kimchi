@@ -159,9 +159,9 @@ export class OPSINNameGenerator {
   }
 
   private buildCarboxylicAcidName(carbonCount: number): string {
-    if (carbonCount === 1) return "formic acid";
-    if (carbonCount === 2) return "acetic acid";
-    if (carbonCount === 3) return "propionic acid";
+    if (carbonCount === 1) return "methanoic acid";
+    if (carbonCount === 2) return "ethanoic acid";
+    if (carbonCount === 3) return "propanoic acid";
     if (carbonCount === 4) return "butanoic acid";
     if (carbonCount === 5) return "pentanoic acid";
 

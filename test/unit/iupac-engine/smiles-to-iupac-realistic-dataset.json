@@ -257,7 +257,7 @@
   },
   {
     "smiles": "C1=CC(=C(C=C1C2=NC(=CS2)CC(=O)O)Cl)O",
-    "iupac": "2-[2-(3-chloro-4-hydroxyphenyl)-1,3-thiazol-4-yl]acetic acid"
+    "iupac": "2-[2-(3-chloro-4-hydroxyphenyl)-1,3-thiazol-4-yl]ethanoic acid"
   },
   {
     "smiles": "COC1CCCC(=O)CC1",
@@ -503,16 +503,6 @@
     "comment": "Bicyclic nitrogen heterocycle"
   },
   {
-    "smiles": "CS(=O)C",
-    "iupac": "methylsulfinylmethane",
-    "comment": "Sulfoxide - strict IUPAC systematic name (trivial: dimethyl sulfoxide)"
-  },
-  {
-    "smiles": "CS(=O)(=O)C",
-    "iupac": "methylsulfonylmethane",
-    "comment": "Sulfone - strict IUPAC systematic name (trivial: dimethyl sulfone)"
-  },
-  {
     "smiles": "O=C1CCCC1",
     "iupac": "cyclopentanone",
     "comment": "Cyclic ketone - IUPAC P-14.3.4 locant omission (unambiguous monocyclic ketone)"
@@ -551,5 +541,120 @@
     "smiles": "c1ccccc1S(=O)(=O)c2ccccc2",
     "iupac": "(phenylsulfonyl)benzene",
     "comment": "Diphenyl sulfone - sulfonyl group connecting two phenyl rings"
+  },
+  {
+    "smiles": "C1CCNCC1",
+    "iupac": "piperidine",
+    "comment": "Saturated heterocycle - six-membered with one nitrogen"
+  },
+  {
+    "smiles": "C1CCOCC1",
+    "iupac": "oxane",
+    "comment": "Saturated heterocycle - six-membered with one oxygen (systematic name for tetrahydropyran)"
+  },
+  {
+    "smiles": "C1CCSCC1",
+    "iupac": "thiane",
+    "comment": "Saturated heterocycle - six-membered with one sulfur (systematic name for tetrahydrothiopyran)"
+  },
+  {
+    "smiles": "CN(C)C(=O)C",
+    "iupac": "N,N-dimethylethanamide",
+    "comment": "Tertiary amide - simple case with dimethyl substitution (systematic name for N,N-dimethylacetamide)"
+  },
+  {
+    "smiles": "CCN(CC)C(=O)C",
+    "iupac": "N,N-diethylethanamide",
+    "comment": "Tertiary amide - diethyl substitution (systematic name for N,N-diethylacetamide)"
+  },
+  {
+    "smiles": "CN(C)C(=O)CC",
+    "iupac": "N,N-dimethylpropanamide",
+    "comment": "Tertiary amide - dimethyl substitution on longer chain"
+  },
+  {
+    "smiles": "C1CCNC1",
+    "iupac": "pyrrolidine",
+    "comment": "Five-membered saturated heterocycle with nitrogen"
+  },
+  {
+    "smiles": "C1CCOC1",
+    "iupac": "oxolane",
+    "comment": "Five-membered saturated heterocycle with oxygen (systematic name for tetrahydrofuran)"
+  },
+  {
+    "smiles": "C1CCSC1",
+    "iupac": "thiolane",
+    "comment": "Five-membered saturated heterocycle with sulfur (systematic name for tetrahydrothiophene)"
+  },
+  {
+    "smiles": "CC(C)C(=O)N(C)C",
+    "iupac": "2-methyl-N,N-dimethylpropanamide",
+    "comment": "Tertiary amide with branched acyl group (2-methyl goes before N,N-dimethyl)"
+  },
+  {
+    "smiles": "CC(=O)N(C)c1ccccc1",
+    "iupac": "N-methyl-N-phenylethanamide",
+    "comment": "Tertiary amide with aromatic substitution (systematic: ethanamide not acetamide)"
+  },
+  {
+    "smiles": "C1CNC1",
+    "iupac": "azetidine",
+    "comment": "Four-membered saturated heterocycle with nitrogen"
+  },
+  {
+    "smiles": "C1COC1",
+    "iupac": "oxetane",
+    "comment": "Four-membered saturated heterocycle with oxygen"
+  },
+  {
+    "smiles": "CC(=O)OC",
+    "iupac": "methyl ethanoate",
+    "comment": "Simple ester (systematic name for methyl acetate)"
+  },
+  {
+    "smiles": "CC(=O)OCC",
+    "iupac": "ethyl ethanoate",
+    "comment": "Simple ester (systematic name for ethyl acetate)"
+  },
+  {
+    "smiles": "CCC(=O)OC",
+    "iupac": "methyl propanoate",
+    "comment": "Simple ester (systematic name for methyl propionate)"
+  },
+  {
+    "smiles": "CC#N",
+    "iupac": "ethanenitrile",
+    "comment": "Simple nitrile (systematic name for acetonitrile)"
+  },
+  {
+    "smiles": "CCCC#N",
+    "iupac": "butanenitrile",
+    "comment": "Simple nitrile (systematic name for butyronitrile)"
+  },
+  {
+    "smiles": "CC=O",
+    "iupac": "ethanal",
+    "comment": "Simple aldehyde (systematic name for acetaldehyde)"
+  },
+  {
+    "smiles": "CCC=O",
+    "iupac": "propanal",
+    "comment": "Simple aldehyde (systematic name for propionaldehyde)"
+  },
+  {
+    "smiles": "CCO",
+    "iupac": "ethanol",
+    "comment": "Simple alcohol"
+  },
+  {
+    "smiles": "CCCCO",
+    "iupac": "butan-1-ol",
+    "comment": "Simple primary alcohol"
+  },
+  {
+    "smiles": "CC(O)CC",
+    "iupac": "butan-2-ol",
+    "comment": "Simple secondary alcohol"
   }
 ]

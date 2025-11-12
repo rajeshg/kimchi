@@ -35,9 +35,9 @@ describe("Functional group locants and trace metadata", () => {
     expect(alcohol?.suffix).toBeTruthy();
   });
 
-  test("normalized functional groups include expected locants and suffixes (acetic acid)", () => {
+  test("normalized functional groups include expected locants and suffixes (ethanoic acid)", () => {
     const namer = new IUPACNamer();
-    const result = namer.generateNameFromSMILES("CC(=O)O"); // acetic acid
+    const result = namer.generateNameFromSMILES("CC(=O)O"); // ethanoic acid
 
     expect(result.functionalGroups.length).toBeGreaterThan(0);
     expect(result.parentStructure).toBeDefined();
