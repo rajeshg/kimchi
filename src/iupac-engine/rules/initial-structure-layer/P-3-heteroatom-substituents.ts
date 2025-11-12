@@ -872,13 +872,13 @@ function detectMacrocyclicRingSubstituent(
   // Count heteroatoms in the ring
   const heteroatomCounts: Record<string, number> = {};
   const heteroatomPositions: Map<string, number[]> = new Map();
-  
+
   for (let i = 0; i < containingRing.length; i++) {
     const atomId = containingRing[i];
     if (atomId === undefined) continue;
     const atom = molecule.atoms[atomId];
     if (!atom) continue;
-    
+
     if (atom.symbol !== "C") {
       heteroatomCounts[atom.symbol] = (heteroatomCounts[atom.symbol] || 0) + 1;
       if (!heteroatomPositions.has(atom.symbol)) {
@@ -888,7 +888,10 @@ function detectMacrocyclicRingSubstituent(
     }
   }
 
-  const totalHeteroatoms = Object.values(heteroatomCounts).reduce((a, b) => a + b, 0);
+  const totalHeteroatoms = Object.values(heteroatomCounts).reduce(
+    (a, b) => a + b,
+    0,
+  );
 
   if (process.env.VERBOSE) {
     console.log(
@@ -906,7 +909,7 @@ function detectMacrocyclicRingSubstituent(
   // Get the heteroatom type and its prefix
   const heteroSymbol = Object.keys(heteroatomCounts)[0];
   if (!heteroSymbol) return null;
-  
+
   const heteroPrefix = getHeteroatomPrefix(heteroSymbol);
   if (!heteroPrefix) return null;
 
@@ -925,7 +928,8 @@ function detectMacrocyclicRingSubstituent(
   let isSaturated = true;
   for (const bond of molecule.bonds) {
     const isInRing =
-      containingRing.includes(bond.atom1) && containingRing.includes(bond.atom2);
+      containingRing.includes(bond.atom1) &&
+      containingRing.includes(bond.atom2);
     if (isInRing && bond.type === "double") {
       isSaturated = false;
       break;
@@ -934,7 +938,7 @@ function detectMacrocyclicRingSubstituent(
 
   // Detect substituents on the ring (e.g., ketones, hydroxy groups)
   const ringSubstituents: Array<{ locant: number; name: string }> = [];
-  
+
   for (let i = 0; i < containingRing.length; i++) {
     const atomId = containingRing[i];
     if (atomId === undefined) continue;
@@ -948,7 +952,10 @@ function detectMacrocyclicRingSubstituent(
           const otherAtomId = bond.atom1 === atomId ? bond.atom2 : bond.atom1;
           if (bond.atom1 === atomId || bond.atom2 === atomId) {
             const otherAtom = molecule.atoms[otherAtomId];
-            if (otherAtom?.symbol === "O" && !containingRing.includes(otherAtomId)) {
+            if (
+              otherAtom?.symbol === "O" &&
+              !containingRing.includes(otherAtomId)
+            ) {
               // This is a ketone attached to the ring
               ringSubstituents.push({ locant: i + 1, name: "oxo" });
             }
@@ -960,9 +967,11 @@ function detectMacrocyclicRingSubstituent(
 
   // Find the attachment point (which carbon in the parent structure is bonded to this ring)
   let attachmentPosition = 1; // Default to position 1
-  
+
   // The attachment point should be at the heteroatom (position 1 after reordering)
-  const heteroatomIndex = containingRing.findIndex((atomId) => atomId === attachedAtomId);
+  const heteroatomIndex = containingRing.findIndex(
+    (atomId) => atomId === attachedAtomId,
+  );
   if (heteroatomIndex >= 0) {
     // Reorder ring so heteroatom is at position 1
     attachmentPosition = 1;
@@ -972,26 +981,25 @@ function detectMacrocyclicRingSubstituent(
   // Format: [substituents-]aza-cyclo-[size]-[position]-yl
   // Example: 14-oxo-azacyclohexacos-1-yl
   // Note: For substituents, we use the base multiplier (hexacos), not alkane (hexacosan)
-  
+
   let name = "";
-  
+
   // Add substituents
   if (ringSubstituents.length > 0) {
-    const substituentParts = ringSubstituents.map((sub) => `${sub.locant}-${sub.name}`);
+    const substituentParts = ringSubstituents.map(
+      (sub) => `${sub.locant}-${sub.name}`,
+    );
     name += substituentParts.join(",") + "-";
   }
-  
+
   // Add heteroatom prefix + cyclo + size (use multiplier directly, not alkane form)
   name += `${heteroPrefix}cyclo${sizePrefix}`;
-  
+
   // Add attachment point (always include for clarity)
   name += `-${attachmentPosition}-yl`;
-  
 
   if (process.env.VERBOSE) {
-    console.log(
-      `[detectMacrocyclicRingSubstituent] Generated name: ${name}`,
-    );
+    console.log(`[detectMacrocyclicRingSubstituent] Generated name: ${name}`);
   }
 
   return name;

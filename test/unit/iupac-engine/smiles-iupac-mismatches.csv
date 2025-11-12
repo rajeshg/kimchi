@@ -1,5 +1,0 @@
-smiles,expected,actual
-CS(=O)C,"dimethyl sulfoxide","methylsulfinylmethane"
-CS(=O)(=O)C,"dimethyl sulfone","methylsulfonylmethane"
-CC(=O)N(C)C,"N,N-dimethylacetamide","N,N-dimethylethanamide"
-CC(=O)Nc1ccccc1,"N-phenylacetamide","N-phenylethanamide"

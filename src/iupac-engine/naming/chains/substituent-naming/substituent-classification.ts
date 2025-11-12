@@ -425,7 +425,7 @@ export function classifySubstituent(
     const sulfurAtomIdx = Array.from(substituentAtoms).find(
       (idx) => molecule.atoms[idx]?.symbol === "S",
     );
-    
+
     if (sulfurAtomIdx === undefined) {
       return null;
     }
@@ -434,7 +434,7 @@ export function classifySubstituent(
     if (detector) {
       // Run detector on full molecule, then filter to functional groups that overlap with this substituent
       const fgs = detector.detectFunctionalGroups(molecule);
-      
+
       // Check for sulfonyl S(=O)(=O) first (higher priority)
       const sulfonylFG = fgs.find(
         (fg) =>
@@ -442,7 +442,7 @@ export function classifySubstituent(
           fg.atoms &&
           fg.atoms.some((atomIdx) => atomIdx === sulfurAtomIdx),
       );
-      
+
       if (sulfonylFG) {
         // This is a sulfonyl group: R-S(=O)(=O)-R'
         if (carbonCount > 0) {
@@ -454,7 +454,11 @@ export function classifySubstituent(
           ).replace("sulfanyl", "sulfonyl");
           return { type: "functional", size: substituentAtoms.size, name };
         }
-        return { type: "functional", size: substituentAtoms.size, name: "sulfonyl" };
+        return {
+          type: "functional",
+          size: substituentAtoms.size,
+          name: "sulfonyl",
+        };
       }
 
       // Check for sulfinyl S(=O)
@@ -464,7 +468,7 @@ export function classifySubstituent(
           fg.atoms &&
           fg.atoms.some((atomIdx) => atomIdx === sulfurAtomIdx),
       );
-      
+
       if (sulfinylFG) {
         // This is a sulfinyl group: R-S(=O)-R'
         if (carbonCount > 0) {
@@ -476,7 +480,11 @@ export function classifySubstituent(
           ).replace("sulfanyl", "sulfinyl");
           return { type: "functional", size: substituentAtoms.size, name };
         }
-        return { type: "functional", size: substituentAtoms.size, name: "sulfinyl" };
+        return {
+          type: "functional",
+          size: substituentAtoms.size,
+          name: "sulfinyl",
+        };
       }
     }
 

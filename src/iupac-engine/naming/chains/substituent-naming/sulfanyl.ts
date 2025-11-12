@@ -12,6 +12,34 @@ export function nameAlkylSulfanylSubstituent(
     );
   }
 
+  // Check if sulfur has oxygen double bonds (sulfinyl or sulfonyl)
+  const oxygenDoubleBonds = molecule.bonds
+    .filter(
+      (bond) =>
+        (bond.atom1 === sulfurAtomIdx || bond.atom2 === sulfurAtomIdx) &&
+        bond.type === "double",
+    )
+    .filter((bond) => {
+      const otherAtomId =
+        bond.atom1 === sulfurAtomIdx ? bond.atom2 : bond.atom1;
+      return molecule.atoms[otherAtomId]?.symbol === "O";
+    });
+
+  const oxygenCount = oxygenDoubleBonds.length;
+  let sulfurSuffix = "sulfanyl"; // default: -S-
+
+  if (oxygenCount === 2) {
+    sulfurSuffix = "sulfonyl"; // -S(=O)(=O)-
+  } else if (oxygenCount === 1) {
+    sulfurSuffix = "sulfinyl"; // -S(=O)-
+  }
+
+  if (process.env.VERBOSE) {
+    console.log(
+      `[nameAlkylSulfanylSubstituent] oxygenCount=${oxygenCount}, suffix=${sulfurSuffix}`,
+    );
+  }
+
   const carbonAtoms = Array.from(substituentAtoms).filter(
     (idx) => molecule.atoms[idx]?.symbol === "C",
   );
@@ -23,7 +51,7 @@ export function nameAlkylSulfanylSubstituent(
   }
 
   if (carbonAtoms.length === 0) {
-    return "sulfanyl";
+    return sulfurSuffix;
   }
 
   let carbonAttachedToS = -1;
@@ -45,7 +73,7 @@ export function nameAlkylSulfanylSubstituent(
   }
 
   if (carbonAttachedToS === -1) {
-    return "sulfanyl";
+    return sulfurSuffix;
   }
 
   const carbonAtom = molecule.atoms[carbonAttachedToS];
@@ -83,10 +111,10 @@ export function nameAlkylSulfanylSubstituent(
         if (allCarbons) {
           if (process.env.VERBOSE) {
             console.log(
-              `[nameAlkylSulfanylSubstituent] ✓ RETURNING phenylsulfanyl`,
+              `[nameAlkylSulfanylSubstituent] ✓ RETURNING phenyl${sulfurSuffix}`,
             );
           }
-          return "phenylsulfanyl";
+          return `phenyl${sulfurSuffix}`;
         }
       }
     }
@@ -212,19 +240,19 @@ export function nameAlkylSulfanylSubstituent(
   if (tripleBonds.length > 0) {
     const positions = tripleBonds.sort((a, b) => a - b).join(",");
     if (needsLocant) {
-      return `${baseName}-${positions}-yn-${attachmentPosition}-ylsulfanyl`;
+      return `${baseName}-${positions}-yn-${attachmentPosition}-yl${sulfurSuffix}`;
     }
-    return `${baseName}-${positions}-ynylsulfanyl`;
+    return `${baseName}-${positions}-ynyl${sulfurSuffix}`;
   } else if (doubleBonds.length > 0) {
     const positions = doubleBonds.sort((a, b) => a - b).join(",");
     if (needsLocant) {
-      return `${baseName}-${positions}-en-${attachmentPosition}-ylsulfanyl`;
+      return `${baseName}-${positions}-en-${attachmentPosition}-yl${sulfurSuffix}`;
     }
-    return `${baseName}-${positions}-enylsulfanyl`;
+    return `${baseName}-${positions}-enyl${sulfurSuffix}`;
   } else {
     if (needsLocant) {
-      return `${baseName}an-${attachmentPosition}-ylsulfanyl`;
+      return `${baseName}an-${attachmentPosition}-yl${sulfurSuffix}`;
     }
-    return `${baseName}ylsulfanyl`;
+    return `${baseName}yl${sulfurSuffix}`;
   }
 }

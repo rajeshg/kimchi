@@ -346,7 +346,7 @@ export function buildRingSubstituentAlkylName(
             aromaticAtomSet.has(bond.atom2)
           ) {
             aromaticBondCount++;
-            
+
             // Get von Baeyer positions for both atoms
             let pos1 = bond.atom1 + 1;
             let pos2 = bond.atom2 + 1;
@@ -358,7 +358,10 @@ export function buildRingSubstituentAlkylName(
                 pos2 = polycyclicResult.vonBaeyerNumbering.get(bond.atom2)!;
               }
             }
-            aromaticBondPositions.push([Math.min(pos1, pos2), Math.max(pos1, pos2)]);
+            aromaticBondPositions.push([
+              Math.min(pos1, pos2),
+              Math.max(pos1, pos2),
+            ]);
           }
         }
 
@@ -382,69 +385,86 @@ export function buildRingSubstituentAlkylName(
             if (a[0] !== b[0]) return a[0] - b[0];
             return a[1] - b[1];
           });
-          
 
-          
           // Select bonds to minimize position repeats and get lowest locants
           // Use greedy algorithm that tries to maximize non-overlapping selection
           const selectedBonds: Array<[number, number]> = [];
           const usedPositions = new Set<number>();
-          
+
           // First, try to find a complete set of non-overlapping bonds
-          function findNonOverlappingSet(bonds: Array<[number, number]>, count: number): Array<[number, number]> | null {
+          function findNonOverlappingSet(
+            bonds: Array<[number, number]>,
+            count: number,
+          ): Array<[number, number]> | null {
             if (count === 0) return [];
             if (bonds.length < count) return null;
-            
+
             for (let i = 0; i <= bonds.length - count; i++) {
               const bond = bonds[i];
               if (!bond) continue;
-              
+
               const remaining = bonds.slice(i + 1);
-              const availableRemaining = remaining.filter(b => 
-                b && b[0] !== bond[0] && b[1] !== bond[1] && b[0] !== bond[1] && b[1] !== bond[0]
+              const availableRemaining = remaining.filter(
+                (b) =>
+                  b &&
+                  b[0] !== bond[0] &&
+                  b[1] !== bond[1] &&
+                  b[0] !== bond[1] &&
+                  b[1] !== bond[0],
               );
-              
-              const subResult = findNonOverlappingSet(availableRemaining, count - 1);
+
+              const subResult = findNonOverlappingSet(
+                availableRemaining,
+                count - 1,
+              );
               if (subResult !== null) {
                 return [bond, ...subResult];
               }
             }
             return null;
           }
-          
-          const nonOverlappingSet = findNonOverlappingSet(aromaticBondPositions, doubleBondCount);
-          
+
+          const nonOverlappingSet = findNonOverlappingSet(
+            aromaticBondPositions,
+            doubleBondCount,
+          );
+
           if (nonOverlappingSet) {
             selectedBonds.push(...nonOverlappingSet);
           } else {
             // Fallback: use greedy selection
             for (const bond of aromaticBondPositions) {
               if (selectedBonds.length >= doubleBondCount) break;
-              const hasOverlap = usedPositions.has(bond[0]) || usedPositions.has(bond[1]);
+              const hasOverlap =
+                usedPositions.has(bond[0]) || usedPositions.has(bond[1]);
               if (!hasOverlap) {
                 selectedBonds.push(bond);
                 usedPositions.add(bond[0]);
                 usedPositions.add(bond[1]);
               }
             }
-            
+
             // Fill remaining with any bonds
             if (selectedBonds.length < doubleBondCount) {
               for (const bond of aromaticBondPositions) {
                 if (selectedBonds.length >= doubleBondCount) break;
-                if (!selectedBonds.some(b => b[0] === bond[0] && b[1] === bond[1])) {
+                if (
+                  !selectedBonds.some(
+                    (b) => b[0] === bond[0] && b[1] === bond[1],
+                  )
+                ) {
                   selectedBonds.push(bond);
                 }
               }
             }
           }
-          
+
           // Sort selected bonds by first position
           selectedBonds.sort((a, b) => {
             if (a[0] !== b[0]) return a[0] - b[0];
             return a[1] - b[1];
           });
-          
+
           // Format locants with simplified notation for consecutive positions
           // IUPAC uses "n" instead of "n(n+1)" when positions are consecutive
           const locantStr = selectedBonds
@@ -506,8 +526,7 @@ export function buildRingSubstituentAlkylName(
         // Find oxygen atoms bonded to this ring atom
         for (const bond of molecule.bonds) {
           if (bond.atom1 === atomId || bond.atom2 === atomId) {
-            const otherAtomId =
-              bond.atom1 === atomId ? bond.atom2 : bond.atom1;
+            const otherAtomId = bond.atom1 === atomId ? bond.atom2 : bond.atom1;
             const otherAtom = molecule.atoms[otherAtomId];
 
             if (otherAtom?.symbol === "O" && !ringAtomSet.has(otherAtomId)) {
@@ -552,8 +571,12 @@ export function buildRingSubstituentAlkylName(
                 // NOT parentStructure.vonBaeyerNumbering (optimized numbering for principal groups)
                 // The substituent positions should reflect the original structural numbering
                 let vonBaeyerPos = atomId + 1; // Fallback
-                if (polycyclicResult.vonBaeyerNumbering && polycyclicResult.vonBaeyerNumbering.has(atomId)) {
-                  vonBaeyerPos = polycyclicResult.vonBaeyerNumbering.get(atomId)!;
+                if (
+                  polycyclicResult.vonBaeyerNumbering &&
+                  polycyclicResult.vonBaeyerNumbering.has(atomId)
+                ) {
+                  vonBaeyerPos =
+                    polycyclicResult.vonBaeyerNumbering.get(atomId)!;
                 }
 
                 substituentParts.push(`${vonBaeyerPos}-acetyloxy`);
@@ -573,26 +596,27 @@ export function buildRingSubstituentAlkylName(
       // Find all rings in the molecule that are NOT part of ringsInAlkoxy
       const allRings = molecule.rings || [];
       const bicyclicRingSet = new Set(ringsInAlkoxy.flat());
-      
+
       for (let ringIdx = 0; ringIdx < allRings.length; ringIdx++) {
         const externalRing = allRings[ringIdx];
         if (!externalRing) continue;
-        
+
         // Check if this ring is not part of the bicyclic system
-        const isPartOfBicyclic = externalRing.some(atomId => 
-          ringsInAlkoxy.some(r => r.includes(atomId))
+        const isPartOfBicyclic = externalRing.some((atomId) =>
+          ringsInAlkoxy.some((r) => r.includes(atomId)),
         );
-        
+
         if (!isPartOfBicyclic) {
           // This ring is external to the bicyclic system
           // Check if it's connected to the bicyclic system
           let connectionPoint: number | null = null;
-          
+
           for (const extAtomId of externalRing) {
             for (const bond of molecule.bonds) {
               if (bond.atom1 === extAtomId || bond.atom2 === extAtomId) {
-                const otherAtomId = bond.atom1 === extAtomId ? bond.atom2 : bond.atom1;
-                
+                const otherAtomId =
+                  bond.atom1 === extAtomId ? bond.atom2 : bond.atom1;
+
                 // Check if the other atom is in the bicyclic system
                 if (ringAtomSet.has(otherAtomId)) {
                   connectionPoint = otherAtomId;
@@ -602,37 +626,42 @@ export function buildRingSubstituentAlkylName(
             }
             if (connectionPoint !== null) break;
           }
-          
+
           if (connectionPoint !== null) {
             // We found an external ring connected to the bicyclic system
             // Name it as a substituent
-            const hasNitrogen = externalRing.some(atomId => 
-              molecule.atoms[atomId]?.symbol === "N"
+            const hasNitrogen = externalRing.some(
+              (atomId) => molecule.atoms[atomId]?.symbol === "N",
             );
-            
+
             if (hasNitrogen) {
               // This is an azacycle
               const ringSize = externalRing.length;
-              
+
               // Find the nitrogen position in the ring (for "azacyclohexacos-1-yl" the N is at position 1)
               // Find ketone groups (=O) in the ring
               let ketonePosition: number | null = null;
               for (let i = 0; i < externalRing.length; i++) {
                 const ringAtomId = externalRing[i];
                 if (!ringAtomId) continue;
-                
+
                 const ringAtom = molecule.atoms[ringAtomId];
                 if (ringAtom?.symbol === "C") {
                   // Check for C=O
                   for (const bond of molecule.bonds) {
                     if (
-                      (bond.atom1 === ringAtomId || bond.atom2 === ringAtomId) &&
+                      (bond.atom1 === ringAtomId ||
+                        bond.atom2 === ringAtomId) &&
                       bond.type === "double"
                     ) {
-                      const otherAtomId = bond.atom1 === ringAtomId ? bond.atom2 : bond.atom1;
+                      const otherAtomId =
+                        bond.atom1 === ringAtomId ? bond.atom2 : bond.atom1;
                       const otherAtom = molecule.atoms[otherAtomId];
-                      
-                      if (otherAtom?.symbol === "O" && !externalRing.includes(otherAtomId)) {
+
+                      if (
+                        otherAtom?.symbol === "O" &&
+                        !externalRing.includes(otherAtomId)
+                      ) {
                         // Found ketone - position is i+1 (1-based)
                         ketonePosition = i + 1;
                         break;
@@ -642,28 +671,33 @@ export function buildRingSubstituentAlkylName(
                 }
                 if (ketonePosition !== null) break;
               }
-              
+
               // Generate azacycle name
               const ruleEngine = new IUPACRuleEngine();
               const alkaneName = ruleEngine.getAlkaneName(ringSize);
-              const cycleName = alkaneName?.replace(/ane$/, "") || `C${ringSize}`;
-              
+              const cycleName =
+                alkaneName?.replace(/ane$/, "") || `C${ringSize}`;
+
               let azacycleName = `azacyclo${cycleName}-1-yl`;
-              
+
               if (ketonePosition !== null) {
                 azacycleName = `${ketonePosition}-oxo-${azacycleName}`;
               }
-              
+
               // Get von Baeyer position for connection point
               // Use polycyclicResult.vonBaeyerNumbering (original numbering from structure analysis)
               // NOT parentStructure.vonBaeyerNumbering (optimized numbering for principal groups)
               let connectionPos = connectionPoint + 1;
-              if (polycyclicResult.vonBaeyerNumbering && polycyclicResult.vonBaeyerNumbering.has(connectionPoint)) {
-                connectionPos = polycyclicResult.vonBaeyerNumbering.get(connectionPoint)!;
+              if (
+                polycyclicResult.vonBaeyerNumbering &&
+                polycyclicResult.vonBaeyerNumbering.has(connectionPoint)
+              ) {
+                connectionPos =
+                  polycyclicResult.vonBaeyerNumbering.get(connectionPoint)!;
               }
-              
+
               substituentParts.push(`${connectionPos}-(${azacycleName})`);
-              
+
               if (process.env.VERBOSE) {
                 console.log(
                   `[buildRingSubstituentAlkylName] Found azacycle substituent at atom ${connectionPoint} → position ${connectionPos}: ${azacycleName}`,
@@ -673,7 +707,7 @@ export function buildRingSubstituentAlkylName(
           }
         }
       }
-      
+
       // Legacy nitrogen substituent detection (keep for compatibility)
       for (const atomId of ringAtomSet) {
         const atom = molecule.atoms[atomId];
@@ -716,9 +750,8 @@ export function buildRingSubstituentAlkylName(
           polycyclicResult.vonBaeyerNumbering &&
           polycyclicResult.vonBaeyerNumbering.has(attachmentAtomId)
         ) {
-          attachmentPos = polycyclicResult.vonBaeyerNumbering.get(
-            attachmentAtomId,
-          )!;
+          attachmentPos =
+            polycyclicResult.vonBaeyerNumbering.get(attachmentAtomId)!;
         }
         radicalName = `${attachmentPos}-${radicalName}`;
       }

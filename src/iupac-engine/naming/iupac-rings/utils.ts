@@ -28,7 +28,7 @@ export function getAlkaneBySize(n: number): string {
   };
   // Use rule engine for large rings (>20 carbons)
   if (map[n]) return map[n];
-  
+
   const alkaneName = ruleEngine.getAlkaneName(n);
   if (alkaneName) {
     // For von Baeyer nomenclature, we need the stem form
@@ -38,7 +38,7 @@ export function getAlkaneBySize(n: number): string {
     stem = stem.replace(/aa/, "a").replace(/atriacont/, "triacont");
     return stem + "a";
   }
-  
+
   return `C${n}`;
 }
 
@@ -1869,45 +1869,55 @@ export function generateClassicPolycyclicName(
       } else {
         // Only apply cyclic shift optimization when no heteroatoms are present
         for (let shift = 1; shift < maxPos; shift++) {
-        const shiftedNumbering = applyShift(vonBaeyerNumbering, shift, maxPos);
-        const locants = computeLocants(shiftedNumbering);
-        const completeSet = getCompleteLocantSet(locants);
+          const shiftedNumbering = applyShift(
+            vonBaeyerNumbering,
+            shift,
+            maxPos,
+          );
+          const locants = computeLocants(shiftedNumbering);
+          const completeSet = getCompleteLocantSet(locants);
 
-        if (process.env.VERBOSE) {
-          console.log(`[TRICYCLO SHIFT] Evaluating shift${shift}:`);
-          console.log(`  Hetero: [${locants.heteroLocs.join(",")}]`);
-          console.log(`  Principal: [${locants.principalLocs.join(",")}]`);
-          console.log(`  Substituent: [${locants.substituentLocs.join(",")}]`);
-          console.log(`  Complete set: [${completeSet.join(",")}]`);
-        }
-
-        // Compare according to IUPAC priority hierarchy for von Baeyer nomenclature:
-        // Note: Heteroatom positions are structural features determined by the parent
-        // hydride and should NOT be minimized during cyclic shift optimization.
-        // 1. Principal functional group locants (P-14.3)
-        // 2. Complete locant set (P-14.4)
-        const principalComp = compareArrays(
-          locants.principalLocs,
-          bestLocants.principalLocs,
-        );
-        const completeSetComp = compareArrays(completeSet, bestCompleteSet);
-
-        if (process.env.VERBOSE) {
-          console.log(`  principalComp=${principalComp}, completeSetComp=${completeSetComp}`);
-        }
-
-        if (
-          principalComp < 0 ||
-          (principalComp === 0 && completeSetComp < 0)
-        ) {
           if (process.env.VERBOSE) {
-            console.log(`[TRICYCLO SHIFT] shift${shift} is BETTER - updating best`);
+            console.log(`[TRICYCLO SHIFT] Evaluating shift${shift}:`);
+            console.log(`  Hetero: [${locants.heteroLocs.join(",")}]`);
+            console.log(`  Principal: [${locants.principalLocs.join(",")}]`);
+            console.log(
+              `  Substituent: [${locants.substituentLocs.join(",")}]`,
+            );
+            console.log(`  Complete set: [${completeSet.join(",")}]`);
           }
-          bestNumbering = shiftedNumbering;
-          bestLabel = `shift${shift}`;
-          bestLocants = locants;
-          bestCompleteSet = completeSet;
-        }
+
+          // Compare according to IUPAC priority hierarchy for von Baeyer nomenclature:
+          // Note: Heteroatom positions are structural features determined by the parent
+          // hydride and should NOT be minimized during cyclic shift optimization.
+          // 1. Principal functional group locants (P-14.3)
+          // 2. Complete locant set (P-14.4)
+          const principalComp = compareArrays(
+            locants.principalLocs,
+            bestLocants.principalLocs,
+          );
+          const completeSetComp = compareArrays(completeSet, bestCompleteSet);
+
+          if (process.env.VERBOSE) {
+            console.log(
+              `  principalComp=${principalComp}, completeSetComp=${completeSetComp}`,
+            );
+          }
+
+          if (
+            principalComp < 0 ||
+            (principalComp === 0 && completeSetComp < 0)
+          ) {
+            if (process.env.VERBOSE) {
+              console.log(
+                `[TRICYCLO SHIFT] shift${shift} is BETTER - updating best`,
+              );
+            }
+            bestNumbering = shiftedNumbering;
+            bestLabel = `shift${shift}`;
+            bestLocants = locants;
+            bestCompleteSet = completeSet;
+          }
         }
       }
 

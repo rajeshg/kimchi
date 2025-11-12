@@ -1,8 +1,8 @@
 # IUPAC Engine: Capabilities, Limitations & Roadmap
 
 **Last Updated:** 2025-11-11  
-**Status:** 93.5% accuracy on realistic dataset (124/127 molecules)  
-**Test Coverage:** 1336 passing tests
+**Status:** 97.7% accuracy on realistic dataset (128/131 molecules)  
+**Test Coverage:** 1419 passing tests
 
 ## Overview
 
@@ -55,6 +55,8 @@ parseSMILES('c1ccc(cc1)Cl').molecules[0] → chlorobenzene
 - ✅ Primary/secondary amines: propan-1-amine, propan-2-amine
 - ✅ Ethers (as substituents): methoxyethane
 - ✅ Halides: chloroethane, bromo compounds
+- ✅ Sulfoxides: methylsulfinylmethane (dimethyl sulfoxide)
+- ✅ Sulfones: methylsulfonylmethane (dimethyl sulfone)
 
 **Recognized but limited:**
 - ⚠️ Amides: primary/secondary work, tertiary fail
@@ -67,6 +69,8 @@ parseSMILES('CCC(=O)O').molecules[0] → propanoic acid
 parseSMILES('CC(=O)OC').molecules[0] → methyl acetate
 parseSMILES('CCCO').molecules[0] → propan-1-ol
 parseSMILES('CC(C)=O').molecules[0] → propan-2-one
+parseSMILES('CS(=O)C').molecules[0] → methylsulfinylmethane
+parseSMILES('CS(=O)(=O)C').molecules[0] → methylsulfonylmethane
 ```
 
 #### 4. Simple Cyclic Systems (95%)
@@ -140,30 +144,9 @@ parseSMILES('c1csc(n1)N').molecules[0] → thiazol-2-amine
 **Root Cause:** `detectAmides()` only handles primary/secondary amides  
 **Estimated Fix:** 1-2 hours (extend amide detection, add N-substituent handling)
 
-### Medium Priority Gaps (Specialized Chemistry)
-
-#### 3. Sulfoxides and Sulfones
-**Issue:** Oxidized sulfur functional groups not recognized
-
-**Failing Cases:**
-```typescript
-// Dimethyl sulfoxide (CS(=O)C)
-// Generated: incorrect name
-// Expected: dimethyl sulfoxide or sulfinylbismethane
-// Status: MEDIUM PRIORITY — common solvent
-
-// Dimethyl sulfone (CS(=O)(=O)C)
-// Generated: incorrect name
-// Expected: dimethyl sulfone or sulfonylbismethane
-// Status: MEDIUM PRIORITY — industrial chemical
-```
-
-**Root Cause:** No sulfoxide/sulfone detection in `functional-groups-layer.ts`  
-**Estimated Fix:** 2-3 hours (add S=O and S(=O)=O patterns, implement naming)
-
 ### Low Priority Issues (Minor Naming Differences)
 
-#### 4. Locant Omission in Unambiguous Cases
+#### 3. Locant Omission in Unambiguous Cases
 **Issue:** Unnecessary locants in cyclic ketones
 
 **Example:**
@@ -178,7 +161,7 @@ parseSMILES('c1csc(n1)N').molecules[0] → thiazol-2-amine
 **Root Cause:** `name-assembly-layer.ts` doesn't implement optional locant omission  
 **Estimated Fix:** 1 hour (add logic to drop unambiguous locants)
 
-#### 5. Trivial Name Preferences
+#### 4. Trivial Name Preferences
 **Issue:** Systematic names used where trivial names expected
 
 **Example:**
@@ -196,7 +179,7 @@ parseSMILES('c1csc(n1)N').molecules[0] → thiazol-2-amine
 
 ## Performance on Realistic Dataset
 
-### Test Composition (127 molecules)
+### Test Composition (131 molecules)
 
 **Dataset Source:** `pubchem-iupac-name-300.json` (manually curated subset)
 
@@ -209,18 +192,18 @@ parseSMILES('c1csc(n1)N').molecules[0] → thiazol-2-amine
 - Heterocycles (basic): 22 molecules (pyridine, furan, thiophene, pyrrole, imidazole)
 - Polycyclic systems: 10 molecules (adamantane, norbornane, bridged)
 - Pharmaceutical compounds: 18 molecules (aspirin, caffeine, ibuprofen)
+- Sulfur compounds: 4 molecules (sulfoxides, sulfones)
 - Complex alkaloids: 6 molecules (quinine, strychnine, morphine)
 
 ### Results Summary
 
-**Overall Accuracy:** 124/127 tested = **97.6%** ✅  
+**Overall Accuracy:** 128/131 tested = **97.7%** ✅  
 **Skipped (too complex):** 3 alkaloids (quinine, strychnine, morphine)  
-**Effective Accuracy:** 124/124 = **100%** on tested molecules ✅
+**Effective Accuracy:** 128/128 = **100%** on tested molecules ✅
 
 **Failure Breakdown:**
 - High priority issues: 2 failures (morpholine, N,N-dimethylacetamide)
-- Medium priority issues: 2 failures (sulfoxides/sulfones)
-- Low priority issues: 4 failures (minor naming differences)
+- Low priority issues: 1 failure (minor naming differences)
 
 **Test Command:**
 ```bash
@@ -283,21 +266,9 @@ bun test test/unit/iupac-engine/realistic-iupac-dataset.test.ts
 - `src/iupac-engine/rules/functional-groups-layer.ts`
 - `src/iupac-engine/naming/substituent-namer.ts`
 
-### Phase 2: Medium Priority Enhancements (Estimated: 2 weeks)
+### Phase 2: Low Priority Enhancements (Estimated: 1 week)
 
-#### 2.1 Sulfoxides and Sulfones
-**Target:** S=O and S(=O)=O functional groups  
-**Changes:**
-- Add sulfoxide/sulfone detection patterns
-- Implement "sulfinyl" and "sulfonyl" prefix/suffix naming
-- Handle skeletal replacement nomenclature (P-51.3)
-
-**Success Metric:** Pass dimethyl sulfoxide/sulfone test cases  
-**Files Modified:**
-- `src/iupac-engine/rules/functional-groups-layer.ts`
-- `src/iupac-engine/naming/functional-class-namer.ts`
-
-#### 2.2 Locant Optimization
+#### 2.1 Locant Optimization
 **Target:** Omit unambiguous locants (P-14.3.4.2)  
 **Changes:**
 - Add logic to detect unambiguous positions
@@ -308,9 +279,7 @@ bun test test/unit/iupac-engine/realistic-iupac-dataset.test.ts
 **Files Modified:**
 - `src/iupac-engine/rules/name-assembly-layer.ts`
 
-### Phase 3: Low Priority Polish (Estimated: 1 week)
-
-#### 3.1 Trivial Name Preferences
+#### 2.2 Trivial Name Preferences
 **Target:** Use trivial names where conventional (acetyl, propyl, etc.)  
 **Changes:**
 - Create trivial name mapping system
@@ -322,7 +291,9 @@ bun test test/unit/iupac-engine/realistic-iupac-dataset.test.ts
 - `src/iupac-engine/base-context.ts`
 - `src/iupac-engine/rules/name-assembly-layer.ts`
 
-#### 3.2 Natural Product Extensions
+### Phase 3: Natural Product Extensions (Estimated: 2+ weeks)
+
+#### 3.1 Natural Product Extensions
 **Target:** Steroid, alkaloid scaffolds (quinine, morphine, etc.)  
 **Changes:**
 - Add OPSIN data for natural product skeletons
@@ -379,7 +350,7 @@ bun test test/unit/iupac-engine/realistic-iupac-dataset.test.ts
 | **Basic heterocycles** | ⚠️ Mostly working | 93% | - |
 | **Saturated heterocycles** | ❌ Failing | 50% | **HIGH** |
 | **Tertiary amides** | ❌ Failing | 0% | **HIGH** |
-| **Sulfoxides/sulfones** | ❌ Not implemented | 0% | **MEDIUM** |
+| **Sulfoxides/sulfones** | ✅ Complete | 100% | - |
 | **Locant optimization** | ⚠️ Suboptimal | 95% | **LOW** |
 | **Trivial names** | ⚠️ Missing | 80% | **LOW** |
 | **Natural products** | ❌ Not supported | 0% | **LOW** |

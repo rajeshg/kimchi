@@ -2259,9 +2259,11 @@ export function buildSubstitutiveName(
         const isC1Chain =
           isChainParent && (parentStructure.chain?.length ?? 0) === 1;
         const shouldOmitC1Locant = isC1Chain && isTerminalPosition;
-        
+
         const needsLocant =
-          !isSingleStructuralSubstituentOnly && !isSimpleTerminalHalogen && !shouldOmitC1Locant;
+          !isSingleStructuralSubstituentOnly &&
+          !isSimpleTerminalHalogen &&
+          !shouldOmitC1Locant;
 
         // For amines, replace numeric position "1" with "N" if position 1 is nitrogen
         const isAmine = principalFG?.type === "amine";
@@ -2316,7 +2318,7 @@ export function buildSubstitutiveName(
         // Example: CS(=O)C -> "methylsulfinylmethane" not "(methylsulfinyl)methane"
         const isC1ChainSingleSub =
           isC1Chain && isSingleSubstituent && isTerminalPosition;
-        
+
         const needsWrapping =
           !isC1ChainSingleSub &&
           (hasNestedParentheses ||
@@ -2952,7 +2954,7 @@ export function buildSubstitutiveName(
       JSON.stringify(principalGroup),
     );
   }
-  
+
   // Check if the principal group is already incorporated into a substituent
   // For symmetric molecules like CS(=O)C, the sulfinyl functional group is part of
   // the "methylsulfinyl" substituent, so we shouldn't add the suffix again
@@ -2973,8 +2975,12 @@ export function buildSubstitutiveName(
       }
     }
   }
-  
-  if (principalGroup && principalGroup.suffix && !principalGroupIsInSubstituent) {
+
+  if (
+    principalGroup &&
+    principalGroup.suffix &&
+    !principalGroupIsInSubstituent
+  ) {
     // PREFERRED NAMES: Use retained names for simple carboxylic acids (C1-C3)
     // According to IUPAC Blue Book:
     // - formic acid (C1): HCOOH - no substituents (nowhere to put them)
@@ -3297,7 +3303,9 @@ export function buildSubstitutiveName(
         (chainLength <= 2 &&
           fgLocant === 1 &&
           parentStructure.type === "chain") ||
-        (isTerminalGroup && fgLocant === 1 && parentStructure.type === "chain") ||
+        (isTerminalGroup &&
+          fgLocant === 1 &&
+          parentStructure.type === "chain") ||
         isSingleCyclicKetone;
 
       if (process.env.VERBOSE) {

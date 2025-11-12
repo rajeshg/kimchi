@@ -461,10 +461,16 @@ export const RING_NUMBERING_RULE: IUPACRule = {
           originalNumbering = bestNumbering;
 
           if (process.env.VERBOSE) {
-            console.log(`[TRICYCLO SHIFT] Selected ${bestLabel} (best locants)`);
+            console.log(
+              `[TRICYCLO SHIFT] Selected ${bestLabel} (best locants)`,
+            );
             console.log(`  Hetero: [${bestLocants.heteroLocs.join(",")}]`);
-            console.log(`  Principal: [${bestLocants.principalLocs.join(",")}]`);
-            console.log(`  Substituent: [${bestLocants.substituentLocs.join(",")}]`);
+            console.log(
+              `  Principal: [${bestLocants.principalLocs.join(",")}]`,
+            );
+            console.log(
+              `  Substituent: [${bestLocants.substituentLocs.join(",")}]`,
+            );
             console.log(`  Complete set: [${bestCompleteSet.join(",")}]`);
           }
         }

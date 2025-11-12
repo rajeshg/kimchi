@@ -515,12 +515,12 @@
   {
     "smiles": "O=C1CCCC1",
     "iupac": "cyclopentanone",
-    "comment": "Cyclic ketone - close (generates cyclopentan-1-one)"
+    "comment": "Cyclic ketone - IUPAC P-14.3.4 locant omission (unambiguous monocyclic ketone)"
   },
   {
     "smiles": "C1CCC(=O)CC1",
     "iupac": "cyclohexanone",
-    "comment": "Cyclic ketone - close (generates cyclohexan-1-one)"
+    "comment": "Cyclic ketone - IUPAC P-14.3.4 locant omission (unambiguous monocyclic ketone)"
   },
   {
     "smiles": "CC(=O)N(C)C",
@@ -531,5 +531,25 @@
     "smiles": "CC(=O)Nc1ccccc1",
     "iupac": "N-phenylethanamide",
     "comment": "Anilide - strict IUPAC systematic name (trivial: N-phenylacetamide)"
+  },
+  {
+    "smiles": "CS(=O)C",
+    "iupac": "methylsulfinylmethane",
+    "comment": "Dimethyl sulfoxide (DMSO) - sulfinyl functional group"
+  },
+  {
+    "smiles": "CS(=O)(=O)C",
+    "iupac": "methylsulfonylmethane",
+    "comment": "Dimethyl sulfone - sulfonyl functional group"
+  },
+  {
+    "smiles": "CCS(=O)C",
+    "iupac": "1-(methylsulfinyl)ethane",
+    "comment": "Ethyl methyl sulfoxide - sulfinyl substituent on ethane"
+  },
+  {
+    "smiles": "c1ccccc1S(=O)(=O)c2ccccc2",
+    "iupac": "(phenylsulfonyl)benzene",
+    "comment": "Diphenyl sulfone - sulfonyl group connecting two phenyl rings"
   }
 ]

@@ -478,7 +478,7 @@ export function findSubstituents(
       // Multiple sulfurs: skip the first one (attached to chain)
       nonChainSulfurs = sulfurBridge.slice(1);
     }
-    
+
     const substituentStarts: number[] = [];
     for (const sulfur of nonChainSulfurs) {
       const starts = sulfurToSubstituentStarts.get(sulfur) || [];

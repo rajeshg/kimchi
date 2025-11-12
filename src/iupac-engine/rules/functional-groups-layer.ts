@@ -2537,10 +2537,14 @@ function selectPrincipalGroup(
       "[selectPrincipalGroup] Called with",
       functionalGroups.length,
       "groups:",
-      functionalGroups.map((g) => ({ type: g.type, priority: g.priority, locants: g.locants })),
+      functionalGroups.map((g) => ({
+        type: g.type,
+        priority: g.priority,
+        locants: g.locants,
+      })),
     );
   }
-  
+
   if (functionalGroups.length === 0) {
     return undefined;
   }
@@ -2647,12 +2651,14 @@ function selectPrincipalGroup(
     const totalAmineNitrogens = amineGroups.reduce((sum, g) => {
       return sum + (g.locants?.length || 0);
     }, 0);
-    
+
     if (totalAmineNitrogens >= 2) {
       // Diamine detected - check if it should override other functional groups
-      const alcoholGroups = groupsToConsider.filter((g) => g.type === "alcohol");
+      const alcoholGroups = groupsToConsider.filter(
+        (g) => g.type === "alcohol",
+      );
       const amideGroups = groupsToConsider.filter((g) => g.type === "amide");
-      
+
       // Diamine takes precedence over alcohols or when amides are present
       // (amides attached to diamine nitrogens should be N-substituents, not principal)
       if (alcoholGroups.length > 0 || amideGroups.length > 0) {

@@ -117,7 +117,10 @@ export function buildAmideName(
     }
     // Handle alkyl substituents (methyl, ethyl, etc.)
     else if (neighbor.symbol === "C") {
-      const alkylName = getAlkylSubstituentName(neighborId, molecule, [amideNitrogenId, carbonylCarbonId || -1]);
+      const alkylName = getAlkylSubstituentName(neighborId, molecule, [
+        amideNitrogenId,
+        carbonylCarbonId || -1,
+      ]);
       if (alkylName) {
         nSubstituents.push({ atomId: neighborId, name: alkylName });
         if (process.env.VERBOSE) {
@@ -212,7 +215,7 @@ function getMultiplier(count: number): string {
 function getAlkylSubstituentName(
   startAtomId: number,
   molecule: Molecule,
-  excludeAtoms: number[]
+  excludeAtoms: number[],
 ): string | null {
   const startAtom = molecule.atoms[startAtomId];
   if (!startAtom || startAtom.symbol !== "C") return null;
@@ -229,13 +232,13 @@ function getAlkylSubstituentName(
 
     const atom = molecule.atoms[atomId];
     if (!atom || atom.symbol !== "C") continue;
-    
+
     carbonIds.push(atomId);
 
     // Add neighbors
     for (const bond of molecule.bonds) {
       if (bond.type !== "single") continue;
-      
+
       let neighborId: number | undefined;
       if (bond.atom1 === atomId) neighborId = bond.atom2;
       else if (bond.atom2 === atomId) neighborId = bond.atom1;
@@ -251,8 +254,16 @@ function getAlkylSubstituentName(
 
   // Build alkyl name based on carbon count
   const chainLength = carbonIds.length;
-  const alkylNames = ["", "methyl", "ethyl", "propyl", "butyl", "pentyl", "hexyl"];
-  
+  const alkylNames = [
+    "",
+    "methyl",
+    "ethyl",
+    "propyl",
+    "butyl",
+    "pentyl",
+    "hexyl",
+  ];
+
   if (chainLength > 0 && chainLength < alkylNames.length) {
     const name = alkylNames[chainLength];
     return name || null;

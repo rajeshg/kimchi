@@ -164,7 +164,9 @@ export function buildEsterWithRingAlkylGroup(
           );
         }
 
-        ringAttachmentPosition = atomIdToPosition.get(ringAtomConnectedToOxygen);
+        ringAttachmentPosition = atomIdToPosition.get(
+          ringAtomConnectedToOxygen,
+        );
 
         if (process.env.VERBOSE) {
           console.log(
@@ -185,7 +187,9 @@ export function buildEsterWithRingAlkylGroup(
           );
         }
 
-        ringAttachmentPosition = atomIdToPosition.get(ringAtomConnectedToOxygen);
+        ringAttachmentPosition = atomIdToPosition.get(
+          ringAtomConnectedToOxygen,
+        );
 
         if (process.env.VERBOSE) {
           console.log(
@@ -380,13 +384,17 @@ export function buildEsterWithRingAlkylGroup(
 
   // Get ring name - check if we should use the polycyclic naming logic
   const ringName = parentStructure.name || "ring";
-  const isPolycyclic = ringName.includes("bicyclo") || ringName.includes("tricyclo") || ringName.includes("spiro");
+  const isPolycyclic =
+    ringName.includes("bicyclo") ||
+    ringName.includes("tricyclo") ||
+    ringName.includes("spiro");
 
   let alkylGroupName: string;
 
   // For polycyclic rings, use the comprehensive naming logic from buildRingSubstituentAlkylName
   if (isPolycyclic && ringAtomConnectedToOxygen !== undefined && esterOxygen) {
-    const esterOxygenId = typeof esterOxygen === "number" ? esterOxygen : esterOxygen.id;
+    const esterOxygenId =
+      typeof esterOxygen === "number" ? esterOxygen : esterOxygen.id;
     const polycyclicName = buildRingSubstituentAlkylName(
       ringAtomConnectedToOxygen,
       esterOxygenId,
@@ -413,7 +421,7 @@ export function buildEsterWithRingAlkylGroup(
         ringAttachmentPosition !== undefined
           ? `${ringBaseName}-${ringAttachmentPosition}-yl`
           : `${ringBaseName}-yl`;
-      
+
       if (substituentParts.length > 0) {
         const substituentString = substituentParts.join("-");
         const needsHyphen = !substituentString.endsWith("yl");
@@ -431,7 +439,7 @@ export function buildEsterWithRingAlkylGroup(
       ringAttachmentPosition !== undefined
         ? `${ringBaseName}-${ringAttachmentPosition}-yl`
         : `${ringBaseName}-yl`;
-    
+
     // Assemble the alkyl group name
     // If the last substituent ends with "-yl", don't add hyphen before ring name
     if (substituentParts.length > 0) {
