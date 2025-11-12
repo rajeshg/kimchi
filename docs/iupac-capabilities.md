@@ -60,7 +60,7 @@ parseSMILES('c1ccc(cc1)Cl').molecules[0] → chlorobenzene
 - ✅ Sulfones: methylsulfonylmethane (dimethyl sulfone)
 
 **Recognized but limited:**
-- ✅ Amides: primary/secondary/tertiary all work (n,n-dimethylethanamide)
+- ✅ Amides: primary/secondary/tertiary all work (N,N-dimethylethanamide)
 - ✅ Nitriles: ethanenitrile, propanenitrile, butanenitrile
 - ⚠️ Nitro compounds: aromatic only
 
@@ -277,11 +277,11 @@ bun test test/unit/iupac-engine/realistic-iupac-dataset.test.ts
 #### 1.2 Tertiary Amides (✅ DONE)
 **Target:** N,N-disubstituted amides  
 **Result:** 100% accuracy on tertiary amides
-- n,n-dimethylethanamide
-- n,n-diethylethanamide
-- n,n-dimethylpropanamide
-- 2-methyl-n,n-dimethylpropanamide
-- n-methyl-n-phenylethanamide
+- N,N-dimethylethanamide
+- N,N-diethylethanamide
+- N,N-dimethylpropanamide
+- 2-methyl-N,N-dimethylpropanamide
+- N-methyl-N-phenylethanamide
 
 **Dataset:** Added 5 strategic molecules  
 **Test Result:** All passing
@@ -375,9 +375,9 @@ bun test test/unit/iupac-engine/realistic-iupac-dataset.test.ts
 | **Aromatic hydrocarbons** | ✅ Complete | 100% | - |
 | **Basic functional groups** | ✅ Complete | 100% | - |
 | **Simple rings** | ✅ Complete | 95% | - |
-| **Basic heterocycles** | ⚠️ Mostly working | 93% | - |
-| **Saturated heterocycles** | ❌ Failing | 50% | **HIGH** |
-| **Tertiary amides** | ❌ Failing | 0% | **HIGH** |
+| **Basic heterocycles** | ✅ Complete | 100% | - |
+| **Saturated heterocycles** | ✅ Complete | 100% | - |
+| **Tertiary amides** | ✅ Complete | 100% | - |
 | **Sulfoxides/sulfones** | ✅ Complete | 100% | - |
 | **Locant optimization** | ⚠️ Suboptimal | 95% | **LOW** |
 | **Trivial names** | ⚠️ Missing | 80% | **LOW** |
@@ -385,7 +385,7 @@ bun test test/unit/iupac-engine/realistic-iupac-dataset.test.ts
 
 **Overall System Status:** 
 - **Production Ready** for simple to moderate complexity molecules (C1-C30)
-- **Needs Work** for saturated heterocycles, tertiary amides
+- **Excellent Coverage** for all common functional groups including saturated heterocycles and tertiary amides
 - **Not Recommended** for complex natural products (>50 atoms, steroids, alkaloids)
 
 ---
