@@ -153,31 +153,81 @@ export const LOCANT_ASSIGNMENT_ASSEMBLY_RULE: IUPACRule = {
       const suffix = group.suffix || "";
       const type = group.type;
 
+      // Check if we can omit locant "1" for C1 chains (methane)
+      const isC1Chain =
+        parentStructure.type === "chain" &&
+        (parentStructure.chain?.length ?? 0) === 1;
+      const shouldOmitC1Locant = isC1Chain && locants === "1";
+
+      // Check if we can omit locant "1" for terminal positions on short chains
+      // Per IUPAC: for unbranched chains with a single terminal substituent, omit locant "1"
+      // Only omit for C1 (methane) and C2 (ethane); C3+ chains MUST keep terminal locants
+      const chainLength = parentStructure.chain?.length ?? 0;
+      const isShortChain = parentStructure.type === "chain" && chainLength === 2;
+      const nonPrincipalSubstituentCount = functionalGroups.filter(
+        (fg: FunctionalGroup) => !fg.isPrincipal,
+      ).length;
+      const shouldOmitTerminalLocant =
+        isShortChain &&
+        locants === "1" &&
+        nonPrincipalSubstituentCount === 1;
+
+      if (process.env.VERBOSE && locants === "1") {
+        console.log(
+          `[LOCANT_ASSEMBLY] Terminal locant check: chainLength=${chainLength}, isShortChain=${isShortChain}, ` +
+          `nonPrincipalSubstituentCount=${nonPrincipalSubstituentCount}, shouldOmitTerminalLocant=${shouldOmitTerminalLocant}`,
+        );
+      }
+
+      // Check if we can omit locant "1" for single substituent on symmetric rings
+      // Per IUPAC P-14.3.4.1: For symmetric rings (benzene, cyclohexane, etc.),
+      // a single substituent at position 1 doesn't need a locant
+      const parentName = parentStructure.assembledName || parentStructure.name || "";
+      const isSymmetricRing =
+        parentStructure.type === "ring" &&
+        (parentName.includes("benzene") || parentName.includes("cyclo"));
+      const shouldOmitRingLocant =
+        isSymmetricRing &&
+        locants === "1" &&
+        nonPrincipalSubstituentCount === 1;
+
       let name = "";
 
       // For NON-PRINCIPAL functional groups, use only the prefix as substituent name
       // Example: alcohol (non-principal) → "hydroxy" not "hydroxyalcoholol"
       if (!group.isPrincipal && prefix) {
-        name = locants ? `${locants}-${prefix}` : prefix;
+        name =
+          locants && !shouldOmitC1Locant && !shouldOmitTerminalLocant && !shouldOmitRingLocant
+            ? `${locants}-${prefix}`
+            : prefix;
       }
       // For alkoxy groups, the prefix IS the full substituent name (e.g., 'methoxy')
       // So we don't append the type 'alkoxy'
       else if (type === "alkoxy" && prefix) {
-        name = locants ? `${locants}-${prefix}` : prefix;
+        name =
+          locants && !shouldOmitC1Locant && !shouldOmitTerminalLocant && !shouldOmitRingLocant
+            ? `${locants}-${prefix}`
+            : prefix;
       }
       // For PRINCIPAL functional groups, use the full name assembly
       else {
-        if (locants) {
+        if (locants && !shouldOmitC1Locant && !shouldOmitTerminalLocant && !shouldOmitRingLocant) {
           name = `${locants}-${prefix}${type}${suffix}`;
         } else {
           name = `${prefix}${type}${suffix}`;
         }
       }
 
+      // If we omitted the locant in the assembled name, clear the locants array
+      // to prevent substitutive-naming.ts from re-adding it
+      const shouldClearLocants = 
+        shouldOmitC1Locant || shouldOmitTerminalLocant || shouldOmitRingLocant;
+
       return {
         ...group,
         assembledName: name,
         locantString: locants,
+        ...(shouldClearLocants ? { locants: [] } : {}),
       };
     });
 
@@ -297,16 +347,19 @@ export const MULTIPLICATIVE_PREFIXES_RULE: IUPACRule = {
         );
         const finalName = `${prefix}${cleanName}`;
 
+        // Collect all locants from all groups
+        const allLocants = groups
+          .flatMap((g: FunctionalGroup) => g.locants || [])
+          .filter((l) => l > 0)
+          .sort((a, b) => a - b);
+
         processedNonPrincipal.push({
           ...firstGroup,
           assembledName: finalName,
           isMultiplicative: true,
           multiplicity: count,
-          locantString: groups
-            .map((g: FunctionalGroup) => g.locants?.[0] || -1)
-            .filter((l) => l > 0)
-            .sort((a, b) => a - b)
-            .join(","),
+          locants: allLocants,
+          locantString: allLocants.join(","),
         });
       } else {
         // Single group - keep as is

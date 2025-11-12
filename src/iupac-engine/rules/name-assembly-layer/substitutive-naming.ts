@@ -481,31 +481,41 @@ export function buildSubstitutiveName(
             if (!substituentGroups.has(subName)) {
               substituentGroups.set(subName, []);
             }
-            // Get locant from substituent - handle both IUPACStructuralSubstituent (position) and StructuralSubstituent (locant/locants)
-            let locant: number | undefined;
-            if ("locant" in sub && sub.locant !== undefined) {
-              locant = sub.locant;
-            } else if ("locants" in sub && sub.locants?.[0] !== undefined) {
-              locant = sub.locants[0];
-            } else if ("position" in sub && sub.position !== undefined) {
-              // IUPACStructuralSubstituent uses 'position' field (string) - convert to number
-              locant = Number.parseInt(sub.position as string, 10);
-            }
-            if (process.env.VERBOSE) {
-              const subLocant = "locant" in sub ? sub.locant : undefined;
-              const subLocants = "locants" in sub ? sub.locants : undefined;
-              const subPosition =
-                "position" in sub
-                  ? (sub as { position: string }).position
-                  : undefined;
-              if (process.env.VERBOSE) {
-                console.log(
-                  `[LOCANT DEBUG] sub.type=${sub.type}, sub.name=${sub.name}, sub.locant=${subLocant}, sub.locants=${JSON.stringify(subLocants)}, sub.position=${subPosition}, calculated locant=${locant}`,
-                );
+            
+            // Special handling for multiplicative groups (e.g., dinitro with locants=[1,3])
+            // These groups have already been aggregated and have all locants in the array
+            const isMultiplicative = "isMultiplicative" in sub && sub.isMultiplicative;
+            
+            if (isMultiplicative && "locants" in sub && sub.locants && sub.locants.length > 1) {
+              // Push all locants for multiplicative groups
+              substituentGroups.get(subName)!.push(...sub.locants);
+            } else {
+              // Get single locant from substituent - handle both IUPACStructuralSubstituent (position) and StructuralSubstituent (locant/locants)
+              let locant: number | undefined;
+              if ("locant" in sub && sub.locant !== undefined) {
+                locant = sub.locant;
+              } else if ("locants" in sub && sub.locants?.[0] !== undefined) {
+                locant = sub.locants[0];
+              } else if ("position" in sub && sub.position !== undefined) {
+                // IUPACStructuralSubstituent uses 'position' field (string) - convert to number
+                locant = Number.parseInt(sub.position as string, 10);
               }
-            }
-            if (locant && !Number.isNaN(locant)) {
-              substituentGroups.get(subName)!.push(locant);
+              if (process.env.VERBOSE) {
+                const subLocant = "locant" in sub ? sub.locant : undefined;
+                const subLocants = "locants" in sub ? sub.locants : undefined;
+                const subPosition =
+                  "position" in sub
+                    ? (sub as { position: string }).position
+                    : undefined;
+                if (process.env.VERBOSE) {
+                  console.log(
+                    `[LOCANT DEBUG] sub.type=${sub.type}, sub.name=${sub.name}, sub.locant=${subLocant}, sub.locants=${JSON.stringify(subLocants)}, sub.position=${subPosition}, calculated locant=${locant}, isMultiplicative=${isMultiplicative}`,
+                  );
+                }
+              }
+              if (locant && !Number.isNaN(locant)) {
+                substituentGroups.get(subName)!.push(locant);
+              }
             }
           }
         }
@@ -515,12 +525,32 @@ export function buildSubstitutiveName(
       const totalStructuralSubstituents = Array.from(
         substituentGroups.values(),
       ).reduce((sum, locs) => sum + locs.length, 0);
+      
+      // Count substituents that already have locants in their assembledName (e.g., "4-nitro")
+      // These are not in substituentGroups but will be added directly to substituentParts
+      const preAssembledSubstituentsCount = allStructuralSubstituents.filter((sub) => {
+        const assembledName = "assembledName" in sub ? sub.assembledName : undefined;
+        return assembledName && /^\d+-/.test(assembledName);
+      }).length;
+      
+      // Total count including both grouped and pre-assembled substituents
+      const totalAllSubstituentsCount = totalStructuralSubstituents + preAssembledSubstituentsCount;
+      
+      if (process.env.VERBOSE) {
+        console.log(
+          `[LOCANT OMISSION DEBUG] totalStructuralSubstituents=${totalStructuralSubstituents}, ` +
+          `preAssembledCount=${preAssembledSubstituentsCount}, totalAll=${totalAllSubstituentsCount}, ` +
+          `substituentGroups.size=${substituentGroups.size}`,
+        );
+      }
 
       for (const [subName, locants] of substituentGroups.entries()) {
         locants.sort((a, b) => a - b);
         // For single substituent at position 1 on symmetric rings, omit locant
         // This applies to benzene, cyclohexane, cyclopentane, and other symmetric rings
         // BUT only if it's the ONLY substituent on the ring
+        // Note: totalStructuralSubstituents includes ALL substituents (both structural like "methyl"
+        // and functional groups like "nitro"), so we can use it to check if this is the only one
         const parentName =
           parentStructure.assembledName || parentStructure.name || "";
         const isSymmetricRing =
@@ -529,14 +559,14 @@ export function buildSubstitutiveName(
           locants.length === 1 &&
           locants[0] === 1 &&
           isSymmetricRing &&
-          totalStructuralSubstituents === 1;
+          totalAllSubstituentsCount === 1;
 
         // IUPAC terminal halogen rule: Omit position 1 locant for terminal halogens
         // on simple unbranched saturated chains with no heteroatoms
         // Example: CCCl -> "chloroethane" not "1-chloroethane"
         const isChainParent = parentStructure.type === "chain";
         const isTerminalPosition = locants.length === 1 && locants[0] === 1;
-        const isSingleSubstituent = totalStructuralSubstituents === 1;
+        const isSingleSubstituent = totalAllSubstituentsCount === 1;
         const isHalogen = ["chloro", "bromo", "fluoro", "iodo"].includes(
           subName,
         );
@@ -669,8 +699,12 @@ export function buildSubstitutiveName(
               ? `(${subName})`
               : subName;
 
+        // Check if substituent name already has a multiplicative prefix (e.g., "dinitro")
+        // This happens when groups are pre-aggregated in the name assembly layer
+        const alreadyHasMultiplicativePrefix = /^(di|tri|tetra|penta|hexa|hepta|octa|nona|deca)/.test(subName);
+        
         const multiplicativePrefix =
-          locants.length > 1
+          locants.length > 1 && !alreadyHasMultiplicativePrefix
             ? getMultiplicativePrefix(
                 locants.length,
                 needsWrapping,

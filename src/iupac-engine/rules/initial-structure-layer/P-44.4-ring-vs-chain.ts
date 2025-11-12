@@ -1130,10 +1130,30 @@ export const P44_4_RING_CHAIN_SELECTION_RULE: IUPACRule = {
       }
 
       // Mark ALL functional groups with the highest priority as principal
+      // BUT exclude substituent-only types (nitro, halogens, alkoxy, etc.)
+      const SUBSTITUENT_ONLY_TYPES = new Set([
+        'nitro',
+        'chloro',
+        'bromo',
+        'fluoro',
+        'iodo',
+        'methoxy',
+        'ethoxy',
+        'propoxy',
+        'isopropoxy',
+        'butoxy',
+        'methyl',
+        'ethyl',
+        'propyl',
+        'butyl',
+        'isopropyl',
+        'tert-butyl',
+      ]);
+
       const principalGroups = [];
       for (const fg of filteredFunctionalGroups) {
         const priority = fg.priority || 0;
-        if (priority === maxPriority) {
+        if (priority === maxPriority && !SUBSTITUENT_ONLY_TYPES.has(fg.type)) {
           fg.isPrincipal = true;
           principalGroups.push(fg);
         }

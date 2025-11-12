@@ -141,6 +141,12 @@ export class OPSINFunctionalGroupDetector {
         finder: this.findAlcoholPattern.bind(this),
       },
       {
+        pattern: "[N+](=O)[O-]",
+        name: "nitro",
+        priority: 12,
+        finder: this.findNitroPattern.bind(this),
+      },
+      {
         pattern: "[NX3][CX4]",
         name: "amine",
         priority: getPriority("amine", 13),
@@ -237,6 +243,7 @@ export class OPSINFunctionalGroupDetector {
               "C(=O)N<": "", // N-acyl has no suffix, it's a substituent
               "C#N": "nitrile",
               "SC#N": "thiocyanate",
+              "[N+](=O)[O-]": "", // nitro has no suffix, it's a substituent only
               "S(=O)(=O)": "sulfonyl",
               "S(=O)": "sulfinyl",
               "P(=O)": "phosphoryl",
@@ -252,6 +259,7 @@ export class OPSINFunctionalGroupDetector {
               "C(=O)S": "sulfanylformyl",
               "C(=O)N<": "acyl", // Generic prefix, will be specialized (formyl, acetyl, etc.)
               "SC#N": "thiocyano",
+              "[N+](=O)[O-]": "nitro",
               "S(=O)(=O)": "sulfonyl",
               "S(=O)": "sulfinyl",
               "P(=O)": "phosphoryl",
@@ -426,6 +434,29 @@ export class OPSINFunctionalGroupDetector {
               });
               // Claim this atom
               claimedAtoms.add(oxygenId);
+            }
+          } else if (check.pattern === "[N+](=O)[O-]" && atomsMatched.length > 3) {
+            // Special case: For nitro groups, create one functional group per NO2 triple
+            // since each nitro should be counted separately for dinitro, trinitro, etc.
+            // atomsMatched contains triples: [N1, O1, O2, N2, O3, O4, ...]
+            for (let i = 0; i < atomsMatched.length; i += 3) {
+              detectedGroups.push({
+                type: check.pattern,
+                name: fgEntry?.name || check.name,
+                suffix: fgEntry?.suffix || "",
+                prefix: fgEntry?.prefix || undefined,
+                priority: fgEntry?.priority || check.priority,
+                atoms: [
+                  atomsMatched[i]!,
+                  atomsMatched[i + 1]!,
+                  atomsMatched[i + 2]!,
+                ],
+                pattern: check.pattern,
+              });
+              // Claim these atoms
+              claimedAtoms.add(atomsMatched[i]!);
+              claimedAtoms.add(atomsMatched[i + 1]!);
+              claimedAtoms.add(atomsMatched[i + 2]!);
             }
           } else {
             if (process.env.DEBUG_ALDEHYDE && check.name === "aldehyde") {
@@ -851,6 +882,55 @@ export class OPSINFunctionalGroupDetector {
       }
     }
     return allAmines;
+  }
+
+  private findNitroPattern(
+    atoms: readonly Atom[],
+    bonds: readonly Bond[],
+  ): number[] {
+    const allNitro: number[] = [];
+
+    for (let i = 0; i < atoms.length; i++) {
+      const atom = atoms[i];
+      if (!atom || atom.symbol !== "N") continue;
+
+      let oxygenDoubleCount = 0;
+      let oxygenSingleCount = 0;
+      const nitrogenBonds = bonds.filter(
+        (b) => b.atom1 === atom.id || b.atom2 === atom.id,
+      );
+
+      for (const bond of nitrogenBonds) {
+        const neighborId = bond.atom1 === atom.id ? bond.atom2 : bond.atom1;
+        const neighbor = atoms[neighborId];
+        if (!neighbor || neighbor.symbol !== "O") continue;
+
+        if (bond.type === "double") {
+          oxygenDoubleCount++;
+        } else if (bond.type === "single") {
+          oxygenSingleCount++;
+        }
+      }
+
+      if (oxygenDoubleCount === 2 || (oxygenDoubleCount === 1 && oxygenSingleCount === 1)) {
+        if (process.env.VERBOSE) {
+          console.log(
+            `[findNitroPattern] Found nitro at N=${atom.id} (O=: ${oxygenDoubleCount}, O-: ${oxygenSingleCount})`,
+          );
+        }
+        allNitro.push(atom.id);
+
+        for (const bond of nitrogenBonds) {
+          const neighborId = bond.atom1 === atom.id ? bond.atom2 : bond.atom1;
+          const neighbor = atoms[neighborId];
+          if (neighbor?.symbol === "O") {
+            allNitro.push(neighborId);
+          }
+        }
+      }
+    }
+
+    return allNitro;
   }
 
   private findNAcylPattern(

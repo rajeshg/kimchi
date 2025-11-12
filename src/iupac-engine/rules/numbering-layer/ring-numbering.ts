@@ -1104,6 +1104,7 @@ export const RING_NUMBERING_RULE: IUPACRule = {
             ...fg,
             locants: [...attachedRingPositions], // Create a NEW array
             locant: attachedRingPositions[0],
+            locantsConverted: true,
           };
 
           if (process.env.VERBOSE) {
@@ -1131,6 +1132,7 @@ export const RING_NUMBERING_RULE: IUPACRule = {
             ...fg,
             locants: newLocants,
             locant: newLocant,
+            locantsConverted: true,
           };
         }
 
