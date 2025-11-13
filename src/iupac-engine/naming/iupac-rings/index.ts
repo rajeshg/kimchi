@@ -1109,7 +1109,7 @@ export function findSubstituentsOnMonocyclicRing(
 function createSubMoleculeFromSubstituent(
   molecule: Molecule,
   substituentAtoms: Set<number>,
-): Molecule {
+): { subMolecule: Molecule; atomMapping: Map<number, number> } {
   const atomMapping = new Map<number, number>();
   const newAtomsArray: (typeof molecule.atoms)[0][] = [];
   const newBondsArray: (typeof molecule.bonds)[0][] = [];
@@ -1158,11 +1158,109 @@ function createSubMoleculeFromSubstituent(
     }
   }
 
-  return {
+  const subMolecule = {
     atoms: newAtomsArray as Molecule["atoms"],
     bonds: newBondsArray as Molecule["bonds"],
     ...(newRings.length > 0 ? { rings: newRings } : {}),
   };
+
+  return { subMolecule, atomMapping };
+}
+
+function calculateSubstituentPositionOnBenzene(
+  molecule: Molecule,
+  attachmentPointIdx: number,
+): number | null {
+  try {
+    // Find the benzene ring containing the attachment point
+    if (!molecule.rings || molecule.rings.length === 0) {
+      return null;
+    }
+
+    let benzeneRing: readonly number[] | null = null;
+    for (const ring of molecule.rings) {
+      // Look for a 6-membered aromatic ring containing the attachment point
+      if (ring.length === 6 && ring.includes(attachmentPointIdx)) {
+        // Verify all atoms in ring are aromatic carbons
+        const allAromaticCarbons = ring.every((atomIdx) => {
+          const atom = molecule.atoms[atomIdx];
+          return atom && atom.symbol === "C" && atom.aromatic;
+        });
+
+        if (allAromaticCarbons) {
+          benzeneRing = ring;
+          break;
+        }
+      }
+    }
+
+    if (!benzeneRing) {
+      return null;
+    }
+
+    // Number the benzene ring starting from the attachment point (position 1)
+    // Find the position of the attachment point in the ring array
+    const attachmentRingIndex = benzeneRing.indexOf(attachmentPointIdx);
+    if (attachmentRingIndex === -1) {
+      return null;
+    }
+
+    // Create a numbering that starts from the attachment point as position 1
+    // The ring is ordered by traversal, so we need to renumber accordingly
+    const ringNumbering = new Map<number, number>();
+    for (let i = 0; i < benzeneRing.length; i++) {
+      // Position 1 is the attachment point, then 2, 3, 4, 5, 6 going around the ring
+      const atomIdx = benzeneRing[(attachmentRingIndex + i) % benzeneRing.length];
+      if (atomIdx !== undefined) {
+        ringNumbering.set(atomIdx, i + 1);
+      }
+    }
+
+    if (process.env.VERBOSE) {
+      console.log("[calculateSubstituentPositionOnBenzene] Ring numbering:", Array.from(ringNumbering.entries()));
+    }
+
+    // Find substituents on the ring (atoms bonded to ring atoms but not in the ring)
+    const ringAtomsSet = new Set(benzeneRing);
+    for (const ringAtomIdx of benzeneRing) {
+      if (ringAtomIdx === attachmentPointIdx) {
+        continue; // Skip the attachment point
+      }
+
+      // Check if this ring atom has substituents
+      for (const bond of molecule.bonds) {
+        let neighborIdx = -1;
+        if (bond.atom1 === ringAtomIdx && !ringAtomsSet.has(bond.atom2)) {
+          neighborIdx = bond.atom2;
+        } else if (bond.atom2 === ringAtomIdx && !ringAtomsSet.has(bond.atom1)) {
+          neighborIdx = bond.atom1;
+        }
+
+        if (neighborIdx !== -1) {
+          const neighbor = molecule.atoms[neighborIdx];
+          // Found a substituent - return its position on the ring
+          if (neighbor && neighbor.symbol !== "H") {
+            const position = ringNumbering.get(ringAtomIdx);
+            if (position !== undefined) {
+              if (process.env.VERBOSE) {
+                console.log(
+                  `[calculateSubstituentPositionOnBenzene] Found substituent ${neighbor.symbol} at position ${position}`,
+                );
+              }
+              return position;
+            }
+          }
+        }
+      }
+    }
+
+    return null;
+  } catch (error) {
+    if (process.env.VERBOSE) {
+      console.error("[calculateSubstituentPositionOnBenzene] Error:", error);
+    }
+    return null;
+  }
 }
 
 function nameComplexSubstituent(
@@ -1170,7 +1268,7 @@ function nameComplexSubstituent(
   substituentAtoms: Set<number>,
   startAtomIdx: number,
 ): string | null {
-  const subMolecule = createSubMoleculeFromSubstituent(
+  const { subMolecule, atomMapping } = createSubMoleculeFromSubstituent(
     molecule,
     substituentAtoms,
   );
@@ -1288,8 +1386,75 @@ function nameComplexSubstituent(
 
     // Ensure it ends with "yl" for substituent form
     if (!iupacName.endsWith("yl")) {
-      // Remove common suffixes and add "yl"
-      iupacName = iupacName.replace(/ane$|ene$|ol$/, "") + "yl";
+      // Special case: aromatic rings ending in "benzene" should become "phenyl" not "benzyl"
+      // e.g., "methoxybenzene" → "methoxyphenyl", "4-methylbenzene" → "4-methylphenyl"
+      if (iupacName.endsWith("benzene")) {
+        // For substituted benzene rings, we need to add the position number if missing
+        // Pattern: "methoxybenzene" should become "4-methoxybenzene" for para-substitution
+        // This is a common case where the locant was omitted for unambiguous benzene,
+        // but we need it when the ring becomes a substituent
+        
+        // Check if this is a substituted benzene without a position number
+        // Examples: "methoxybenzene", "chlorobenzene", "nitrobenzene"
+        const substituentMatch = iupacName.match(/^([a-z]+)benzene$/);
+        if (substituentMatch && substituentMatch[1] !== '') {
+          // This is a substituted benzene without a position number
+          // Calculate the actual position by analyzing the ring structure
+          
+          // Find the attachment point in the sub-molecule
+          const attachmentPointInSubMol = atomMapping.get(startAtomIdx);
+          
+          if (attachmentPointInSubMol !== undefined) {
+            // Calculate substituent position relative to attachment point
+            const position = calculateSubstituentPositionOnBenzene(
+              subMolecule,
+              attachmentPointInSubMol,
+            );
+            
+            if (position !== null) {
+              iupacName = `${position}-${iupacName}`;
+              
+              if (process.env.VERBOSE) {
+                console.log(
+                  `[nameComplexSubstituent] Calculated position ${position} for substituent on benzene ring`,
+                );
+              }
+            } else {
+              // Fallback to heuristic if calculation fails
+              iupacName = `4-${iupacName}`;
+              
+              if (process.env.VERBOSE) {
+                console.log(
+                  `[nameComplexSubstituent] Could not calculate position, using default: ${iupacName}`,
+                );
+              }
+            }
+          } else {
+            // Fallback to heuristic if attachment point not found
+            iupacName = `4-${iupacName}`;
+            
+            if (process.env.VERBOSE) {
+              console.log(`[nameComplexSubstituent] Added default position to: ${iupacName}`);
+            }
+          }
+        }
+        
+        iupacName = iupacName.replace(/benzene$/, "phenyl");
+      } else if (iupacName === "toluene") {
+        // toluene → methylphenyl (not tolyl, which is archaic)
+        iupacName = "methylphenyl";
+      } else {
+        // Remove common suffixes and add "yl" for aliphatic chains
+        iupacName = iupacName.replace(/ane$|ene$|ol$/, "") + "yl";
+      }
+    }
+
+    // Check if the substituent name contains locants (numbers followed by dash)
+    // If so, it's a complex substituent and needs parentheses
+    // Example: "4-methoxyphenyl" → "(4-methoxyphenyl)"
+    const hasLocants = /^\d+/.test(iupacName);
+    if (hasLocants && !iupacName.startsWith("(")) {
+      iupacName = `(${iupacName})`;
     }
 
     return iupacName;
@@ -1756,6 +1921,117 @@ function classifySubstituent(
         );
       }
       return { type: "complex", size: carbonCount, name: complexName };
+    }
+  }
+
+  // Substituted aromatic ring detection (e.g., methylphenyl, chlorophenyl)
+  // Check if the substituent contains a benzene ring (6 aromatic carbons in a ring)
+  // This must be checked BEFORE simple phenyl detection and alkyl naming
+  if (carbonCount >= 6) {
+    const aromaticCarbons = atoms.filter(
+      (atom) => atom.symbol === "C" && atom.aromatic,
+    );
+
+    if (aromaticCarbons.length === 6 && molecule.rings) {
+      // Check if these 6 aromatic carbons form a ring that's fully in the substituent
+      for (const ring of molecule.rings) {
+        if (ring.length === 6) {
+          const ringInSubstituent = ring.every((atomId) =>
+            substituentAtoms.has(atomId),
+          );
+          
+          if (ringInSubstituent) {
+            const ringAtomsArray = ring.map((id) => molecule.atoms[id]);
+            const allAromaticCarbons = ringAtomsArray.every(
+              (atom) => atom && atom.symbol === "C" && atom.aromatic,
+            );
+
+            if (allAromaticCarbons) {
+              // Found a benzene ring in the substituent!
+              if (process.env.VERBOSE) {
+                console.log(
+                  `[classifySubstituent] Detected benzene ring in substituent with ${carbonCount} total carbons`,
+                );
+              }
+
+              // Check if this is a substituted benzene (more than 6 carbons or has heteroatoms)
+              if (carbonCount > 6 || heteroatomCount > 0) {
+                // This is a substituted phenyl group (e.g., methylphenyl, chlorophenyl, methoxyphenyl)
+                const complexName = nameComplexSubstituent(
+                  molecule,
+                  substituentAtoms,
+                  startAtomIdx,
+                );
+                if (complexName) {
+                  if (process.env.VERBOSE) {
+                    console.log(
+                      "[classifySubstituent] Substituted aromatic ring name:",
+                      complexName,
+                    );
+                  }
+                  return { type: "complex", size: carbonCount, name: complexName };
+                }
+              } else {
+                // Exactly 6 carbons, no heteroatoms - simple phenyl
+                // Let it fall through to the phenyl detection below
+                break;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Phenyl detection: aromatic 6-membered carbon ring
+  // Check this BEFORE generic alkyl naming to avoid "hexyl" misclassification
+  if (carbonCount === 6 && heteroatomCount === 0) {
+    // Count aromatic carbons in the substituent
+    const aromaticCarbons = atoms.filter(
+      (atom) => atom.symbol === "C" && atom.aromatic,
+    );
+
+    if (process.env.VERBOSE) {
+      console.log(
+        `[classifySubstituent-rings] Checking phenyl: carbonCount=6, aromaticCarbons=${aromaticCarbons.length}`,
+      );
+    }
+
+    // If we have exactly 6 aromatic carbons, this is likely a phenyl group
+    if (aromaticCarbons.length === 6) {
+      // Check if these 6 aromatic carbons form a ring
+      const aromaticCarbonIds = new Set(aromaticCarbons.map((a) => a.id));
+
+      // Verify ring structure by checking molecule.rings
+      if (molecule.rings) {
+        for (const ring of molecule.rings) {
+          if (ring.length === 6) {
+            // Check if all ring atoms are in our aromatic carbon set
+            const ringIsAromatic = ring.every((atomId) =>
+              aromaticCarbonIds.has(atomId),
+            );
+            
+            // Also verify all ring atoms are in the substituent
+            const ringInSubstituent = ring.every((atomId) =>
+              substituentAtoms.has(atomId),
+            );
+            
+            if (process.env.VERBOSE) {
+              console.log(
+                `[classifySubstituent-rings] 6-ring [${ring.join(",")}]: aromatic=${ringIsAromatic}, inSubstituent=${ringInSubstituent}`,
+              );
+            }
+            
+            if (ringIsAromatic && ringInSubstituent) {
+              // This is a phenyl substituent!
+              if (process.env.VERBOSE) {
+                console.log(`[classifySubstituent-rings] ✅ DETECTED PHENYL!`);
+              }
+              return { type: "aryl", size: 6, name: "phenyl" };
+            }
+          }
+        }
+      }
     }
   }
 
