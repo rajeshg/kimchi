@@ -1,6 +1,7 @@
 import { describe, it, expect } from "bun:test";
 import { parseIUPACName } from "index";
 import { generateSMILES } from "index";
+import { parseSMILES } from "index";
 import dataset from "./smiles-to-iupac-realistic-dataset.json";
 
 const realisticDataset: Array<{ smiles: string; iupac: string; comment?: string }> =
@@ -54,7 +55,7 @@ describe("IUPAC Name to SMILES Realistic Test", () => {
 
       let generatedSmiles: string;
       try {
-        generatedSmiles = generateSMILES(mol);
+        generatedSmiles = generateSMILES(mol, true); // canonical=true
       } catch (error) {
         generationErrors.push({
           iupac: entry.iupac,
@@ -65,9 +66,19 @@ describe("IUPAC Name to SMILES Realistic Test", () => {
         return;
       }
 
+      // Canonicalize the expected SMILES for fair comparison
       const referenceSmiles = entry.smiles;
+      let canonicalReferenceSmiles = referenceSmiles;
+      try {
+        const refResult = parseSMILES(referenceSmiles);
+        if (refResult.molecules.length > 0 && refResult.molecules[0] && !refResult.errors?.length) {
+          canonicalReferenceSmiles = generateSMILES(refResult.molecules[0], true);
+        }
+      } catch (error) {
+        // If we can't parse/canonicalize the reference, use it as-is
+      }
 
-      if (generatedSmiles === referenceSmiles) {
+      if (generatedSmiles === canonicalReferenceSmiles) {
         matchCount++;
       } else if (generatedSmiles === "") {
         generationErrors.push({
@@ -80,7 +91,7 @@ describe("IUPAC Name to SMILES Realistic Test", () => {
         mismatches.push({
           iupac: entry.iupac,
           generatedSmiles: generatedSmiles,
-          referenceSmiles: referenceSmiles,
+          referenceSmiles: canonicalReferenceSmiles,
         });
         structuralMismatchCount++;
       }
@@ -165,8 +176,20 @@ describe("IUPAC Name to SMILES Realistic Test", () => {
         const parseResult = parseIUPACName(entry.iupac);
         if (!parseResult.errors || parseResult.errors.length === 0) {
           const mol = parseResult.molecule!;
-          const generatedSmiles = generateSMILES(mol);
-          if (generatedSmiles === entry.smiles) {
+          const generatedSmiles = generateSMILES(mol, true);
+          
+          // Canonicalize reference for comparison
+          let canonicalReferenceSmiles = entry.smiles;
+          try {
+            const refResult = parseSMILES(entry.smiles);
+            if (refResult.molecules.length > 0 && refResult.molecules[0] && !refResult.errors?.length) {
+              canonicalReferenceSmiles = generateSMILES(refResult.molecules[0], true);
+            }
+          } catch (error) {
+            // Use as-is if canonicalization fails
+          }
+          
+          if (generatedSmiles === canonicalReferenceSmiles) {
             rows.push(`"${entry.iupac}","${entry.smiles}","${generatedSmiles}","MATCH",""`);
           }
         }

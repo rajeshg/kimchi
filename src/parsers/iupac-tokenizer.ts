@@ -462,6 +462,34 @@ export class IUPACTokenizer {
       const nameList = names.split('|');
       for (const nm of nameList) {
         if (str.startsWith(nm)) {
+          // Validate that stem component is followed by valid continuation
+          const nextPos = nm.length;
+          const remainder = str.substring(nextPos);
+          
+          // Must be followed by: alkane suffix (ane/ene/yne/an), another stem, or end/hyphen
+          if (remainder.length === 0 || remainder[0] === '-') {
+            // OK: end of string or hyphen
+          } else if (/^(ane|ene|yne|an[eo])/.test(remainder)) {
+            // OK: alkane suffix
+          } else {
+            // Check if followed by another stem component (tens or units)
+            let isValidStem = false;
+            for (const stemNames of [...Object.values(this.rules.alkaneStemComponents.tens), ...Object.values(this.rules.alkaneStemComponents.units)]) {
+              const stemList = stemNames.split('|');
+              for (const s of stemList) {
+                if (remainder.startsWith(s)) {
+                  isValidStem = true;
+                  break;
+                }
+              }
+              if (isValidStem) break;
+            }
+            if (!isValidStem) {
+              // Not a valid alkane stem continuation - skip this match
+              continue;
+            }
+          }
+          
           return {
             type: 'PARENT',
             value: nm,
@@ -480,6 +508,34 @@ export class IUPACTokenizer {
       const nameList = names.split('|');
       for (const nm of nameList) {
         if (str.startsWith(nm)) {
+          // Validate that stem component is followed by valid continuation
+          const nextPos = nm.length;
+          const remainder = str.substring(nextPos);
+          
+          // Must be followed by: alkane suffix (ane/ene/yne/an), another stem, or end/hyphen
+          if (remainder.length === 0 || remainder[0] === '-') {
+            // OK: end of string or hyphen
+          } else if (/^(ane|ene|yne|an[eo])/.test(remainder)) {
+            // OK: alkane suffix
+          } else {
+            // Check if followed by another stem component
+            let isValidStem = false;
+            for (const stemNames of Object.values(this.rules.alkaneStemComponents.units)) {
+              const stemList = stemNames.split('|');
+              for (const s of stemList) {
+                if (remainder.startsWith(s)) {
+                  isValidStem = true;
+                  break;
+                }
+              }
+              if (isValidStem) break;
+            }
+            if (!isValidStem) {
+              // Not a valid alkane stem continuation - skip this match
+              continue;
+            }
+          }
+          
           return {
             type: 'PARENT',
             value: nm,
@@ -498,6 +554,20 @@ export class IUPACTokenizer {
       const nameList = names.split('|');
       for (const nm of nameList) {
         if (str.startsWith(nm)) {
+          // Validate that stem component is followed by valid continuation
+          const nextPos = nm.length;
+          const remainder = str.substring(nextPos);
+          
+          // Must be followed by: alkane suffix (ane/ene/yne/an), or end/hyphen
+          if (remainder.length === 0 || remainder[0] === '-') {
+            // OK: end of string or hyphen
+          } else if (/^(ane|ene|yne|an[eo])/.test(remainder)) {
+            // OK: alkane suffix
+          } else {
+            // Units are terminal - must be followed by suffix, not another stem
+            continue;
+          }
+          
           return {
             type: 'PARENT',
             value: nm,

@@ -807,28 +807,82 @@ export class IUPACBuilder {
   /**
    * Add substituent to cyclic structure
    * Example: C1CCCCC1 + C at position 2 -> CC1(C)CCCC1
+   * Enhanced to handle cycles with existing branches: C1(O)CCCC1 + C at position 2 -> C1(O)C(C)CCC1
    */
   private addSubstituentToCycle(cycle: string, substituent: string, locant: number): string {
-    // For ring: C1CCCCC1
-    // Position 1: C1 -> C1(subst)
-    // Position 2: First C after C1 -> C1C(subst)
+    // For ring: C1CCCCC1 or C1(O)CCCC1 or O=C1CCCC1
+    // Position 1: C1 -> C1(subst) or C1(existing)(subst)
+    // Position 2: First C after C1 -> C1C(subst) or C1(existing)C(subst)
     
     if (locant === 1) {
-      // Add to first carbon: C1CCCCC1 -> C1(C)CCCCC1
-      return cycle.replace(/^C1/, 'C1(' + substituent + ')');
+      // Add to first carbon
+      // Check if C1 already has branches
+      if (cycle.match(/^C1\(/)) {
+        // Already has branches: C1(...) -> find closing paren and add new branch
+        let depth = 0;
+        let closePos = 2; // Start after "C1"
+        for (let i = 2; i < cycle.length; i++) {
+          if (cycle[i] === '(') depth++;
+          else if (cycle[i] === ')') {
+            depth--;
+            if (depth === 0) {
+              closePos = i;
+              break;
+            }
+          }
+        }
+        return cycle.substring(0, closePos + 1) + '(' + substituent + ')' + cycle.substring(closePos + 1);
+      } else {
+        // No branches yet: C1CCCCC1 -> C1(C)CCCCC1
+        return cycle.replace(/^C1/, 'C1(' + substituent + ')');
+      }
     } else {
       // Add to nth carbon
-      const match = cycle.match(/^C1(C+)1$/);
-      if (match && match[1]) {
-        const innerCarbons = match[1];
-        const position = locant - 2; // Adjust for C1 being position 1
+      // Need to find the nth carbon in the ring, accounting for branches and functional groups
+      // Pattern: [O=]*C1[branches]*[ring content]1
+      
+      // Strip any leading functional groups (like O=)
+      const leadingMatch = cycle.match(/^([O=]*)C1/);
+      const prefix = leadingMatch?.[1] || '';
+      const restOfCycle = cycle.substring(prefix.length + 2); // After "C1"
+      
+      // Find the nth carbon (locant-1 because C1 is position 1)
+      let carbonCount = 1; // C1 is the first carbon
+      let insertPos = prefix.length + 2; // Start after prefix + "C1"
+      let depth = 0;
+      
+      for (let i = 0; i < restOfCycle.length; i++) {
+        const char = restOfCycle[i];
         
-        if (position >= 0 && position < innerCarbons.length) {
-          return 'C1' + 
-                 innerCarbons.substring(0, position) + 
-                 'C(' + substituent + ')' + 
-                 innerCarbons.substring(position + 1) + 
-                 '1';
+        if (char === '(') {
+          depth++;
+        } else if (char === ')') {
+          depth--;
+        } else if (char === 'C' && depth === 0) {
+          // Found a carbon at the main ring level
+          carbonCount++;
+          if (carbonCount === locant) {
+            // This is the carbon we want to add to
+            insertPos = prefix.length + 2 + i + 1; // Position after this carbon
+            // Check if this carbon already has branches
+            if (i + 1 < restOfCycle.length && restOfCycle[i + 1] === '(') {
+              // Already has branches - find closing paren
+              let branchDepth = 0;
+              let branchClosePos = i + 1;
+              for (let j = i + 1; j < restOfCycle.length; j++) {
+                if (restOfCycle[j] === '(') branchDepth++;
+                else if (restOfCycle[j] === ')') {
+                  branchDepth--;
+                  if (branchDepth === 0) {
+                    branchClosePos = j;
+                    break;
+                  }
+                }
+              }
+              insertPos = prefix.length + 2 + branchClosePos + 1;
+            }
+            return cycle.substring(0, insertPos) + '(' + substituent + ')' + cycle.substring(insertPos);
+          }
         }
       }
     }
