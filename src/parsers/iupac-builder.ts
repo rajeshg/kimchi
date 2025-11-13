@@ -52,8 +52,13 @@ export class IUPACBuilder {
     const substituentTokens = tokens.filter(t => t.type === 'SUBSTITUENT');
     const multiplierTokens = tokens.filter(t => t.type === 'MULTIPLIER');
 
-    // Check for cyclo prefix
-    const isCyclic = prefixTokens.some(p => p.metadata?.isCyclic === true);
+    // Check for cyclo prefix or if parent is a non-aromatic ring system (contains ring numbers but not aromatic)
+    const hasCycloPrefix = prefixTokens.some(p => p.metadata?.isCyclic === true);
+    const parentSmilesForCheck = (parentTokens[0]?.metadata?.smiles as string) || '';
+    // Non-aromatic rings: C1...1 pattern (capital C with digits)
+    // Aromatic rings: c1...1 pattern (lowercase c with digits) - handled separately
+    const parentIsNonAromaticRing = /C.*\d/.test(parentSmilesForCheck) && parentSmilesForCheck.includes('1');
+    const isCyclic = hasCycloPrefix || parentIsNonAromaticRing;
 
     // Special case: cyclo + multiplier + an/ane (e.g., "cyclohexan-1-ol", "dimethylcyclopentan-1-ol")
     // In this case, there's no explicit PARENT token, but we can construct it from the multiplier
