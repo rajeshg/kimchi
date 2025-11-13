@@ -23,47 +23,47 @@ export class IUPACTokenizer {
    /**
     * Tokenize an IUPAC name into semantic units
     */
-   tokenize(name: string): IUPACTokenizationResult {
-     const normalized = name.toLowerCase().trim();
-     const tokens: IUPACToken[] = [];
-     const errors: string[] = [];
-     let pos = 0;
+     tokenize(name: string): IUPACTokenizationResult {
+       const normalized = name.toLowerCase().trim();
+       const tokens: IUPACToken[] = [];
+       const errors: string[] = [];
+       let pos = 0;
 
-     while (pos < normalized.length) {
-       const remaining = normalized.substring(pos);
+       while (pos < normalized.length) {
+         const remaining = normalized.substring(pos);
 
-       // Try each token type in priority order (prefixes first)
-       const token =
-         this.tryPrefix(remaining, pos) ||
-         this.tryLocant(remaining, pos) ||
-         this.tryStereo(remaining, pos) ||
-         this.tryMultiplier(remaining, pos) ||
-         this.trySuffix(remaining, pos) ||
-         this.trySubstituent(remaining, pos) ||
-         this.tryParent(remaining, pos);
+         // Try each token type in priority order (stereo before prefix to avoid s- conflicts)
+         const token =
+           this.tryStereo(remaining, pos) ||
+           this.tryPrefix(remaining, pos) ||
+           this.tryLocant(remaining, pos) ||
+           this.tryMultiplier(remaining, pos) ||
+           this.trySuffix(remaining, pos) ||
+           this.trySubstituent(remaining, pos) ||
+           this.tryParent(remaining, pos);
 
-       if (token) {
-         tokens.push(token);
-         pos += token.length;
-       } else {
-         // Skip whitespace and hyphens
-         const nextChar = remaining[0];
-         if (nextChar && /[\s-]/.test(nextChar)) {
+         if (token) {
+           tokens.push(token);
+           pos += token.length;
+         } else {
+           // Skip whitespace, hyphens, and special characters (parentheses, brackets, commas)
+           const nextChar = remaining[0];
+           if (nextChar && /[\s\-\(\)\[\],]/.test(nextChar)) {
+             pos++;
+             continue;
+           }
+           // Only report errors for non-whitespace characters that couldn't be tokenized
+           errors.push(`Cannot tokenize at position ${pos}: ${nextChar || 'EOF'}`);
            pos++;
-           continue;
          }
-         // Only report errors for non-whitespace characters that couldn't be tokenized
-         errors.push(`Cannot tokenize at position ${pos}: ${nextChar || 'EOF'}`);
-         pos++;
        }
+
+       return { tokens, errors };
      }
 
-     return { tokens, errors };
-   }
-
-   /**
-    * Try to match a prefix (N-, O-, S-, etc.)
-    */
+    /**
+     * Try to match a prefix (N-, O-, S-, etc.)
+     */
    private tryPrefix(str: string, pos: number): IUPACToken | null {
      // Common prefixes for substitution on heteroatoms
      const prefixes = ['n-', 'o-', 's-', 'c-', 'x-'];
@@ -111,16 +111,81 @@ export class IUPACTokenizer {
     };
   }
 
-   /**
-    * Try to match stereochemistry marker (@, @@, E, Z, R, S)
-    * Note: Stereo matching is disabled for MVP - will be implemented in future version
-    * This prevents false matches like 'e' in 'ethene' being matched as E stereochemistry
-    */
-   private tryStereo(_str: string, _pos: number): IUPACToken | null {
-     // Stereo matching disabled for MVP
-     // TODO: Implement proper stereo matching that only works in specific contexts
-     return null;
-   }
+    /**
+     * Try to match stereochemistry marker (@, @@, E, Z, R, S)
+     * Context-aware: Only matches in valid positions
+     * - E/Z: Before lowercase letters (not preceded by 'th' from 'ethene')
+     * - R/S: Before lowercase letters
+     * - @/@@ : In bridged nomenclature contexts
+     */
+     private tryStereo(str: string, pos: number): IUPACToken | null {
+       // Check for @ or @@ (von Baeyer bridged bicyclic stereochemistry)
+       if (str.startsWith("@@")) {
+         // Must be followed by a digit, hyphen, space, or letter
+         const nextChar = str.charAt(2);
+         if (!nextChar || /[\s\d\-a-z]/.test(nextChar)) {
+           return {
+             type: 'STEREO',
+             value: '@@',
+             position: pos,
+             length: 2,
+             metadata: { type: 'von-baeyer' },
+           };
+         }
+       } else if (str.startsWith("@")) {
+         const nextChar = str.charAt(1);
+         if (!nextChar || /[\s\d\-a-z@]/.test(nextChar)) {
+           return {
+             type: 'STEREO',
+             value: '@',
+             position: pos,
+             length: 1,
+             metadata: { type: 'von-baeyer' },
+           };
+         }
+       }
+
+       // Check for E/Z stereochemistry - allow dash or closing paren after
+       // E.g., "(E)-", "(Z)-" or "2-e-" patterns
+       if (str[0] === 'e' && str[1] && /[\-\)]/.test(str[1])) {
+         return {
+           type: 'STEREO',
+           value: 'e',
+           position: pos,
+           length: 1,
+           metadata: { type: 'alkene', config: 'E' },
+         };
+       } else if (str[0] === 'z' && str[1] && /[\-\)]/.test(str[1])) {
+         return {
+           type: 'STEREO',
+           value: 'z',
+           position: pos,
+           length: 1,
+           metadata: { type: 'alkene', config: 'Z' },
+         };
+       }
+
+       // Check for R/S stereochemistry (stereocenters) - allow dash, comma, or closing paren after
+       if (str[0] === 'r' && str[1] && /[\-\),]/.test(str[1])) {
+         return {
+           type: 'STEREO',
+           value: 'r',
+           position: pos,
+           length: 1,
+           metadata: { type: 'stereocenter', config: 'R' },
+         };
+       } else if (str[0] === 's' && str[1] && /[\-\),]/.test(str[1])) {
+         return {
+           type: 'STEREO',
+           value: 's',
+           position: pos,
+           length: 1,
+           metadata: { type: 'stereocenter', config: 'S' },
+         };
+       }
+
+      return null;
+    }
 
   /**
    * Try to match a multiplier (di, tri, tetra, etc.)
