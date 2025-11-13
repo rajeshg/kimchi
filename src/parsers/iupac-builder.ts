@@ -41,12 +41,13 @@ export class IUPACBuilder {
 
   /**
    * Convert token stream to SMILES string
-   * Enhanced to handle functional groups, substituents, locants, and stereochemistry
+   * Enhanced to handle functional groups, substituents, locants, stereochemistry, unsaturation, and cycles
    */
   private tokensToSMILES(tokens: IUPACToken[]): string {
     // Organize tokens by type
     const parentTokens = tokens.filter(t => t.type === 'PARENT');
     const suffixTokens = tokens.filter(t => t.type === 'SUFFIX');
+    const prefixTokens = tokens.filter(t => t.type === 'PREFIX');
     const locantTokens = tokens.filter(t => t.type === 'LOCANT');
     const substituentTokens = tokens.filter(t => t.type === 'SUBSTITUENT');
     const multiplierTokens = tokens.filter(t => t.type === 'MULTIPLIER');
@@ -61,8 +62,19 @@ export class IUPACBuilder {
       throw new Error('Parent chain has no SMILES data');
     }
 
+    // Check for cyclo prefix
+    const isCyclic = prefixTokens.some(p => p.metadata?.isCyclic === true);
+
     // Start with parent chain
     let smiles = parentSmiles;
+
+    // Convert to cyclic structure if cyclo prefix present
+    if (isCyclic && smiles.match(/^C+$/)) {
+      smiles = this.makeCyclic(smiles);
+    }
+
+    // Apply unsaturation (ene, yne, diene) before other modifications
+    smiles = this.applyUnsaturation(smiles, suffixTokens, locantTokens, isCyclic);
 
     // Apply functional group suffix (ol, one, amine, etc.)
     if (suffixTokens.length > 0) {
@@ -71,7 +83,7 @@ export class IUPACBuilder {
 
     // Apply substituents
     if (substituentTokens.length > 0) {
-      smiles = this.applySubstituents(smiles, substituentTokens, locantTokens, multiplierTokens);
+      smiles = this.applySubstituents(smiles, substituentTokens, locantTokens, multiplierTokens, isCyclic);
     }
 
     return smiles;
@@ -120,27 +132,48 @@ export class IUPACBuilder {
 
   /**
    * Apply substituents to the parent chain
+   * Improved to handle locants associated with each substituent
    */
   private applySubstituents(
     parentSmiles: string,
     substituentTokens: IUPACToken[],
     locantTokens: IUPACToken[],
-    multiplierTokens: IUPACToken[]
+    _multiplierTokens: IUPACToken[],
+    isCyclic: boolean
   ): string {
     let result = parentSmiles;
 
-    for (let i = 0; i < substituentTokens.length; i++) {
-      const substituent = substituentTokens[i];
+    // For each substituent, find its locant by looking at what comes before it in the original token stream
+    for (const substituent of substituentTokens) {
       if (!substituent) continue;
 
       const substSmiles = (substituent.metadata?.smiles as string) || '';
       if (!substSmiles) continue;
 
-      const locant = this.getLocantForSubstituent(i, locantTokens, multiplierTokens);
-      result = this.addSubstituent(result, substSmiles, locant);
+      // Find locant that appears immediately before this substituent
+      const locant = this.getLocantBeforeSubstituent(substituent, locantTokens);
+      result = this.addSubstituent(result, substSmiles, locant, isCyclic);
     }
 
     return result;
+  }
+
+  /**
+   * Find the locant that appears immediately before a substituent token
+   */
+  private getLocantBeforeSubstituent(substituent: IUPACToken, locantTokens: IUPACToken[]): number {
+    // Find locant with position just before the substituent
+    for (const locant of locantTokens) {
+      if (locant.position < substituent.position) {
+        // Check if this is the closest locant before the substituent
+        const positions = (locant.metadata?.positions as number[]) || [];
+        if (positions.length > 0 && positions[0]) {
+          return positions[0];
+        }
+      }
+    }
+    
+    return 1; // Default position
   }
 
   /**
@@ -229,11 +262,113 @@ export class IUPACBuilder {
 
   /**
    * Add a substituent group to the main chain
+   * Handles branching by inserting substituent at specified locant position
    */
-  private addSubstituent(parentSmiles: string, _substSmiles: string, _locant: number): string {
-    // For MVP: just return parent
-    // In future: perform actual substitution at specific position
+  private addSubstituent(
+    parentSmiles: string,
+    substSmiles: string,
+    locant: number,
+    isCyclic: boolean
+  ): string {
+    // Remove leading dash from substituent SMILES (e.g., "-C" -> "C")
+    const cleanSubst = substSmiles.replace(/^-/, '');
+
+    // Handle simple linear chains (CCC, CCCC, etc.)
+    if (parentSmiles.match(/^C+$/) && !isCyclic) {
+      return this.addSubstituentToLinearChain(parentSmiles, cleanSubst, locant);
+    }
+
+    // Handle chains with double/triple bonds (C=CC, C#CC, etc.)
+    if (parentSmiles.match(/^C[=#]?C+$/) && !isCyclic) {
+      return this.addSubstituentToUnsaturatedChain(parentSmiles, cleanSubst, locant);
+    }
+
+    // Handle cyclic structures (C1CCCCC1, C1=CCCCC1, etc.)
+    if (isCyclic) {
+      return this.addSubstituentToCycle(parentSmiles, cleanSubst, locant);
+    }
+
     return parentSmiles;
+  }
+
+  /**
+   * Add substituent to a simple linear chain
+   * Example: CCCC + C at position 2 -> CC(C)CC
+   */
+  private addSubstituentToLinearChain(chain: string, substituent: string, locant: number): string {
+    const length = chain.length;
+    
+    // Validate locant
+    if (locant < 1 || locant > length) {
+      locant = 1;
+    }
+
+    // For position 1: C(subst)CCC...
+    // For position 2: CC(subst)CC...
+    // For position n: insert branch after carbon at position n
+    const position = locant;
+    
+    return chain.substring(0, position) + 
+           '(' + substituent + ')' + 
+           chain.substring(position);
+  }
+
+  /**
+   * Add substituent to unsaturated chain (with = or #)
+   * Example: C=CC + C at position 2 -> C=C(C)C
+   */
+  private addSubstituentToUnsaturatedChain(chain: string, substituent: string, locant: number): string {
+    // Find carbon positions (skip bond symbols)
+    const carbons: number[] = [];
+    for (let i = 0; i < chain.length; i++) {
+      if (chain[i] === 'C') {
+        carbons.push(i);
+      }
+    }
+
+    if (locant < 1 || locant > carbons.length) {
+      locant = 1;
+    }
+
+    const insertPos = carbons[locant - 1];
+    if (insertPos === undefined) return chain;
+
+    // Insert substituent after the carbon at locant position
+    return chain.substring(0, insertPos + 1) + 
+           '(' + substituent + ')' + 
+           chain.substring(insertPos + 1);
+  }
+
+  /**
+   * Add substituent to cyclic structure
+   * Example: C1CCCCC1 + C at position 2 -> CC1(C)CCCC1
+   */
+  private addSubstituentToCycle(cycle: string, substituent: string, locant: number): string {
+    // For ring: C1CCCCC1
+    // Position 1: C1 -> C1(subst)
+    // Position 2: First C after C1 -> C1C(subst)
+    
+    if (locant === 1) {
+      // Add to first carbon: C1CCCCC1 -> C1(C)CCCCC1
+      return cycle.replace(/^C1/, 'C1(' + substituent + ')');
+    } else {
+      // Add to nth carbon
+      const match = cycle.match(/^C1(C+)1$/);
+      if (match && match[1]) {
+        const innerCarbons = match[1];
+        const position = locant - 2; // Adjust for C1 being position 1
+        
+        if (position >= 0 && position < innerCarbons.length) {
+          return 'C1' + 
+                 innerCarbons.substring(0, position) + 
+                 'C(' + substituent + ')' + 
+                 innerCarbons.substring(position + 1) + 
+                 '1';
+        }
+      }
+    }
+
+    return cycle;
   }
 
   /**
@@ -251,5 +386,110 @@ export class IUPACBuilder {
   private getChainLength(smiles: string): number {
     const match = smiles.match(/^C+/);
     return match ? match[0].length : 0;
+  }
+
+  /**
+   * Convert linear carbon chain to cyclic
+   * Example: CCCCCC -> C1CCCCC1
+   */
+  private makeCyclic(smiles: string): string {
+    if (!smiles.match(/^C+$/)) {
+      return smiles; // Only works for simple linear chains
+    }
+    
+    const length = smiles.length;
+    if (length < 3) {
+      return smiles; // Can't make rings smaller than 3
+    }
+
+    // Create cyclic SMILES: C1 + (C * (n-1)) + 1
+    return 'C1' + 'C'.repeat(length - 1) + '1';
+  }
+
+  /**
+   * Apply unsaturation (ene, yne, diene, triene) to the carbon chain
+   */
+  private applyUnsaturation(
+    smiles: string,
+    suffixTokens: IUPACToken[],
+    locantTokens: IUPACToken[],
+    isCyclic: boolean
+  ): string {
+    const unsaturatedSuffixes = suffixTokens.filter(
+      s => s.metadata?.suffixType === 'unsaturated'
+    );
+
+    if (unsaturatedSuffixes.length === 0) {
+      return smiles;
+    }
+
+    let result = smiles;
+
+    for (const suffix of unsaturatedSuffixes) {
+      const suffixValue = suffix.value.toLowerCase();
+
+      if (suffixValue === 'ene' || suffixValue.includes('ene')) {
+        // Single or double bond
+        result = this.addDoubleBond(result, locantTokens, isCyclic);
+      } else if (suffixValue === 'yne' || suffixValue.includes('yne')) {
+        // Triple bond
+        result = this.addTripleBond(result, locantTokens, isCyclic);
+      } else if (suffixValue === 'diene') {
+        // Two double bonds
+        result = this.addDoubleBond(result, locantTokens, isCyclic);
+        // Would need to handle second double bond with different locant
+      } else if (suffixValue === 'triene') {
+        // Three double bonds
+        result = this.addDoubleBond(result, locantTokens, isCyclic);
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Add a double bond to the carbon chain
+   */
+  private addDoubleBond(smiles: string, locantTokens: IUPACToken[], isCyclic: boolean): string {
+    const locant = this.getFirstLocant(locantTokens);
+    
+    // For simple linear alkanes: CCC -> C=CC (default position 1)
+    // For but-2-ene: CCCC with locant 2 -> CC=CC
+    if (smiles.match(/^C+$/) && !isCyclic) {
+      const length = smiles.length;
+      const position = locant && locant >= 1 && locant < length ? locant : 1;
+      
+      // Insert double bond at position
+      const before = 'C'.repeat(position - 1);
+      const after = 'C'.repeat(length - position);
+      return before + 'C=' + after;
+    }
+
+    // For cyclic: C1CCCCC1 -> C1=CCCCC1 (default position 1)
+    if (isCyclic && smiles.match(/^C1C+1$/)) {
+      return smiles.replace(/^C1C/, 'C1=C');
+    }
+
+    return smiles;
+  }
+
+  /**
+   * Add a triple bond to the carbon chain
+   */
+  private addTripleBond(smiles: string, locantTokens: IUPACToken[], _isCyclic: boolean): string {
+    const locant = this.getFirstLocant(locantTokens);
+    
+    // For simple linear alkanes: CCC -> C#CC (default position 1)
+    if (smiles.match(/^C+$/)) {
+      const length = smiles.length;
+      const position = locant && locant >= 1 && locant < length ? locant : 1;
+      
+      // Insert triple bond at position
+      const before = 'C'.repeat(position - 1);
+      const after = 'C'.repeat(length - position);
+      return before + 'C#' + after;
+    }
+
+    return smiles;
   }
 }
