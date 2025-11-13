@@ -7,7 +7,8 @@ export type IUPACTokenType =
   | 'SUBSTITUENT' 
   | 'PARENT' 
   | 'SUFFIX' 
-  | 'STEREO';
+  | 'STEREO'
+  | 'PREFIX';
 
 /** Represents a single parsed token from an IUPAC name */
 export interface IUPACToken {

@@ -100,25 +100,27 @@ export class OPSINService {
         Array.isArray(entry.aliases) && entry.aliases.length > 0
           ? (entry.aliases[0] as string)
           : entry.name || pattern;
-      const name = nameFromEntry || pattern;
+      
+      // Apply standard IUPAC name overrides before priority lookup
+      let name = nameFromEntry || pattern;
+      let suffix = (entry.suffix as string | undefined) || "";
+      
+      if (pattern === "C#N") {
+        name = "nitrile";
+        suffix = "nitrile";
+      } else if (pattern === "C=O") {
+        // Need to check context - this could be aldehyde or ketone
+        // For now, we'll use a context-neutral approach by checking if it's being used as aldehyde
+        // The detector will handle this properly
+      }
+      
       const priority =
         (entry.priority as number | undefined) ||
         this.priorityMap[name.toLowerCase()] ||
         999;
-      const suffix = (entry.suffix as string | undefined) || "";
       const prefix = entry.prefix as string | undefined;
 
       map.set(pattern, { name, priority, suffix, prefix });
-    }
-
-    // Override OPSIN names for certain patterns to use standard IUPAC names
-    if (map.has("C#N")) {
-      const entry = map.get("C#N")!;
-      map.set("C#N", {
-        ...entry,
-        name: "nitrile",
-        suffix: "nitrile",
-      });
     }
 
     return map;

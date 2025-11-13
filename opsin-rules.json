@@ -818,6 +818,26 @@
         "sulton"
       ],
       "type": "root"
+    },
+    "anoic": {
+      "aliases": [
+        "anoic",
+        "anoi",
+        "anoic acid"
+      ],
+      "type": "root"
+    },
+    "oic": {
+      "aliases": [
+        "oic"
+      ],
+      "type": "root"
+    },
+    "acid": {
+      "aliases": [
+        "acid"
+      ],
+      "type": "descriptor"
     }
   },
   "substituents": {
@@ -3189,6 +3209,83 @@
         "amylidene",
         "amyliden"
       ]
+    },
+    "-C": {
+      "aliases": [
+        "methyl"
+      ]
+    },
+    "-CC": {
+      "aliases": [
+        "ethyl"
+      ]
+    },
+    "-CCC": {
+      "aliases": [
+        "propyl",
+        "n-propyl"
+      ]
+    },
+    "-C(C)C": {
+      "aliases": [
+        "isopropyl",
+        "iso-propyl"
+      ]
+    },
+    "-CCCC": {
+      "aliases": [
+        "butyl",
+        "n-butyl"
+      ]
+    },
+    "-C(C)CC": {
+      "aliases": [
+        "isobutyl",
+        "iso-butyl"
+      ]
+    },
+    "-C(C)(C)C": {
+      "aliases": [
+        "tert-butyl",
+        "tertiary-butyl",
+        "t-butyl"
+      ]
+    },
+    "-C(C)CCC": {
+      "aliases": [
+        "isopentyl",
+        "iso-pentyl"
+      ]
+    },
+    "-CCCCCC": {
+      "aliases": [
+        "hexyl",
+        "n-hexyl"
+      ]
+    },
+    "-CCCCCCC": {
+      "aliases": [
+        "heptyl",
+        "n-heptyl"
+      ]
+    },
+    "-CCCCCCCC": {
+      "aliases": [
+        "octyl",
+        "n-octyl"
+      ]
+    },
+    "-CCCCCCCCC": {
+      "aliases": [
+        "nonyl",
+        "n-nonyl"
+      ]
+    },
+    "-CCCCCCCCCC": {
+      "aliases": [
+        "decyl",
+        "n-decyl"
+      ]
     }
   },
   "functionalGroups": {
@@ -4097,13 +4194,15 @@
       "aliases": [
         "anilin",
         "toluidin",
-        "xylidin"
+        "xylidin",
+        "aniline"
       ],
       "labels": "/1/2,ortho/3,meta/4,para/5/6"
     },
     "COc1ccccc1": {
       "aliases": [
-        "anisidin"
+        "anisidin",
+        "anisole"
       ],
       "labels": "alpha//1/2,ortho/3,meta/4,para/5/6"
     },
@@ -4462,6 +4561,7 @@
     },
     "n1ccccc1": {
       "aliases": [
+        "pyridine",
         "collidin",
         "pyridin",
         "lutidine",
@@ -4668,6 +4768,7 @@
     },
     "N1CCOCCC1": {
       "aliases": [
+        "morpholine",
         "homomorpholin"
       ],
       "labels": "4,para/3,meta/2,ortho/1/7/6/5"
@@ -4699,6 +4800,7 @@
     },
     "N1CCCCCC1": {
       "aliases": [
+        "piperidine",
         "homopiperidin"
       ],
       "labels": "1/2/3/4/5/6/7"
@@ -5106,6 +5208,7 @@
     },
     "c1cccc2ccccc12": {
       "aliases": [
+        "naphthalene",
         "naphthalen",
         "naphthalin",
         "naphthoquinon",
@@ -5445,6 +5548,7 @@
     },
     "N1CCNCC1": {
       "aliases": [
+        "piperazine",
         "piperazin"
       ],
       "labels": "1/2,ortho/3,meta/4,para/5/6"
@@ -5579,6 +5683,7 @@
     },
     "[nH]1cccc1": {
       "aliases": [
+        "pyrrole",
         "pyrrol"
       ],
       "labels": "1/2/3/4/5"
@@ -5815,7 +5920,8 @@
     },
     "Cc1ccccc1": {
       "aliases": [
-        "toluen"
+        "toluen",
+        "toluene"
       ],
       "labels": "alpha/1/2,ortho/3,meta/4,para/5/6"
     },
@@ -7272,6 +7378,64 @@
         "kaempferol"
       ],
       "labels": "1/2/3//4//4a/5//6/7//8/8a/1'/2'/3'/4'//5'/6'"
+    },
+    "C(=O)O": {
+      "aliases": [
+        "formicacid"
+      ],
+      "labels": "1"
+    },
+    "CC(=O)O": {
+      "aliases": [
+        "aceticacid"
+      ],
+      "labels": "1"
+    },
+    "C=O": {
+      "aliases": [
+        "formaldehyde"
+      ],
+      "labels": "1"
+    },
+    "CC=O": {
+      "aliases": [
+        "acetaldehyde"
+      ],
+      "labels": "1"
+    },
+    "CC(=O)C": {
+      "aliases": [
+        "acetone"
+      ],
+      "labels": "1"
+    },
+    "Oc1ccccc1": {
+      "aliases": [
+        "phenol"
+      ],
+      "labels": "1"
+    },
+    "C(=O)(N)c1ccccc1": {
+      "aliases": [
+        "benzamide"
+      ],
+      "labels": "1"
     }
+  },
+  "functionalGroupPriorities": {
+    "carboxylic acid": 1,
+    "carboxylic acid salt": 2,
+    "sulfinic acid": 2,
+    "sulfonic acid": 2,
+    "sulfonic acid salt": 2,
+    "ester": 4,
+    "carboxylic acidesterderivative": 5,
+    "amide": 6,
+    "nitrile": 7,
+    "aldehyde": 8,
+    "ketone": 9,
+    "alcohol": 10,
+    "amine": 13,
+    "ether": 14
   }
 }

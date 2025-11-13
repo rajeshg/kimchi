@@ -32,8 +32,9 @@ export class IUPACTokenizer {
      while (pos < normalized.length) {
        const remaining = normalized.substring(pos);
 
-       // Try each token type in priority order
+       // Try each token type in priority order (prefixes first)
        const token =
+         this.tryPrefix(remaining, pos) ||
          this.tryLocant(remaining, pos) ||
          this.tryStereo(remaining, pos) ||
          this.tryMultiplier(remaining, pos) ||
@@ -58,6 +59,31 @@ export class IUPACTokenizer {
      }
 
      return { tokens, errors };
+   }
+
+   /**
+    * Try to match a prefix (N-, O-, S-, etc.)
+    */
+   private tryPrefix(str: string, pos: number): IUPACToken | null {
+     // Common prefixes for substitution on heteroatoms
+     const prefixes = ['n-', 'o-', 's-', 'c-', 'x-'];
+     
+     for (const prefix of prefixes) {
+       if (str.startsWith(prefix)) {
+         // Must be followed by alphabetic characters (start of substituent name)
+         const nextChar = str[prefix.length];
+         if (nextChar && /[a-z]/.test(nextChar)) {
+           return {
+             type: 'PREFIX',
+             value: prefix.substring(0, prefix.length - 1), // Remove hyphen
+             position: pos,
+             length: prefix.length,
+           };
+         }
+       }
+     }
+
+     return null;
    }
 
   /**
