@@ -92,6 +92,26 @@ export class IUPACTokenizer {
        }
      }
 
+     // Check for cyclo/bicyclo/tricyclo prefixes (ring system indicators)
+     const cycloPatterns = ['tricyclo', 'bicyclo', 'cyclo'];
+     for (const pattern of cycloPatterns) {
+       if (str.startsWith(pattern)) {
+         const nextChar = str[pattern.length];
+         // Must be followed by alphabetic character or bracket
+         if (nextChar && /[a-z\[]/.test(nextChar)) {
+           return {
+             type: 'PREFIX',
+             value: pattern,
+             position: pos,
+             length: pattern.length,
+             metadata: {
+               isCyclic: true,
+             },
+           };
+         }
+       }
+     }
+
      // Common prefixes for substitution on heteroatoms
      const prefixes = ['n-', 'o-', 's-', 'c-', 'x-'];
      
@@ -232,9 +252,32 @@ export class IUPACTokenizer {
 
   /**
    * Try to match a multiplier (di, tri, tetra, etc.)
+   * Includes both basic (di, tri) and group multipliers (bis, tris)
    * Multipliers must be followed by substituents or functional groups, NOT by alkane suffixes
    */
   private tryMultiplier(str: string, pos: number): IUPACToken | null {
+    // Check group multipliers first (bis, tris, etc.) - used for complex substituents
+    if (this.rules.multipliers.group) {
+      for (const [num, name] of Object.entries(this.rules.multipliers.group)) {
+        if (str.startsWith(name)) {
+          const nextPos = name.length;
+          if (nextPos >= str.length) return null;
+          
+          const nextChar = str[nextPos];
+          // Group multipliers typically followed by opening paren or letter
+          if (nextChar && /[a-z(]/.test(nextChar)) {
+            return {
+              type: 'MULTIPLIER',
+              value: name,
+              position: pos,
+              length: name.length,
+              metadata: { count: parseInt(num), isGroup: true },
+            };
+          }
+        }
+      }
+    }
+
     // Check basic multipliers
     for (const [num, name] of Object.entries(this.rules.multipliers.basic)) {
       if (str.startsWith(name)) {
@@ -338,34 +381,34 @@ export class IUPACTokenizer {
 
   /**
    * Try to match a parent chain (alkane or ring system)
+   * Uses longest-match strategy to handle overlapping aliases
    */
   private tryParent(str: string, pos: number): IUPACToken | null {
-    // Try ring systems first (usually longer)
-    const ringSystems = Object.entries(this.rules.ringSystems).sort(
-      (a, b) => {
-        const aLen = Math.max(...a[1].aliases.map(x => x.length));
-        const bLen = Math.max(...b[1].aliases.map(x => x.length));
-        return bLen - aLen;
-      }
-    );
+    let bestMatch: IUPACToken | null = null;
 
-    for (const [smiles, data] of ringSystems) {
+    // Try ring systems first - collect ALL matches and choose longest
+    for (const [smiles, data] of Object.entries(this.rules.ringSystems)) {
       for (const alias of data.aliases) {
         if (str.startsWith(alias)) {
-          return {
-            type: 'PARENT',
-            value: alias,
-            position: pos,
-            length: alias.length,
-            metadata: {
-              smiles,
-              labels: data.labels,
-              isRing: true,
-            },
-          };
+          if (!bestMatch || alias.length > bestMatch.length) {
+            bestMatch = {
+              type: 'PARENT',
+              value: alias,
+              position: pos,
+              length: alias.length,
+              metadata: {
+                smiles,
+                labels: data.labels,
+                isRing: true,
+              },
+            };
+          }
         }
       }
     }
+
+    // If we found a ring system match, return it
+    if (bestMatch) return bestMatch;
 
     // Try alkanes
     for (const [smiles, name] of Object.entries(this.rules.alkanes)) {

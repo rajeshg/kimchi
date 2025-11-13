@@ -557,9 +557,9 @@
     },
     "ate": {
       "aliases": [
-        "ic acid anion"
+        "ate"
       ],
-      "type": "root"
+      "type": "ester"
     },
     "ite": {
       "aliases": [
@@ -844,6 +844,66 @@
         "acid"
       ],
       "type": "descriptor"
+    },
+    "yl": {
+      "aliases": [
+        "yl"
+      ],
+      "type": "connector"
+    },
+    "ylidene": {
+      "aliases": [
+        "ylidene"
+      ],
+      "type": "connector"
+    },
+    "oxy": {
+      "aliases": [
+        "oxy"
+      ],
+      "type": "connector"
+    },
+    "oate": {
+      "aliases": [
+        "oate"
+      ],
+      "type": "ester"
+    },
+    "diene": {
+      "aliases": [
+        "diene"
+      ],
+      "type": "unsaturated"
+    },
+    "triene": {
+      "aliases": [
+        "triene"
+      ],
+      "type": "unsaturated"
+    },
+    "en": {
+      "aliases": [
+        "en"
+      ],
+      "type": "infix"
+    },
+    "sulfinyl": {
+      "aliases": [
+        "sulfinyl"
+      ],
+      "type": "functional"
+    },
+    "sulfonyl": {
+      "aliases": [
+        "sulfonyl"
+      ],
+      "type": "functional"
+    },
+    "sulfanyl": {
+      "aliases": [
+        "sulfanyl"
+      ],
+      "type": "functional"
     }
   },
   "substituents": {
@@ -7606,6 +7666,185 @@
         "purin"
       ],
       "labels": "1/2/3/4/5/6/7/8/9"
+    },
+    "C1CO1": {
+      "aliases": [
+        "oxirane"
+      ],
+      "labels": "1/2/3"
+    },
+    "C1CN1": {
+      "aliases": [
+        "aziridine",
+        "aziridin"
+      ],
+      "labels": "1/2/3"
+    },
+    "C1CS1": {
+      "aliases": [
+        "thiirane",
+        "thiiran"
+      ],
+      "labels": "1/2/3"
+    },
+    "C1COC1": {
+      "aliases": [
+        "oxetane",
+        "oxetan"
+      ],
+      "labels": "1/2/3/4"
+    },
+    "C1CNC1": {
+      "aliases": [
+        "azetidine",
+        "azetidin"
+      ],
+      "labels": "1/2/3/4"
+    },
+    "C1CSC1": {
+      "aliases": [
+        "thietane",
+        "thietan"
+      ],
+      "labels": "1/2/3/4"
+    },
+    "C1CCOC1": {
+      "aliases": [
+        "tetrahydrofuran",
+        "oxolane",
+        "oxolan",
+        "thf"
+      ],
+      "labels": "1/2/3/4/5"
+    },
+    "C1CCSC1": {
+      "aliases": [
+        "tetrahydrothiophene",
+        "thiolane",
+        "thiolan"
+      ],
+      "labels": "1/2/3/4/5"
+    },
+    "C1CCNC1": {
+      "aliases": [
+        "pyrrolidine",
+        "pyrrolidin"
+      ],
+      "labels": "1/2/3/4/5"
+    },
+    "c1ccsc1": {
+      "aliases": [
+        "thiophene",
+        "thiophen"
+      ],
+      "labels": "1/2/3/4/5"
+    },
+    "c1cncs1": {
+      "aliases": [
+        "thiazole",
+        "thiazol"
+      ],
+      "labels": "1/2/3/4/5"
+    },
+    "c1cnco1": {
+      "aliases": [
+        "oxazole",
+        "oxazol"
+      ],
+      "labels": "1/2/3/4/5"
+    },
+    "c1c[nH]cn1": {
+      "aliases": [
+        "imidazole",
+        "imidazol"
+      ],
+      "labels": "1/2/3/4/5"
+    },
+    "c1cn[nH]c1": {
+      "aliases": [
+        "pyrazole",
+        "pyrazol"
+      ],
+      "labels": "1/2/3/4/5"
+    },
+    "C1CCOCC1": {
+      "aliases": [
+        "tetrahydropyran",
+        "oxane",
+        "oxan"
+      ],
+      "labels": "1/2/3/4/5/6"
+    },
+    "C1CCSCC1": {
+      "aliases": [
+        "tetrahydrothiopyran",
+        "thiane",
+        "thian"
+      ],
+      "labels": "1/2/3/4/5/6"
+    },
+    "C1CCNCC1": {
+      "aliases": [
+        "piperidine",
+        "piperidin"
+      ],
+      "labels": "1/2/3/4/5/6"
+    },
+    "c1ccncc1": {
+      "aliases": [
+        "pyridine",
+        "pyridin"
+      ],
+      "labels": "1/2/3/4/5/6"
+    },
+    "c1cncnc1": {
+      "aliases": [
+        "pyrimidine",
+        "pyrimidin"
+      ],
+      "labels": "1/2/3/4/5/6"
+    },
+    "c1cnccn1": {
+      "aliases": [
+        "pyrazine",
+        "pyrazin"
+      ],
+      "labels": "1/2/3/4/5/6"
+    },
+    "c1ccnnc1": {
+      "aliases": [
+        "pyridazine",
+        "pyridazin"
+      ],
+      "labels": "1/2/3/4/5/6"
+    },
+    "c1ccc2ncccc2c1": {
+      "aliases": [
+        "quinoline",
+        "quinolin"
+      ],
+      "labels": "1/2/3/3a/4/5/6/7/7a/8"
+    },
+    "c1ccc2[nH]ccc2c1": {
+      "aliases": [
+        "indole",
+        "indol"
+      ],
+      "labels": "1/2/3/3a/7a/4/5/6/7"
+    },
+    "c1ccc2occc2c1": {
+      "aliases": [
+        "benzofuran",
+        "benzofuran"
+      ],
+      "labels": "1/2/3/3a/7a/4/5/6/7"
+    },
+    "c1ccc2sccc2c1": {
+      "aliases": [
+        "benzothiophene",
+        "benzothiophen"
+      ],
+      "labels": "1/2/3/3a/7a/4/5/6/7"
     }
   },
   "functionalGroupPriorities": {
