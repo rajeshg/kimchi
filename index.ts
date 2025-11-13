@@ -4,6 +4,8 @@ export {
   getBitsSet,
 } from "src/utils/morgan-fingerprint";
 export { parseSMILES } from "src/parsers/smiles-parser";
+export { parseIUPACName } from "src/parsers/iupac-parser";
+export type { IUPACParseResult, IUPACParserConfig } from "src/parsers/iupac-types";
 export { generateSMILES } from "src/generators/smiles-generator";
 export { generateMolfile } from "src/generators/mol-generator";
 export { parseMolfile } from "src/parsers/molfile-parser";

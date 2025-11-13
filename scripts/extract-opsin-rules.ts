@@ -37,6 +37,7 @@ interface ExtractedRules {
   suffixes: Record<string, { aliases: string[]; type?: string }>;
   substituents: Record<string, { aliases: string[]; smiles?: string }>;
   functionalGroups: Record<string, { aliases: string[]; type?: string }>;
+  ringSystems: Record<string, { aliases: string[]; labels?: string }>;
   [key: string]: any;
 }
 
@@ -305,6 +306,41 @@ function processFunctionalTerms(xmlContent: string): Partial<ExtractedRules> {
 }
 
 /**
+ * Process arylGroups.xml and simpleCyclicGroups.xml for ring systems
+ */
+function processRingSystems(xmlContent: string): Partial<ExtractedRules> {
+  const result: Partial<ExtractedRules> = {
+    ringSystems: {},
+  };
+
+  const lists = extractTokenLists(xmlContent);
+
+  for (const list of lists) {
+    if (list.tagname === "group" && list.type === "ring") {
+      for (const token of list.tokens) {
+        const smiles = token.value;
+        
+        // If entry exists, merge aliases
+        if (result.ringSystems![smiles]) {
+          const existing = result.ringSystems![smiles];
+          const newAliases = token.aliases.filter(
+            a => !existing.aliases.includes(a)
+          );
+          existing.aliases.push(...newAliases);
+        } else {
+          result.ringSystems![smiles] = {
+            aliases: token.aliases,
+            labels: token.metadata?.labels,
+          };
+        }
+      }
+    }
+  }
+
+  return result;
+}
+
+/**
  * Main extraction function
  */
 function extractAllRules(): ExtractedRules {
@@ -322,6 +358,7 @@ function extractAllRules(): ExtractedRules {
     suffixes: {},
     substituents: {},
     functionalGroups: {},
+    ringSystems: {},
   };
 
   // Process key files
@@ -332,6 +369,8 @@ function extractAllRules(): ExtractedRules {
     { file: "functionalTerms.xml", processor: processFunctionalTerms },
     { file: "substituents.xml", processor: processSubstituents },
     { file: "simpleSubstituents.xml", processor: processSubstituents },
+    { file: "arylGroups.xml", processor: processRingSystems },
+    { file: "simpleCyclicGroups.xml", processor: processRingSystems },
   ];
 
   for (const { file, processor } of filesToProcess) {
@@ -340,6 +379,24 @@ function extractAllRules(): ExtractedRules {
       try {
         const content = fs.readFileSync(filePath, "utf-8");
         const extracted = processor(content);
+        
+        // Special handling for ringSystems to merge entries
+        if (extracted.ringSystems) {
+          for (const [smiles, data] of Object.entries(extracted.ringSystems)) {
+            if (rules.ringSystems[smiles]) {
+              // Merge aliases
+              const existing = rules.ringSystems[smiles];
+              const newAliases = data.aliases.filter(
+                a => !existing.aliases.includes(a)
+              );
+              existing.aliases.push(...newAliases);
+            } else {
+              rules.ringSystems[smiles] = data;
+            }
+          }
+          delete extracted.ringSystems;
+        }
+        
         Object.assign(rules, extracted);
         console.log(`✓ Processed ${file}`);
       } catch (err) {
@@ -378,6 +435,9 @@ function main() {
   );
   console.log(
     `  Functional groups: ${Object.keys(rules.functionalGroups).length} entries`,
+  );
+  console.log(
+    `  Ring systems: ${Object.keys(rules.ringSystems).length} entries`,
   );
 }
 
