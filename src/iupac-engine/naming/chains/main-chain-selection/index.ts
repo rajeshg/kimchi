@@ -216,9 +216,13 @@ export function findMainChain(
     // Examples: quinoline-4-carboxamide, pyridine-3-carboxylic acid
     // If we have:
     // - A heterocyclic ring system (contains N, O, S, etc.)
-    // - Very few acyclic carbons (0-2)
+    // - Exactly 1 acyclic carbon (the carbonyl carbon directly attached to ring)
     // - An amide or carboxylic acid functional group
-    // Then defer to ring-based nomenclature.
+    // Then defer to ring-based nomenclature (heterocycle-carboxylic acid nomenclature).
+    //
+    // NOTE: We only check acyclicCarbons === 1, not <= 2, because:
+    // - acyclicCarbons === 1: quinoline-4-carboxylic acid (C attached to ring) → ring parent
+    // - acyclicCarbons === 2: thiazole with CH2-COOH chain → chain parent (ethanoic acid)
     const hasHeterocycle = rings.some((ring) =>
       ring.some((atomId) => {
         const atom = molecule.atoms[atomId];
@@ -227,13 +231,22 @@ export function findMainChain(
     );
 
     const hasCarboxylicAcidOrAmide = functionalGroups.some(
-      (fg) => fg.type === "C(=O)N" || fg.type === "C(=O)O" || fg.type === "C(=O)OH" || fg.name === "amide" || fg.name === "carboxylic acid",
+      (fg) =>
+        fg.type === "C(=O)N" ||
+        fg.type === "C(=O)O" ||
+        fg.type === "C(=O)OH" ||
+        fg.type === "C(=O)[OX2H1]" ||
+        fg.type === "carboxylic_acid" ||
+        fg.type === "amide" ||
+        fg.name === "amide" ||
+        fg.name === "carboxylic acid" ||
+        fg.name === "carboxylic_acid",
     );
 
-    if (hasHeterocycle && acyclicCarbons <= 2 && hasCarboxylicAcidOrAmide) {
+    if (hasHeterocycle && acyclicCarbons === 1 && hasCarboxylicAcidOrAmide) {
       if (process.env.VERBOSE) {
         console.log(
-          `[findMainChain] Heterocyclic system with carboxamide/carboxylic acid detected (${ringAtomIds.size} ring atoms, ${acyclicCarbons} acyclic carbons). Deferring to ring-based nomenclature.`,
+          `[findMainChain] Heterocyclic system with carboxamide/carboxylic acid directly attached detected (${ringAtomIds.size} ring atoms, ${acyclicCarbons} acyclic carbons). Deferring to ring-based nomenclature.`,
         );
       }
       return [];

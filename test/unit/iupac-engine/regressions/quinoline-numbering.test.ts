@@ -112,7 +112,7 @@ describe("Quinoline numbering regression tests", () => {
     expect(result.name).toBe("quinoline-4-carboxamide");
   });
 
-  it.skip("should handle quinoline with carboxylic acid", () => {
+  it("should handle quinoline with carboxylic acid", () => {
     // TODO: This is a separate bug - carboxylic acids on quinoline produce wrong names
     // The molecule parses correctly (2 rings, correct aromaticity) but name generation
     // treats it as separate pyridine + benzene rings instead of fused quinoline
