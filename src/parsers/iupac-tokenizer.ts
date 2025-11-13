@@ -30,40 +30,70 @@ export class IUPACTokenizer {
        let pos = 0;
 
        while (pos < normalized.length) {
-         const remaining = normalized.substring(pos);
+          const remaining = normalized.substring(pos);
 
-       // Try each token type in priority order:
-       // 1. Stereo markers (E/Z/R/S/@) before prefixes to avoid conflicts
-       // 2. Prefixes (N-, O-) before substituents
-       // 3. Locants (position numbers)
-       // 4. Multipliers (di, tri) before substituents/parents
-       // 5. Substituents (methyl, ethyl) before parents to match "methyl" before "meth"
-       // 6. Parents (alkanes, ring systems)
-       // 7. Suffixes (ane, ene, ol)
-       const token =
-         this.tryStereo(remaining, pos) ||
-         this.tryPrefix(remaining, pos) ||
-          this.tryLocant(remaining, pos) ||
-          this.tryMultiplier(remaining, pos) ||
-          this.trySubstituent(remaining, pos) ||
-          this.tryParent(remaining, pos) ||
-          this.trySuffix(remaining, pos);
-
-         if (token) {
-           tokens.push(token);
-           pos += token.length;
-         } else {
-           // Skip whitespace, hyphens, and special characters (parentheses, brackets, commas)
-           const nextChar = remaining[0];
-           if (nextChar && /[\s\-\(\)\[\],]/.test(nextChar)) {
-             pos++;
-             continue;
-           }
-           // Only report errors for non-whitespace characters that couldn't be tokenized
-           errors.push(`Cannot tokenize at position ${pos}: ${nextChar || 'EOF'}`);
-           pos++;
-         }
-       }
+        // Use longest-match strategy to handle ambiguous cases like "oxo" vs "oxolan"
+        // Priority order (checked in sequence, but longest match wins for ambiguous cases):
+        // 1. Stereo markers (E/Z/R/S/@) - highest priority, no ambiguity
+        // 2. Prefixes (N-, O-) - must have hyphen, no ambiguity
+        // 3. Locants (position numbers) - no ambiguity
+        // 4. Multipliers, Substituents, Parents, Suffixes - use longest match
+        
+        const stereo = this.tryStereo(remaining, pos);
+        if (stereo) {
+          tokens.push(stereo);
+          pos += stereo.length;
+          continue;
+        }
+        
+        const prefix = this.tryPrefix(remaining, pos);
+        if (prefix) {
+          tokens.push(prefix);
+          pos += prefix.length;
+          continue;
+        }
+        
+        const locant = this.tryLocant(remaining, pos);
+        if (locant) {
+          tokens.push(locant);
+          pos += locant.length;
+          continue;
+        }
+        
+        // For potentially ambiguous matches, collect all candidates and pick longest
+        const candidates: IUPACToken[] = [];
+        
+        const multiplier = this.tryMultiplier(remaining, pos);
+        if (multiplier) candidates.push(multiplier);
+        
+        const substituent = this.trySubstituent(remaining, pos);
+        if (substituent) candidates.push(substituent);
+        
+        const parent = this.tryParent(remaining, pos);
+        if (parent) candidates.push(parent);
+        
+        const suffix = this.trySuffix(remaining, pos);
+        if (suffix) candidates.push(suffix);
+        
+        // Choose longest match
+        if (candidates.length > 0) {
+          const longest = candidates.reduce((prev, curr) => 
+            curr.length > prev.length ? curr : prev
+          );
+          tokens.push(longest);
+          pos += longest.length;
+        } else {
+          // Skip whitespace, hyphens, and special characters (parentheses, brackets, commas)
+          const nextChar = remaining[0];
+          if (nextChar && /[\s\-\(\)\[\],]/.test(nextChar)) {
+            pos++;
+            continue;
+          }
+          // Only report errors for non-whitespace characters that couldn't be tokenized
+          errors.push(`Cannot tokenize at position ${pos}: ${nextChar || 'EOF'}`);
+          pos++;
+        }
+      }
 
        return { tokens, errors };
      }

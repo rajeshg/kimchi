@@ -191,6 +191,12 @@
       ],
       "type": "infix"
     },
+    "a": {
+      "aliases": [
+        "a"
+      ],
+      "type": "infix"
+    },
     "amine": {
       "aliases": [
         "amine",
