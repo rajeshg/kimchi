@@ -32,15 +32,22 @@ export class IUPACTokenizer {
        while (pos < normalized.length) {
          const remaining = normalized.substring(pos);
 
-         // Try each token type in priority order (stereo before prefix to avoid s- conflicts)
-         const token =
-           this.tryStereo(remaining, pos) ||
-           this.tryPrefix(remaining, pos) ||
-           this.tryLocant(remaining, pos) ||
-           this.tryMultiplier(remaining, pos) ||
-           this.trySuffix(remaining, pos) ||
-           this.trySubstituent(remaining, pos) ||
-           this.tryParent(remaining, pos);
+       // Try each token type in priority order:
+       // 1. Stereo markers (E/Z/R/S/@) before prefixes to avoid conflicts
+       // 2. Prefixes (N-, O-) before substituents
+       // 3. Locants (position numbers)
+       // 4. Multipliers (di, tri) before substituents/parents
+       // 5. Substituents (methyl, ethyl) before parents to match "methyl" before "meth"
+       // 6. Parents (alkanes, ring systems)
+       // 7. Suffixes (ane, ene, ol)
+       const token =
+         this.tryStereo(remaining, pos) ||
+         this.tryPrefix(remaining, pos) ||
+          this.tryLocant(remaining, pos) ||
+          this.tryMultiplier(remaining, pos) ||
+          this.trySubstituent(remaining, pos) ||
+          this.tryParent(remaining, pos) ||
+          this.trySuffix(remaining, pos);
 
          if (token) {
            tokens.push(token);
@@ -61,10 +68,30 @@ export class IUPACTokenizer {
        return { tokens, errors };
      }
 
-    /**
-     * Try to match a prefix (N-, O-, S-, etc.)
-     */
+   /**
+    * Try to match a prefix (N-, O-, S-, etc.)
+    * Also handles compound prefixes like "N,N-", "N,O-"
+    */
    private tryPrefix(str: string, pos: number): IUPACToken | null {
+     // Check for compound atom locant prefixes (e.g., "N,N-", "N,O-", "O,O-")
+     const compoundMatch = /^([nNosOS])(?:,([nNosOS]))*-/.exec(str);
+     if (compoundMatch) {
+       const prefixValue = compoundMatch[0].slice(0, -1); // Remove trailing hyphen
+       const nextChar = str[compoundMatch[0].length];
+       // Must be followed by alphabetic characters
+       if (nextChar && /[a-z]/.test(nextChar)) {
+         return {
+           type: 'PREFIX',
+           value: prefixValue.toLowerCase(),
+           position: pos,
+           length: compoundMatch[0].length,
+           metadata: {
+             isCompound: true,
+           },
+         };
+       }
+     }
+
      // Common prefixes for substitution on heteroatoms
      const prefixes = ['n-', 'o-', 's-', 'c-', 'x-'];
      
@@ -88,8 +115,24 @@ export class IUPACTokenizer {
 
   /**
    * Try to match a locant (position number like "1", "2,3", "1,2,4")
+   * Also handles hydrogen notation like "1H-", "2H-"
    */
   private tryLocant(str: string, pos: number): IUPACToken | null {
+    // Check for hydrogen count notation (e.g., "1H-", "2H-")
+    const hydrogenMatch = /^(\d+)[hH]-/.exec(str);
+    if (hydrogenMatch && hydrogenMatch[1]) {
+      return {
+        type: 'LOCANT',
+        value: hydrogenMatch[0].slice(0, -1), // Remove trailing hyphen
+        position: pos,
+        length: hydrogenMatch[0].length,
+        metadata: {
+          hydrogenCount: parseInt(hydrogenMatch[1]),
+          isHydrogenNotation: true,
+        },
+      };
+    }
+
     const match = this.locantRegex.exec(str);
     if (!match) return null;
 
@@ -189,6 +232,7 @@ export class IUPACTokenizer {
 
   /**
    * Try to match a multiplier (di, tri, tetra, etc.)
+   * Multipliers must be followed by substituents or functional groups, NOT by alkane suffixes
    */
   private tryMultiplier(str: string, pos: number): IUPACToken | null {
     // Check basic multipliers
@@ -200,6 +244,17 @@ export class IUPACTokenizer {
         
         const nextChar = str[nextPos];
         if (!nextChar || !nextChar.match(/[a-z]/)) return null;
+
+        // Don't match if followed by alkane/alkene suffixes (these indicate parent chain)
+        // "ane", "ene", "yne" are definite alkane suffixes
+        // "an" followed by suffix (ol, oic, al, etc.) also indicates parent chain
+        const remainder = str.substring(nextPos);
+        if (remainder.startsWith('ane') || 
+            remainder.startsWith('ene') || 
+            remainder.startsWith('yne') ||
+            /^an[eo]/.test(remainder)) {  // "ano", "ane" patterns
+          return null;
+        }
 
         return {
           type: 'MULTIPLIER',
