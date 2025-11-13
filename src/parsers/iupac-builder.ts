@@ -185,6 +185,10 @@ export class IUPACBuilder {
         case 'amin':
           result = this.addAmineGroup(result, locantTokens);
           break;
+        case 'amide':
+        case 'amid':
+          result = this.addAmideGroup(result);
+          break;
         case 'al':
           result = this.addAldehydeGroup(result);
           break;
@@ -597,6 +601,17 @@ export class IUPACBuilder {
 
     if (smiles.match(/^C+$/)) {
       return smiles.substring(0, smiles.length - 1) + 'CN';
+    }
+    return smiles;
+  }
+
+  /**
+   * Add amide group (-CONH2)
+   * Example: "ethanamide" -> CC(=O)N
+   */
+  private addAmideGroup(smiles: string): string {
+    if (smiles.match(/^C+$/)) {
+      return smiles.substring(0, smiles.length - 1) + 'C(=O)N';
     }
     return smiles;
   }
