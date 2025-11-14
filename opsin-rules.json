@@ -910,6 +910,42 @@
         "sulfanyl"
       ],
       "type": "functional"
+    },
+    "thiocyanate": {
+      "aliases": [
+        "thiocyanate"
+      ],
+      "type": "root"
+    },
+    "formate": {
+      "aliases": [
+        "formate"
+      ],
+      "type": "root"
+    },
+    "acetate": {
+      "aliases": [
+        "acetate"
+      ],
+      "type": "root"
+    },
+    "oyl": {
+      "aliases": [
+        "oyl"
+      ],
+      "type": "infix"
+    },
+    "benzoate": {
+      "aliases": [
+        "benzoate"
+      ],
+      "type": "root"
+    },
+    "sulfenyl": {
+      "aliases": [
+        "sulfenyl"
+      ],
+      "type": "functional"
     }
   },
   "substituents": {

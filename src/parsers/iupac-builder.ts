@@ -247,6 +247,18 @@ export class IUPACBuilder {
         case 'nitrile':
           result = this.addNitrileGroup(result);
           break;
+        case 'thiocyanate':
+          result = this.addThiocyanateGroup(result);
+          break;
+        case 'formate':
+          result = this.addFormateGroup(result, substituentTokens);
+          break;
+        case 'acetate':
+          result = this.addAcetateGroup(result);
+          break;
+        case 'benzoate':
+          result = this.addBenzoateGroup(result, substituentTokens);
+          break;
       }
     }
 
@@ -732,6 +744,65 @@ export class IUPACBuilder {
       return smiles.substring(0, smiles.length - 1) + 'C(=O)O' + alkylGroup;
     }
     return smiles;
+  }
+
+  /**
+   * Add thiocyanate group (-SCN)
+   * Example: "3-oxobutyl thiocyanate" -> CC(=O)CCSC#N
+   */
+  private addThiocyanateGroup(smiles: string): string {
+    if (smiles.match(/^[C(=O)]+$/)) {
+      return smiles + 'SC#N';
+    }
+    return smiles;
+  }
+
+  /**
+   * Add formate ester group (formic acid ester, HC(=O)OR)
+   * Example: "methyl formate" -> O=COC (HCOOCH3)
+   * Note: The R group comes from the substituent
+   */
+  private addFormateGroup(smiles: string, substituentTokens: IUPACToken[]): string {
+    // Get the alkyl group from substituents
+    let alkylGroup = 'C'; // Default to methyl
+    if (substituentTokens.length > 0 && substituentTokens[0]) {
+      const substSmiles = (substituentTokens[0].metadata?.smiles as string) || '';
+      alkylGroup = substSmiles.replace(/^-/, '');
+    }
+    
+    // Formate is H-C(=O)-O-R -> O=CO + alkylGroup
+    return 'O=CO' + alkylGroup;
+  }
+
+  /**
+   * Add acetate ester group (acetic acid ester, CH3C(=O)OR)
+   * Example: "ethyl acetate" -> CC(=O)OCC
+   * Note: The R group comes from the parent chain or is implicit
+   */
+  private addAcetateGroup(smiles: string): string {
+    // Acetate is CH3-C(=O)-O-R where R is the rest of the molecule
+    // If smiles is empty or just substituents, acetate is standalone
+    if (!smiles || smiles.match(/^[C()]+$/)) {
+      return 'CC(=O)O' + smiles;
+    }
+    return smiles;
+  }
+
+  /**
+   * Add benzoate ester group (benzoic acid ester, C6H5C(=O)OR)
+   * Example: "methyl benzoate" -> O=C(OC)c1ccccc1
+   * Note: The R group comes from the substituent
+   */
+  private addBenzoateGroup(smiles: string, substituentTokens: IUPACToken[]): string {
+    // Get the alkyl group from substituents (e.g., "methyl" in "methyl benzoate")
+    let alkylGroup = 'C'; // Default to methyl
+    if (substituentTokens.length > 0 && substituentTokens[0]) {
+      const substSmiles = (substituentTokens[0].metadata?.smiles as string) || '';
+      alkylGroup = substSmiles.replace(/^-/, '');
+    }
+    
+    // Benzoate is C6H5-C(=O)-O-R -> c1ccccc1C(=O)O + alkylGroup
+    return 'c1ccccc1C(=O)O' + alkylGroup;
   }
 
   /**
