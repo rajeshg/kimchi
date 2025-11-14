@@ -59,29 +59,73 @@ export class IUPACTokenizer {
           pos += locant.length;
           continue;
         }
-        
-        // For potentially ambiguous matches, collect all candidates and pick longest
-        const candidates: IUPACToken[] = [];
-        
-        const multiplier = this.tryMultiplier(remaining, pos);
-        if (multiplier) candidates.push(multiplier);
-        
-        const substituent = this.trySubstituent(remaining, pos);
-        if (substituent) candidates.push(substituent);
-        
-        const parent = this.tryParent(remaining, pos);
-        if (parent) candidates.push(parent);
-        
-        const suffix = this.trySuffix(remaining, pos);
-        if (suffix) candidates.push(suffix);
-        
-        // Choose longest match
-        if (candidates.length > 0) {
-          const longest = candidates.reduce((prev, curr) => 
-            curr.length > prev.length ? curr : prev
-          );
-          tokens.push(longest);
-          pos += longest.length;
+         
+          // Check for alkyl term followed by major functional group (e.g., "butyl thiocyanate")
+          // Handle this before processing as substituent
+          const alkylTerms: Record<string, string> = {
+            'methyl': 'C',
+            'ethyl': 'CC',
+            'propyl': 'CCC',
+            'butyl': 'CCCC',
+            'pentyl': 'CCCCC',
+            'hexyl': 'CCCCCC',
+            'heptyl': 'CCCCCCC',
+            'octyl': 'CCCCCCCC',
+            'nonyl': 'CCCCCCCCC',
+            'decyl': 'CCCCCCCCCC',
+          };
+
+          let alkylTermMatched = false;
+          for (const [alkylName, smiles] of Object.entries(alkylTerms)) {
+            if (remaining.startsWith(alkylName)) {
+              const afterAlkyl = remaining.substring(alkylName.length);
+              const isMajorFunctionalGroup = /^[\s\-]*(thiocyanate|formate|acetate|benzoate|oate|anoate|oic|nitrile|amine|amide)/i.test(afterAlkyl);
+              if (isMajorFunctionalGroup) {
+                // Tokenize as PARENT, not SUBSTITUENT
+                tokens.push({
+                  type: 'PARENT',
+                  value: alkylName,
+                  position: pos,
+                  length: alkylName.length,
+                  metadata: {
+                    smiles,
+                    atomCount: smiles.length,
+                    isRing: false,
+                  },
+                });
+                pos += alkylName.length;
+                alkylTermMatched = true;
+                break;
+              }
+            }
+          }
+          
+          if (alkylTermMatched) {
+            continue;
+          }
+          
+          // For potentially ambiguous matches, collect all candidates and pick longest
+          const candidates: IUPACToken[] = [];
+          
+          const multiplier = this.tryMultiplier(remaining, pos);
+          if (multiplier) candidates.push(multiplier);
+          
+          const substituent = this.trySubstituent(remaining, pos);
+          if (substituent) candidates.push(substituent);
+          
+          const parent = this.tryParent(remaining, pos);
+          if (parent) candidates.push(parent);
+          
+          const suffix = this.trySuffix(remaining, pos);
+          if (suffix) candidates.push(suffix);
+          
+          // Choose longest match
+          if (candidates.length > 0) {
+            const longest = candidates.reduce((prev, curr) => 
+              curr.length > prev.length ? curr : prev
+            );
+            tokens.push(longest);
+            pos += longest.length;
         } else {
           // Skip whitespace, hyphens, and special characters (parentheses, brackets, commas)
           const nextChar = remaining[0];
@@ -102,32 +146,79 @@ export class IUPACTokenizer {
     * Try to match a prefix (N-, O-, S-, etc.)
     * Also handles compound prefixes like "N,N-", "N,O-"
     */
-   private tryPrefix(str: string, pos: number): IUPACToken | null {
-      // Check for compound atom locant prefixes (e.g., "N,N-", "N,O-", "O,O-", "N,N'-", "N,N,N'-")
-      // Supports apostrophes for primed notation in larger molecules
-      const compoundMatch = /^([nNosOS])(?:')?(?:,([nNosOS])(?:')?)*-/.exec(str);
-      if (compoundMatch) {
-        const prefixValue = compoundMatch[0].slice(0, -1); // Remove trailing hyphen
-        const nextChar = str[compoundMatch[0].length];
-        // Must be followed by alphabetic characters
-        if (nextChar && /[a-z]/.test(nextChar)) {
-          return {
-            type: 'PREFIX',
-            value: prefixValue.toLowerCase(),
-            position: pos,
-            length: compoundMatch[0].length,
-            metadata: {
-              isCompound: true,
-            },
-          };
-        }
-      }
+    private tryPrefix(str: string, pos: number): IUPACToken | null {
+       // Check for compound atom locant prefixes (e.g., "N,N-", "N,O-", "O,O-", "N,N'-", "N,N,N'-", "N,N,3-")
+       // Supports apostrophes for primed notation and numeric locants after atom locants
+       // Pattern: [atom](?:,[atom])* optionally followed by (?:,[digit]+)* then -
+       const compoundMatch = /^([nNosOS])(?:')?(?:,([nNosOS])(?:')?)*(?:,\d+)*-/.exec(str);
+       if (compoundMatch) {
+         const prefixValue = compoundMatch[0].slice(0, -1); // Remove trailing hyphen
+         const nextChar = str[compoundMatch[0].length];
+         // Must be followed by alphabetic characters
+         if (nextChar && /[a-z]/.test(nextChar)) {
+           return {
+             type: 'PREFIX',
+             value: prefixValue.toLowerCase(),
+             position: pos,
+             length: compoundMatch[0].length,
+             metadata: {
+               isCompound: true,
+             },
+           };
+         }
+       }
 
       // Check for cyclo/bicyclo/tricyclo prefixes with optional heteroatom prefix
       // Heteroatom replacements: oxa (O), aza (N), thia (S), phospha (P), etc.
       // Also handle bridge notation: [n.m.p] for bicyclic or [n.m.p.q.r.s] for tricyclic
+      // Can include numeric multipliers: di-oxa, tri-oxa, etc.
       const heteroAtomPrefixes = ['oxa', 'aza', 'thia', 'phospha', 'arsa', 'stiba', 'bismuta', 'selena', 'tellura'];
       const cycloPatterns = ['tricyclo', 'bicyclo', 'cyclo'];
+      
+      // First try patterns with numeric multipliers (di-oxa-tricyclo, tri-oxa-pentacyclo, etc.)
+      const numericMultipliers: Record<string, string> = {
+        'di': 'di',
+        'tri': 'tri',
+        'tetra': 'tetra',
+        'penta': 'penta',
+        'hexa': 'hexa',
+        'hepta': 'hepta',
+        'octa': 'octa',
+        'nona': 'nona',
+      };
+      
+      for (const [multName, mult] of Object.entries(numericMultipliers)) {
+        for (const heteroPrefix of heteroAtomPrefixes) {
+          for (const pattern of cycloPatterns) {
+            const compound = mult + heteroPrefix + pattern;
+            if (str.startsWith(compound)) {
+              let matchLength = compound.length;
+              // Check for bridge notation [n.m.p] or [n.m.p.q.r.s]
+              if (str[matchLength] === '[') {
+                const closeIdx = str.indexOf(']', matchLength);
+                if (closeIdx > matchLength) {
+                  matchLength = closeIdx + 1;
+                }
+              }
+              const nextChar = str[matchLength];
+              if (!nextChar || /[a-z\s\[]/.test(nextChar)) {
+                return {
+                  type: 'PREFIX',
+                  value: str.substring(0, matchLength).toLowerCase(),
+                  position: pos,
+                  length: matchLength,
+                  metadata: {
+                    isCyclic: true,
+                    heteroAtom: true,
+                    hasMultiplier: true,
+                    hasBridgeNotation: str[compound.length] === '[',
+                  },
+                };
+              }
+            }
+          }
+        }
+      }
       
       for (const heteroPrefix of heteroAtomPrefixes) {
         for (const pattern of cycloPatterns) {
@@ -145,7 +236,7 @@ export class IUPACTokenizer {
             if (!nextChar || /[a-z\s]/.test(nextChar)) {
               return {
                 type: 'PREFIX',
-                value: str.substring(pos, pos + matchLength).toLowerCase(),
+                value: str.substring(0, matchLength).toLowerCase(),
                 position: pos,
                 length: matchLength,
                 metadata: {
@@ -169,20 +260,20 @@ export class IUPACTokenizer {
               matchLength = closeIdx + 1;
             }
           }
-          const nextChar = str[matchLength];
-          // Must be followed by alphabetic character or whitespace (end of prefix)
-          if (!nextChar || /[a-z\s]/.test(nextChar)) {
-            return {
-              type: 'PREFIX',
-              value: str.substring(pos, pos + matchLength).toLowerCase(),
-              position: pos,
-              length: matchLength,
-              metadata: {
-                isCyclic: true,
-                hasBridgeNotation: str[pattern.length] === '[',
-              },
-            };
-          }
+           const nextChar = str[matchLength];
+           // Must be followed by alphabetic character or whitespace (end of prefix)
+           if (!nextChar || /[a-z\s]/.test(nextChar)) {
+             return {
+               type: 'PREFIX',
+               value: str.substring(0, matchLength).toLowerCase(),
+               position: pos,
+               length: matchLength,
+               metadata: {
+                 isCyclic: true,
+                 hasBridgeNotation: str[pattern.length] === '[',
+               },
+             };
+           }
         }
       }
 
@@ -352,38 +443,51 @@ export class IUPACTokenizer {
       }
     }
 
-    // Check basic multipliers
-    for (const [num, name] of Object.entries(this.rules.multipliers.basic)) {
-      if (str.startsWith(name)) {
-        // Validate it's followed by a valid continuation
-        const nextPos = name.length;
-        if (nextPos >= str.length) return null;
-        
-        const nextChar = str[nextPos];
-        if (!nextChar || !nextChar.match(/[a-z]/)) return null;
+     // Check basic multipliers
+     for (const [num, name] of Object.entries(this.rules.multipliers.basic)) {
+       if (str.startsWith(name)) {
+         // Validate it's followed by a valid continuation
+         const nextPos = name.length;
+         if (nextPos >= str.length) return null;
+         
+         const nextChar = str[nextPos];
+         if (!nextChar || !nextChar.match(/[a-z]/)) return null;
 
-        // Don't match if followed by alkane/alkene suffixes (these indicate parent chain)
-        // "ane", "ene", "yne" are definite alkane suffixes
-        // "an" followed by suffix (ol, oic, al, etc.) also indicates parent chain
-        const remainder = str.substring(nextPos);
-        if (remainder.startsWith('ane') || 
-            remainder.startsWith('ene') || 
-            remainder.startsWith('yne') ||
-            /^an[eo]/.test(remainder)) {  // "ano", "ane" patterns
-          return null;
-        }
+         // Don't match if followed by alkane/alkene suffixes (these indicate parent chain)
+         // "ane", "ene", "yne" are definite alkane suffixes
+         // "an" followed by suffix (ol, oic, al, etc.) also indicates parent chain
+         const remainder = str.substring(nextPos);
+         if (remainder.startsWith('ane') || 
+             remainder.startsWith('ene') || 
+             remainder.startsWith('yne') ||
+             /^an[eo]/.test(remainder)) {  // "ano", "ane" patterns
+           return null;
+         }
 
-        return {
-          type: 'MULTIPLIER',
-          value: name,
-          position: pos,
-          length: name.length,
-          metadata: { count: parseInt(num) },
-        };
-      }
-    }
+         // Don't match if this stem appears in alkanes (it's likely a parent chain stem)
+         // Check if the name exists as an alkane stem
+         const isAlkaneStem = Object.values(this.rules.alkanes).includes(name);
+         if (isAlkaneStem) {
+           // Only allow as multiplier if followed by word boundaries that indicate
+           // it's actually functioning as a multiplier (e.g., "octylamine", "heptylbenzene")
+           // NOT followed by locants or typical suffix patterns
+           if (/^-|^\(|\d|^[aeiou]/.test(nextChar)) {
+             // Followed by hyphen, paren, digit, or vowel - likely parent chain context
+             return null;
+           }
+         }
 
-    return null;
+         return {
+           type: 'MULTIPLIER',
+           value: name,
+           position: pos,
+           length: name.length,
+           metadata: { count: parseInt(num) },
+         };
+       }
+     }
+
+     return null;
   }
 
   /**
@@ -420,38 +524,38 @@ export class IUPACTokenizer {
     return null;
   }
 
-  /**
-   * Try to match a substituent (methyl, ethyl, chloro, bromo, etc.)
-   */
-  private trySubstituent(str: string, pos: number): IUPACToken | null {
-    // Try longest SMILES values first (usually longer names)
-    const substEntries = Object.entries(this.rules.substituents).sort(
-      (a, b) => {
-        const aLen = Math.max(...a[1].aliases.map(x => x.length));
-        const bLen = Math.max(...b[1].aliases.map(x => x.length));
-        return bLen - aLen;
-      }
-    );
+   /**
+    * Try to match a substituent (methyl, ethyl, chloro, bromo, etc.)
+    */
+   private trySubstituent(str: string, pos: number): IUPACToken | null {
+     // Try longest SMILES values first (usually longer names)
+     const substEntries = Object.entries(this.rules.substituents).sort(
+       (a, b) => {
+         const aLen = Math.max(...a[1].aliases.map(x => x.length));
+         const bLen = Math.max(...b[1].aliases.map(x => x.length));
+         return bLen - aLen;
+       }
+     );
 
-    for (const [smiles, data] of substEntries) {
-      for (const alias of data.aliases) {
-        if (str.startsWith(alias)) {
-          return {
-            type: 'SUBSTITUENT',
-            value: alias,
-            position: pos,
-            length: alias.length,
-            metadata: {
-              smiles,
-              fullAliases: data.aliases,
-            },
-          };
-        }
-      }
-    }
+     for (const [smiles, data] of substEntries) {
+       for (const alias of data.aliases) {
+         if (str.startsWith(alias)) {
+           return {
+             type: 'SUBSTITUENT',
+             value: alias,
+             position: pos,
+             length: alias.length,
+             metadata: {
+               smiles,
+               fullAliases: data.aliases,
+             },
+           };
+         }
+       }
+     }
 
-    return null;
-  }
+     return null;
+   }
 
   /**
    * Try to match a parent chain (alkane or ring system)
