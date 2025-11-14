@@ -93,6 +93,7 @@ export class IUPACGraphBuilder {
           parentTokens,
           suffixTokens,
           locantTokens,
+          multiplierTokens,
         );
       }
     }
@@ -148,12 +149,39 @@ export class IUPACGraphBuilder {
         mainChainAtoms = builder.createBenzeneRing();
       } else if (parentValue === "pyridine" || parentSmiles === "c1ccncc1") {
         mainChainAtoms = builder.createPyridineRing();
+      } else if (
+        parentValue === "triazine" ||
+        parentSmiles === "c1ncncn1" ||
+        parentSmiles === "n1cncnc1"
+      ) {
+        mainChainAtoms = builder.createTriazineRing();
       } else if (parentValue === "furan" || parentSmiles === "o1cccc1") {
         mainChainAtoms = builder.createFuranRing();
       } else if (parentValue === "thiophene" || parentSmiles === "c1ccsc1") {
         mainChainAtoms = builder.createThiopheneRing();
       } else if (parentValue === "pyrrole" || parentSmiles === "[nH]1cccc1") {
         mainChainAtoms = builder.createPyrroleRing();
+      } else if (
+        parentValue === "thiazole" ||
+        parentValue === "thiazol" ||
+        parentSmiles === "c1cscn1" ||
+        parentSmiles === "c1scnc1"
+      ) {
+        mainChainAtoms = builder.createThiazoleRing();
+      } else if (
+        parentValue === "oxazole" ||
+        parentValue === "oxazol" ||
+        parentSmiles === "c1cocn1" ||
+        parentSmiles === "c1ocnc1"
+      ) {
+        mainChainAtoms = builder.createOxazoleRing();
+      } else if (
+        parentValue === "indole" ||
+        parentValue === "indol" ||
+        parentSmiles === "c1ccc2[nH]ccc2c1" ||
+        parentSmiles === "c1ccc2nccc2c1"
+      ) {
+        mainChainAtoms = builder.createIndoleRing();
       } else if (
         parentValue === "naphthalene" ||
         parentSmiles === "c1ccc2ccccc2c1"
@@ -174,12 +202,22 @@ export class IUPACGraphBuilder {
         mainChainAtoms = builder.createMorpholineRing();
       } else if (parentValue === "oxirane" || parentSmiles === "C1CO1") {
         mainChainAtoms = builder.createOxiraneRing();
+      } else if (parentValue === "oxetane" || parentSmiles === "C1COC1") {
+        mainChainAtoms = builder.createOxetaneRing();
+      } else if (parentValue === "azetidine" || parentSmiles === "C1CNC1") {
+        mainChainAtoms = builder.createAzetidineRing();
       } else if (
         parentValue === "oxolan" ||
         parentValue === "oxolane" ||
         parentSmiles === "C1CCOC1"
       ) {
         mainChainAtoms = builder.createOxolanRing();
+      } else if (parentValue === "oxane" || parentSmiles === "C1CCOCC1") {
+        mainChainAtoms = builder.createOxaneRing();
+      } else if (parentValue === "thiane" || parentSmiles === "C1CCSCC1") {
+        mainChainAtoms = builder.createThianeRing();
+      } else if (parentValue === "thiolane" || parentSmiles === "C1CCSC1") {
+        mainChainAtoms = builder.createThiolaneRing();
       } else if (hasCycloPrefix) {
         // Build cyclic chain
         mainChainAtoms = builder.createCyclicChain(atomCount);
@@ -239,7 +277,7 @@ export class IUPACGraphBuilder {
     mainChainAtoms: number[],
     suffixTokens: IUPACToken[],
     locantTokens: IUPACToken[],
-    isCyclic: boolean,
+    _isCyclic: boolean,
   ): void {
     const unsaturatedSuffixes = suffixTokens.filter(
       (s) => s.metadata?.suffixType === "unsaturated",
@@ -452,6 +490,30 @@ export class IUPACGraphBuilder {
             }
           }
           break;
+
+        case "sulfinyl":
+          // Sulfinyl group: -SO- attached to terminal carbon
+          const sulfinylIdx = mainChainAtoms[mainChainAtoms.length - 1];
+          if (sulfinylIdx !== undefined) {
+            const sIdx = builder.addAtom("S");
+            const oIdx = builder.addAtom("O");
+            builder.addBond(sulfinylIdx, sIdx);
+            builder.addBond(sIdx, oIdx, BondTypeEnum.DOUBLE);
+          }
+          break;
+
+        case "sulfonyl":
+          // Sulfonyl group: -SO2- attached to terminal carbon
+          const sulfonylIdx = mainChainAtoms[mainChainAtoms.length - 1];
+          if (sulfonylIdx !== undefined) {
+            const sIdx = builder.addAtom("S");
+            const o1 = builder.addAtom("O");
+            const o2 = builder.addAtom("O");
+            builder.addBond(sulfonylIdx, sIdx);
+            builder.addBond(sIdx, o1, BondTypeEnum.DOUBLE);
+            builder.addBond(sIdx, o2, BondTypeEnum.DOUBLE);
+          }
+          break;
       }
     }
   }
@@ -535,6 +597,14 @@ export class IUPACGraphBuilder {
           builder.addAlkylSubstituent(atomIdx, 7);
         } else if (substValue === "octyl") {
           builder.addAlkylSubstituent(atomIdx, 8);
+        } else if (substValue === "nonyl") {
+          builder.addAlkylSubstituent(atomIdx, 9);
+        } else if (substValue === "decyl") {
+          builder.addAlkylSubstituent(atomIdx, 10);
+        } else if (substValue === "undecyl") {
+          builder.addAlkylSubstituent(atomIdx, 11);
+        } else if (substValue === "dodecyl") {
+          builder.addAlkylSubstituent(atomIdx, 12);
         } else if (substValue === "isopropyl" || substValue === "propan-2-yl") {
           builder.addIsopropyl(atomIdx);
         } else if (substValue === "isobutyl") {
@@ -567,6 +637,14 @@ export class IUPACGraphBuilder {
           const oxygenIdx = builder.addAtom("O");
           builder.addBond(atomIdx, oxygenIdx);
           builder.addAlkylSubstituent(oxygenIdx, 6);
+        } else if (substValue === "heptoxy") {
+          const oxygenIdx = builder.addAtom("O");
+          builder.addBond(atomIdx, oxygenIdx);
+          builder.addAlkylSubstituent(oxygenIdx, 7);
+        } else if (substValue === "octoxy") {
+          const oxygenIdx = builder.addAtom("O");
+          builder.addBond(atomIdx, oxygenIdx);
+          builder.addAlkylSubstituent(oxygenIdx, 8);
         } else if (substValue === "hydroxy" || substValue === "hydroxyl") {
           builder.addHydroxyl(atomIdx);
         } else if (substValue === "oxo") {
@@ -580,6 +658,10 @@ export class IUPACGraphBuilder {
           builder.addPropanoyl(atomIdx);
         } else if (substValue === "butanoyl") {
           builder.addButanoyl(atomIdx);
+        } else if (substValue === "pentanoyl") {
+          builder.addPentanoyl(atomIdx);
+        } else if (substValue === "hexanoyl") {
+          builder.addHexanoyl(atomIdx);
         } else if (substValue === "phenyl") {
           // Add benzene ring as substituent
           const benzeneAtoms = builder.createBenzeneRing();
@@ -620,6 +702,24 @@ export class IUPACGraphBuilder {
           builder.addBond(atomIdx, nIdx);
           builder.addBond(nIdx, o1, BondTypeEnum.DOUBLE);
           builder.addBond(nIdx, o2, BondTypeEnum.DOUBLE);
+        } else if (substValue === "sulfinyl" || substValue === "sulfoxide") {
+          // Sulfinyl group: -SO-
+          const sIdx = builder.addAtom("S");
+          const oIdx = builder.addAtom("O");
+          builder.addBond(atomIdx, sIdx);
+          builder.addBond(sIdx, oIdx, BondTypeEnum.DOUBLE);
+        } else if (substValue === "sulfonyl" || substValue === "sulfone") {
+          // Sulfonyl group: -SO2-
+          const sIdx = builder.addAtom("S");
+          const o1 = builder.addAtom("O");
+          const o2 = builder.addAtom("O");
+          builder.addBond(atomIdx, sIdx);
+          builder.addBond(sIdx, o1, BondTypeEnum.DOUBLE);
+          builder.addBond(sIdx, o2, BondTypeEnum.DOUBLE);
+        } else if (substValue === "sulfanyl" || substValue === "thio") {
+          // Sulfanyl group: -S-
+          const sIdx = builder.addAtom("S");
+          builder.addBond(atomIdx, sIdx);
         } else {
           // Generic alkyl - try to determine length
           // For now, default to methyl
@@ -679,8 +779,8 @@ export class IUPACGraphBuilder {
    * Find multiplier before a suffix token
    */
   private getMultiplierBeforeSuffix(
-    suffix: IUPACToken,
-    suffixTokens: IUPACToken[],
+    _suffix: IUPACToken,
+    _suffixTokens: IUPACToken[],
   ): IUPACToken | null {
     // For now, return null - multipliers are typically separate tokens
     return null;
@@ -863,36 +963,103 @@ export class IUPACGraphBuilder {
     parentTokens: IUPACToken[],
     suffixTokens: IUPACToken[],
     locantTokens: IUPACToken[],
+    multiplierTokens: IUPACToken[] = [],
   ): Molecule {
-    // First substituent is the alcohol alkyl group (e.g., "methyl" in "methyl butanoate")
-    const alkylSubst = substituentTokens[0]!;
-    const alkylValue = alkylSubst.value.toLowerCase();
+    const parentToken = parentTokens[0]!;
+    const parentValue = parentToken.value.toLowerCase();
+    const acylAtomCount = (parentToken.metadata?.atomCount as number) || 0;
 
     if (process.env.VERBOSE) {
-      console.log("[ester] Alkyl group:", alkylValue);
-      console.log("[ester] Parent:", parentTokens[0]?.value);
+      console.log("[ester] Building ester with parent:", parentValue, "atoms:", acylAtomCount);
+      console.log("[ester] Substituents:", substituentTokens.map(s => s.value));
+      console.log("[ester] Locants:", locantTokens.map(l => l.value));
     }
 
-    // Determine alkyl chain length
-    let alkylLength = 0;
-    if (alkylValue === "methyl") alkylLength = 1;
-    else if (alkylValue === "ethyl") alkylLength = 2;
-    else if (alkylValue === "propyl") alkylLength = 3;
-    else if (alkylValue === "butyl") alkylLength = 4;
-    else if (alkylValue === "pentyl") alkylLength = 5;
-
-    // Build the acyl chain (the acid part)
-    const parentToken = parentTokens[0]!;
-    const acylAtomCount = (parentToken.metadata?.atomCount as number) || 0;
+    // Build the acyl chain
     const acylChainAtoms = builder.createLinearChain(acylAtomCount);
 
-    // Add ester group to terminal carbon: C(=O)O-alkyl
-    const terminalIdx = acylChainAtoms[acylChainAtoms.length - 1];
-    if (terminalIdx !== undefined) {
-      builder.addEster(terminalIdx, alkylLength);
+    // Check if this is a diester (has "di" multiplier before oate)
+    const oateToken = suffixTokens.find(s => s.value === "oate");
+    const isDiester = oateToken && multiplierTokens.some(m =>
+      m.value === "di" && m.position < oateToken.position
+    );
+
+    // Separate substituents with locants (acyl chain substituents) from those without (ester alkyl groups)
+    const acylSubstituents: IUPACToken[] = [];
+    const acylLocants: IUPACToken[] = [];
+    const esterAlkylTokens: IUPACToken[] = [];
+
+    substituentTokens.forEach(subst => {
+      const substValue = subst.value.toLowerCase();
+      if (substValue === "methyl" || substValue === "ethyl" || substValue === "propyl" ||
+          substValue === "butyl" || substValue === "pentyl") {
+        // Check if this alkyl substituent has a locant (meaning it's on the acyl chain)
+        const hasLocant = locantTokens.some(l =>
+          l.position < subst.position &&
+          (l.metadata?.positions as number[])?.length > 0
+        );
+
+        if (hasLocant) {
+          acylSubstituents.push(subst);
+        } else {
+          esterAlkylTokens.push(subst);
+        }
+      } else if (substValue !== "di" && substValue !== "tri") {
+        // Other substituents (like alkoxy) are on the acyl chain
+        acylSubstituents.push(subst);
+      }
+    });
+
+    // Collect locants for acyl substituents
+    acylSubstituents.forEach(subst => {
+      const substLocants = locantTokens.filter(l => l.position < subst.position);
+      acylLocants.push(...substLocants);
+    });
+
+    if (process.env.VERBOSE) {
+      console.log("[ester] Is diester:", isDiester);
+      console.log("[ester] Ester alkyl groups:", esterAlkylTokens.map(s => s.value));
+      console.log("[ester] Acyl substituents:", acylSubstituents.map(s => s.value));
+    }
+
+    // Apply substituents to acyl chain first
+    if (acylSubstituents.length > 0) {
+      this.applySubstituents(builder, acylChainAtoms, acylSubstituents, acylLocants, [], false);
+    }
+
+    // Add ester groups
+    const esterAlkylLength = esterAlkylTokens.length > 0 ? this.getAlkylLength(esterAlkylTokens[0]!.value) : 1;
+
+    if (isDiester) {
+      // Diester: add ester groups to both ends
+      const startIdx = acylChainAtoms[0];
+      const endIdx = acylChainAtoms[acylChainAtoms.length - 1];
+
+      if (startIdx !== undefined) {
+        builder.addEster(startIdx, esterAlkylLength);
+      }
+      if (endIdx !== undefined) {
+        builder.addEster(endIdx, esterAlkylLength);
+      }
+    } else {
+      // Simple ester: add to terminal carbon
+      const terminalIdx = acylChainAtoms[acylChainAtoms.length - 1];
+      if (terminalIdx !== undefined) {
+        builder.addEster(terminalIdx, esterAlkylLength);
+      }
     }
 
     return builder.build();
+  }
+
+  private getAlkylLength(alkylName: string): number {
+    const name = alkylName.toLowerCase();
+    if (name === "methyl") return 1;
+    if (name === "ethyl") return 2;
+    if (name === "propyl") return 3;
+    if (name === "butyl") return 4;
+    if (name === "pentyl") return 5;
+    return 1; // default
   }
 
   /**

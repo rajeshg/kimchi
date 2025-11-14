@@ -1,6 +1,5 @@
 import type {
   IUPACToken,
-  IUPACTokenType,
   IUPACTokenizationResult,
   OPSINRules,
 } from "./iupac-types";
@@ -85,7 +84,7 @@ export class IUPACTokenizer {
         if (remaining.startsWith(alkylName)) {
           const afterAlkyl = remaining.substring(alkylName.length);
           const isMajorFunctionalGroup =
-            /^[\s\-]*(thiocyanate|formate|acetate|benzoate|oate|anoate|oic|nitrile|amine|amide)/i.test(
+            /^[\s-]*(thiocyanate|formate|acetate|benzoate|oate|anoate|oic|nitrile|amine|amide)/i.test(
               afterAlkyl,
             );
           if (isMajorFunctionalGroup) {
@@ -121,6 +120,9 @@ export class IUPACTokenizer {
       const substituent = this.trySubstituent(remaining, pos);
       if (substituent) candidates.push(substituent);
 
+      const alkoxy = this.tryAlkoxySubstituent(remaining, pos);
+      if (alkoxy) candidates.push(alkoxy);
+
       const parent = this.tryParent(remaining, pos);
       if (parent) candidates.push(parent);
 
@@ -129,15 +131,36 @@ export class IUPACTokenizer {
 
       // Choose longest match
       if (candidates.length > 0) {
-        const longest = candidates.reduce((prev, curr) =>
+        let selectedToken = candidates.reduce((prev, curr) =>
           curr.length > prev.length ? curr : prev,
         );
-        tokens.push(longest);
-        pos += longest.length;
+
+        // Special handling: combine parent + suffix for alkoxy substituents
+        if (selectedToken.type === "PARENT" && candidates.some(c => c.type === "SUFFIX" && c.value === "oxy")) {
+          const suffixToken = candidates.find(c => c.type === "SUFFIX" && c.value === "oxy");
+          if (suffixToken && selectedToken.position + selectedToken.length === suffixToken.position) {
+            // Combine into alkoxy substituent
+            const alkoxyValue = selectedToken.value + "oxy";
+            const parentSmiles = (selectedToken.metadata as any)?.smiles || selectedToken.value.toUpperCase();
+            selectedToken = {
+              type: "SUBSTITUENT",
+              value: alkoxyValue,
+              position: selectedToken.position,
+              length: selectedToken.length + suffixToken.length,
+              metadata: {
+                smiles: `O${parentSmiles.substring(1)}`,
+                fullAliases: [alkoxyValue],
+              },
+            };
+          }
+        }
+
+        tokens.push(selectedToken);
+        pos += selectedToken.length;
       } else {
         // Skip whitespace, hyphens, and special characters (parentheses, brackets, commas)
         const nextChar = remaining[0];
-        if (nextChar && /[\s\-\(\)\[\],]/.test(nextChar)) {
+        if (nextChar && /[\s\-()\[\],]/.test(nextChar)) {
           pos++;
           continue;
         }
@@ -207,7 +230,7 @@ export class IUPACTokenizer {
       nona: "nona",
     };
 
-    for (const [multName, mult] of Object.entries(numericMultipliers)) {
+    for (const [_multName, mult] of Object.entries(numericMultipliers)) {
       for (const heteroPrefix of heteroAtomPrefixes) {
         for (const pattern of cycloPatterns) {
           const compound = mult + heteroPrefix + pattern;
@@ -221,7 +244,7 @@ export class IUPACTokenizer {
               }
             }
             const nextChar = str[matchLength];
-            if (!nextChar || /[a-z\s\[]/.test(nextChar)) {
+            if (!nextChar || /[a-z\s[]/.test(nextChar)) {
               return {
                 type: "PREFIX",
                 value: str.substring(0, matchLength).toLowerCase(),
@@ -412,7 +435,7 @@ export class IUPACTokenizer {
 
     // Check for E/Z stereochemistry with optional citation number
     // E.g., "(E)-", "(Z)-", "2Z-", "14E)-" patterns
-    const ezMatch = /^(\d*)([ez])(?=[\-\)])/i.exec(str);
+    const ezMatch = /^(\d*)([ez])(?=[-)])/i.exec(str);
     if (ezMatch) {
       const citationNum = ezMatch[1] || null;
       const stereoChar = ezMatch[2]!.toLowerCase();
@@ -431,7 +454,7 @@ export class IUPACTokenizer {
 
     // Check for R/S stereochemistry with optional citation number
     // E.g., "(R)-", "(S)-", "6R,8R-", "14S)-" patterns
-    const rsMatch = /^(\d*)([rs])(?=[\-\),])/i.exec(str);
+    const rsMatch = /^(\d*)([rs])(?=[-),])/i.exec(str);
     if (rsMatch) {
       const citationNum = rsMatch[1] || null;
       const stereoChar = rsMatch[2]!.toLowerCase();
@@ -560,6 +583,39 @@ export class IUPACTokenizer {
       }
     }
 
+    return null;
+  }
+
+  /**
+   * Try to match alkoxy substituents (methoxy, ethoxy, propoxy, etc.)
+   */
+  private tryAlkoxySubstituent(str: string, pos: number): IUPACToken | null {
+    // Check for alkyl + oxy pattern
+    const alkylMappings = [
+      { name: 'prop', smiles: 'CCC' },
+      { name: 'but', smiles: 'CCCC' },
+      { name: 'pent', smiles: 'CCCCC' },
+      { name: 'hex', smiles: 'CCCCCC' },
+      { name: 'hept', smiles: 'CCCCCCC' },
+      { name: 'oct', smiles: 'CCCCCCCC' },
+      { name: 'non', smiles: 'CCCCCCCCC' },
+      { name: 'dec', smiles: 'CCCCCCCCCC' },
+    ];
+
+    for (const { name, smiles } of alkylMappings) {
+      if (str.startsWith(name + 'oxy')) {
+        return {
+          type: "SUBSTITUENT",
+          value: name + 'oxy',
+          position: pos,
+          length: (name + 'oxy').length,
+          metadata: {
+            smiles: `O${smiles.substring(1)}`, // Remove first C, add O
+            fullAliases: [name + 'oxy'],
+          },
+        };
+      }
+    }
     return null;
   }
 

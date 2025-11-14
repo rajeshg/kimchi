@@ -544,7 +544,14 @@ function canonicalLabels(mol: Molecule): {
     const newLabels = new Map<number, string>();
     for (const a of mol.atoms) {
       const neigh = getNeighbors(a.id, mol)
-        .map(([nid, b]) => `${b.type}:${labels.get(nid)}`)
+        .map(([nid, b]) => {
+          // Invert bond priority so higher priority bonds get smaller numbers for lexicographic sorting
+          // bondPriority: aromatic=-4, triple=-3, double=-2, single=-1
+          // We want: aromatic → 0, triple → 1, double → 2, single → 3
+          const bondPrio = -bondPriority(b) - 1; // -(-4)-1=3, -(-3)-1=2, -(-2)-1=1, -(-1)-1=0
+          const inverted = 3 - bondPrio; // 3→0, 2→1, 1→2, 0→3
+          return `${String(inverted).padStart(2, "0")}:${labels.get(nid)}`;
+        })
         .sort();
       const combined = labels.get(a.id)! + "|" + neigh.join(",");
       newLabels.set(a.id, combined);

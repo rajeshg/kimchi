@@ -192,24 +192,65 @@ export class MoleculeGraphBuilder {
   }
 
   /**
-   * Create oxolan ring (5-membered ring with O)
-   * SMILES: C1CCOC1
-   * @returns Array of atom indices [C, C, C, O, C]
+   * Create oxetane ring (4-membered saturated ring with O)
+   * SMILES: C1COC1
+   * Hantzsch-Widman numbering: O at position 1
+   * @returns Array of atom indices [O, C, C, C]
    */
-  createOxolanRing(): number[] {
-    const c1 = this.addCarbon();
+  createOxetaneRing(): number[] {
+    const o = this.addAtom("O");
     const c2 = this.addCarbon();
     const c3 = this.addCarbon();
-    const o = this.addAtom("O");
     const c4 = this.addCarbon();
 
-    this.addBond(c1, c2);
+    this.addBond(o, c2);
     this.addBond(c2, c3);
-    this.addBond(c3, o);
-    this.addBond(o, c4);
-    this.addBond(c4, c1);
+    this.addBond(c3, c4);
+    this.addBond(c4, o);
 
-    return [c1, c2, c3, o, c4];
+    return [o, c2, c3, c4];
+  }
+
+  /**
+   * Create azetidine ring (4-membered saturated ring with N)
+   * SMILES: C1CNC1
+   * Hantzsch-Widman numbering: N at position 1
+   * @returns Array of atom indices [N, C, C, C]
+   */
+  createAzetidineRing(): number[] {
+    const n = this.addAtom("N");
+    const c2 = this.addCarbon();
+    const c3 = this.addCarbon();
+    const c4 = this.addCarbon();
+
+    this.addBond(n, c2);
+    this.addBond(c2, c3);
+    this.addBond(c3, c4);
+    this.addBond(c4, n);
+
+    return [n, c2, c3, c4];
+  }
+
+  /**
+   * Create oxolan ring (5-membered ring with O)
+   * SMILES: C1CCOC1
+   * @returns Array of atom indices [O, C, C, C, C]
+   */
+  createOxolanRing(): number[] {
+    const o = this.addAtom("O");
+    const c2 = this.addCarbon();
+    const c3 = this.addCarbon();
+    const c4 = this.addCarbon();
+    const c5 = this.addCarbon();
+
+    this.addBond(o, c2);
+    this.addBond(c2, c3);
+    this.addBond(c3, c4);
+    this.addBond(c4, c5);
+    this.addBond(c5, o);
+
+    // IUPAC numbering: O gets position 1, carbons 2,3,4,5
+    return [o, c2, c3, c4, c5];
   }
 
   /**
@@ -236,9 +277,33 @@ export class MoleculeGraphBuilder {
   }
 
   /**
-   * Create furan ring (5-membered aromatic ring with O)
-   * SMILES: o1cccc1 (O at position 1)
-   * @returns Array of atom indices [O, C, C, C, C]
+   * Create 1,2,4-triazine ring (6-membered aromatic with 3 N atoms)
+   * SMILES: c1ncncn1 (canonical form with alternating pattern)
+   * Ring structure: C-N-C-N-C-N (alternating)
+   * @returns Array of atom indices [C, N, C, N, C, N]
+   */
+  createTriazineRing(): number[] {
+    const c1 = this.addAtom("C", true);
+    const n1 = this.addAtom("N", true);
+    const c2 = this.addAtom("C", true);
+    const n2 = this.addAtom("N", true);
+    const c3 = this.addAtom("C", true);
+    const n3 = this.addAtom("N", true);
+
+    this.addBond(c1, n1, BondTypeEnum.AROMATIC);
+    this.addBond(n1, c2, BondTypeEnum.AROMATIC);
+    this.addBond(c2, n2, BondTypeEnum.AROMATIC);
+    this.addBond(n2, c3, BondTypeEnum.AROMATIC);
+    this.addBond(c3, n3, BondTypeEnum.AROMATIC);
+    this.addBond(n3, c1, BondTypeEnum.AROMATIC);
+
+    return [c1, n1, c2, n2, c3, n3];
+  }
+
+  /**
+   * Create benzene ring (6-membered aromatic ring)
+   * SMILES: c1ccccc1
+   * @returns Array of atom indices [6 carbons]
    */
   createFuranRing(): number[] {
     const o = this.addAtom("O", true);
@@ -308,6 +373,50 @@ export class MoleculeGraphBuilder {
     this.addBond(c5, n, BondTypeEnum.AROMATIC);
 
     return [n, c2, c3, c4, c5];
+  }
+
+  /**
+   * Create thiazole ring (5-membered aromatic ring with S and N)
+   * SMILES: c1cscn1 (canonical form)
+   * Hantzsch-Widman numbering: S at position 1, N at position 3
+   * @returns Array of atom indices [S, C, N, C, C]
+   */
+  createThiazoleRing(): number[] {
+    const s = this.addAtom("S", true);
+    const c2 = this.addAtom("C", true);
+    const n = this.addAtom("N", true);
+    const c4 = this.addAtom("C", true);
+    const c5 = this.addAtom("C", true);
+
+    this.addBond(s, c2, BondTypeEnum.AROMATIC);
+    this.addBond(c2, n, BondTypeEnum.AROMATIC);
+    this.addBond(n, c4, BondTypeEnum.AROMATIC);
+    this.addBond(c4, c5, BondTypeEnum.AROMATIC);
+    this.addBond(c5, s, BondTypeEnum.AROMATIC);
+
+    return [s, c2, n, c4, c5];
+  }
+
+  /**
+   * Create oxazole ring (5-membered aromatic ring with O and N)
+   * SMILES: c1cocn1 (canonical form)
+   * Hantzsch-Widman numbering: O at position 1, N at position 3
+   * @returns Array of atom indices [O, C, N, C, C]
+   */
+  createOxazoleRing(): number[] {
+    const o = this.addAtom("O", true);
+    const c2 = this.addAtom("C", true);
+    const n = this.addAtom("N", true);
+    const c4 = this.addAtom("C", true);
+    const c5 = this.addAtom("C", true);
+
+    this.addBond(o, c2, BondTypeEnum.AROMATIC);
+    this.addBond(c2, n, BondTypeEnum.AROMATIC);
+    this.addBond(n, c4, BondTypeEnum.AROMATIC);
+    this.addBond(c4, c5, BondTypeEnum.AROMATIC);
+    this.addBond(c5, o, BondTypeEnum.AROMATIC);
+
+    return [o, c2, n, c4, c5];
   }
 
   /**
@@ -430,6 +539,76 @@ export class MoleculeGraphBuilder {
   }
 
   /**
+   * Create oxane ring (6-membered saturated ring with O, tetrahydropyran)
+   * SMILES: C1CCOCC1
+   * Hantzsch-Widman numbering: O at position 1
+   * @returns Array of atom indices [O, C, C, C, C, C]
+   */
+  createOxaneRing(): number[] {
+    const o = this.addAtom("O");
+    const c2 = this.addCarbon();
+    const c3 = this.addCarbon();
+    const c4 = this.addCarbon();
+    const c5 = this.addCarbon();
+    const c6 = this.addCarbon();
+
+    this.addBond(o, c2);
+    this.addBond(c2, c3);
+    this.addBond(c3, c4);
+    this.addBond(c4, c5);
+    this.addBond(c5, c6);
+    this.addBond(c6, o);
+
+    return [o, c2, c3, c4, c5, c6];
+  }
+
+  /**
+   * Create thiane ring (6-membered saturated ring with S, tetrahydrothiopyran)
+   * SMILES: C1CCSCC1
+   * Hantzsch-Widman numbering: S at position 1
+   * @returns Array of atom indices [S, C, C, C, C, C]
+   */
+  createThianeRing(): number[] {
+    const s = this.addAtom("S");
+    const c2 = this.addCarbon();
+    const c3 = this.addCarbon();
+    const c4 = this.addCarbon();
+    const c5 = this.addCarbon();
+    const c6 = this.addCarbon();
+
+    this.addBond(s, c2);
+    this.addBond(c2, c3);
+    this.addBond(c3, c4);
+    this.addBond(c4, c5);
+    this.addBond(c5, c6);
+    this.addBond(c6, s);
+
+    return [s, c2, c3, c4, c5, c6];
+  }
+
+  /**
+   * Create thiolane ring (5-membered saturated ring with S, tetrahydrothiophene)
+   * SMILES: C1CCSC1
+   * Hantzsch-Widman numbering: S at position 1
+   * @returns Array of atom indices [S, C, C, C, C]
+   */
+  createThiolaneRing(): number[] {
+    const s = this.addAtom("S");
+    const c2 = this.addCarbon();
+    const c3 = this.addCarbon();
+    const c4 = this.addCarbon();
+    const c5 = this.addCarbon();
+
+    this.addBond(s, c2);
+    this.addBond(c2, c3);
+    this.addBond(c3, c4);
+    this.addBond(c4, c5);
+    this.addBond(c5, s);
+
+    return [s, c2, c3, c4, c5];
+  }
+
+  /**
    * Create quinoline ring (fused pyridine + benzene)
    * SMILES: c1ccc2ncccc2c1
    * @returns Array of atom indices [10 atoms: N + 9 carbons]
@@ -463,7 +642,57 @@ export class MoleculeGraphBuilder {
   }
 
   /**
-   * Add a hydroxyl group (-OH) to a specific atom
+   * Create indole ring (fused pyrrole + benzene)
+   * SMILES: c1ccc2[nH]ccc2c1 (input) → c1ccc2nccc2c1 (canonical, N not bracketed)
+   * @returns Array of atom indices [9 atoms: N + 8 carbons]
+   */
+  createIndoleRing(): number[] {
+    const atoms: number[] = [];
+
+    // Create all atoms: C0-C1-C2-C3(fused)-N4-C5-C6-C7(fused)-C8
+    for (let i = 0; i < 4; i++) {
+      atoms.push(this.addAtom("C", true));
+    }
+    const n = this.addAtom("N", true); // 4: N with H
+    atoms.push(n);
+    this.setHydrogens(n, 1);
+
+    for (let i = 5; i < 9; i++) {
+      atoms.push(this.addAtom("C", true));
+    }
+
+    // Benzene ring: 0-1-2-3-8-back to 0
+    this.addBond(atoms[0]!, atoms[1]!, BondTypeEnum.AROMATIC);
+    this.addBond(atoms[1]!, atoms[2]!, BondTypeEnum.AROMATIC);
+    this.addBond(atoms[2]!, atoms[3]!, BondTypeEnum.AROMATIC);
+    this.addBond(atoms[3]!, atoms[8]!, BondTypeEnum.AROMATIC);
+    this.addBond(atoms[8]!, atoms[0]!, BondTypeEnum.AROMATIC);
+
+    // Pyrrole ring: N(4)-C(5)-C(6)-C(7)-C(3)-C(8) forms the 5-membered ring
+    // Actually: 3-N(4)-C(5)-C(6)-C(7)-3 forms pyrrole fused to benzene at 3-8
+    // Correct structure: C3 is fused point
+    // Pyrrole part: C(3)-N(4)-C(5)-C(6)-C(7) and C(7) connects back to C(8)
+    // Wait, let me reconsider: indole is benzene fused to pyrrole
+    // Benzene: C0-C1-C2-C3-C8-C0 (but C8 is also part of pyrrole)
+    // Pyrrole: C3-N4-C5-C6-C7-back to C8
+    
+    // Let me fix: benzene is C0-C1-C2-C3-C8-C0, pyrrole is C3-N4-C5-C6-C7-C8
+    // So we need: C3 connects to both C8 (benzene) and N4 (pyrrole)
+    // And C8 connects to C0, C3, and C7
+
+    // Pyrrole ring bonds:
+    this.addBond(atoms[3]!, atoms[4]!, BondTypeEnum.AROMATIC); // C3-N4
+    this.addBond(atoms[4]!, atoms[5]!, BondTypeEnum.AROMATIC); // N4-C5
+    this.addBond(atoms[5]!, atoms[6]!, BondTypeEnum.AROMATIC); // C5-C6
+    this.addBond(atoms[6]!, atoms[7]!, BondTypeEnum.AROMATIC); // C6-C7
+    this.addBond(atoms[7]!, atoms[8]!, BondTypeEnum.AROMATIC); // C7-C8 (fusion bond)
+
+    return atoms;
+  }
+
+  /**
+   * Build a molecule from the internal atom and bond lists
+   * @returns Molecule object
    */
   addHydroxyl(atomIdx: number): void {
     const oxygenIdx = this.addAtom("O");
@@ -678,7 +907,7 @@ export class MoleculeGraphBuilder {
     const oxygenIdx = this.addAtom("O");
     this.addBond(atomIdx, oxygenIdx);
 
-    const propylChain = this.addAlkylSubstituent(oxygenIdx, 3);
+    const _propylChain = this.addAlkylSubstituent(oxygenIdx, 3);
   }
 
   /**
@@ -688,7 +917,7 @@ export class MoleculeGraphBuilder {
     const oxygenIdx = this.addAtom("O");
     this.addBond(atomIdx, oxygenIdx);
 
-    const butylChain = this.addAlkylSubstituent(oxygenIdx, 4);
+    const _butylChain = this.addAlkylSubstituent(oxygenIdx, 4);
   }
 
   /**
@@ -843,6 +1072,34 @@ export class MoleculeGraphBuilder {
 
     // Add propyl chain
     this.addAlkylSubstituent(carbonylC, 3);
+  }
+
+  /**
+   * Add a pentanoyl substituent (-C(=O)CH2CH2CH2CH3) to a specific atom
+   */
+  addPentanoyl(atomIdx: number): void {
+    const carbonylC = this.addCarbon();
+    const oxygenIdx = this.addAtom("O");
+
+    this.addBond(atomIdx, carbonylC);
+    this.addBond(carbonylC, oxygenIdx, BondTypeEnum.DOUBLE);
+
+    // Add butyl chain
+    this.addAlkylSubstituent(carbonylC, 4);
+  }
+
+  /**
+   * Add a hexanoyl substituent (-C(=O)CH2CH2CH2CH2CH3) to a specific atom
+   */
+  addHexanoyl(atomIdx: number): void {
+    const carbonylC = this.addCarbon();
+    const oxygenIdx = this.addAtom("O");
+
+    this.addBond(atomIdx, carbonylC);
+    this.addBond(carbonylC, oxygenIdx, BondTypeEnum.DOUBLE);
+
+    // Add pentyl chain
+    this.addAlkylSubstituent(carbonylC, 5);
   }
 
   /**

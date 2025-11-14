@@ -21,7 +21,7 @@ export interface IUPACToken {
   /** Length of the token in characters */
   length: number;
   /** Optional metadata (e.g., atom count for alkanes, functional group type) */
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 /** Result of tokenizing an IUPAC name */
@@ -61,7 +61,7 @@ export interface OPSINRules {
   substituents: Record<string, { aliases: string[]; smiles?: string }>;
   functionalGroups: Record<string, { aliases: string[]; type?: string }>;
   ringSystems: Record<string, { aliases: string[]; labels?: string }>;
-  heteroAtoms?: Record<string, any>;
+  heteroAtoms?: Record<string, unknown>;
   heteroAtomPriorityOrder?: string[];
   functionalGroupPriorities?: Record<string, number>;
 }

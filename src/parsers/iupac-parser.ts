@@ -9,7 +9,7 @@ import { IUPACGraphBuilder } from "./iupac-graph-builder";
 import { validateValences } from "src/validators/valence-validator";
 import opsinRulesData from "opsin-rules.json";
 
-type ValidationError = ParseError;
+
 
 /**
  * Parse an IUPAC chemical name and convert it to a Molecule object
