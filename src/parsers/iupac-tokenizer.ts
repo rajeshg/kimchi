@@ -103,24 +103,25 @@ export class IUPACTokenizer {
     * Also handles compound prefixes like "N,N-", "N,O-"
     */
    private tryPrefix(str: string, pos: number): IUPACToken | null {
-     // Check for compound atom locant prefixes (e.g., "N,N-", "N,O-", "O,O-")
-     const compoundMatch = /^([nNosOS])(?:,([nNosOS]))*-/.exec(str);
-     if (compoundMatch) {
-       const prefixValue = compoundMatch[0].slice(0, -1); // Remove trailing hyphen
-       const nextChar = str[compoundMatch[0].length];
-       // Must be followed by alphabetic characters
-       if (nextChar && /[a-z]/.test(nextChar)) {
-         return {
-           type: 'PREFIX',
-           value: prefixValue.toLowerCase(),
-           position: pos,
-           length: compoundMatch[0].length,
-           metadata: {
-             isCompound: true,
-           },
-         };
-       }
-     }
+      // Check for compound atom locant prefixes (e.g., "N,N-", "N,O-", "O,O-", "N,N'-", "N,N,N'-")
+      // Supports apostrophes for primed notation in larger molecules
+      const compoundMatch = /^([nNosOS])(?:')?(?:,([nNosOS])(?:')?)*-/.exec(str);
+      if (compoundMatch) {
+        const prefixValue = compoundMatch[0].slice(0, -1); // Remove trailing hyphen
+        const nextChar = str[compoundMatch[0].length];
+        // Must be followed by alphabetic characters
+        if (nextChar && /[a-z]/.test(nextChar)) {
+          return {
+            type: 'PREFIX',
+            value: prefixValue.toLowerCase(),
+            position: pos,
+            length: compoundMatch[0].length,
+            metadata: {
+              isCompound: true,
+            },
+          };
+        }
+      }
 
       // Check for cyclo/bicyclo/tricyclo prefixes with optional heteroatom prefix
       // Heteroatom replacements: oxa (O), aza (N), thia (S), phospha (P), etc.

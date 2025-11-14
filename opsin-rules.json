@@ -7742,7 +7742,8 @@
     "C1CN1": {
       "aliases": [
         "aziridine",
-        "aziridin"
+        "aziridin",
+        "azirin"
       ],
       "labels": "1/2/3"
     },
@@ -7881,6 +7882,29 @@
       "aliases": [
         "pyridazine",
         "pyridazin"
+      ],
+      "labels": "1/2/3/4/5/6"
+    },
+    "c1nc[nH]cn1": {
+      "aliases": [
+        "1,2,4-triazine",
+        "1,2,4-triazin"
+      ],
+      "labels": "1/2/3/4/5/6"
+    },
+    "c1nccnc1": {
+      "aliases": [
+        "1,3,5-triazine",
+        "1,3,5-triazin",
+        "triazine",
+        "triazin"
+      ],
+      "labels": "1/2/3/4/5/6"
+    },
+    "c1ccnc[nH]1": {
+      "aliases": [
+        "1,2,3-triazine",
+        "1,2,3-triazin"
       ],
       "labels": "1/2/3/4/5/6"
     },
