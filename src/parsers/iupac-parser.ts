@@ -1,9 +1,13 @@
-import type { IUPACParseResult, IUPACParserConfig, OPSINRules } from './iupac-types';
-import type { ParseError } from 'types';
-import { IUPACTokenizer } from './iupac-tokenizer';
-import { IUPACBuilder } from './iupac-builder';
-import { validateValences } from 'src/validators/valence-validator';
-import opsinRulesData from 'opsin-rules.json';
+import type {
+  IUPACParseResult,
+  IUPACParserConfig,
+  OPSINRules,
+} from "./iupac-types";
+import type { ParseError } from "types";
+import { IUPACTokenizer } from "./iupac-tokenizer";
+import { IUPACGraphBuilder } from "./iupac-graph-builder";
+import { validateValences } from "src/validators/valence-validator";
+import opsinRulesData from "opsin-rules.json";
 
 type ValidationError = ParseError;
 
@@ -15,7 +19,7 @@ type ValidationError = ParseError;
  */
 export function parseIUPACName(
   name: string,
-  config?: IUPACParserConfig
+  config?: IUPACParserConfig,
 ): IUPACParseResult {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -24,13 +28,16 @@ export function parseIUPACName(
     if (!name || name.trim().length === 0) {
       return {
         molecule: null,
-        errors: ['IUPAC name cannot be empty'],
+        errors: ["IUPAC name cannot be empty"],
         warnings: [],
       };
     }
 
     // Get OPSIN rules (from opsin-rules.json)
-    const rules = (opsinRulesData as OPSINRules) || config?.customRules || ({} as OPSINRules);
+    const rules =
+      (opsinRulesData as OPSINRules) ||
+      config?.customRules ||
+      ({} as OPSINRules);
 
     // Stage 1: Tokenize the IUPAC name
     const tokenizer = new IUPACTokenizer(rules);
@@ -47,13 +54,13 @@ export function parseIUPACName(
     if (tokenResult.tokens.length === 0) {
       return {
         molecule: null,
-        errors: ['No valid tokens found in IUPAC name'],
+        errors: ["No valid tokens found in IUPAC name"],
         warnings,
       };
     }
 
     // Stage 2: Build molecule from tokens
-    const builder = new IUPACBuilder(rules);
+    const builder = new IUPACGraphBuilder(rules);
     let molecule;
 
     try {
@@ -67,21 +74,21 @@ export function parseIUPACName(
       };
     }
 
-     // Stage 3: Validate molecule (valence only, skip strict stereo/aromaticity for MVP)
-     const valenceErrors: ParseError[] = [];
-     validateValences(molecule.atoms, molecule.bonds, valenceErrors);
-     if (valenceErrors.length > 0) {
-       if (config?.strictMode) {
-         return {
-           molecule: null,
-           errors: valenceErrors.map((err) => err.message),
-           warnings,
-         };
-       }
-       if (config?.collectWarnings) {
-         warnings.push(...valenceErrors.map((err) => err.message));
-       }
-     }
+    // Stage 3: Validate molecule (valence only, skip strict stereo/aromaticity for MVP)
+    const valenceErrors: ParseError[] = [];
+    validateValences(molecule.atoms, molecule.bonds, valenceErrors);
+    if (valenceErrors.length > 0) {
+      if (config?.strictMode) {
+        return {
+          molecule: null,
+          errors: valenceErrors.map((err) => err.message),
+          warnings,
+        };
+      }
+      if (config?.collectWarnings) {
+        warnings.push(...valenceErrors.map((err) => err.message));
+      }
+    }
 
     return {
       molecule,
