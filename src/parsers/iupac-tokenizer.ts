@@ -122,25 +122,68 @@ export class IUPACTokenizer {
        }
      }
 
-     // Check for cyclo/bicyclo/tricyclo prefixes (ring system indicators)
-     const cycloPatterns = ['tricyclo', 'bicyclo', 'cyclo'];
-     for (const pattern of cycloPatterns) {
-       if (str.startsWith(pattern)) {
-         const nextChar = str[pattern.length];
-         // Must be followed by alphabetic character or bracket
-         if (nextChar && /[a-z\[]/.test(nextChar)) {
-           return {
-             type: 'PREFIX',
-             value: pattern,
-             position: pos,
-             length: pattern.length,
-             metadata: {
-               isCyclic: true,
-             },
-           };
-         }
-       }
-     }
+      // Check for cyclo/bicyclo/tricyclo prefixes with optional heteroatom prefix
+      // Heteroatom replacements: oxa (O), aza (N), thia (S), phospha (P), etc.
+      // Also handle bridge notation: [n.m.p] for bicyclic or [n.m.p.q.r.s] for tricyclic
+      const heteroAtomPrefixes = ['oxa', 'aza', 'thia', 'phospha', 'arsa', 'stiba', 'bismuta', 'selena', 'tellura'];
+      const cycloPatterns = ['tricyclo', 'bicyclo', 'cyclo'];
+      
+      for (const heteroPrefix of heteroAtomPrefixes) {
+        for (const pattern of cycloPatterns) {
+          const compound = heteroPrefix + pattern;
+          if (str.startsWith(compound)) {
+            let matchLength = compound.length;
+            // Check for bridge notation [n.m.p] or [n.m.p.q.r.s]
+            if (str[matchLength] === '[') {
+              const closeIdx = str.indexOf(']', matchLength);
+              if (closeIdx > matchLength) {
+                matchLength = closeIdx + 1;
+              }
+            }
+            const nextChar = str[matchLength];
+            if (!nextChar || /[a-z\s]/.test(nextChar)) {
+              return {
+                type: 'PREFIX',
+                value: str.substring(pos, pos + matchLength).toLowerCase(),
+                position: pos,
+                length: matchLength,
+                metadata: {
+                  isCyclic: true,
+                  heteroAtom: true,
+                  hasBridgeNotation: str[compound.length] === '[',
+                },
+              };
+            }
+          }
+        }
+      }
+      
+      for (const pattern of cycloPatterns) {
+        if (str.startsWith(pattern)) {
+          let matchLength = pattern.length;
+          // Check for bridge notation [n.m.p] or [n.m.p.q.r.s]
+          if (str[matchLength] === '[') {
+            const closeIdx = str.indexOf(']', matchLength);
+            if (closeIdx > matchLength) {
+              matchLength = closeIdx + 1;
+            }
+          }
+          const nextChar = str[matchLength];
+          // Must be followed by alphabetic character or whitespace (end of prefix)
+          if (!nextChar || /[a-z\s]/.test(nextChar)) {
+            return {
+              type: 'PREFIX',
+              value: str.substring(pos, pos + matchLength).toLowerCase(),
+              position: pos,
+              length: matchLength,
+              metadata: {
+                isCyclic: true,
+                hasBridgeNotation: str[pattern.length] === '[',
+              },
+            };
+          }
+        }
+      }
 
      // Common prefixes for substitution on heteroatoms
      const prefixes = ['n-', 'o-', 's-', 'c-', 'x-'];

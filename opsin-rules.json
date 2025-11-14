@@ -863,6 +863,12 @@
       ],
       "type": "connector"
     },
+    "ynyl": {
+      "aliases": [
+        "ynyl"
+      ],
+      "type": "connector"
+    },
     "oxy": {
       "aliases": [
         "oxy"
@@ -2921,7 +2927,9 @@
     },
     "-[Si]": {
       "aliases": [
-        "silicio"
+        "silicio",
+        "silyl",
+        "silanyl"
       ]
     },
     "-[Ag]": {
@@ -4333,6 +4341,24 @@
         "tritid"
       ],
       "type": "monoValentStandaloneGroup"
+    },
+    "-[Si](C)(C)C": {
+      "aliases": [
+        "trimethylsilyl",
+        "trimethylsilanyl"
+      ]
+    },
+    "-[Si](C)(C)C(C)(C)C": {
+      "aliases": [
+        "triethylsilyl",
+        "triethylsilanyl"
+      ]
+    },
+    "-[Si](c1ccccc1)(c1ccccc1)C": {
+      "aliases": [
+        "diphenylmethylsilyl",
+        "diphenylmethylsilanyl"
+      ]
     }
   },
   "ringSystems": {
