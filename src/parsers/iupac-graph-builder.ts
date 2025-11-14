@@ -114,11 +114,16 @@ export class IUPACGraphBuilder {
     // Step 2: Apply unsaturation (ene, yne)
     this.applyUnsaturation(builder, mainChainAtoms, suffixTokens, locantTokens, hasCycloPrefix);
 
+    // Detect if this is a carboxylic acid (numbering goes from acid end)
+    const isAcid = suffixTokens.some(s => 
+      s.value === 'oic acid' || s.value === 'ic acid' || s.value === 'oic' || s.value === 'anoic'
+    );
+
     // Step 3: Apply functional group suffixes (ol, one, etc.)
     this.applySuffixes(builder, mainChainAtoms, suffixTokens, locantTokens);
 
-    // Step 4: Apply substituents
-    this.applySubstituents(builder, mainChainAtoms, substituentTokens, locantTokens, multiplierTokens);
+    // Step 4: Apply substituents (with reversed numbering for acids)
+    this.applySubstituents(builder, mainChainAtoms, substituentTokens, locantTokens, multiplierTokens, isAcid);
 
     return builder.build();
   }
@@ -310,7 +315,8 @@ export class IUPACGraphBuilder {
     mainChainAtoms: number[],
     substituentTokens: IUPACToken[],
     locantTokens: IUPACToken[],
-    multiplierTokens: IUPACToken[]
+    multiplierTokens: IUPACToken[],
+    reverseNumbering: boolean = false
   ): void {
     for (const substituent of substituentTokens) {
       const substValue = substituent.value.toLowerCase();
@@ -332,7 +338,7 @@ export class IUPACGraphBuilder {
         const loc = positions[i];
         if (loc === undefined) continue;
 
-        const atomIdx = this.locantToAtomIndex(loc, mainChainAtoms);
+        const atomIdx = this.locantToAtomIndex(loc, mainChainAtoms, reverseNumbering);
         if (atomIdx === null) continue;
 
         // Skip if trying to add substituent to non-carbon atom (e.g., oxygen in oxirane)
@@ -361,6 +367,8 @@ export class IUPACGraphBuilder {
           builder.addTertButyl(atomIdx);
         } else if (substValue === 'methoxy') {
           builder.addMethoxy(atomIdx);
+        } else if (substValue === 'hydroxy' || substValue === 'hydroxyl') {
+          builder.addHydroxyl(atomIdx);
         } else if (substValue === 'phenyl') {
           // Add benzene ring as substituent
           const benzeneAtoms = builder.createBenzeneRing();
@@ -390,10 +398,15 @@ export class IUPACGraphBuilder {
 
   /**
    * Convert IUPAC locant (1-indexed) to atom array index (0-indexed)
+   * @param reverseNumbering If true, number from end (for carboxylic acids)
    */
-  private locantToAtomIndex(locant: number, chainAtoms: number[]): number | null {
+  private locantToAtomIndex(locant: number, chainAtoms: number[], reverseNumbering: boolean = false): number | null {
     if (locant < 1 || locant > chainAtoms.length) {
       return null;
+    }
+    if (reverseNumbering) {
+      // For acids: position 1 is the last carbon (carboxyl)
+      return chainAtoms[chainAtoms.length - locant] ?? null;
     }
     return chainAtoms[locant - 1] ?? null;
   }
