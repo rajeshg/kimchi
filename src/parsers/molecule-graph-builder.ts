@@ -239,6 +239,19 @@ export class MoleculeGraphBuilder {
   }
 
   /**
+   * Add a thiocyanate group (-S-C#N) to a specific atom
+   */
+  addThiocyanate(atomIdx: number): void {
+    const sulfurIdx = this.addAtom('S');
+    const carbonIdx = this.addCarbon();
+    const nitrogenIdx = this.addAtom('N');
+    
+    this.addBond(atomIdx, sulfurIdx);
+    this.addBond(sulfurIdx, carbonIdx);
+    this.addBond(carbonIdx, nitrogenIdx, BondTypeEnum.TRIPLE);
+  }
+
+  /**
    * Add an ester group (-C(=O)O-R) to a specific atom
    * Creates carboxyl and attaches alkyl chain to the OH oxygen
    * @param atomIdx Carbon atom to attach ester to
@@ -350,6 +363,26 @@ export class MoleculeGraphBuilder {
     this.addBond(atomIdx, oxygenIdx);
     this.addBond(oxygenIdx, ch2Idx);
     this.addBond(ch2Idx, ch3Idx);
+  }
+
+  /**
+   * Add a propoxy substituent (-O-CH2CH2CH3) to a specific atom
+   */
+  addPropoxy(atomIdx: number): void {
+    const oxygenIdx = this.addAtom('O');
+    this.addBond(atomIdx, oxygenIdx);
+    
+    const propylChain = this.addAlkylSubstituent(oxygenIdx, 3);
+  }
+
+  /**
+   * Add a butoxy substituent (-O-CH2CH2CH2CH3) to a specific atom
+   */
+  addButoxy(atomIdx: number): void {
+    const oxygenIdx = this.addAtom('O');
+    this.addBond(atomIdx, oxygenIdx);
+    
+    const butylChain = this.addAlkylSubstituent(oxygenIdx, 4);
   }
 
   /**

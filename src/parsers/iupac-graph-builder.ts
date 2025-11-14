@@ -114,16 +114,18 @@ export class IUPACGraphBuilder {
     // Step 2: Apply unsaturation (ene, yne)
     this.applyUnsaturation(builder, mainChainAtoms, suffixTokens, locantTokens, hasCycloPrefix);
 
-    // Detect if this is a carboxylic acid (numbering goes from acid end)
+    // Detect if this is a carboxylic acid or thiocyanate (numbering goes from functional group end)
     const isAcid = suffixTokens.some(s => 
       s.value === 'oic acid' || s.value === 'ic acid' || s.value === 'oic' || s.value === 'anoic'
     );
+    const isThiocyanate = suffixTokens.some(s => s.value === 'thiocyanate');
+    const reverseNumbering = isAcid || isThiocyanate;
 
     // Step 3: Apply functional group suffixes (ol, one, etc.)
     this.applySuffixes(builder, mainChainAtoms, suffixTokens, locantTokens);
 
-    // Step 4: Apply substituents (with reversed numbering for acids)
-    this.applySubstituents(builder, mainChainAtoms, substituentTokens, locantTokens, multiplierTokens, isAcid);
+    // Step 4: Apply substituents (with reversed numbering for acids/thiocyanates)
+    this.applySubstituents(builder, mainChainAtoms, substituentTokens, locantTokens, multiplierTokens, reverseNumbering);
 
     return builder.build();
   }
@@ -294,6 +296,14 @@ export class IUPACGraphBuilder {
           }
           break;
 
+        case 'thiocyanate':
+          // Thiocyanate - add -SC#N to terminal carbon
+          const thiocyanateIdx = mainChainAtoms[mainChainAtoms.length - 1];
+          if (thiocyanateIdx !== undefined) {
+            builder.addThiocyanate(thiocyanateIdx);
+          }
+          break;
+
         case 'amide':
         case 'amid':
           // Amide - C(=O)NH2
@@ -369,6 +379,10 @@ export class IUPACGraphBuilder {
           builder.addMethoxy(atomIdx);
         } else if (substValue === 'ethoxy') {
           builder.addEthoxy(atomIdx);
+        } else if (substValue === 'propoxy') {
+          builder.addPropoxy(atomIdx);
+        } else if (substValue === 'butoxy') {
+          builder.addButoxy(atomIdx);
         } else if (substValue === 'hydroxy' || substValue === 'hydroxyl') {
           builder.addHydroxyl(atomIdx);
         } else if (substValue === 'oxo') {
