@@ -127,7 +127,8 @@ describe("IUPAC Parser - Advanced Features", () => {
     });
 
     it("should handle very long names", () => {
-      const longName = "2-[4-(1,1-dimethylethyl)phenyl]-5-methyl-1,3-dioxolan-2-methanol";
+      const longName =
+        "2-[4-(1,1-dimethylethyl)phenyl]-5-methyl-1,3-dioxolan-2-methanol";
       const result = parseIUPACName(longName);
       expect(result).toBeDefined();
     });

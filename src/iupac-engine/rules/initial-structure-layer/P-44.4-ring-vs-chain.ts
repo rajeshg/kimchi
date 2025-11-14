@@ -1202,8 +1202,11 @@ export const P44_4_RING_CHAIN_SELECTION_RULE: IUPACRule = {
     for (const fg of filteredFunctionalGroups) {
       if (fg.isPrincipal && fg.atoms) {
         // Check if this is a carboxamide or carboxylic acid (where all atoms should be excluded)
-        const isCarboxamideOrAcid = fg.suffix === "carboxamide" || fg.suffix === "carboxylic acid" || fg.type === "carboxylic_acid";
-        
+        const isCarboxamideOrAcid =
+          fg.suffix === "carboxamide" ||
+          fg.suffix === "carboxylic acid" ||
+          fg.type === "carboxylic_acid";
+
         for (const fgAtom of fg.atoms) {
           const fgAtomId = typeof fgAtom === "object" ? fgAtom.id : fgAtom;
           principalAtomIds.add(fgAtomId);

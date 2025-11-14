@@ -42,7 +42,9 @@ function buildSpanningTreeOptimized(
         // Back edge: connection to already-visited node
         // Normalize edge direction to avoid duplicates
         const edgeKey = [Math.min(next, node), Math.max(next, node)] as const;
-        if (!backEdges.some((e) => e[0] === edgeKey[0] && e[1] === edgeKey[1])) {
+        if (
+          !backEdges.some((e) => e[0] === edgeKey[0] && e[1] === edgeKey[1])
+        ) {
           backEdges.push([edgeKey[0], edgeKey[1]]);
         }
       }

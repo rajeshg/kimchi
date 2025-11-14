@@ -1,14 +1,14 @@
-import type { Molecule } from 'types';
+import type { Molecule } from "types";
 
 /** IUPAC token type classification */
-export type IUPACTokenType = 
-  | 'LOCANT' 
-  | 'MULTIPLIER' 
-  | 'SUBSTITUENT' 
-  | 'PARENT' 
-  | 'SUFFIX' 
-  | 'STEREO'
-  | 'PREFIX';
+export type IUPACTokenType =
+  | "LOCANT"
+  | "MULTIPLIER"
+  | "SUBSTITUENT"
+  | "PARENT"
+  | "SUFFIX"
+  | "STEREO"
+  | "PREFIX";
 
 /** Represents a single parsed token from an IUPAC name */
 export interface IUPACToken {

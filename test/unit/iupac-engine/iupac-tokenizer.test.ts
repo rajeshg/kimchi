@@ -51,7 +51,9 @@ describe("IUPACTokenizer", () => {
       // May have errors for complex names, but should have tokens
       expect(result.tokens.length).toBeGreaterThanOrEqual(3);
       const locantToken = result.tokens.find((t) => t.type === "LOCANT");
-      const substituentToken = result.tokens.find((t) => t.type === "SUBSTITUENT");
+      const substituentToken = result.tokens.find(
+        (t) => t.type === "SUBSTITUENT",
+      );
       const parentToken = result.tokens.find((t) => t.type === "PARENT");
       expect(locantToken).toBeDefined();
       expect(substituentToken).toBeDefined();
@@ -62,7 +64,9 @@ describe("IUPACTokenizer", () => {
       const result = tokenizer.tokenize("3-methylhexane");
       expect(result.tokens.length).toBeGreaterThanOrEqual(3);
       const locantToken = result.tokens.find((t) => t.type === "LOCANT");
-      const substituentToken = result.tokens.find((t) => t.type === "SUBSTITUENT");
+      const substituentToken = result.tokens.find(
+        (t) => t.type === "SUBSTITUENT",
+      );
       expect(locantToken).toBeDefined();
       expect(substituentToken).toBeDefined();
     });
@@ -70,8 +74,12 @@ describe("IUPACTokenizer", () => {
     it("should tokenize '2,2-dimethylpropane' with key tokens", () => {
       const result = tokenizer.tokenize("2,2-dimethylpropane");
       expect(result.tokens.length).toBeGreaterThanOrEqual(3);
-      const multiplierToken = result.tokens.find((t) => t.type === "MULTIPLIER");
-      const substituentToken = result.tokens.find((t) => t.type === "SUBSTITUENT");
+      const multiplierToken = result.tokens.find(
+        (t) => t.type === "MULTIPLIER",
+      );
+      const substituentToken = result.tokens.find(
+        (t) => t.type === "SUBSTITUENT",
+      );
       expect(multiplierToken).toBeDefined();
       expect(substituentToken).toBeDefined();
     });
@@ -298,7 +306,9 @@ describe("IUPACTokenizer", () => {
 
     it("should include SMILES in SUBSTITUENT token metadata", () => {
       const result = tokenizer.tokenize("2-methylpropane");
-      const substituentToken = result.tokens.find((t) => t.type === "SUBSTITUENT");
+      const substituentToken = result.tokens.find(
+        (t) => t.type === "SUBSTITUENT",
+      );
       expect(substituentToken?.metadata?.smiles).toBeDefined();
     });
   });

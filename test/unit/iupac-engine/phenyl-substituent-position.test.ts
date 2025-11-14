@@ -7,7 +7,7 @@ describe("Phenyl substituent position calculation", () => {
       const smiles = "COc1ccc(cc1)c2ccc3ccccc3n2";
       const mol = parseSMILES(smiles).molecules[0];
       expect(mol).toBeDefined();
-      
+
       const result = generateIUPACName(mol!);
       expect(result.name).toBe("2-(4-methoxyphenyl)quinoline");
     });
@@ -16,7 +16,7 @@ describe("Phenyl substituent position calculation", () => {
       const smiles = "COc1cccc(c1)c2ccc3ccccc3n2";
       const mol = parseSMILES(smiles).molecules[0];
       expect(mol).toBeDefined();
-      
+
       const result = generateIUPACName(mol!);
       expect(result.name).toBe("2-(3-methoxyphenyl)quinoline");
     });
@@ -25,7 +25,7 @@ describe("Phenyl substituent position calculation", () => {
       const smiles = "COc1ccccc1c2ccc3ccccc3n2";
       const mol = parseSMILES(smiles).molecules[0];
       expect(mol).toBeDefined();
-      
+
       const result = generateIUPACName(mol!);
       expect(result.name).toBe("2-(2-methoxyphenyl)quinoline");
     });
@@ -36,7 +36,7 @@ describe("Phenyl substituent position calculation", () => {
       const smiles = "Clc1ccc(cc1)c2ccc3ccccc3n2";
       const mol = parseSMILES(smiles).molecules[0];
       expect(mol).toBeDefined();
-      
+
       const result = generateIUPACName(mol!);
       expect(result.name).toBe("2-(4-chlorophenyl)quinoline");
     });
@@ -45,7 +45,7 @@ describe("Phenyl substituent position calculation", () => {
       const smiles = "Clc1cccc(c1)c2ccc3ccccc3n2";
       const mol = parseSMILES(smiles).molecules[0];
       expect(mol).toBeDefined();
-      
+
       const result = generateIUPACName(mol!);
       expect(result.name).toBe("2-(3-chlorophenyl)quinoline");
     });
@@ -54,7 +54,7 @@ describe("Phenyl substituent position calculation", () => {
       const smiles = "Clc1ccccc1c2ccc3ccccc3n2";
       const mol = parseSMILES(smiles).molecules[0];
       expect(mol).toBeDefined();
-      
+
       const result = generateIUPACName(mol!);
       expect(result.name).toBe("2-(2-chlorophenyl)quinoline");
     });
@@ -65,7 +65,7 @@ describe("Phenyl substituent position calculation", () => {
       const smiles = "Cc1ccc(cc1)c2ccc3ccccc3n2";
       const mol = parseSMILES(smiles).molecules[0];
       expect(mol).toBeDefined();
-      
+
       const result = generateIUPACName(mol!);
       expect(result.name).toBe("2-(4-methylphenyl)quinoline");
     });
@@ -74,7 +74,7 @@ describe("Phenyl substituent position calculation", () => {
       const smiles = "Cc1cccc(c1)c2ccc3ccccc3n2";
       const mol = parseSMILES(smiles).molecules[0];
       expect(mol).toBeDefined();
-      
+
       const result = generateIUPACName(mol!);
       expect(result.name).toBe("2-(3-methylphenyl)quinoline");
     });
@@ -83,7 +83,7 @@ describe("Phenyl substituent position calculation", () => {
       const smiles = "Cc1ccccc1c2ccc3ccccc3n2";
       const mol = parseSMILES(smiles).molecules[0];
       expect(mol).toBeDefined();
-      
+
       const result = generateIUPACName(mol!);
       expect(result.name).toBe("2-(2-methylphenyl)quinoline");
     });
@@ -94,7 +94,7 @@ describe("Phenyl substituent position calculation", () => {
       const smiles = "[N+](=O)([O-])c1ccc(cc1)c2ccc3ccccc3n2";
       const mol = parseSMILES(smiles).molecules[0];
       expect(mol).toBeDefined();
-      
+
       const result = generateIUPACName(mol!);
       expect(result.name).toBe("2-(4-nitrophenyl)quinoline");
     });
@@ -103,7 +103,7 @@ describe("Phenyl substituent position calculation", () => {
       const smiles = "[N+](=O)([O-])c1cccc(c1)c2ccc3ccccc3n2";
       const mol = parseSMILES(smiles).molecules[0];
       expect(mol).toBeDefined();
-      
+
       const result = generateIUPACName(mol!);
       expect(result.name).toBe("2-(3-nitrophenyl)quinoline");
     });
@@ -112,7 +112,7 @@ describe("Phenyl substituent position calculation", () => {
       const smiles = "[N+](=O)([O-])c1ccccc1c2ccc3ccccc3n2";
       const mol = parseSMILES(smiles).molecules[0];
       expect(mol).toBeDefined();
-      
+
       const result = generateIUPACName(mol!);
       expect(result.name).toBe("2-(2-nitrophenyl)quinoline");
     });
@@ -123,7 +123,7 @@ describe("Phenyl substituent position calculation", () => {
       const smiles = "COc1ccc(cc1OC)c2ccc3ccccc3n2";
       const mol = parseSMILES(smiles).molecules[0];
       expect(mol).toBeDefined();
-      
+
       const result = generateIUPACName(mol!);
       expect(result.name).toBe("2-(1,2-dimethoxyphenyl)quinoline");
     });
@@ -132,7 +132,7 @@ describe("Phenyl substituent position calculation", () => {
       const smiles = "COc1ccc(cc1)c2cnc3ccccc3c2";
       const mol = parseSMILES(smiles).molecules[0];
       expect(mol).toBeDefined();
-      
+
       const result = generateIUPACName(mol!);
       expect(result.name).toBe("3-(4-methoxyphenyl)quinoline");
     });

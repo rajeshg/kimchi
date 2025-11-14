@@ -100,11 +100,11 @@ export class OPSINService {
         Array.isArray(entry.aliases) && entry.aliases.length > 0
           ? (entry.aliases[0] as string)
           : entry.name || pattern;
-      
+
       // Apply standard IUPAC name overrides before priority lookup
       let name = nameFromEntry || pattern;
       let suffix = (entry.suffix as string | undefined) || "";
-      
+
       if (pattern === "C#N") {
         name = "nitrile";
         suffix = "nitrile";
@@ -113,7 +113,7 @@ export class OPSINService {
         // For now, we'll use a context-neutral approach by checking if it's being used as aldehyde
         // The detector will handle this properly
       }
-      
+
       const priority =
         (entry.priority as number | undefined) ||
         this.priorityMap[name.toLowerCase()] ||

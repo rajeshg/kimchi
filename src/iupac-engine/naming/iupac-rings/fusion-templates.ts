@@ -258,8 +258,10 @@ export function findMatchingFusionTemplate(
   }
 
   if (ringCount === 3 && heteroAtoms.length === 0) {
-    const ringSizes = rings.map((r: number[]) => r.length).sort((a, b) => a - b);
-    
+    const ringSizes = rings
+      .map((r: number[]) => r.length)
+      .sort((a, b) => a - b);
+
     // Check for fluorene (5-6-6 system with CH2 bridge)
     if (ringSizes[0] === 5 && ringSizes[1] === 6 && ringSizes[2] === 6) {
       const nonAromaticAtoms = Array.from(allRingAtoms).filter((idx) => {
@@ -270,7 +272,7 @@ export function findMatchingFusionTemplate(
         return FUSION_TEMPLATES.find((t) => t.name === "fluoreno") || null;
       }
     }
-    
+
     // For 6-6-6 systems, check geometry to distinguish anthracene from phenanthrene
     if (ringSizes.every((s: number) => s === 6)) {
       // This is a simplified heuristic - ideally would do proper geometry analysis
@@ -288,14 +290,14 @@ export function findMatchingFusionTemplate(
     ).length;
     if (nCount === 1) {
       const ringSizes = rings.map((r: number[]) => r.length).sort();
-      
+
       // Check for quinoline/isoquinoline (two 6-membered rings with N)
       if (ringSizes.every((s: number) => s === 6)) {
         // Determine if quinoline or isoquinoline based on N position
         // For now, default to quinoline (would need more sophisticated logic)
         return FUSION_TEMPLATES.find((t) => t.name === "quinolino") || null;
       }
-      
+
       // Check for indole (5-membered + 6/7-membered with N)
       if (
         ringSizes.includes(5) &&

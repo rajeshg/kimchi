@@ -12,7 +12,7 @@ describe("IUPACTokenizer - Stereochemistry Support", () => {
       const result = tokenizer.tokenize("e-but-2-ene");
       expect(result.errors.length).toBe(0);
       expect(result.tokens.length).toBeGreaterThan(0);
-      
+
       // Check for STEREO token
       const stereoToken = result.tokens.find((t) => t.type === "STEREO");
       expect(stereoToken).toBeDefined();
@@ -24,7 +24,7 @@ describe("IUPACTokenizer - Stereochemistry Support", () => {
       const result = tokenizer.tokenize("z-but-2-ene");
       expect(result.errors.length).toBe(0);
       expect(result.tokens.length).toBeGreaterThan(0);
-      
+
       const stereoToken = result.tokens.find((t) => t.type === "STEREO");
       expect(stereoToken).toBeDefined();
       expect(stereoToken?.value).toBe("z");
@@ -35,7 +35,7 @@ describe("IUPACTokenizer - Stereochemistry Support", () => {
       const result = tokenizer.tokenize("(e)-but-2-ene");
       // May have error for '(' char, but should still get stereo token
       expect(result.tokens.length).toBeGreaterThan(0);
-      
+
       const stereoToken = result.tokens.find((t) => t.type === "STEREO");
       expect(stereoToken).toBeDefined();
     });
@@ -46,7 +46,7 @@ describe("IUPACTokenizer - Stereochemistry Support", () => {
       const result = tokenizer.tokenize("r-butan-2-ol");
       expect(result.errors.length).toBe(0);
       expect(result.tokens.length).toBeGreaterThan(0);
-      
+
       const stereoToken = result.tokens.find((t) => t.type === "STEREO");
       expect(stereoToken).toBeDefined();
       expect(stereoToken?.value).toBe("r");
@@ -57,7 +57,7 @@ describe("IUPACTokenizer - Stereochemistry Support", () => {
       const result = tokenizer.tokenize("s-butan-2-ol");
       expect(result.errors.length).toBe(0);
       expect(result.tokens.length).toBeGreaterThan(0);
-      
+
       const stereoToken = result.tokens.find((t) => t.type === "STEREO");
       expect(stereoToken).toBeDefined();
       expect(stereoToken?.value).toBe("s");
@@ -93,12 +93,12 @@ describe("IUPACTokenizer - Stereochemistry Support", () => {
     it("should NOT match 'e' from 'ethene' as E stereochemistry", () => {
       const result = tokenizer.tokenize("ethene");
       expect(result.errors.length).toBe(0);
-      
+
       // Should tokenize as: PARENT (eth) + SUFFIX (ene)
       // NOT as: STEREO (e) + something else
       const stereoToken = result.tokens.find((t) => t.type === "STEREO");
       expect(stereoToken).toBeUndefined();
-      
+
       const parentToken = result.tokens.find((t) => t.type === "PARENT");
       expect(parentToken?.value).toBe("eth");
     });
@@ -106,7 +106,7 @@ describe("IUPACTokenizer - Stereochemistry Support", () => {
     it("should NOT match 'e' from 'propene' as E stereochemistry", () => {
       const result = tokenizer.tokenize("propene");
       expect(result.errors.length).toBe(0);
-      
+
       const stereoToken = result.tokens.find((t) => t.type === "STEREO");
       expect(stereoToken).toBeUndefined();
     });

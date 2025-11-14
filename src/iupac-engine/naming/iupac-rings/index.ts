@@ -1210,14 +1210,18 @@ function calculateSubstituentPositionOnBenzene(
     const ringNumbering = new Map<number, number>();
     for (let i = 0; i < benzeneRing.length; i++) {
       // Position 1 is the attachment point, then 2, 3, 4, 5, 6 going around the ring
-      const atomIdx = benzeneRing[(attachmentRingIndex + i) % benzeneRing.length];
+      const atomIdx =
+        benzeneRing[(attachmentRingIndex + i) % benzeneRing.length];
       if (atomIdx !== undefined) {
         ringNumbering.set(atomIdx, i + 1);
       }
     }
 
     if (process.env.VERBOSE) {
-      console.log("[calculateSubstituentPositionOnBenzene] Ring numbering:", Array.from(ringNumbering.entries()));
+      console.log(
+        "[calculateSubstituentPositionOnBenzene] Ring numbering:",
+        Array.from(ringNumbering.entries()),
+      );
     }
 
     // Find substituents on the ring (atoms bonded to ring atoms but not in the ring)
@@ -1232,7 +1236,10 @@ function calculateSubstituentPositionOnBenzene(
         let neighborIdx = -1;
         if (bond.atom1 === ringAtomIdx && !ringAtomsSet.has(bond.atom2)) {
           neighborIdx = bond.atom2;
-        } else if (bond.atom2 === ringAtomIdx && !ringAtomsSet.has(bond.atom1)) {
+        } else if (
+          bond.atom2 === ringAtomIdx &&
+          !ringAtomsSet.has(bond.atom1)
+        ) {
           neighborIdx = bond.atom1;
         }
 
@@ -1393,27 +1400,27 @@ function nameComplexSubstituent(
         // Pattern: "methoxybenzene" should become "4-methoxybenzene" for para-substitution
         // This is a common case where the locant was omitted for unambiguous benzene,
         // but we need it when the ring becomes a substituent
-        
+
         // Check if this is a substituted benzene without a position number
         // Examples: "methoxybenzene", "chlorobenzene", "nitrobenzene"
         const substituentMatch = iupacName.match(/^([a-z]+)benzene$/);
-        if (substituentMatch && substituentMatch[1] !== '') {
+        if (substituentMatch && substituentMatch[1] !== "") {
           // This is a substituted benzene without a position number
           // Calculate the actual position by analyzing the ring structure
-          
+
           // Find the attachment point in the sub-molecule
           const attachmentPointInSubMol = atomMapping.get(startAtomIdx);
-          
+
           if (attachmentPointInSubMol !== undefined) {
             // Calculate substituent position relative to attachment point
             const position = calculateSubstituentPositionOnBenzene(
               subMolecule,
               attachmentPointInSubMol,
             );
-            
+
             if (position !== null) {
               iupacName = `${position}-${iupacName}`;
-              
+
               if (process.env.VERBOSE) {
                 console.log(
                   `[nameComplexSubstituent] Calculated position ${position} for substituent on benzene ring`,
@@ -1422,7 +1429,7 @@ function nameComplexSubstituent(
             } else {
               // Fallback to heuristic if calculation fails
               iupacName = `4-${iupacName}`;
-              
+
               if (process.env.VERBOSE) {
                 console.log(
                   `[nameComplexSubstituent] Could not calculate position, using default: ${iupacName}`,
@@ -1432,13 +1439,15 @@ function nameComplexSubstituent(
           } else {
             // Fallback to heuristic if attachment point not found
             iupacName = `4-${iupacName}`;
-            
+
             if (process.env.VERBOSE) {
-              console.log(`[nameComplexSubstituent] Added default position to: ${iupacName}`);
+              console.log(
+                `[nameComplexSubstituent] Added default position to: ${iupacName}`,
+              );
             }
           }
         }
-        
+
         iupacName = iupacName.replace(/benzene$/, "phenyl");
       } else if (iupacName === "toluene") {
         // toluene → methylphenyl (not tolyl, which is archaic)
@@ -1939,7 +1948,7 @@ function classifySubstituent(
           const ringInSubstituent = ring.every((atomId) =>
             substituentAtoms.has(atomId),
           );
-          
+
           if (ringInSubstituent) {
             const ringAtomsArray = ring.map((id) => molecule.atoms[id]);
             const allAromaticCarbons = ringAtomsArray.every(
@@ -1969,7 +1978,11 @@ function classifySubstituent(
                       complexName,
                     );
                   }
-                  return { type: "complex", size: carbonCount, name: complexName };
+                  return {
+                    type: "complex",
+                    size: carbonCount,
+                    name: complexName,
+                  };
                 }
               } else {
                 // Exactly 6 carbons, no heteroatoms - simple phenyl
@@ -2010,18 +2023,18 @@ function classifySubstituent(
             const ringIsAromatic = ring.every((atomId) =>
               aromaticCarbonIds.has(atomId),
             );
-            
+
             // Also verify all ring atoms are in the substituent
             const ringInSubstituent = ring.every((atomId) =>
               substituentAtoms.has(atomId),
             );
-            
+
             if (process.env.VERBOSE) {
               console.log(
                 `[classifySubstituent-rings] 6-ring [${ring.join(",")}]: aromatic=${ringIsAromatic}, inSubstituent=${ringInSubstituent}`,
               );
             }
-            
+
             if (ringIsAromatic && ringInSubstituent) {
               // This is a phenyl substituent!
               if (process.env.VERBOSE) {

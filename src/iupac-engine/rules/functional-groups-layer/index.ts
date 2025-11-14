@@ -354,7 +354,7 @@ export const FUNCTIONAL_GROUP_PRIORITY_RULE: IUPACRule = {
     for (const fg of functionalGroups) {
       if (fg.type === "amide" && fg.atoms && fg.atoms.length >= 3) {
         const carbonylCarbon = fg.atoms[0]; // First atom is C=O carbon
-        
+
         // Check if carbonyl carbon is NOT in a ring but IS bonded to a ring atom
         if (carbonylCarbon && !carbonylCarbon.isInRing) {
           // Find if carbonyl carbon is bonded to a ring atom
@@ -774,7 +774,10 @@ export const FUNCTIONAL_CLASS_RULE: IUPACRule = {
     );
 
     let updatedContext: ImmutableNamingContext;
-    if (hasFunctionalClassGroup || isFunctionalClassPreferred(principalGroup, molecule)) {
+    if (
+      hasFunctionalClassGroup ||
+      isFunctionalClassPreferred(principalGroup, molecule)
+    ) {
       updatedContext = context.withNomenclatureMethod(
         NomenclatureMethod.FUNCTIONAL_CLASS,
         "functional-class-nomenclature",

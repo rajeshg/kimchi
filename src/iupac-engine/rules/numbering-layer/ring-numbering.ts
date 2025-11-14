@@ -985,32 +985,45 @@ export const RING_NUMBERING_RULE: IUPACRule = {
     // Check if this is a known fused system that requires specialized numbering
     const molecule = state.molecule;
     const functionalGroups = state.functionalGroups || [];
-    
+
     // Known fused systems that have IUPAC-defined numbering schemes
-    const knownFusedSystems = ['quinoline', 'isoquinoline', 'indole', 'benzofuran', 'benzothiophene'];
-    const parentName = parentStructure.name?.toLowerCase() || '';
-    const isFusedSystem = knownFusedSystems.some(name => parentName.includes(name));
-    
-    if (isFusedSystem && parentName.includes('quinoline')) {
+    const knownFusedSystems = [
+      "quinoline",
+      "isoquinoline",
+      "indole",
+      "benzofuran",
+      "benzothiophene",
+    ];
+    const parentName = parentStructure.name?.toLowerCase() || "";
+    const isFusedSystem = knownFusedSystems.some((name) =>
+      parentName.includes(name),
+    );
+
+    if (isFusedSystem && parentName.includes("quinoline")) {
       // Use specialized quinoline numbering
-      const { numberQuinoline } = require('../../naming/iupac-rings/numbering');
-      const { classifyRingSystems } = require('../../../utils/ring-analysis');
-      
+      const { numberQuinoline } = require("../../naming/iupac-rings/numbering");
+      const { classifyRingSystems } = require("../../../utils/ring-analysis");
+
       // Get the fused rings from the molecule
-      const ringClassification = classifyRingSystems(molecule.atoms, molecule.bonds);
+      const ringClassification = classifyRingSystems(
+        molecule.atoms,
+        molecule.bonds,
+      );
       const fusedRings = ringClassification.fused;
-      
+
       if (process.env.VERBOSE) {
-        console.log('[Ring Numbering] Detected quinoline - using specialized numbering');
-        console.log('[Ring Numbering] Fused rings:', fusedRings);
+        console.log(
+          "[Ring Numbering] Detected quinoline - using specialized numbering",
+        );
+        console.log("[Ring Numbering] Fused rings:", fusedRings);
       }
-      
+
       // Build a FusedSystem object for quinoline numbering
       const fusedSystem = {
         rings: fusedRings,
-        name: 'quinoline',
+        name: "quinoline",
       };
-      
+
       // Create atom ID to position mapping using quinoline numbering
       const atomIdToPosition = new Map<number, number>();
       const allRingAtoms = new Set<number>();
@@ -1019,7 +1032,7 @@ export const RING_NUMBERING_RULE: IUPACRule = {
           allRingAtoms.add(atomIdx);
         }
       }
-      
+
       // Apply quinoline numbering to each atom in the fused system
       for (const atomIdx of allRingAtoms) {
         const locant = numberQuinoline(atomIdx, fusedSystem, molecule);
@@ -1034,14 +1047,14 @@ export const RING_NUMBERING_RULE: IUPACRule = {
         }
         atomIdToPosition.set(atomIdx, position);
       }
-      
+
       if (process.env.VERBOSE) {
         console.log(
-          '[Ring Numbering] Quinoline atom ID to position mapping:',
+          "[Ring Numbering] Quinoline atom ID to position mapping:",
           Array.from(atomIdToPosition.entries()),
         );
       }
-      
+
       // Build reordered atoms array based on quinoline numbering
       const reorderedAtoms: Atom[] = [];
       const maxPosition = Math.max(...Array.from(atomIdToPosition.values()));
@@ -1054,9 +1067,9 @@ export const RING_NUMBERING_RULE: IUPACRule = {
           }
         }
       }
-      
+
       const ringAtomIds = new Set(reorderedAtoms.map((a: Atom) => a.id));
-      
+
       // Update functional group locants
       const updatedFunctionalGroups = functionalGroups.map(
         (fg: FunctionalGroup) => {
@@ -1152,7 +1165,8 @@ export const RING_NUMBERING_RULE: IUPACRule = {
       const updatedSubstituents = parentStructure.substituents?.map((sub) => {
         let atomId: number;
         const hasRingAttachment =
-          "attachedToRingAtomId" in sub && sub.attachedToRingAtomId !== undefined;
+          "attachedToRingAtomId" in sub &&
+          sub.attachedToRingAtomId !== undefined;
         if (hasRingAttachment) {
           atomId = sub.attachedToRingAtomId!;
         } else {
@@ -1196,7 +1210,7 @@ export const RING_NUMBERING_RULE: IUPACRule = {
         `Applied specialized quinoline numbering`,
       );
     }
-    
+
     // Otherwise, use standard ring numbering
     // Number ring starting from heteroatom or unsaturation
     const ringLocants = generateRingLocants(ring);

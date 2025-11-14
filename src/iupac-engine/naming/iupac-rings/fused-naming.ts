@@ -271,10 +271,7 @@ export function identifyPolycyclicPattern(
     return null;
   }
   // Check for fluorene first (5-6-6 system with CH2 bridge)
-  if (
-    ringCount === 3 &&
-    heteroAtoms.length === 0
-  ) {
+  if (ringCount === 3 && heteroAtoms.length === 0) {
     const sortedSizes = [...ringSizes].sort();
     if (sortedSizes[0] === 5 && sortedSizes[1] === 6 && sortedSizes[2] === 6) {
       // Check if there's exactly one non-aromatic carbon in the 5-membered ring (CH2 bridge)
@@ -434,12 +431,12 @@ export function identifyAdvancedFusedPattern(
     // More deterministic detection: locate 5- and 6-member rings explicitly
     const fiveRing = rings.find((r: number[]) => r.length === 5);
     const sixRing = rings.find((r: number[]) => r.length === 6);
-    
+
     // Key distinction: Indole has 9 unique atoms, Quinoline has 10 unique atoms
     // SSSR can represent quinoline as [5,6] or [6,6] depending on SMILES structure,
     // but the total unique atom count is always 10 for quinoline vs 9 for indole.
     const uniqueAtomCount = allRingAtoms.size;
-    
+
     if (fiveRing) {
       const nIdx = fiveRing.find(
         (idx: number) => molecule.atoms[idx]?.symbol === "N",

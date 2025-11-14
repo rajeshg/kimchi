@@ -12,16 +12,16 @@ describe("Quinoline numbering - comprehensive position test", () => {
       { pos: 7, smiles: "n1cccc2ccc(C)cc12", expected: "7-methylquinoline" },
       { pos: 8, smiles: "n1cccc2cccc(C)c12", expected: "8-methylquinoline" },
     ];
-    
+
     for (const test of positions) {
       const mol = parseSMILES(test.smiles).molecules[0];
       expect(mol).toBeDefined();
-      
+
       const result = generateIUPACName(mol!);
       expect(result.name).toBe(test.expected);
     }
   });
-  
+
   it("should correctly number all positions 2-8 with chloro substituents", () => {
     const positions = [
       { pos: 2, smiles: "n1c(Cl)ccc2ccccc12", expected: "2-chloroquinoline" },
@@ -32,11 +32,11 @@ describe("Quinoline numbering - comprehensive position test", () => {
       { pos: 7, smiles: "n1cccc2ccc(Cl)cc12", expected: "7-chloroquinoline" },
       { pos: 8, smiles: "n1cccc2cccc(Cl)c12", expected: "8-chloroquinoline" },
     ];
-    
+
     for (const test of positions) {
       const mol = parseSMILES(test.smiles).molecules[0];
       expect(mol).toBeDefined();
-      
+
       const result = generateIUPACName(mol!);
       expect(result.name).toBe(test.expected);
     }

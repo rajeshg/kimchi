@@ -337,9 +337,17 @@ export function classifySubstituent(
     );
 
     if (process.env.VERBOSE) {
-      console.log(`[phenyl-detection] carbonCount=${carbonCount}, aromaticCarbons=${aromaticCarbons.length}`);
-      console.log(`[phenyl-detection] substituent atom IDs:`, Array.from(substituentAtoms));
-      console.log(`[phenyl-detection] aromatic carbon IDs:`, aromaticCarbons.map(a => a.id));
+      console.log(
+        `[phenyl-detection] carbonCount=${carbonCount}, aromaticCarbons=${aromaticCarbons.length}`,
+      );
+      console.log(
+        `[phenyl-detection] substituent atom IDs:`,
+        Array.from(substituentAtoms),
+      );
+      console.log(
+        `[phenyl-detection] aromatic carbon IDs:`,
+        aromaticCarbons.map((a) => a.id),
+      );
     }
 
     // If we have exactly 6 aromatic carbons, this is a phenyl group
@@ -350,12 +358,16 @@ export function classifySubstituent(
       // Verify ring structure by checking molecule.rings
       if (molecule.rings) {
         if (process.env.VERBOSE) {
-          console.log(`[phenyl-detection] checking ${molecule.rings.length} rings`);
+          console.log(
+            `[phenyl-detection] checking ${molecule.rings.length} rings`,
+          );
           molecule.rings.forEach((ring, idx) => {
-            console.log(`[phenyl-detection] ring ${idx}: length=${ring.length}, atoms=[${ring.join(',')}]`);
+            console.log(
+              `[phenyl-detection] ring ${idx}: length=${ring.length}, atoms=[${ring.join(",")}]`,
+            );
           });
         }
-        
+
         for (const ring of molecule.rings) {
           if (ring.length === 6) {
             // Check if all ring atoms are in our aromatic carbon set
@@ -363,7 +375,9 @@ export function classifySubstituent(
               aromaticCarbonIds.has(atomId),
             );
             if (process.env.VERBOSE) {
-              console.log(`[phenyl-detection] 6-membered ring [${ring.join(',')}]: ringIsAromatic=${ringIsAromatic}`);
+              console.log(
+                `[phenyl-detection] 6-membered ring [${ring.join(",")}]: ringIsAromatic=${ringIsAromatic}`,
+              );
             }
             if (ringIsAromatic) {
               // This is a phenyl substituent!
