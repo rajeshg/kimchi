@@ -403,7 +403,11 @@ export class IUPACGraphBuilder {
           builder.addAlkylSubstituent(atomIdx, 8);
         } else if (substValue === 'isopropyl' || substValue === 'propan-2-yl') {
           builder.addIsopropyl(atomIdx);
-        } else if (substValue === 'tert-butyl' || substValue === 'tertbutyl') {
+        } else if (substValue === 'isobutyl') {
+          builder.addIsobutyl(atomIdx);
+        } else if (substValue === 'sec-butyl' || substValue === 'secbutyl' || substValue === 'butan-2-yl') {
+          builder.addSecButyl(atomIdx);
+        } else if (substValue === 'tert-butyl' || substValue === 'tertbutyl' || substValue === 'butan-2,2-dimethyl') {
           builder.addTertButyl(atomIdx);
         } else if (substValue === 'methoxy') {
           builder.addMethoxy(atomIdx);
@@ -446,6 +450,8 @@ export class IUPACGraphBuilder {
           builder.addPhenethyl(atomIdx);
         } else if (substValue === 'cyclopropyl') {
           builder.addCyclopropyl(atomIdx);
+        } else if (substValue === 'cyclobutyl') {
+          builder.addCyclobutyl(atomIdx);
         } else if (substValue === 'cyclopentyl') {
           builder.addCyclopentyl(atomIdx);
         } else if (substValue === 'cyclohexyl') {
@@ -459,6 +465,8 @@ export class IUPACGraphBuilder {
         } else if (substValue === 'fluoro' || substValue === 'fluor') {
           const fIdx = builder.addAtom('F');
           builder.addBond(atomIdx, fIdx);
+        } else if (substValue === 'trifluoromethyl') {
+          builder.addTrifluoromethyl(atomIdx);
         } else if (substValue === 'iodo' || substValue === 'iod') {
           const iIdx = builder.addAtom('I');
           builder.addBond(atomIdx, iIdx);

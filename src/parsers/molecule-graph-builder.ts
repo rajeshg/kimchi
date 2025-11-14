@@ -159,8 +159,10 @@ export class MoleculeGraphBuilder {
     this.addBond(o, c2);
     this.addBond(c2, c1);
     
-    // Return atoms in IUPAC numbering order: C1(pos1), O(pos2), C2(pos3)
-    return [c1, o, c2];
+    // Return only carbon atoms in IUPAC numbering order
+    // Oxygen is not numbered in IUPAC naming
+    // Position 1 = C1, Position 2 = C2
+    return [c1, c2];
   }
 
   /**
@@ -344,6 +346,34 @@ export class MoleculeGraphBuilder {
   }
 
   /**
+   * Add an isobutyl substituent (-CH2CH(CH3)2) to a specific atom
+   */
+  addIsobutyl(atomIdx: number): void {
+    const ch2 = this.addCarbon();
+    const ch = this.addCarbon();
+    const ch3_1 = this.addCarbon();
+    const ch3_2 = this.addCarbon();
+    this.addBond(atomIdx, ch2);
+    this.addBond(ch2, ch);
+    this.addBond(ch, ch3_1);
+    this.addBond(ch, ch3_2);
+  }
+
+  /**
+   * Add a sec-butyl substituent (-CH(CH3)CH2CH3) to a specific atom
+   */
+  addSecButyl(atomIdx: number): void {
+    const ch = this.addCarbon();
+    const ch3_branch = this.addCarbon();
+    const ch2 = this.addCarbon();
+    const ch3_end = this.addCarbon();
+    this.addBond(atomIdx, ch);
+    this.addBond(ch, ch3_branch);
+    this.addBond(ch, ch2);
+    this.addBond(ch2, ch3_end);
+  }
+
+  /**
    * Add a methoxy substituent (-OCH3) to a specific atom
    */
   addMethoxy(atomIdx: number): void {
@@ -394,6 +424,20 @@ export class MoleculeGraphBuilder {
   }
 
   /**
+   * Add a trifluoromethyl substituent (-CF3) to a specific atom
+   */
+  addTrifluoromethyl(atomIdx: number): void {
+    const carbonIdx = this.addCarbon();
+    const f1 = this.addAtom('F');
+    const f2 = this.addAtom('F');
+    const f3 = this.addAtom('F');
+    this.addBond(atomIdx, carbonIdx);
+    this.addBond(carbonIdx, f1);
+    this.addBond(carbonIdx, f2);
+    this.addBond(carbonIdx, f3);
+  }
+
+  /**
    * Add a benzyl substituent (-CH2-Ph) to a specific atom
    */
   addBenzyl(atomIdx: number): void {
@@ -430,6 +474,21 @@ export class MoleculeGraphBuilder {
     this.addBond(c1, c2);
     this.addBond(c2, c3);
     this.addBond(c3, c1);
+  }
+
+  /**
+   * Add a cyclobutyl substituent (4-membered ring) to a specific atom
+   */
+  addCyclobutyl(atomIdx: number): void {
+    const c1 = this.addCarbon();
+    const c2 = this.addCarbon();
+    const c3 = this.addCarbon();
+    const c4 = this.addCarbon();
+    this.addBond(atomIdx, c1);
+    this.addBond(c1, c2);
+    this.addBond(c2, c3);
+    this.addBond(c3, c4);
+    this.addBond(c4, c1);
   }
 
   /**
