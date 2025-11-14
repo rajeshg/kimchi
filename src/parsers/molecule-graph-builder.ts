@@ -147,18 +147,20 @@ export class MoleculeGraphBuilder {
   /**
    * Create oxirane ring (3-membered ring with O)
    * SMILES: C1CO1
-   * @returns Array of atom indices [C, C, O]
+   * Numbering: C1-O-C2 (oxygen at position 2, but substituents only on carbons)
+   * @returns Array of atom indices [C1, O, C2] ordered for IUPAC positions [1, 2, 3]
    */
   createOxiraneRing(): number[] {
     const c1 = this.addCarbon();
-    const c2 = this.addCarbon();
     const o = this.addAtom('O');
+    const c2 = this.addCarbon();
     
-    this.addBond(c1, c2);
-    this.addBond(c2, o);
-    this.addBond(o, c1);
+    this.addBond(c1, o);
+    this.addBond(o, c2);
+    this.addBond(c2, c1);
     
-    return [c1, c2, o];
+    // Return atoms in IUPAC numbering order: C1(pos1), O(pos2), C2(pos3)
+    return [c1, o, c2];
   }
 
   /**
@@ -300,6 +302,42 @@ export class MoleculeGraphBuilder {
     const ch3Idx = this.addCarbon();
     this.addBond(atomIdx, ch2Idx);
     this.addBond(ch2Idx, ch3Idx);
+  }
+
+  /**
+   * Add an isopropyl substituent (-CH(CH3)2) to a specific atom
+   */
+  addIsopropyl(atomIdx: number): void {
+    const chIdx = this.addCarbon();
+    const ch3_1 = this.addCarbon();
+    const ch3_2 = this.addCarbon();
+    this.addBond(atomIdx, chIdx);
+    this.addBond(chIdx, ch3_1);
+    this.addBond(chIdx, ch3_2);
+  }
+
+  /**
+   * Add a tert-butyl substituent (-C(CH3)3) to a specific atom
+   */
+  addTertButyl(atomIdx: number): void {
+    const centralC = this.addCarbon();
+    const ch3_1 = this.addCarbon();
+    const ch3_2 = this.addCarbon();
+    const ch3_3 = this.addCarbon();
+    this.addBond(atomIdx, centralC);
+    this.addBond(centralC, ch3_1);
+    this.addBond(centralC, ch3_2);
+    this.addBond(centralC, ch3_3);
+  }
+
+  /**
+   * Add a methoxy substituent (-OCH3) to a specific atom
+   */
+  addMethoxy(atomIdx: number): void {
+    const oxygenIdx = this.addAtom('O');
+    const methylIdx = this.addCarbon();
+    this.addBond(atomIdx, oxygenIdx);
+    this.addBond(oxygenIdx, methylIdx);
   }
 
   /**

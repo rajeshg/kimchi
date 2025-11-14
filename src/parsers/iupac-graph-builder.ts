@@ -335,6 +335,15 @@ export class IUPACGraphBuilder {
         const atomIdx = this.locantToAtomIndex(loc, mainChainAtoms);
         if (atomIdx === null) continue;
 
+        // Skip if trying to add substituent to non-carbon atom (e.g., oxygen in oxirane)
+        const atom = builder.getAtom(atomIdx);
+        if (atom && atom.symbol !== 'C') {
+          if (process.env.VERBOSE) {
+            console.log(`[substituent] Skipping non-carbon atom at position ${loc} (${atom.symbol})`);
+          }
+          continue;
+        }
+
         // Add substituent based on type
         if (substValue === 'methyl') {
           builder.addMethyl(atomIdx);
@@ -346,6 +355,18 @@ export class IUPACGraphBuilder {
           builder.addAlkylSubstituent(atomIdx, 4);
         } else if (substValue === 'pentyl') {
           builder.addAlkylSubstituent(atomIdx, 5);
+        } else if (substValue === 'isopropyl' || substValue === 'propan-2-yl') {
+          builder.addIsopropyl(atomIdx);
+        } else if (substValue === 'tert-butyl' || substValue === 'tertbutyl') {
+          builder.addTertButyl(atomIdx);
+        } else if (substValue === 'methoxy') {
+          builder.addMethoxy(atomIdx);
+        } else if (substValue === 'phenyl') {
+          // Add benzene ring as substituent
+          const benzeneAtoms = builder.createBenzeneRing();
+          if (benzeneAtoms[0] !== undefined) {
+            builder.addBond(atomIdx, benzeneAtoms[0]);
+          }
         } else if (substValue === 'chloro' || substValue === 'chlor') {
           const clIdx = builder.addAtom('Cl');
           builder.addBond(atomIdx, clIdx);
@@ -519,6 +540,10 @@ export class IUPACGraphBuilder {
           builder.addEthyl(nitrogenIdx);
         } else if (substValue === 'propyl') {
           builder.addAlkylSubstituent(nitrogenIdx, 3);
+        } else if (substValue === 'isopropyl' || substValue === 'propan-2-yl') {
+          builder.addIsopropyl(nitrogenIdx);
+        } else if (substValue === 'tert-butyl' || substValue === 'tertbutyl') {
+          builder.addTertButyl(nitrogenIdx);
         } else if (substValue === 'phenyl') {
           // Add benzene ring
           const benzeneAtoms = builder.createBenzeneRing();
