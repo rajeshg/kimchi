@@ -325,6 +325,73 @@ export class MoleculeGraphBuilder {
   }
 
   /**
+   * Create piperidine ring (6-membered saturated ring with N)
+   * SMILES: C1CCNCC1
+   * @returns Array of atom indices [C, C, C, N, C, C]
+   */
+  createPiperidineRing(): number[] {
+    const c1 = this.addCarbon();
+    const c2 = this.addCarbon();
+    const c3 = this.addCarbon();
+    const n = this.addAtom('N');
+    const c5 = this.addCarbon();
+    const c6 = this.addCarbon();
+    
+    this.addBond(c1, c2);
+    this.addBond(c2, c3);
+    this.addBond(c3, n);
+    this.addBond(n, c5);
+    this.addBond(c5, c6);
+    this.addBond(c6, c1);
+    
+    return [c1, c2, c3, n, c5, c6];
+  }
+
+  /**
+   * Create pyrrolidine ring (5-membered saturated ring with N)
+   * SMILES: C1CCNC1
+   * @returns Array of atom indices [C, C, C, N, C]
+   */
+  createPyrrolidineRing(): number[] {
+    const c1 = this.addCarbon();
+    const c2 = this.addCarbon();
+    const c3 = this.addCarbon();
+    const n = this.addAtom('N');
+    const c5 = this.addCarbon();
+    
+    this.addBond(c1, c2);
+    this.addBond(c2, c3);
+    this.addBond(c3, n);
+    this.addBond(n, c5);
+    this.addBond(c5, c1);
+    
+    return [c1, c2, c3, n, c5];
+  }
+
+  /**
+   * Create piperazine ring (6-membered saturated ring with 2 N)
+   * SMILES: C1CNCCN1
+   * @returns Array of atom indices [C, C, N, C, C, N]
+   */
+  createPiperazineRing(): number[] {
+    const c1 = this.addCarbon();
+    const c2 = this.addCarbon();
+    const n3 = this.addAtom('N');
+    const c4 = this.addCarbon();
+    const c5 = this.addCarbon();
+    const n6 = this.addAtom('N');
+    
+    this.addBond(c1, c2);
+    this.addBond(c2, n3);
+    this.addBond(n3, c4);
+    this.addBond(c4, c5);
+    this.addBond(c5, n6);
+    this.addBond(n6, c1);
+    
+    return [c1, c2, n3, c4, c5, n6];
+  }
+
+  /**
    * Create quinoline ring (fused pyridine + benzene)
    * SMILES: c1ccc2ncccc2c1
    * @returns Array of atom indices [10 atoms: N + 9 carbons]

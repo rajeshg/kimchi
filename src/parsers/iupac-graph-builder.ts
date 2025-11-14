@@ -105,6 +105,12 @@ export class IUPACGraphBuilder {
         mainChainAtoms = builder.createNaphthaleneRing();
       } else if (parentValue === 'quinoline' || parentSmiles === 'c1ccc2ncccc2c1') {
         mainChainAtoms = builder.createQuinolineRing();
+      } else if (parentValue === 'piperidine' || parentSmiles === 'C1CCNCC1') {
+        mainChainAtoms = builder.createPiperidineRing();
+      } else if (parentValue === 'pyrrolidine' || parentSmiles === 'C1CCNC1') {
+        mainChainAtoms = builder.createPyrrolidineRing();
+      } else if (parentValue === 'piperazine' || parentSmiles === 'C1CNCCN1') {
+        mainChainAtoms = builder.createPiperazineRing();
       } else if (parentValue === 'morpholine' || parentSmiles === 'C1CNCCO1') {
         mainChainAtoms = builder.createMorpholineRing();
       } else if (parentValue === 'oxirane' || parentSmiles === 'C1CO1') {
