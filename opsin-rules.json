@@ -3511,6 +3511,24 @@
         "decyl"
       ]
     },
+    "-C1CC1": {
+      "aliases": [
+        "cyclopropyl",
+        "cyclopropan-1-yl"
+      ]
+    },
+    "-C1CCCC1": {
+      "aliases": [
+        "cyclopentyl",
+        "cyclopentan-1-yl"
+      ]
+    },
+    "-C1CCCCC1": {
+      "aliases": [
+        "cyclohexyl",
+        "cyclohexan-1-yl"
+      ]
+    },
     "-c1ccc2ccccc2c1": {
       "aliases": [
         "naphthalen-yl",
