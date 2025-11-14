@@ -935,8 +935,12 @@ export class IUPACBuilder {
       }
     }
     
-    // For benzene (c1ccccc1) and similar 6-membered aromatic rings
-    if (coreRing === 'c1ccccc1' || coreRing.match(/^c1[c=]+c1$/)) {
+    // For aromatic rings (5 or 6-membered: furan, thiophene, pyrrole, benzene, pyridine, etc.)
+    // Pattern: [nocs]1[nocs]{3,5}1 (e.g., o1cccc1, c1ccsc1, c1ccccc1, n1ccccc1)
+    const ringPattern = coreRing.match(/^([nocs])1([nocs=]+)1$/);
+    if (ringPattern && ringPattern[1] && ringPattern[2]) {
+      const ringSize = ringPattern[2].length + 1; // +1 for the first atom
+      
       // Default to position 1 if no locant specified
       if (!locant || locant === 1) {
         // Check if position 1 already has substituent(s)
@@ -948,7 +952,7 @@ export class IUPACBuilder {
           }
           return result;
         } else {
-          // Simply prepend the substituent: c1ccccc1 -> Cc1ccccc1
+          // Simply prepend the substituent: c1ccccc1 -> Cc1ccccc1, n1ccccc1 -> Cn1ccccc1
           const result = substituent + coreRing;
           if (process.env.VERBOSE) {
             console.log(`[addSubstituentToAromaticRing] Position 1 no prefix, result="${result}"`);
@@ -957,39 +961,33 @@ export class IUPACBuilder {
         }
       }
       
-      // For benzene, handle positions 2-6
-      // Ring numbering: c1(pos1) c(pos2) c(pos3) c(pos4) c(pos5) c(pos6) 1
+      // Handle positions 2-N for aromatic rings
+      // Ring numbering: X1(pos1) Y(pos2) Z(pos3) ... 1
+      // where X,Y,Z can be c, n, o, s, etc.
       
-      if (locant === 2 || locant === 3) {
-        // Position 2 or 3: insert after the numbered carbon
-        // c1ccccc1 -> c1c(C)cccc1 (pos 2) or c1cc(C)ccc1 (pos 3)
-        const insertIdx = locant; // positions align with character indices
-        const result = coreRing.substring(0, insertIdx + 1) + '(' + substituent + ')' + coreRing.substring(insertIdx + 1);
-        if (process.env.VERBOSE) {
-          console.log(`[addSubstituentToAromaticRing] Position ${locant}, result="${prefix + result}"`);
+      if (locant >= 2 && locant <= ringSize) {
+        // Extract all atoms in the ring (not including closing '1')
+        const firstAtom = ringPattern[1];
+        const middleAtoms = ringPattern[2];
+        const atoms = [firstAtom, ...middleAtoms.split('')];
+        
+        // Build new ring with substituent at correct position
+        // Position N means the Nth atom (1-indexed)
+        let newRing = atoms[0] + '1'; // First atom with ring number
+        for (let i = 1; i < atoms.length; i++) {
+          if (i === locant - 1) {
+            // This is the position to add the substituent
+            newRing += atoms[i] + '(' + substituent + ')';
+          } else {
+            newRing += atoms[i];
+          }
         }
-        return prefix + result;
-      } else if (locant === 4) {
-        // Position 4: c1ccccc1 -> c1ccc(C)cc1
-        const result = prefix + 'c1ccc(' + substituent + ')cc1';
+        newRing += '1'; // Close ring
+        
         if (process.env.VERBOSE) {
-          console.log(`[addSubstituentToAromaticRing] Position 4, result="${result}"`);
+          console.log(`[addSubstituentToAromaticRing] Position ${locant}, result="${prefix + newRing}"`);
         }
-        return result;
-      } else if (locant === 5) {
-        // Position 5: c1ccccc1 -> c1cccc(C)c1
-        const result = prefix + 'c1cccc(' + substituent + ')c1';
-        if (process.env.VERBOSE) {
-          console.log(`[addSubstituentToAromaticRing] Position 5, result="${result}"`);
-        }
-        return result;
-      } else if (locant === 6) {
-        // Position 6: c1ccccc1 -> c1ccccc(C)1
-        const result = prefix + 'c1ccccc(' + substituent + ')1';
-        if (process.env.VERBOSE) {
-          console.log(`[addSubstituentToAromaticRing] Position 6, result="${result}"`);
-        }
-        return result;
+        return prefix + newRing;
       }
     }
     
