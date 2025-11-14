@@ -2295,12 +2295,15 @@
     },
     "-P=O": {
       "aliases": [
-        "phosphoroso"
+        "phosphoroso",
+        "phosphoryl"
       ]
     },
     "-P": {
       "aliases": [
-        "phosphino"
+        "phosphino",
+        "phosphanyl",
+        "phosphinyl"
       ]
     },
     "=[P|5]=O": {
@@ -2596,7 +2599,9 @@
     },
     "-[B]": {
       "aliases": [
-        "borio"
+        "borio",
+        "boryl",
+        "boranyl"
       ]
     },
     "-[Br]": {
