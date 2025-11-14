@@ -386,6 +386,131 @@ export class MoleculeGraphBuilder {
   }
 
   /**
+   * Add an amino substituent (-NH2) to a specific atom
+   */
+  addAmino(atomIdx: number): void {
+    const nitrogenIdx = this.addAtom('N');
+    this.addBond(atomIdx, nitrogenIdx);
+  }
+
+  /**
+   * Add a benzyl substituent (-CH2-Ph) to a specific atom
+   */
+  addBenzyl(atomIdx: number): void {
+    const ch2Idx = this.addCarbon();
+    this.addBond(atomIdx, ch2Idx);
+    const benzeneAtoms = this.createBenzeneRing();
+    if (benzeneAtoms[0] !== undefined) {
+      this.addBond(ch2Idx, benzeneAtoms[0]);
+    }
+  }
+
+  /**
+   * Add a phenethyl substituent (-CH2CH2-Ph) to a specific atom
+   */
+  addPhenethyl(atomIdx: number): void {
+    const ch2_1 = this.addCarbon();
+    const ch2_2 = this.addCarbon();
+    this.addBond(atomIdx, ch2_1);
+    this.addBond(ch2_1, ch2_2);
+    const benzeneAtoms = this.createBenzeneRing();
+    if (benzeneAtoms[0] !== undefined) {
+      this.addBond(ch2_2, benzeneAtoms[0]);
+    }
+  }
+
+  /**
+   * Add a cyclopropyl substituent (3-membered ring) to a specific atom
+   */
+  addCyclopropyl(atomIdx: number): void {
+    const c1 = this.addCarbon();
+    const c2 = this.addCarbon();
+    const c3 = this.addCarbon();
+    this.addBond(atomIdx, c1);
+    this.addBond(c1, c2);
+    this.addBond(c2, c3);
+    this.addBond(c3, c1);
+  }
+
+  /**
+   * Add a cyclopentyl substituent (5-membered ring) to a specific atom
+   */
+  addCyclopentyl(atomIdx: number): void {
+    const c1 = this.addCarbon();
+    const c2 = this.addCarbon();
+    const c3 = this.addCarbon();
+    const c4 = this.addCarbon();
+    const c5 = this.addCarbon();
+    this.addBond(atomIdx, c1);
+    this.addBond(c1, c2);
+    this.addBond(c2, c3);
+    this.addBond(c3, c4);
+    this.addBond(c4, c5);
+    this.addBond(c5, c1);
+  }
+
+  /**
+   * Add a cyclohexyl substituent (6-membered ring) to a specific atom
+   */
+  addCyclohexyl(atomIdx: number): void {
+    const c1 = this.addCarbon();
+    const c2 = this.addCarbon();
+    const c3 = this.addCarbon();
+    const c4 = this.addCarbon();
+    const c5 = this.addCarbon();
+    const c6 = this.addCarbon();
+    this.addBond(atomIdx, c1);
+    this.addBond(c1, c2);
+    this.addBond(c2, c3);
+    this.addBond(c3, c4);
+    this.addBond(c4, c5);
+    this.addBond(c5, c6);
+    this.addBond(c6, c1);
+  }
+
+  /**
+   * Add an acetyl substituent (-C(=O)CH3) to a specific atom
+   */
+  addAcetyl(atomIdx: number): void {
+    const carbonylC = this.addCarbon();
+    const oxygenIdx = this.addAtom('O');
+    const methylIdx = this.addCarbon();
+    
+    this.addBond(atomIdx, carbonylC);
+    this.addBond(carbonylC, oxygenIdx, BondTypeEnum.DOUBLE);
+    this.addBond(carbonylC, methylIdx);
+  }
+
+  /**
+   * Add a propanoyl substituent (-C(=O)CH2CH3) to a specific atom
+   */
+  addPropanoyl(atomIdx: number): void {
+    const carbonylC = this.addCarbon();
+    const oxygenIdx = this.addAtom('O');
+    const ch2Idx = this.addCarbon();
+    const ch3Idx = this.addCarbon();
+    
+    this.addBond(atomIdx, carbonylC);
+    this.addBond(carbonylC, oxygenIdx, BondTypeEnum.DOUBLE);
+    this.addBond(carbonylC, ch2Idx);
+    this.addBond(ch2Idx, ch3Idx);
+  }
+
+  /**
+   * Add a butanoyl substituent (-C(=O)CH2CH2CH3) to a specific atom
+   */
+  addButanoyl(atomIdx: number): void {
+    const carbonylC = this.addCarbon();
+    const oxygenIdx = this.addAtom('O');
+    
+    this.addBond(atomIdx, carbonylC);
+    this.addBond(carbonylC, oxygenIdx, BondTypeEnum.DOUBLE);
+    
+    // Add propyl chain
+    this.addAlkylSubstituent(carbonylC, 3);
+  }
+
+  /**
    * Add a substituent chain to a specific atom
    * @param atomIdx Target atom to attach to
    * @param chainLength Number of carbons in substituent

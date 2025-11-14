@@ -313,6 +313,30 @@ export class IUPACGraphBuilder {
             builder.addAmide(amideIdx);
           }
           break;
+
+        case 'dione':
+          // Multiple carbonyl groups - check for locants
+          if (locants.length > 0) {
+            for (const loc of locants) {
+              const atomIdx = this.locantToAtomIndex(loc, mainChainAtoms);
+              if (atomIdx !== null) {
+                builder.addCarbonyl(atomIdx);
+              }
+            }
+          }
+          break;
+
+        case 'trione':
+          // Three carbonyl groups - check for locants
+          if (locants.length > 0) {
+            for (const loc of locants) {
+              const atomIdx = this.locantToAtomIndex(loc, mainChainAtoms);
+              if (atomIdx !== null) {
+                builder.addCarbonyl(atomIdx);
+              }
+            }
+          }
+          break;
       }
     }
   }
@@ -371,6 +395,12 @@ export class IUPACGraphBuilder {
           builder.addAlkylSubstituent(atomIdx, 4);
         } else if (substValue === 'pentyl') {
           builder.addAlkylSubstituent(atomIdx, 5);
+        } else if (substValue === 'hexyl') {
+          builder.addAlkylSubstituent(atomIdx, 6);
+        } else if (substValue === 'heptyl') {
+          builder.addAlkylSubstituent(atomIdx, 7);
+        } else if (substValue === 'octyl') {
+          builder.addAlkylSubstituent(atomIdx, 8);
         } else if (substValue === 'isopropyl' || substValue === 'propan-2-yl') {
           builder.addIsopropyl(atomIdx);
         } else if (substValue === 'tert-butyl' || substValue === 'tertbutyl') {
@@ -383,17 +413,43 @@ export class IUPACGraphBuilder {
           builder.addPropoxy(atomIdx);
         } else if (substValue === 'butoxy') {
           builder.addButoxy(atomIdx);
+        } else if (substValue === 'pentoxy') {
+          const oxygenIdx = builder.addAtom('O');
+          builder.addBond(atomIdx, oxygenIdx);
+          builder.addAlkylSubstituent(oxygenIdx, 5);
+        } else if (substValue === 'hexoxy') {
+          const oxygenIdx = builder.addAtom('O');
+          builder.addBond(atomIdx, oxygenIdx);
+          builder.addAlkylSubstituent(oxygenIdx, 6);
         } else if (substValue === 'hydroxy' || substValue === 'hydroxyl') {
           builder.addHydroxyl(atomIdx);
         } else if (substValue === 'oxo') {
           // Oxo = carbonyl =O on this carbon
           builder.addCarbonyl(atomIdx);
+        } else if (substValue === 'amino') {
+          builder.addAmino(atomIdx);
+        } else if (substValue === 'acetyl') {
+          builder.addAcetyl(atomIdx);
+        } else if (substValue === 'propanoyl') {
+          builder.addPropanoyl(atomIdx);
+        } else if (substValue === 'butanoyl') {
+          builder.addButanoyl(atomIdx);
         } else if (substValue === 'phenyl') {
           // Add benzene ring as substituent
           const benzeneAtoms = builder.createBenzeneRing();
           if (benzeneAtoms[0] !== undefined) {
             builder.addBond(atomIdx, benzeneAtoms[0]);
           }
+        } else if (substValue === 'benzyl') {
+          builder.addBenzyl(atomIdx);
+        } else if (substValue === 'phenethyl') {
+          builder.addPhenethyl(atomIdx);
+        } else if (substValue === 'cyclopropyl') {
+          builder.addCyclopropyl(atomIdx);
+        } else if (substValue === 'cyclopentyl') {
+          builder.addCyclopentyl(atomIdx);
+        } else if (substValue === 'cyclohexyl') {
+          builder.addCyclohexyl(atomIdx);
         } else if (substValue === 'chloro' || substValue === 'chlor') {
           const clIdx = builder.addAtom('Cl');
           builder.addBond(atomIdx, clIdx);
