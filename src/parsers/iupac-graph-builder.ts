@@ -1,4 +1,5 @@
 import type { Molecule } from 'types';
+import { BondType as BondTypeEnum } from 'types';
 import type { IUPACToken, OPSINRules } from './iupac-types';
 import { MoleculeGraphBuilder } from './molecule-graph-builder';
 
@@ -102,6 +103,8 @@ export class IUPACGraphBuilder {
         mainChainAtoms = builder.createPyrroleRing();
       } else if (parentValue === 'naphthalene' || parentSmiles === 'c1ccc2ccccc2c1') {
         mainChainAtoms = builder.createNaphthaleneRing();
+      } else if (parentValue === 'quinoline' || parentSmiles === 'c1ccc2ncccc2c1') {
+        mainChainAtoms = builder.createQuinolineRing();
       } else if (parentValue === 'morpholine' || parentSmiles === 'C1CNCCO1') {
         mainChainAtoms = builder.createMorpholineRing();
       } else if (parentValue === 'oxirane' || parentSmiles === 'C1CO1') {
@@ -482,6 +485,14 @@ export class IUPACGraphBuilder {
         } else if (substValue === 'iodo' || substValue === 'iod') {
           const iIdx = builder.addAtom('I');
           builder.addBond(atomIdx, iIdx);
+        } else if (substValue === 'nitro') {
+          // Nitro group: -NO2
+          const nIdx = builder.addAtom('N');
+          const o1 = builder.addAtom('O');
+          const o2 = builder.addAtom('O');
+          builder.addBond(atomIdx, nIdx);
+          builder.addBond(nIdx, o1, BondTypeEnum.DOUBLE);
+          builder.addBond(nIdx, o2, BondTypeEnum.DOUBLE);
         } else {
           // Generic alkyl - try to determine length
           // For now, default to methyl

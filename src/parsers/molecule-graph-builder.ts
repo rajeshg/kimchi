@@ -325,6 +325,39 @@ export class MoleculeGraphBuilder {
   }
 
   /**
+   * Create quinoline ring (fused pyridine + benzene)
+   * SMILES: c1ccc2ncccc2c1
+   * @returns Array of atom indices [10 atoms: N + 9 carbons]
+   */
+  createQuinolineRing(): number[] {
+    const atoms: number[] = [];
+    
+    // First ring (pyridine part): 0(N)-1-2-3-8-9
+    atoms.push(this.addAtom('N', true)); // 0: N
+    for (let i = 1; i < 9; i++) {
+      atoms.push(this.addAtom('C', true));
+    }
+    atoms.push(this.addAtom('C', true)); // 9
+    
+    // Pyridine ring: N(0)-C(1)-C(2)-C(3)-C(8)-C(9)-N(0)
+    this.addBond(atoms[0]!, atoms[1]!, BondTypeEnum.AROMATIC);
+    this.addBond(atoms[1]!, atoms[2]!, BondTypeEnum.AROMATIC);
+    this.addBond(atoms[2]!, atoms[3]!, BondTypeEnum.AROMATIC);
+    this.addBond(atoms[3]!, atoms[8]!, BondTypeEnum.AROMATIC);
+    this.addBond(atoms[8]!, atoms[9]!, BondTypeEnum.AROMATIC);
+    this.addBond(atoms[9]!, atoms[0]!, BondTypeEnum.AROMATIC);
+    
+    // Benzene ring: C(3)-C(4)-C(5)-C(6)-C(7)-C(8)
+    this.addBond(atoms[3]!, atoms[4]!, BondTypeEnum.AROMATIC);
+    this.addBond(atoms[4]!, atoms[5]!, BondTypeEnum.AROMATIC);
+    this.addBond(atoms[5]!, atoms[6]!, BondTypeEnum.AROMATIC);
+    this.addBond(atoms[6]!, atoms[7]!, BondTypeEnum.AROMATIC);
+    this.addBond(atoms[7]!, atoms[8]!, BondTypeEnum.AROMATIC);
+    
+    return atoms;
+  }
+
+  /**
    * Add a hydroxyl group (-OH) to a specific atom
    */
   addHydroxyl(atomIdx: number): void {
