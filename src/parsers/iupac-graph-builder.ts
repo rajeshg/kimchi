@@ -92,6 +92,18 @@ export class IUPACGraphBuilder {
       // Check for specific ring systems
       if (parentValue === 'benzene' || parentValue === 'benz' || parentSmiles === 'c1ccccc1') {
         mainChainAtoms = builder.createBenzeneRing();
+      } else if (parentValue === 'pyridine' || parentSmiles === 'c1ccncc1') {
+        mainChainAtoms = builder.createPyridineRing();
+      } else if (parentValue === 'furan' || parentSmiles === 'o1cccc1') {
+        mainChainAtoms = builder.createFuranRing();
+      } else if (parentValue === 'thiophene' || parentSmiles === 's1cccc1') {
+        mainChainAtoms = builder.createThiopheneRing();
+      } else if (parentValue === 'pyrrole' || parentSmiles === 'n1cccc1') {
+        mainChainAtoms = builder.createPyrroleRing();
+      } else if (parentValue === 'naphthalene' || parentSmiles === 'c1ccc2ccccc2c1') {
+        mainChainAtoms = builder.createNaphthaleneRing();
+      } else if (parentValue === 'morpholine' || parentSmiles === 'C1CNCCO1') {
+        mainChainAtoms = builder.createMorpholineRing();
       } else if (parentValue === 'oxirane' || parentSmiles === 'C1CO1') {
         mainChainAtoms = builder.createOxiraneRing();
       } else if (parentValue === 'oxolan' || parentValue === 'oxolane' || parentSmiles === 'C1CCOC1') {

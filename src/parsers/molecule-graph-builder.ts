@@ -187,6 +187,144 @@ export class MoleculeGraphBuilder {
   }
 
   /**
+   * Create pyridine ring (6-membered aromatic ring with N)
+   * SMILES: c1ccncc1 (N at position 1)
+   * @returns Array of atom indices [N, C, C, C, C, C]
+   */
+  createPyridineRing(): number[] {
+    const n = this.addAtom('N', true);
+    const c2 = this.addAtom('C', true);
+    const c3 = this.addAtom('C', true);
+    const c4 = this.addAtom('C', true);
+    const c5 = this.addAtom('C', true);
+    const c6 = this.addAtom('C', true);
+    
+    this.addBond(n, c2, BondTypeEnum.AROMATIC);
+    this.addBond(c2, c3, BondTypeEnum.AROMATIC);
+    this.addBond(c3, c4, BondTypeEnum.AROMATIC);
+    this.addBond(c4, c5, BondTypeEnum.AROMATIC);
+    this.addBond(c5, c6, BondTypeEnum.AROMATIC);
+    this.addBond(c6, n, BondTypeEnum.AROMATIC);
+    
+    return [n, c2, c3, c4, c5, c6];
+  }
+
+  /**
+   * Create furan ring (5-membered aromatic ring with O)
+   * SMILES: o1cccc1 (O at position 1)
+   * @returns Array of atom indices [O, C, C, C, C]
+   */
+  createFuranRing(): number[] {
+    const o = this.addAtom('O', true);
+    const c2 = this.addAtom('C', true);
+    const c3 = this.addAtom('C', true);
+    const c4 = this.addAtom('C', true);
+    const c5 = this.addAtom('C', true);
+    
+    this.addBond(o, c2, BondTypeEnum.AROMATIC);
+    this.addBond(c2, c3, BondTypeEnum.AROMATIC);
+    this.addBond(c3, c4, BondTypeEnum.AROMATIC);
+    this.addBond(c4, c5, BondTypeEnum.AROMATIC);
+    this.addBond(c5, o, BondTypeEnum.AROMATIC);
+    
+    return [o, c2, c3, c4, c5];
+  }
+
+  /**
+   * Create thiophene ring (5-membered aromatic ring with S)
+   * SMILES: s1cccc1 (S at position 1)
+   * @returns Array of atom indices [S, C, C, C, C]
+   */
+  createThiopheneRing(): number[] {
+    const s = this.addAtom('S', true);
+    const c2 = this.addAtom('C', true);
+    const c3 = this.addAtom('C', true);
+    const c4 = this.addAtom('C', true);
+    const c5 = this.addAtom('C', true);
+    
+    this.addBond(s, c2, BondTypeEnum.AROMATIC);
+    this.addBond(c2, c3, BondTypeEnum.AROMATIC);
+    this.addBond(c3, c4, BondTypeEnum.AROMATIC);
+    this.addBond(c4, c5, BondTypeEnum.AROMATIC);
+    this.addBond(c5, s, BondTypeEnum.AROMATIC);
+    
+    return [s, c2, c3, c4, c5];
+  }
+
+  /**
+   * Create pyrrole ring (5-membered aromatic ring with NH)
+   * SMILES: n1cccc1 (N at position 1)
+   * @returns Array of atom indices [N, C, C, C, C]
+   */
+  createPyrroleRing(): number[] {
+    const n = this.addAtom('N', true);
+    const c2 = this.addAtom('C', true);
+    const c3 = this.addAtom('C', true);
+    const c4 = this.addAtom('C', true);
+    const c5 = this.addAtom('C', true);
+    
+    this.addBond(n, c2, BondTypeEnum.AROMATIC);
+    this.addBond(c2, c3, BondTypeEnum.AROMATIC);
+    this.addBond(c3, c4, BondTypeEnum.AROMATIC);
+    this.addBond(c4, c5, BondTypeEnum.AROMATIC);
+    this.addBond(c5, n, BondTypeEnum.AROMATIC);
+    
+    return [n, c2, c3, c4, c5];
+  }
+
+  /**
+   * Create naphthalene (fused benzene rings)
+   * SMILES: c1ccc2ccccc2c1
+   * @returns Array of atom indices [10 carbons]
+   */
+  createNaphthaleneRing(): number[] {
+    const atoms: number[] = [];
+    for (let i = 0; i < 10; i++) {
+      atoms.push(this.addAtom('C', true));
+    }
+    
+    // First ring: 0-1-2-3-8-9
+    this.addBond(atoms[0]!, atoms[1]!, BondTypeEnum.AROMATIC);
+    this.addBond(atoms[1]!, atoms[2]!, BondTypeEnum.AROMATIC);
+    this.addBond(atoms[2]!, atoms[3]!, BondTypeEnum.AROMATIC);
+    this.addBond(atoms[3]!, atoms[8]!, BondTypeEnum.AROMATIC);
+    this.addBond(atoms[8]!, atoms[9]!, BondTypeEnum.AROMATIC);
+    this.addBond(atoms[9]!, atoms[0]!, BondTypeEnum.AROMATIC);
+    
+    // Second ring: 3-4-5-6-7-8
+    this.addBond(atoms[3]!, atoms[4]!, BondTypeEnum.AROMATIC);
+    this.addBond(atoms[4]!, atoms[5]!, BondTypeEnum.AROMATIC);
+    this.addBond(atoms[5]!, atoms[6]!, BondTypeEnum.AROMATIC);
+    this.addBond(atoms[6]!, atoms[7]!, BondTypeEnum.AROMATIC);
+    this.addBond(atoms[7]!, atoms[8]!, BondTypeEnum.AROMATIC);
+    
+    return atoms;
+  }
+
+  /**
+   * Create morpholine ring (6-membered saturated ring with O and N)
+   * SMILES: C1CNCCO1
+   * @returns Array of atom indices [C, C, N, C, C, O]
+   */
+  createMorpholineRing(): number[] {
+    const c1 = this.addCarbon();
+    const c2 = this.addCarbon();
+    const n = this.addAtom('N');
+    const c4 = this.addCarbon();
+    const c5 = this.addCarbon();
+    const o = this.addAtom('O');
+    
+    this.addBond(c1, c2);
+    this.addBond(c2, n);
+    this.addBond(n, c4);
+    this.addBond(c4, c5);
+    this.addBond(c5, o);
+    this.addBond(o, c1);
+    
+    return [c1, c2, n, c4, c5, o];
+  }
+
+  /**
    * Add a hydroxyl group (-OH) to a specific atom
    */
   addHydroxyl(atomIdx: number): void {
