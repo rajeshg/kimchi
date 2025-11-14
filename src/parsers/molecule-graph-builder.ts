@@ -75,6 +75,15 @@ export class MoleculeGraphBuilder {
   }
 
   /**
+   * Set explicit hydrogen count for an atom
+   */
+  setHydrogens(atomIdx: number, hydrogens: number): void {
+    if (atomIdx >= 0 && atomIdx < this.atoms.length) {
+      this.atoms[atomIdx]!.hydrogens = hydrogens;
+    }
+  }
+
+  /**
    * Add a single bond between two atoms
    */
   addBond(atom1: number, atom2: number, type: BondType = BondTypeEnum.SINGLE): void {
@@ -262,6 +271,8 @@ export class MoleculeGraphBuilder {
     const c3 = this.addAtom('C', true);
     const c4 = this.addAtom('C', true);
     const c5 = this.addAtom('C', true);
+    
+    this.setHydrogens(n, 1);
     
     this.addBond(n, c2, BondTypeEnum.AROMATIC);
     this.addBond(c2, c3, BondTypeEnum.AROMATIC);
