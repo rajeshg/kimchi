@@ -145,6 +145,44 @@ export class MoleculeGraphBuilder {
   }
 
   /**
+   * Create oxirane ring (3-membered ring with O)
+   * SMILES: C1CO1
+   * @returns Array of atom indices [C, C, O]
+   */
+  createOxiraneRing(): number[] {
+    const c1 = this.addCarbon();
+    const c2 = this.addCarbon();
+    const o = this.addAtom('O');
+    
+    this.addBond(c1, c2);
+    this.addBond(c2, o);
+    this.addBond(o, c1);
+    
+    return [c1, c2, o];
+  }
+
+  /**
+   * Create oxolan ring (5-membered ring with O)
+   * SMILES: C1CCOC1
+   * @returns Array of atom indices [C, C, C, O, C]
+   */
+  createOxolanRing(): number[] {
+    const c1 = this.addCarbon();
+    const c2 = this.addCarbon();
+    const c3 = this.addCarbon();
+    const o = this.addAtom('O');
+    const c4 = this.addCarbon();
+    
+    this.addBond(c1, c2);
+    this.addBond(c2, c3);
+    this.addBond(c3, o);
+    this.addBond(o, c4);
+    this.addBond(c4, c1);
+    
+    return [c1, c2, c3, o, c4];
+  }
+
+  /**
    * Add a hydroxyl group (-OH) to a specific atom
    */
   addHydroxyl(atomIdx: number): void {
@@ -162,19 +200,16 @@ export class MoleculeGraphBuilder {
 
   /**
    * Add a carboxyl group (-COOH) to a specific atom
-   * This adds a carbon with double-bonded O and single-bonded OH
+   * Converts the atom into C(=O)O by adding double-bonded O and single-bonded OH
    */
   addCarboxyl(atomIdx: number): void {
-    const carbonylCarbonIdx = this.addCarbon();
-    this.addBond(atomIdx, carbonylCarbonIdx);
-    
     // Add =O
     const carbonylOxygenIdx = this.addAtom('O');
-    this.addBond(carbonylCarbonIdx, carbonylOxygenIdx, BondTypeEnum.DOUBLE);
+    this.addBond(atomIdx, carbonylOxygenIdx, BondTypeEnum.DOUBLE);
     
     // Add -OH
     const hydroxylOxygenIdx = this.addAtom('O');
-    this.addBond(carbonylCarbonIdx, hydroxylOxygenIdx);
+    this.addBond(atomIdx, hydroxylOxygenIdx);
   }
 
   /**
@@ -191,6 +226,62 @@ export class MoleculeGraphBuilder {
   addAldehyde(atomIdx: number): void {
     const oxygenIdx = this.addAtom('O');
     this.addBond(atomIdx, oxygenIdx, BondTypeEnum.DOUBLE);
+  }
+
+  /**
+   * Add a nitrile group (-C#N) by adding triple-bonded nitrogen
+   */
+  addNitrile(atomIdx: number): void {
+    const nitrogenIdx = this.addAtom('N');
+    this.addBond(atomIdx, nitrogenIdx, BondTypeEnum.TRIPLE);
+  }
+
+  /**
+   * Add an ester group (-C(=O)O-R) to a specific atom
+   * Creates carboxyl and attaches alkyl chain to the OH oxygen
+   * @param atomIdx Carbon atom to attach ester to
+   * @param alkylChainLength Length of alkyl chain (1 for methyl, 2 for ethyl, etc.)
+   * @returns The oxygen atom index that connects to alkyl chain
+   */
+  addEster(atomIdx: number, alkylChainLength: number): number {
+    // Add =O
+    const carbonylOxygenIdx = this.addAtom('O');
+    this.addBond(atomIdx, carbonylOxygenIdx, BondTypeEnum.DOUBLE);
+    
+    // Add -O-
+    const etherOxygenIdx = this.addAtom('O');
+    this.addBond(atomIdx, etherOxygenIdx);
+
+    // Add alkyl chain to ether oxygen
+    if (alkylChainLength > 0) {
+      const firstAlkylCarbon = this.addCarbon();
+      this.addBond(etherOxygenIdx, firstAlkylCarbon);
+
+      let prevCarbon = firstAlkylCarbon;
+      for (let i = 1; i < alkylChainLength; i++) {
+        const nextCarbon = this.addCarbon();
+        this.addBond(prevCarbon, nextCarbon);
+        prevCarbon = nextCarbon;
+      }
+    }
+
+    return etherOxygenIdx;
+  }
+
+  /**
+   * Add an amide group (-C(=O)NH2) to a specific atom
+   * @returns The nitrogen atom index
+   */
+  addAmide(atomIdx: number): number {
+    // Add =O
+    const carbonylOxygenIdx = this.addAtom('O');
+    this.addBond(atomIdx, carbonylOxygenIdx, BondTypeEnum.DOUBLE);
+    
+    // Add -NH2
+    const nitrogenIdx = this.addAtom('N');
+    this.addBond(atomIdx, nitrogenIdx);
+
+    return nitrogenIdx;
   }
 
   /**
@@ -264,6 +355,25 @@ export class MoleculeGraphBuilder {
     } else {
       this.addBond(atom1, atom2, BondTypeEnum.TRIPLE);
     }
+  }
+
+  /**
+   * Add an alkoxy group (-O-R) to a specific atom
+   * Creates an ether linkage
+   * @param atomIdx Target atom to attach to
+   * @param alkylChainAtoms Array of atom indices for the alkyl part
+   * @returns The oxygen atom index
+   */
+  addAlkoxyGroup(atomIdx: number, alkylChainAtoms: number[]): number {
+    const oxygenIdx = this.addAtom('O');
+    this.addBond(atomIdx, oxygenIdx);
+    
+    // Bond oxygen to first carbon of alkyl chain
+    if (alkylChainAtoms.length > 0 && alkylChainAtoms[0] !== undefined) {
+      this.addBond(oxygenIdx, alkylChainAtoms[0]);
+    }
+    
+    return oxygenIdx;
   }
 
   /**

@@ -44,6 +44,35 @@ export class IUPACGraphBuilder {
       console.log('[graph-builder] Substituents:', substituentTokens.map(t => t.value).join(', '));
     }
 
+    // Detect ether linkages (-oxy- connector)
+    const oxyConnectorIdx = suffixTokens.findIndex(s => 
+      s.value === 'oxy' && s.metadata?.suffixType === 'connector'
+    );
+
+    if (oxyConnectorIdx >= 0 && parentTokens.length >= 2) {
+      // Handle ether linkage separately
+      return this.buildEtherLinkage(builder, tokens, parentTokens, suffixTokens, locantTokens, substituentTokens, multiplierTokens, oxyConnectorIdx);
+    }
+
+    // Detect esters (alkyl ...oate pattern)
+    const hasEsterSuffix = suffixTokens.some(s => s.value === 'oate' || s.value === 'anoate');
+    if (hasEsterSuffix && substituentTokens.length > 0 && parentTokens.length > 0) {
+      // Check if first substituent comes before parent (indicates ester alkyl group)
+      const firstSubst = substituentTokens[0]!;
+      const firstParent = parentTokens[0]!;
+      
+      if (firstSubst.position < firstParent.position) {
+        return this.buildEster(builder, substituentTokens, parentTokens, suffixTokens, locantTokens);
+      }
+    }
+
+    // Detect N-substituted amides (N- or N,N- prefix)
+    const hasAmideSuffix = suffixTokens.some(s => s.value === 'amide' || s.value === 'amid');
+    const nPrefixToken = prefixTokens.find(p => p.value === 'n' || p.value === 'n,n');
+    if (hasAmideSuffix && nPrefixToken) {
+      return this.buildNSubstitutedAmide(builder, parentTokens, suffixTokens, locantTokens, substituentTokens, multiplierTokens, prefixTokens);
+    }
+
     // Check for cyclo prefix
     const hasCycloPrefix = prefixTokens.some(p => p.metadata?.isCyclic === true);
 
@@ -60,9 +89,13 @@ export class IUPACGraphBuilder {
         console.log('[graph-builder] Building parent chain:', parentToken.value, 'atoms:', atomCount);
       }
 
-      // Check if this is benzene or aromatic ring
+      // Check for specific ring systems
       if (parentValue === 'benzene' || parentValue === 'benz' || parentSmiles === 'c1ccccc1') {
         mainChainAtoms = builder.createBenzeneRing();
+      } else if (parentValue === 'oxirane' || parentSmiles === 'C1CO1') {
+        mainChainAtoms = builder.createOxiraneRing();
+      } else if (parentValue === 'oxolan' || parentValue === 'oxolane' || parentSmiles === 'C1CCOC1') {
+        mainChainAtoms = builder.createOxolanRing();
       } else if (hasCycloPrefix) {
         // Build cyclic chain
         mainChainAtoms = builder.createCyclicChain(atomCount);
@@ -236,6 +269,35 @@ export class IUPACGraphBuilder {
             }
           }
           break;
+
+        case 'oate':
+        case 'anoate':
+          // Ester - needs to be handled in a special way
+          // The alkyl group comes from substituents
+          // For now, just add carboxyl to the end
+          const esterTermIdx = mainChainAtoms[mainChainAtoms.length - 1];
+          if (esterTermIdx !== undefined) {
+            builder.addCarboxyl(esterTermIdx);
+          }
+          break;
+
+        case 'nitrile':
+          // Nitrile - add C#N to terminal carbon
+          const nitrileIdx = mainChainAtoms[mainChainAtoms.length - 1];
+          if (nitrileIdx !== undefined) {
+            builder.addNitrile(nitrileIdx);
+          }
+          break;
+
+        case 'amide':
+        case 'amid':
+          // Amide - C(=O)NH2
+          // Will be handled specially for N-substituted amides
+          const amideIdx = mainChainAtoms[mainChainAtoms.length - 1];
+          if (amideIdx !== undefined) {
+            builder.addAmide(amideIdx);
+          }
+          break;
       }
     }
   }
@@ -263,6 +325,7 @@ export class IUPACGraphBuilder {
       }
 
       // Determine positions to add substituent
+      // Locants can have duplicates (e.g., [2, 2, 3] means 2 at position 2, 1 at position 3)
       const positions = locants.length > 0 ? locants : [1]; // Default to position 1
 
       for (let i = 0; i < positions.length; i++) {
@@ -283,6 +346,18 @@ export class IUPACGraphBuilder {
           builder.addAlkylSubstituent(atomIdx, 4);
         } else if (substValue === 'pentyl') {
           builder.addAlkylSubstituent(atomIdx, 5);
+        } else if (substValue === 'chloro' || substValue === 'chlor') {
+          const clIdx = builder.addAtom('Cl');
+          builder.addBond(atomIdx, clIdx);
+        } else if (substValue === 'bromo' || substValue === 'brom') {
+          const brIdx = builder.addAtom('Br');
+          builder.addBond(atomIdx, brIdx);
+        } else if (substValue === 'fluoro' || substValue === 'fluor') {
+          const fIdx = builder.addAtom('F');
+          builder.addBond(atomIdx, fIdx);
+        } else if (substValue === 'iodo' || substValue === 'iod') {
+          const iIdx = builder.addAtom('I');
+          builder.addBond(atomIdx, iIdx);
         } else {
           // Generic alkyl - try to determine length
           // For now, default to methyl
@@ -376,5 +451,205 @@ export class IUPACGraphBuilder {
     }
 
     return closestMultiplier;
+  }
+
+  /**
+   * Build N-substituted amide (e.g., "N,N-dimethylethanamide")
+   * Pattern: N-substituents + parent + amide suffix
+   */
+  private buildNSubstitutedAmide(
+    builder: MoleculeGraphBuilder,
+    parentTokens: IUPACToken[],
+    suffixTokens: IUPACToken[],
+    locantTokens: IUPACToken[],
+    substituentTokens: IUPACToken[],
+    multiplierTokens: IUPACToken[],
+    prefixTokens: IUPACToken[]
+  ): Molecule {
+    const nPrefixToken = prefixTokens.find(p => p.value === 'n' || p.value === 'n,n');
+    if (!nPrefixToken) {
+      throw new Error('N-prefix not found for amide');
+    }
+
+    // Build parent chain
+    const parentToken = parentTokens[0]!;
+    const atomCount = (parentToken.metadata?.atomCount as number) || 0;
+    const mainChainAtoms = builder.createLinearChain(atomCount);
+
+    // Add amide group to terminal carbon
+    const terminalIdx = mainChainAtoms[mainChainAtoms.length - 1];
+    if (terminalIdx === undefined) {
+      throw new Error('No terminal carbon for amide');
+    }
+
+    const nitrogenIdx = builder.addAmide(terminalIdx);
+
+    if (process.env.VERBOSE) {
+      console.log('[n-amide] N-prefix:', nPrefixToken.value);
+      console.log('[n-amide] Nitrogen index:', nitrogenIdx);
+    }
+
+    // Find N-substituents (substituents that come after the N- prefix)
+    const nSubstituents = substituentTokens.filter(s => s.position > nPrefixToken.position);
+    
+    if (process.env.VERBOSE) {
+      console.log('[n-amide] N-substituents:', nSubstituents.map(s => s.value));
+    }
+
+    // Add N-substituents to the nitrogen
+    for (const nSubst of nSubstituents) {
+      const substValue = nSubst.value.toLowerCase();
+      
+      // Check for multiplier before this substituent
+      const multiplierBefore = multiplierTokens.find(m => 
+        m.position > nPrefixToken.position && 
+        m.position < nSubst.position
+      );
+      const count = multiplierBefore ? (multiplierBefore.metadata?.count as number) || 1 : 1;
+
+      if (process.env.VERBOSE) {
+        console.log(`[n-amide] Adding ${count}x ${substValue} to nitrogen`);
+      }
+      
+      // Add substituent 'count' times
+      for (let i = 0; i < count; i++) {
+        if (substValue === 'methyl') {
+          builder.addMethyl(nitrogenIdx);
+        } else if (substValue === 'ethyl') {
+          builder.addEthyl(nitrogenIdx);
+        } else if (substValue === 'propyl') {
+          builder.addAlkylSubstituent(nitrogenIdx, 3);
+        } else if (substValue === 'phenyl') {
+          // Add benzene ring
+          const benzeneAtoms = builder.createBenzeneRing();
+          if (benzeneAtoms[0] !== undefined) {
+            builder.addBond(nitrogenIdx, benzeneAtoms[0]);
+          }
+        }
+      }
+    }
+
+    return builder.build();
+  }
+
+  /**
+   * Build ester molecule (alkyl acyl-oate pattern)
+   * Example: "methyl butanoate" → CH3-O-CO-C3H7
+   */
+  private buildEster(
+    builder: MoleculeGraphBuilder,
+    substituentTokens: IUPACToken[],
+    parentTokens: IUPACToken[],
+    suffixTokens: IUPACToken[],
+    locantTokens: IUPACToken[]
+  ): Molecule {
+    // First substituent is the alcohol alkyl group (e.g., "methyl" in "methyl butanoate")
+    const alkylSubst = substituentTokens[0]!;
+    const alkylValue = alkylSubst.value.toLowerCase();
+
+    if (process.env.VERBOSE) {
+      console.log('[ester] Alkyl group:', alkylValue);
+      console.log('[ester] Parent:', parentTokens[0]?.value);
+    }
+
+    // Determine alkyl chain length
+    let alkylLength = 0;
+    if (alkylValue === 'methyl') alkylLength = 1;
+    else if (alkylValue === 'ethyl') alkylLength = 2;
+    else if (alkylValue === 'propyl') alkylLength = 3;
+    else if (alkylValue === 'butyl') alkylLength = 4;
+    else if (alkylValue === 'pentyl') alkylLength = 5;
+
+    // Build the acyl chain (the acid part)
+    const parentToken = parentTokens[0]!;
+    const acylAtomCount = (parentToken.metadata?.atomCount as number) || 0;
+    const acylChainAtoms = builder.createLinearChain(acylAtomCount);
+
+    // Add ester group to terminal carbon: C(=O)O-alkyl
+    const terminalIdx = acylChainAtoms[acylChainAtoms.length - 1];
+    if (terminalIdx !== undefined) {
+      builder.addEster(terminalIdx, alkylLength);
+    }
+
+    return builder.build();
+  }
+
+  /**
+   * Build molecule with ether linkage (-oxy- connector between two parent chains)
+   * Example: "3-(2,2-dimethylpropoxy)butan-2-ol"
+   */
+  private buildEtherLinkage(
+    builder: MoleculeGraphBuilder,
+    tokens: IUPACToken[],
+    parentTokens: IUPACToken[],
+    suffixTokens: IUPACToken[],
+    locantTokens: IUPACToken[],
+    substituentTokens: IUPACToken[],
+    multiplierTokens: IUPACToken[],
+    oxyConnectorIdx: number
+  ): Molecule {
+    const oxyToken = suffixTokens[oxyConnectorIdx]!;
+
+    // Find parent chains before and after "oxy"
+    const alkylParent = parentTokens.find(p => p.position < oxyToken.position);
+    const mainParent = parentTokens.find(p => p.position > oxyToken.position);
+
+    if (!alkylParent || !mainParent) {
+      throw new Error('Ether linkage requires two parent chains');
+    }
+
+    if (process.env.VERBOSE) {
+      console.log('[ether] Alkyl parent:', alkylParent.value);
+      console.log('[ether] Main parent:', mainParent.value);
+    }
+
+    // Find locant for attachment position (before alkyl parent)
+    const attachLocant = locantTokens.find(l => l.position < alkylParent.position);
+    const attachPosition = attachLocant ? (attachLocant.metadata?.positions as number[])?.[0] ?? 1 : 1;
+
+    // Build alkyl chain with its substituents
+    const alkylAtomCount = (alkylParent.metadata?.atomCount as number) || 0;
+    const alkylChainAtoms = builder.createLinearChain(alkylAtomCount);
+
+    // Apply substituents to alkyl chain
+    const alkylSubstituents = substituentTokens.filter(s => s.position < oxyToken.position);
+    const alkylLocants = locantTokens.filter(l => 
+      l.position > (attachLocant?.position ?? -1) && 
+      l.position < oxyToken.position
+    );
+    const alkylMultipliers = multiplierTokens.filter(m =>
+      m.position > (attachLocant?.position ?? -1) && 
+      m.position < oxyToken.position
+    );
+
+    if (alkylSubstituents.length > 0) {
+      this.applySubstituents(builder, alkylChainAtoms, alkylSubstituents, alkylLocants, alkylMultipliers);
+    }
+
+    // Build main chain
+    const mainAtomCount = (mainParent.metadata?.atomCount as number) || 0;
+    const mainChainAtoms = builder.createLinearChain(mainAtomCount);
+
+    // Apply functional groups to main chain
+    const mainSuffixes = suffixTokens.filter(s => s.position > oxyToken.position);
+    const mainLocants = locantTokens.filter(l => l.position > oxyToken.position);
+
+    // Apply unsaturation
+    this.applyUnsaturation(builder, mainChainAtoms, mainSuffixes, mainLocants, false);
+
+    // Apply other functional groups
+    this.applySuffixes(builder, mainChainAtoms, mainSuffixes, mainLocants);
+
+    // Connect alkyl chain to main chain via oxygen (ether linkage)
+    const mainAttachAtomIdx = this.locantToAtomIndex(attachPosition, mainChainAtoms);
+    if (mainAttachAtomIdx !== null) {
+      builder.addAlkoxyGroup(mainAttachAtomIdx, alkylChainAtoms);
+    }
+
+    if (process.env.VERBOSE) {
+      console.log('[ether] Attached alkoxy at position', attachPosition);
+    }
+
+    return builder.build();
   }
 }
