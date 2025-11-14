@@ -1,5 +1,5 @@
-import type { Atom, Bond, Molecule, BondType } from 'types';
-import { BondType as BondTypeEnum } from 'types';
+import type { Atom, Bond, Molecule, BondType } from "types";
+import { BondType as BondTypeEnum } from "types";
 
 /**
  * Mutable molecule builder for constructing molecules from IUPAC tokens
@@ -23,11 +23,20 @@ export class MoleculeGraphBuilder {
     atom1: number;
     atom2: number;
     type: BondType;
-    stereo: 'none' | 'up' | 'down' | 'either';
+    stereo: "none" | "up" | "down" | "either";
   }> = [];
 
   private atomicNumbers: Record<string, number> = {
-    'H': 1, 'C': 6, 'N': 7, 'O': 8, 'F': 9, 'P': 15, 'S': 16, 'Cl': 17, 'Br': 35, 'I': 53,
+    H: 1,
+    C: 6,
+    N: 7,
+    O: 8,
+    F: 9,
+    P: 15,
+    S: 16,
+    Cl: 17,
+    Br: 35,
+    I: 53,
   };
 
   /**
@@ -38,7 +47,7 @@ export class MoleculeGraphBuilder {
     const id = this.atoms.length;
     this.atoms.push({
       id,
-      symbol: 'C',
+      symbol: "C",
       atomicNumber: 6,
       charge: 0,
       hydrogens: 0, // Will be computed later
@@ -86,12 +95,16 @@ export class MoleculeGraphBuilder {
   /**
    * Add a single bond between two atoms
    */
-  addBond(atom1: number, atom2: number, type: BondType = BondTypeEnum.SINGLE): void {
+  addBond(
+    atom1: number,
+    atom2: number,
+    type: BondType = BondTypeEnum.SINGLE,
+  ): void {
     this.bonds.push({
       atom1,
       atom2,
       type,
-      stereo: 'none',
+      stereo: "none",
     });
   }
 
@@ -102,17 +115,17 @@ export class MoleculeGraphBuilder {
    */
   createLinearChain(length: number): number[] {
     const atomIndices: number[] = [];
-    
+
     for (let i = 0; i < length; i++) {
       const atomIdx = this.addCarbon();
       atomIndices.push(atomIdx);
-      
+
       // Bond to previous carbon
       if (i > 0) {
         this.addBond(atomIndices[i - 1]!, atomIdx);
       }
     }
-    
+
     return atomIndices;
   }
 
@@ -124,27 +137,31 @@ export class MoleculeGraphBuilder {
    */
   createCyclicChain(size: number, aromatic = false): number[] {
     const atomIndices: number[] = [];
-    
+
     for (let i = 0; i < size; i++) {
-      const atomIdx = aromatic ? this.addAtom('C', true) : this.addCarbon();
+      const atomIdx = aromatic ? this.addAtom("C", true) : this.addCarbon();
       atomIndices.push(atomIdx);
-      
+
       // Bond to previous carbon
       if (i > 0) {
         const bondType = aromatic ? BondTypeEnum.AROMATIC : BondTypeEnum.SINGLE;
         this.addBond(atomIndices[i - 1]!, atomIdx, bondType);
       }
     }
-    
+
     // Close the ring
     if (atomIndices.length > 2) {
       const bondType = aromatic ? BondTypeEnum.AROMATIC : BondTypeEnum.SINGLE;
-      this.addBond(atomIndices[atomIndices.length - 1]!, atomIndices[0]!, bondType);
+      this.addBond(
+        atomIndices[atomIndices.length - 1]!,
+        atomIndices[0]!,
+        bondType,
+      );
     }
-    
+
     return atomIndices;
   }
-  
+
   /**
    * Create a benzene ring (6-membered aromatic ring)
    * @returns Array of atom indices
@@ -161,17 +178,17 @@ export class MoleculeGraphBuilder {
    */
   createOxiraneRing(): number[] {
     const c1 = this.addCarbon();
-    const o = this.addAtom('O');
+    const o = this.addAtom("O");
     const c2 = this.addCarbon();
-    
+
     this.addBond(c1, o);
     this.addBond(o, c2);
     this.addBond(c2, c1);
-    
-    // Return only carbon atoms in IUPAC numbering order
-    // Oxygen is not numbered in IUPAC naming
-    // Position 1 = C1, Position 2 = C2
-    return [c1, c2];
+
+    // Return all atoms in IUPAC numbering order
+    // In Hantzsch-Widman nomenclature, heteroatom gets position 1
+    // Position 1 = O, Position 2 = C1, Position 3 = C2
+    return [o, c1, c2];
   }
 
   /**
@@ -183,15 +200,15 @@ export class MoleculeGraphBuilder {
     const c1 = this.addCarbon();
     const c2 = this.addCarbon();
     const c3 = this.addCarbon();
-    const o = this.addAtom('O');
+    const o = this.addAtom("O");
     const c4 = this.addCarbon();
-    
+
     this.addBond(c1, c2);
     this.addBond(c2, c3);
     this.addBond(c3, o);
     this.addBond(o, c4);
     this.addBond(c4, c1);
-    
+
     return [c1, c2, c3, o, c4];
   }
 
@@ -201,20 +218,20 @@ export class MoleculeGraphBuilder {
    * @returns Array of atom indices [N, C, C, C, C, C]
    */
   createPyridineRing(): number[] {
-    const n = this.addAtom('N', true);
-    const c2 = this.addAtom('C', true);
-    const c3 = this.addAtom('C', true);
-    const c4 = this.addAtom('C', true);
-    const c5 = this.addAtom('C', true);
-    const c6 = this.addAtom('C', true);
-    
+    const n = this.addAtom("N", true);
+    const c2 = this.addAtom("C", true);
+    const c3 = this.addAtom("C", true);
+    const c4 = this.addAtom("C", true);
+    const c5 = this.addAtom("C", true);
+    const c6 = this.addAtom("C", true);
+
     this.addBond(n, c2, BondTypeEnum.AROMATIC);
     this.addBond(c2, c3, BondTypeEnum.AROMATIC);
     this.addBond(c3, c4, BondTypeEnum.AROMATIC);
     this.addBond(c4, c5, BondTypeEnum.AROMATIC);
     this.addBond(c5, c6, BondTypeEnum.AROMATIC);
     this.addBond(c6, n, BondTypeEnum.AROMATIC);
-    
+
     return [n, c2, c3, c4, c5, c6];
   }
 
@@ -224,18 +241,18 @@ export class MoleculeGraphBuilder {
    * @returns Array of atom indices [O, C, C, C, C]
    */
   createFuranRing(): number[] {
-    const o = this.addAtom('O', true);
-    const c2 = this.addAtom('C', true);
-    const c3 = this.addAtom('C', true);
-    const c4 = this.addAtom('C', true);
-    const c5 = this.addAtom('C', true);
-    
+    const o = this.addAtom("O", true);
+    const c2 = this.addAtom("C", true);
+    const c3 = this.addAtom("C", true);
+    const c4 = this.addAtom("C", true);
+    const c5 = this.addAtom("C", true);
+
     this.addBond(o, c2, BondTypeEnum.AROMATIC);
     this.addBond(c2, c3, BondTypeEnum.AROMATIC);
     this.addBond(c3, c4, BondTypeEnum.AROMATIC);
     this.addBond(c4, c5, BondTypeEnum.AROMATIC);
     this.addBond(c5, o, BondTypeEnum.AROMATIC);
-    
+
     return [o, c2, c3, c4, c5];
   }
 
@@ -245,19 +262,29 @@ export class MoleculeGraphBuilder {
    * @returns Array of atom indices [S, C, C, C, C]
    */
   createThiopheneRing(): number[] {
-    const s = this.addAtom('S', true);
-    const c2 = this.addAtom('C', true);
-    const c3 = this.addAtom('C', true);
-    const c4 = this.addAtom('C', true);
-    const c5 = this.addAtom('C', true);
-    
+    const s = this.addAtom("S", true);
+    const c2 = this.addAtom("C", true);
+    const c3 = this.addAtom("C", true);
+    const c4 = this.addAtom("C", true);
+    const c5 = this.addAtom("C", true);
+
+    if (process.env.VERBOSE) {
+      console.log(
+        `[createThiopheneRing] Created atoms: S=${s}, C2=${c2}, C3=${c3}, C4=${c4}, C5=${c5}`,
+      );
+    }
+
     this.addBond(s, c2, BondTypeEnum.AROMATIC);
     this.addBond(c2, c3, BondTypeEnum.AROMATIC);
     this.addBond(c3, c4, BondTypeEnum.AROMATIC);
     this.addBond(c4, c5, BondTypeEnum.AROMATIC);
     this.addBond(c5, s, BondTypeEnum.AROMATIC);
-    
-    return [s, c2, c3, c4, c5];
+
+    const result = [s, c2, c3, c4, c5];
+    if (process.env.VERBOSE) {
+      console.log(`[createThiopheneRing] Returning array:`, result);
+    }
+    return result;
   }
 
   /**
@@ -266,20 +293,20 @@ export class MoleculeGraphBuilder {
    * @returns Array of atom indices [N, C, C, C, C]
    */
   createPyrroleRing(): number[] {
-    const n = this.addAtom('N', true);
-    const c2 = this.addAtom('C', true);
-    const c3 = this.addAtom('C', true);
-    const c4 = this.addAtom('C', true);
-    const c5 = this.addAtom('C', true);
-    
+    const n = this.addAtom("N", true);
+    const c2 = this.addAtom("C", true);
+    const c3 = this.addAtom("C", true);
+    const c4 = this.addAtom("C", true);
+    const c5 = this.addAtom("C", true);
+
     this.setHydrogens(n, 1);
-    
+
     this.addBond(n, c2, BondTypeEnum.AROMATIC);
     this.addBond(c2, c3, BondTypeEnum.AROMATIC);
     this.addBond(c3, c4, BondTypeEnum.AROMATIC);
     this.addBond(c4, c5, BondTypeEnum.AROMATIC);
     this.addBond(c5, n, BondTypeEnum.AROMATIC);
-    
+
     return [n, c2, c3, c4, c5];
   }
 
@@ -291,9 +318,9 @@ export class MoleculeGraphBuilder {
   createNaphthaleneRing(): number[] {
     const atoms: number[] = [];
     for (let i = 0; i < 10; i++) {
-      atoms.push(this.addAtom('C', true));
+      atoms.push(this.addAtom("C", true));
     }
-    
+
     // First ring: 0-1-2-3-8-9
     this.addBond(atoms[0]!, atoms[1]!, BondTypeEnum.AROMATIC);
     this.addBond(atoms[1]!, atoms[2]!, BondTypeEnum.AROMATIC);
@@ -301,14 +328,14 @@ export class MoleculeGraphBuilder {
     this.addBond(atoms[3]!, atoms[8]!, BondTypeEnum.AROMATIC);
     this.addBond(atoms[8]!, atoms[9]!, BondTypeEnum.AROMATIC);
     this.addBond(atoms[9]!, atoms[0]!, BondTypeEnum.AROMATIC);
-    
+
     // Second ring: 3-4-5-6-7-8
     this.addBond(atoms[3]!, atoms[4]!, BondTypeEnum.AROMATIC);
     this.addBond(atoms[4]!, atoms[5]!, BondTypeEnum.AROMATIC);
     this.addBond(atoms[5]!, atoms[6]!, BondTypeEnum.AROMATIC);
     this.addBond(atoms[6]!, atoms[7]!, BondTypeEnum.AROMATIC);
     this.addBond(atoms[7]!, atoms[8]!, BondTypeEnum.AROMATIC);
-    
+
     return atoms;
   }
 
@@ -320,18 +347,18 @@ export class MoleculeGraphBuilder {
   createMorpholineRing(): number[] {
     const c1 = this.addCarbon();
     const c2 = this.addCarbon();
-    const n = this.addAtom('N');
+    const n = this.addAtom("N");
     const c4 = this.addCarbon();
     const c5 = this.addCarbon();
-    const o = this.addAtom('O');
-    
+    const o = this.addAtom("O");
+
     this.addBond(c1, c2);
     this.addBond(c2, n);
     this.addBond(n, c4);
     this.addBond(c4, c5);
     this.addBond(c5, o);
     this.addBond(o, c1);
-    
+
     return [c1, c2, n, c4, c5, o];
   }
 
@@ -344,17 +371,17 @@ export class MoleculeGraphBuilder {
     const c1 = this.addCarbon();
     const c2 = this.addCarbon();
     const c3 = this.addCarbon();
-    const n = this.addAtom('N');
+    const n = this.addAtom("N");
     const c5 = this.addCarbon();
     const c6 = this.addCarbon();
-    
+
     this.addBond(c1, c2);
     this.addBond(c2, c3);
     this.addBond(c3, n);
     this.addBond(n, c5);
     this.addBond(c5, c6);
     this.addBond(c6, c1);
-    
+
     return [c1, c2, c3, n, c5, c6];
   }
 
@@ -367,15 +394,15 @@ export class MoleculeGraphBuilder {
     const c1 = this.addCarbon();
     const c2 = this.addCarbon();
     const c3 = this.addCarbon();
-    const n = this.addAtom('N');
+    const n = this.addAtom("N");
     const c5 = this.addCarbon();
-    
+
     this.addBond(c1, c2);
     this.addBond(c2, c3);
     this.addBond(c3, n);
     this.addBond(n, c5);
     this.addBond(c5, c1);
-    
+
     return [c1, c2, c3, n, c5];
   }
 
@@ -387,18 +414,18 @@ export class MoleculeGraphBuilder {
   createPiperazineRing(): number[] {
     const c1 = this.addCarbon();
     const c2 = this.addCarbon();
-    const n3 = this.addAtom('N');
+    const n3 = this.addAtom("N");
     const c4 = this.addCarbon();
     const c5 = this.addCarbon();
-    const n6 = this.addAtom('N');
-    
+    const n6 = this.addAtom("N");
+
     this.addBond(c1, c2);
     this.addBond(c2, n3);
     this.addBond(n3, c4);
     this.addBond(c4, c5);
     this.addBond(c5, n6);
     this.addBond(n6, c1);
-    
+
     return [c1, c2, n3, c4, c5, n6];
   }
 
@@ -409,14 +436,14 @@ export class MoleculeGraphBuilder {
    */
   createQuinolineRing(): number[] {
     const atoms: number[] = [];
-    
+
     // First ring (pyridine part): 0(N)-1-2-3-8-9
-    atoms.push(this.addAtom('N', true)); // 0: N
+    atoms.push(this.addAtom("N", true)); // 0: N
     for (let i = 1; i < 9; i++) {
-      atoms.push(this.addAtom('C', true));
+      atoms.push(this.addAtom("C", true));
     }
-    atoms.push(this.addAtom('C', true)); // 9
-    
+    atoms.push(this.addAtom("C", true)); // 9
+
     // Pyridine ring: N(0)-C(1)-C(2)-C(3)-C(8)-C(9)-N(0)
     this.addBond(atoms[0]!, atoms[1]!, BondTypeEnum.AROMATIC);
     this.addBond(atoms[1]!, atoms[2]!, BondTypeEnum.AROMATIC);
@@ -424,14 +451,14 @@ export class MoleculeGraphBuilder {
     this.addBond(atoms[3]!, atoms[8]!, BondTypeEnum.AROMATIC);
     this.addBond(atoms[8]!, atoms[9]!, BondTypeEnum.AROMATIC);
     this.addBond(atoms[9]!, atoms[0]!, BondTypeEnum.AROMATIC);
-    
+
     // Benzene ring: C(3)-C(4)-C(5)-C(6)-C(7)-C(8)
     this.addBond(atoms[3]!, atoms[4]!, BondTypeEnum.AROMATIC);
     this.addBond(atoms[4]!, atoms[5]!, BondTypeEnum.AROMATIC);
     this.addBond(atoms[5]!, atoms[6]!, BondTypeEnum.AROMATIC);
     this.addBond(atoms[6]!, atoms[7]!, BondTypeEnum.AROMATIC);
     this.addBond(atoms[7]!, atoms[8]!, BondTypeEnum.AROMATIC);
-    
+
     return atoms;
   }
 
@@ -439,7 +466,7 @@ export class MoleculeGraphBuilder {
    * Add a hydroxyl group (-OH) to a specific atom
    */
   addHydroxyl(atomIdx: number): void {
-    const oxygenIdx = this.addAtom('O');
+    const oxygenIdx = this.addAtom("O");
     this.addBond(atomIdx, oxygenIdx);
   }
 
@@ -447,7 +474,7 @@ export class MoleculeGraphBuilder {
    * Add a carbonyl group (=O) to a specific atom
    */
   addCarbonyl(atomIdx: number): void {
-    const oxygenIdx = this.addAtom('O');
+    const oxygenIdx = this.addAtom("O");
     this.addBond(atomIdx, oxygenIdx, BondTypeEnum.DOUBLE);
   }
 
@@ -457,11 +484,11 @@ export class MoleculeGraphBuilder {
    */
   addCarboxyl(atomIdx: number): void {
     // Add =O
-    const carbonylOxygenIdx = this.addAtom('O');
+    const carbonylOxygenIdx = this.addAtom("O");
     this.addBond(atomIdx, carbonylOxygenIdx, BondTypeEnum.DOUBLE);
-    
+
     // Add -OH
-    const hydroxylOxygenIdx = this.addAtom('O');
+    const hydroxylOxygenIdx = this.addAtom("O");
     this.addBond(atomIdx, hydroxylOxygenIdx);
   }
 
@@ -469,7 +496,7 @@ export class MoleculeGraphBuilder {
    * Add an amine group (-NH2) to a specific atom
    */
   addAmine(atomIdx: number): void {
-    const nitrogenIdx = this.addAtom('N');
+    const nitrogenIdx = this.addAtom("N");
     this.addBond(atomIdx, nitrogenIdx);
   }
 
@@ -477,7 +504,7 @@ export class MoleculeGraphBuilder {
    * Add an aldehyde group (-CHO) by converting terminal carbon to C=O
    */
   addAldehyde(atomIdx: number): void {
-    const oxygenIdx = this.addAtom('O');
+    const oxygenIdx = this.addAtom("O");
     this.addBond(atomIdx, oxygenIdx, BondTypeEnum.DOUBLE);
   }
 
@@ -485,7 +512,7 @@ export class MoleculeGraphBuilder {
    * Add a nitrile group (-C#N) by adding triple-bonded nitrogen
    */
   addNitrile(atomIdx: number): void {
-    const nitrogenIdx = this.addAtom('N');
+    const nitrogenIdx = this.addAtom("N");
     this.addBond(atomIdx, nitrogenIdx, BondTypeEnum.TRIPLE);
   }
 
@@ -493,10 +520,10 @@ export class MoleculeGraphBuilder {
    * Add a thiocyanate group (-S-C#N) to a specific atom
    */
   addThiocyanate(atomIdx: number): void {
-    const sulfurIdx = this.addAtom('S');
+    const sulfurIdx = this.addAtom("S");
     const carbonIdx = this.addCarbon();
-    const nitrogenIdx = this.addAtom('N');
-    
+    const nitrogenIdx = this.addAtom("N");
+
     this.addBond(atomIdx, sulfurIdx);
     this.addBond(sulfurIdx, carbonIdx);
     this.addBond(carbonIdx, nitrogenIdx, BondTypeEnum.TRIPLE);
@@ -511,11 +538,11 @@ export class MoleculeGraphBuilder {
    */
   addEster(atomIdx: number, alkylChainLength: number): number {
     // Add =O
-    const carbonylOxygenIdx = this.addAtom('O');
+    const carbonylOxygenIdx = this.addAtom("O");
     this.addBond(atomIdx, carbonylOxygenIdx, BondTypeEnum.DOUBLE);
-    
+
     // Add -O-
-    const etherOxygenIdx = this.addAtom('O');
+    const etherOxygenIdx = this.addAtom("O");
     this.addBond(atomIdx, etherOxygenIdx);
 
     // Add alkyl chain to ether oxygen
@@ -540,11 +567,11 @@ export class MoleculeGraphBuilder {
    */
   addAmide(atomIdx: number): number {
     // Add =O
-    const carbonylOxygenIdx = this.addAtom('O');
+    const carbonylOxygenIdx = this.addAtom("O");
     this.addBond(atomIdx, carbonylOxygenIdx, BondTypeEnum.DOUBLE);
-    
+
     // Add -NH2
-    const nitrogenIdx = this.addAtom('N');
+    const nitrogenIdx = this.addAtom("N");
     this.addBond(atomIdx, nitrogenIdx);
 
     return nitrogenIdx;
@@ -626,7 +653,7 @@ export class MoleculeGraphBuilder {
    * Add a methoxy substituent (-OCH3) to a specific atom
    */
   addMethoxy(atomIdx: number): void {
-    const oxygenIdx = this.addAtom('O');
+    const oxygenIdx = this.addAtom("O");
     const methylIdx = this.addCarbon();
     this.addBond(atomIdx, oxygenIdx);
     this.addBond(oxygenIdx, methylIdx);
@@ -636,7 +663,7 @@ export class MoleculeGraphBuilder {
    * Add an ethoxy substituent (-OCH2CH3) to a specific atom
    */
   addEthoxy(atomIdx: number): void {
-    const oxygenIdx = this.addAtom('O');
+    const oxygenIdx = this.addAtom("O");
     const ch2Idx = this.addCarbon();
     const ch3Idx = this.addCarbon();
     this.addBond(atomIdx, oxygenIdx);
@@ -648,9 +675,9 @@ export class MoleculeGraphBuilder {
    * Add a propoxy substituent (-O-CH2CH2CH3) to a specific atom
    */
   addPropoxy(atomIdx: number): void {
-    const oxygenIdx = this.addAtom('O');
+    const oxygenIdx = this.addAtom("O");
     this.addBond(atomIdx, oxygenIdx);
-    
+
     const propylChain = this.addAlkylSubstituent(oxygenIdx, 3);
   }
 
@@ -658,9 +685,9 @@ export class MoleculeGraphBuilder {
    * Add a butoxy substituent (-O-CH2CH2CH2CH3) to a specific atom
    */
   addButoxy(atomIdx: number): void {
-    const oxygenIdx = this.addAtom('O');
+    const oxygenIdx = this.addAtom("O");
     this.addBond(atomIdx, oxygenIdx);
-    
+
     const butylChain = this.addAlkylSubstituent(oxygenIdx, 4);
   }
 
@@ -668,7 +695,7 @@ export class MoleculeGraphBuilder {
    * Add an amino substituent (-NH2) to a specific atom
    */
   addAmino(atomIdx: number): void {
-    const nitrogenIdx = this.addAtom('N');
+    const nitrogenIdx = this.addAtom("N");
     this.addBond(atomIdx, nitrogenIdx);
   }
 
@@ -677,9 +704,9 @@ export class MoleculeGraphBuilder {
    */
   addTrifluoromethyl(atomIdx: number): void {
     const carbonIdx = this.addCarbon();
-    const f1 = this.addAtom('F');
-    const f2 = this.addAtom('F');
-    const f3 = this.addAtom('F');
+    const f1 = this.addAtom("F");
+    const f2 = this.addAtom("F");
+    const f3 = this.addAtom("F");
     this.addBond(atomIdx, carbonIdx);
     this.addBond(carbonIdx, f1);
     this.addBond(carbonIdx, f2);
@@ -781,9 +808,9 @@ export class MoleculeGraphBuilder {
    */
   addAcetyl(atomIdx: number): void {
     const carbonylC = this.addCarbon();
-    const oxygenIdx = this.addAtom('O');
+    const oxygenIdx = this.addAtom("O");
     const methylIdx = this.addCarbon();
-    
+
     this.addBond(atomIdx, carbonylC);
     this.addBond(carbonylC, oxygenIdx, BondTypeEnum.DOUBLE);
     this.addBond(carbonylC, methylIdx);
@@ -794,10 +821,10 @@ export class MoleculeGraphBuilder {
    */
   addPropanoyl(atomIdx: number): void {
     const carbonylC = this.addCarbon();
-    const oxygenIdx = this.addAtom('O');
+    const oxygenIdx = this.addAtom("O");
     const ch2Idx = this.addCarbon();
     const ch3Idx = this.addCarbon();
-    
+
     this.addBond(atomIdx, carbonylC);
     this.addBond(carbonylC, oxygenIdx, BondTypeEnum.DOUBLE);
     this.addBond(carbonylC, ch2Idx);
@@ -809,11 +836,11 @@ export class MoleculeGraphBuilder {
    */
   addButanoyl(atomIdx: number): void {
     const carbonylC = this.addCarbon();
-    const oxygenIdx = this.addAtom('O');
-    
+    const oxygenIdx = this.addAtom("O");
+
     this.addBond(atomIdx, carbonylC);
     this.addBond(carbonylC, oxygenIdx, BondTypeEnum.DOUBLE);
-    
+
     // Add propyl chain
     this.addAlkylSubstituent(carbonylC, 3);
   }
@@ -825,11 +852,11 @@ export class MoleculeGraphBuilder {
    */
   addAlkylSubstituent(atomIdx: number, chainLength: number): number[] {
     const substituentAtoms: number[] = [];
-    
+
     for (let i = 0; i < chainLength; i++) {
       const carbonIdx = this.addCarbon();
       substituentAtoms.push(carbonIdx);
-      
+
       if (i === 0) {
         // First carbon bonds to main chain
         this.addBond(atomIdx, carbonIdx);
@@ -838,7 +865,7 @@ export class MoleculeGraphBuilder {
         this.addBond(substituentAtoms[i - 1]!, carbonIdx);
       }
     }
-    
+
     return substituentAtoms;
   }
 
@@ -848,9 +875,11 @@ export class MoleculeGraphBuilder {
   addDoubleBond(atom1: number, atom2: number): void {
     // Find and update existing bond or add new one
     const existingBond = this.bonds.find(
-      b => (b.atom1 === atom1 && b.atom2 === atom2) || (b.atom1 === atom2 && b.atom2 === atom1)
+      (b) =>
+        (b.atom1 === atom1 && b.atom2 === atom2) ||
+        (b.atom1 === atom2 && b.atom2 === atom1),
     );
-    
+
     if (existingBond) {
       existingBond.type = BondTypeEnum.DOUBLE;
     } else {
@@ -863,9 +892,11 @@ export class MoleculeGraphBuilder {
    */
   addTripleBond(atom1: number, atom2: number): void {
     const existingBond = this.bonds.find(
-      b => (b.atom1 === atom1 && b.atom2 === atom2) || (b.atom1 === atom2 && b.atom2 === atom1)
+      (b) =>
+        (b.atom1 === atom1 && b.atom2 === atom2) ||
+        (b.atom1 === atom2 && b.atom2 === atom1),
     );
-    
+
     if (existingBond) {
       existingBond.type = BondTypeEnum.TRIPLE;
     } else {
@@ -881,14 +912,14 @@ export class MoleculeGraphBuilder {
    * @returns The oxygen atom index
    */
   addAlkoxyGroup(atomIdx: number, alkylChainAtoms: number[]): number {
-    const oxygenIdx = this.addAtom('O');
+    const oxygenIdx = this.addAtom("O");
     this.addBond(atomIdx, oxygenIdx);
-    
+
     // Bond oxygen to first carbon of alkyl chain
     if (alkylChainAtoms.length > 0 && alkylChainAtoms[0] !== undefined) {
       this.addBond(oxygenIdx, alkylChainAtoms[0]);
     }
-    
+
     return oxygenIdx;
   }
 
