@@ -51,6 +51,43 @@ export class IUPACBuilder {
     const locantTokens = tokens.filter(t => t.type === 'LOCANT');
     const substituentTokens = tokens.filter(t => t.type === 'SUBSTITUENT');
     const multiplierTokens = tokens.filter(t => t.type === 'MULTIPLIER');
+    
+    // Detect N-substituted amides (N- or N,N- prefix before substituents)
+    const hasAmideSuffix = suffixTokens.some(s => s.value === 'amide' || s.value === 'amid');
+    const nPrefixToken = prefixTokens.find(p => p.value === 'n' || p.value === 'n,n');
+    let nSubstituents: string[] = [];
+    let regularSubstituents = substituentTokens;
+    
+    if (hasAmideSuffix && nPrefixToken) {
+      // Find substituents that come after the N- prefix
+      const substituentsAfterN = substituentTokens.filter(s => s.position > nPrefixToken.position);
+      if (substituentsAfterN.length > 0) {
+        // Check if there's a multiplier between prefix and substituent
+        const multiplierAfterN = multiplierTokens.find(m => 
+          m.position > nPrefixToken.position && 
+          m.position < substituentsAfterN[0]!.position
+        );
+        const count = multiplierAfterN ? (multiplierAfterN.metadata?.count as number) || 1 : 1;
+        
+        // Get the N-substituent(s)
+        const nSubstSmiles = (substituentsAfterN[0]?.metadata?.smiles as string) || '';
+        const cleanSubst = nSubstSmiles.replace(/^-/, '');
+        
+        // For N,N- prefix, add 2 substituents
+        if (nPrefixToken.value === 'n,n') {
+          nSubstituents = [cleanSubst, cleanSubst];
+        } else if (count > 1) {
+          // N- with multiplier (e.g., N-dimethyl)
+          nSubstituents = Array(count).fill(cleanSubst);
+        } else {
+          // Single N- substituent
+          nSubstituents = [cleanSubst];
+        }
+        
+        // Remove N-substituents from regular substituents
+        regularSubstituents = substituentTokens.filter(s => s.position < nPrefixToken.position);
+      }
+    }
 
     // Check for cyclo prefix or if parent is a non-aromatic ring system (contains ring numbers but not aromatic)
     const hasCycloPrefix = prefixTokens.some(p => p.metadata?.isCyclic === true);
@@ -122,13 +159,14 @@ export class IUPACBuilder {
     
     // Apply functional group suffix (ol, one, amine, etc.)
     if (suffixTokens.length > 0) {
-      smiles = this.applySuffixes(smiles, suffixTokens, locantTokens, substituentTokens, multiplierTokens);
+      smiles = this.applySuffixes(smiles, suffixTokens, locantTokens, substituentTokens, multiplierTokens, nSubstituents);
     }
 
     // Apply substituents (skip first substituent if it's an ester, as it's part of the ester group)
-    const substituentsToApply = isEster && substituentTokens.length > 0 
-      ? substituentTokens.slice(1) 
-      : substituentTokens;
+    // Use regularSubstituents (excludes N-substituents) instead of substituentTokens
+    const substituentsToApply = isEster && regularSubstituents.length > 0 
+      ? regularSubstituents.slice(1) 
+      : regularSubstituents;
       
     if (substituentsToApply.length > 0) {
       smiles = this.applySubstituents(smiles, substituentsToApply, locantTokens, multiplierTokens, isCyclic);
@@ -140,13 +178,15 @@ export class IUPACBuilder {
   /**
    * Apply functional group suffixes to the parent chain
    * Enhanced to handle multiple functional groups (e.g., "dione", "diol")
+   * Also handles N-substituted amides via nSubstituents parameter
    */
   private applySuffixes(
     parentSmiles: string,
     suffixTokens: IUPACToken[],
     locantTokens: IUPACToken[],
     substituentTokens: IUPACToken[],
-    multiplierTokens: IUPACToken[]
+    multiplierTokens: IUPACToken[],
+    nSubstituents: string[] = []
   ): string {
     let result = parentSmiles;
 
@@ -187,7 +227,7 @@ export class IUPACBuilder {
           break;
         case 'amide':
         case 'amid':
-          result = this.addAmideGroup(result);
+          result = this.addAmideGroup(result, nSubstituents);
           break;
         case 'al':
           result = this.addAldehydeGroup(result);
@@ -620,12 +660,28 @@ export class IUPACBuilder {
   }
 
   /**
-   * Add amide group (-CONH2)
-   * Example: "ethanamide" -> CC(=O)N
+   * Add amide group (-CONH2, -CONHR, or -CONR2)
+   * Examples:
+   * - "ethanamide" -> CC(=O)N (primary amide)
+   * - "N-methylethanamide" -> CC(=O)NC (secondary amide)
+   * - "N,N-dimethylethanamide" -> CC(=O)N(C)C (tertiary amide)
+   * - "N-phenylethanamide" -> CC(=O)Nc1ccccc1
    */
-  private addAmideGroup(smiles: string): string {
+  private addAmideGroup(smiles: string, nSubstituents: string[] = []): string {
     if (smiles.match(/^C+$/)) {
-      return smiles.substring(0, smiles.length - 1) + 'C(=O)N';
+      // Build nitrogen substituent part
+      let nitrogenPart = 'N';
+      
+      if (nSubstituents.length === 1) {
+        // Secondary amide: -CONHR
+        nitrogenPart = `N${nSubstituents[0]}`;
+      } else if (nSubstituents.length >= 2) {
+        // Tertiary amide: -CONR2
+        nitrogenPart = `N(${nSubstituents[0]})${nSubstituents[1]}`;
+      }
+      
+      // Remove last C and add C(=O)N part
+      return smiles.substring(0, smiles.length - 1) + `C(=O)${nitrogenPart}`;
     }
     return smiles;
   }
