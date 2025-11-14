@@ -41,7 +41,7 @@ export class IUPACBuilder {
 
   /**
    * Convert token stream to SMILES string
-   * Enhanced to handle functional groups, substituents, locants, stereochemistry, unsaturation, and cycles
+   * Enhanced to handle functional groups, substituents, locants, stereochemistry, unsaturation, cycles, and ether linkages
    */
   private tokensToSMILES(tokens: IUPACToken[]): string {
     // Organize tokens by type
@@ -51,6 +51,102 @@ export class IUPACBuilder {
     const locantTokens = tokens.filter(t => t.type === 'LOCANT');
     const substituentTokens = tokens.filter(t => t.type === 'SUBSTITUENT');
     const multiplierTokens = tokens.filter(t => t.type === 'MULTIPLIER');
+    
+    // Detect ether linkages: "oxy" connector suffix between two parent chains
+    // Example: "3-(2,2-dimethylpropoxy)butan-2-ol" has propoxy as an ether substituent
+    const oxyConnectorIdx = suffixTokens.findIndex(s => 
+      s.value === 'oxy' && s.metadata?.suffixType === 'connector'
+    );
+    
+    if (oxyConnectorIdx >= 0 && parentTokens.length >= 2) {
+      const oxyToken = suffixTokens[oxyConnectorIdx];
+      if (oxyToken) {
+        // Find parent chain before "oxy" (alkyl part of alkoxy group)
+        const alkylParent = parentTokens.find(p => p.position < oxyToken.position);
+        // Find parent chain after "oxy" (main chain)
+        const mainParent = parentTokens.find(p => p.position > oxyToken.position);
+        
+        if (alkylParent && mainParent) {
+          // Find the locant that specifies where to attach alkoxy group (first locant before alkyl parent)
+          const attachLocant = locantTokens.find(l => l.position < alkylParent.position);
+          
+          // Build alkyl chain with its substituents and locants
+          // Alkyl locants are those between attach locant and oxy token
+          const alkylLocants = locantTokens.filter(l => 
+            l.position > (attachLocant?.position ?? -1) && 
+            l.position < oxyToken.position
+          );
+          const alkylSubstituents = substituentTokens.filter(s => s.position < oxyToken.position);
+          const alkylMultipliers = multiplierTokens.filter(m => 
+            m.position > (attachLocant?.position ?? -1) && 
+            m.position < oxyToken.position
+          );
+          
+          let alkylSmiles = (alkylParent.metadata?.smiles as string) || '';
+          
+          if (process.env.VERBOSE) {
+            console.log('[ether linkage] alkyl parent:', alkylParent.value, 'smiles:', alkylSmiles);
+            console.log('[ether linkage] alkyl substituents:', alkylSubstituents.map(s => s.value).join(', '));
+            console.log('[ether linkage] alkyl locants:', alkylLocants.map(l => l.value).join(', '));
+          }
+          
+          // Apply substituents to alkyl chain
+          if (alkylSubstituents.length > 0) {
+            alkylSmiles = this.applySubstituents(alkylSmiles, alkylSubstituents, alkylLocants, alkylMultipliers, false);
+          }
+          
+          if (process.env.VERBOSE) {
+            console.log('[ether linkage] alkyl after substituents:', alkylSmiles);
+          }
+          
+          // Create synthetic alkoxy substituent: -O + alkyl
+          const alkoxySmiles = 'O' + alkylSmiles;
+          
+          if (process.env.VERBOSE) {
+            console.log('[ether linkage] alkoxy SMILES:', alkoxySmiles);
+          }
+          
+          // Get locant position for where to attach alkoxy group
+          const locantPos = attachLocant ? (attachLocant.metadata?.positions as number[])?.[0] ?? 1 : 1;
+          
+          if (process.env.VERBOSE) {
+            console.log('[ether linkage] attach at position:', locantPos);
+          }
+          
+          // Build main chain with alkoxy substituent
+          let mainSmiles = (mainParent.metadata?.smiles as string) || '';
+          const mainSuffixes = suffixTokens.filter(s => s.position > oxyToken.position);
+          const mainLocants = locantTokens.filter(l => l.position > oxyToken.position);
+          
+          if (process.env.VERBOSE) {
+            console.log('[ether linkage] main parent:', mainParent.value, 'smiles:', mainSmiles);
+            console.log('[ether linkage] main suffixes:', mainSuffixes.map(s => s.value).join(', '));
+          }
+          
+          // Apply unsaturation first
+          mainSmiles = this.applyUnsaturation(mainSmiles, mainSuffixes, mainLocants, false);
+          
+          // Apply other functional groups
+          const remainingSubstituents = substituentTokens.filter(s => s.position > oxyToken.position);
+          if (mainSuffixes.length > 0) {
+            mainSmiles = this.applySuffixes(mainSmiles, mainSuffixes, mainLocants, remainingSubstituents, multiplierTokens, []);
+          }
+          
+          if (process.env.VERBOSE) {
+            console.log('[ether linkage] main after suffixes:', mainSmiles);
+          }
+          
+          // Apply alkoxy substituent at specified position
+          mainSmiles = this.addSubstituent(mainSmiles, alkoxySmiles, locantPos, false);
+          
+          if (process.env.VERBOSE) {
+            console.log('[ether linkage] final SMILES:', mainSmiles);
+          }
+          
+          return mainSmiles;
+        }
+      }
+    }
     
     // Detect N-substituted amides (N- or N,N- prefix before substituents)
     const hasAmideSuffix = suffixTokens.some(s => s.value === 'amide' || s.value === 'amid');
@@ -295,8 +391,15 @@ export class IUPACBuilder {
         case 'one':
           if (multiplierCount > 1 && locants.length > 0) {
             // Multiple C=O groups at specified positions (e.g., "butane-2,3-dione")
+            if (process.env.VERBOSE) {
+              console.log(`[dione] Adding ${locants.length} carbonyl groups at positions:`, locants);
+              console.log(`[dione] Starting SMILES: "${result}"`);
+            }
             for (const loc of locants) {
               result = this.addCarbonylGroupAtPosition(result, loc);
+              if (process.env.VERBOSE) {
+                console.log(`[dione] After adding C=O at position ${loc}: "${result}"`);
+              }
             }
           } else {
             result = this.addCarbonylGroup(result, locantTokens);
