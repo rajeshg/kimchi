@@ -14,11 +14,16 @@ export class IUPACTokenizer {
   private locantRegex: RegExp;
   private stereoRegex: RegExp;
 
-  constructor(rules: OPSINRules) {
-    this.rules = rules;
-    this.locantRegex = /^\d+(?:,\d+)*/;
-    this.stereoRegex = /^(?:@{1,2}|E|Z|R|S)/i;
-  }
+   constructor(rules: OPSINRules) {
+     this.rules = rules;
+     // Updated regex to handle:
+     // - Simple: 1, 1,2,3
+     // - With citations: 14(22), 1,2(33), etc.
+     this.locantRegex = /^\d+(?:\(\d+\))?(?:,\d+(?:\(\d+\))?)*/ ;
+     // Updated stereo regex to handle citation numbers before stereo markers
+     // E.g., "2Z", "14R", "6S" or just "Z", "R", "S", "@", "@@"
+     this.stereoRegex = /^\d*(?:@{1,2}|E|Z|R|S)/i;
+   }
 
    /**
     * Tokenize an IUPAC name into semantic units
@@ -151,29 +156,30 @@ export class IUPACTokenizer {
        // Supports apostrophes for primed notation and numeric locants after atom locants
        // Pattern: [atom](?:,[atom])* optionally followed by (?:,[digit]+)* then -
        const compoundMatch = /^([nNosOS])(?:')?(?:,([nNosOS])(?:')?)*(?:,\d+)*-/.exec(str);
-       if (compoundMatch) {
-         const prefixValue = compoundMatch[0].slice(0, -1); // Remove trailing hyphen
-         const nextChar = str[compoundMatch[0].length];
-         // Must be followed by alphabetic characters
-         if (nextChar && /[a-z]/.test(nextChar)) {
-           return {
-             type: 'PREFIX',
-             value: prefixValue.toLowerCase(),
-             position: pos,
-             length: compoundMatch[0].length,
-             metadata: {
-               isCompound: true,
-             },
-           };
-         }
-       }
+        if (compoundMatch) {
+          const prefixValue = compoundMatch[0].slice(0, -1); // Remove trailing hyphen
+          const nextChar = str[compoundMatch[0].length];
+          // Must be followed by alphabetic characters or opening paren (for substituents like "(3-chloro...)")
+          if (nextChar && /[a-z([]/.test(nextChar)) {
+            return {
+              type: 'PREFIX',
+              value: prefixValue.toLowerCase(),
+              position: pos,
+              length: compoundMatch[0].length,
+              metadata: {
+                isCompound: true,
+              },
+            };
+          }
+        }
 
-      // Check for cyclo/bicyclo/tricyclo prefixes with optional heteroatom prefix
+      // Check for cyclo/bicyclo/tricyclo/spiro prefixes with optional heteroatom prefix
       // Heteroatom replacements: oxa (O), aza (N), thia (S), phospha (P), etc.
       // Also handle bridge notation: [n.m.p] for bicyclic or [n.m.p.q.r.s] for tricyclic
+      // Spiro systems use bracket notation like spiro[4.4]
       // Can include numeric multipliers: di-oxa, tri-oxa, etc.
       const heteroAtomPrefixes = ['oxa', 'aza', 'thia', 'phospha', 'arsa', 'stiba', 'bismuta', 'selena', 'tellura'];
-      const cycloPatterns = ['tricyclo', 'bicyclo', 'cyclo'];
+      const cycloPatterns = ['tricyclo', 'bicyclo', 'spiro', 'cyclo'];
       
       // First try patterns with numeric multipliers (di-oxa-tricyclo, tri-oxa-pentacyclo, etc.)
       const numericMultipliers: Record<string, string> = {
@@ -318,6 +324,23 @@ export class IUPACTokenizer {
       };
     }
 
+    // Check for lambda notation (e.g., "2lambda6-", "1lambda4-")
+    // Format: digit + "lambda" + digit + hyphen
+    const lambdaMatch = /^(\d+)lambda(\d+)-/.exec(str);
+    if (lambdaMatch) {
+      return {
+        type: 'LOCANT',
+        value: lambdaMatch[0].slice(0, -1), // Remove trailing hyphen
+        position: pos,
+        length: lambdaMatch[0].length,
+        metadata: {
+          positions: [parseInt(lambdaMatch[1]!)],
+          lambdaValue: parseInt(lambdaMatch[2]!),
+          isLambdaNotation: true,
+        },
+      };
+    }
+
     const match = this.locantRegex.exec(str);
     if (!match) return null;
 
@@ -373,47 +396,46 @@ export class IUPACTokenizer {
          }
        }
 
-       // Check for E/Z stereochemistry - allow dash or closing paren after
-       // E.g., "(E)-", "(Z)-" or "2-e-" patterns
-       if (str[0] === 'e' && str[1] && /[\-\)]/.test(str[1])) {
+       // Check for E/Z stereochemistry with optional citation number
+       // E.g., "(E)-", "(Z)-", "2Z-", "14E)-" patterns
+       const ezMatch = /^(\d*)([ez])(?=[\-\)])/i.exec(str);
+       if (ezMatch) {
+         const citationNum = ezMatch[1] || null;
+         const stereoChar = ezMatch[2]!.toLowerCase();
          return {
            type: 'STEREO',
-           value: 'e',
+           value: stereoChar,
            position: pos,
-           length: 1,
-           metadata: { type: 'alkene', config: 'E' },
-         };
-       } else if (str[0] === 'z' && str[1] && /[\-\)]/.test(str[1])) {
-         return {
-           type: 'STEREO',
-           value: 'z',
-           position: pos,
-           length: 1,
-           metadata: { type: 'alkene', config: 'Z' },
-         };
-       }
-
-       // Check for R/S stereochemistry (stereocenters) - allow dash, comma, or closing paren after
-       if (str[0] === 'r' && str[1] && /[\-\),]/.test(str[1])) {
-         return {
-           type: 'STEREO',
-           value: 'r',
-           position: pos,
-           length: 1,
-           metadata: { type: 'stereocenter', config: 'R' },
-         };
-       } else if (str[0] === 's' && str[1] && /[\-\),]/.test(str[1])) {
-         return {
-           type: 'STEREO',
-           value: 's',
-           position: pos,
-           length: 1,
-           metadata: { type: 'stereocenter', config: 'S' },
+           length: ezMatch[0].length,
+           metadata: { 
+             type: 'alkene', 
+             config: stereoChar === 'e' ? 'E' : 'Z',
+             citationNumber: citationNum ? parseInt(citationNum) : undefined,
+           },
          };
        }
 
-      return null;
-    }
+       // Check for R/S stereochemistry with optional citation number
+       // E.g., "(R)-", "(S)-", "6R,8R-", "14S)-" patterns
+       const rsMatch = /^(\d*)([rs])(?=[\-\),])/i.exec(str);
+       if (rsMatch) {
+         const citationNum = rsMatch[1] || null;
+         const stereoChar = rsMatch[2]!.toLowerCase();
+         return {
+           type: 'STEREO',
+           value: stereoChar,
+           position: pos,
+           length: rsMatch[0].length,
+           metadata: {
+             type: 'stereocenter',
+             config: stereoChar === 'r' ? 'R' : 'S',
+             citationNumber: citationNum ? parseInt(citationNum) : undefined,
+           },
+         };
+       }
+
+       return null;
+     }
 
   /**
    * Try to match a multiplier (di, tri, tetra, etc.)
@@ -652,83 +674,115 @@ export class IUPACTokenizer {
       }
     }
 
-    for (const [num, names] of Object.entries(this.rules.alkaneStemComponents.tens)) {
-      const nameList = names.split('|');
-      for (const nm of nameList) {
-        if (str.startsWith(nm)) {
-          // Validate that stem component is followed by valid continuation
-          const nextPos = nm.length;
-          const remainder = str.substring(nextPos);
-          
-          // Must be followed by: alkane suffix (ane/ene/yne/an), another stem, or end/hyphen
-          if (remainder.length === 0 || remainder[0] === '-') {
-            // OK: end of string or hyphen
-          } else if (/^(ane|ene|yne|an[eo])/.test(remainder)) {
-            // OK: alkane suffix
-          } else {
-            // Check if followed by another stem component
-            let isValidStem = false;
-            for (const stemNames of Object.values(this.rules.alkaneStemComponents.units)) {
-              const stemList = stemNames.split('|');
-              for (const s of stemList) {
-                if (remainder.startsWith(s)) {
-                  isValidStem = true;
-                  break;
-                }
-              }
-              if (isValidStem) break;
-            }
-            if (!isValidStem) {
-              // Not a valid alkane stem continuation - skip this match
-              continue;
-            }
-          }
-          
-          return {
-            type: 'PARENT',
-            value: nm,
-            position: pos,
-            length: nm.length,
-            metadata: {
-              numPart: 'tens',
-              number: parseInt(num),
-            },
-          };
-        }
-      }
-    }
+     for (const [num, names] of Object.entries(this.rules.alkaneStemComponents.tens)) {
+       const nameList = names.split('|');
+       for (const nm of nameList) {
+         if (str.startsWith(nm)) {
+           // Validate that stem component is followed by valid continuation
+           const nextPos = nm.length;
+           const remainder = str.substring(nextPos);
+           
+           // Must be followed by: alkane suffix (ane/ene/yne/an), another stem, or end/hyphen
+           if (remainder.length === 0 || remainder[0] === '-') {
+             // OK: end of string or hyphen
+           } else if (/^(ane|ene|yne|an[eo])/.test(remainder)) {
+             // Check if string STARTS with a units component (e.g., "do" in "dodecane")
+             // If so, skip this tens match - let units be matched first, then tens on next iteration
+             let startsWithUnits = false;
+             for (const stemNames of Object.values(this.rules.alkaneStemComponents.units)) {
+               const stemList = stemNames.split('|');
+               for (const s of stemList) {
+                 if (str.startsWith(s) && str[s.length] === nm[0]) {
+                   // Verify the tens component follows immediately after units
+                   startsWithUnits = true;
+                   break;
+                 }
+               }
+               if (startsWithUnits) break;
+             }
+             if (startsWithUnits) {
+               // Skip this match - let units be matched first
+               continue;
+             }
+             // OK: alkane suffix
+           } else {
+             // Check if followed by another stem component
+             let isValidStem = false;
+             for (const stemNames of Object.values(this.rules.alkaneStemComponents.units)) {
+               const stemList = stemNames.split('|');
+               for (const s of stemList) {
+                 if (remainder.startsWith(s)) {
+                   isValidStem = true;
+                   break;
+                 }
+               }
+               if (isValidStem) break;
+             }
+             if (!isValidStem) {
+               // Not a valid alkane stem continuation - skip this match
+               continue;
+             }
+           }
+           
+           return {
+             type: 'PARENT',
+             value: nm,
+             position: pos,
+             length: nm.length,
+             metadata: {
+               numPart: 'tens',
+               number: parseInt(num),
+             },
+           };
+         }
+       }
+     }
 
-    for (const [num, names] of Object.entries(this.rules.alkaneStemComponents.units)) {
-      const nameList = names.split('|');
-      for (const nm of nameList) {
-        if (str.startsWith(nm)) {
-          // Validate that stem component is followed by valid continuation
-          const nextPos = nm.length;
-          const remainder = str.substring(nextPos);
-          
-          // Must be followed by: alkane suffix (ane/ene/yne/an), or end/hyphen
-          if (remainder.length === 0 || remainder[0] === '-') {
-            // OK: end of string or hyphen
-          } else if (/^(ane|ene|yne|an[eo])/.test(remainder)) {
-            // OK: alkane suffix
-          } else {
-            // Units are terminal - must be followed by suffix, not another stem
-            continue;
-          }
-          
-          return {
-            type: 'PARENT',
-            value: nm,
-            position: pos,
-            length: nm.length,
-            metadata: {
-              numPart: 'units',
-              number: parseInt(num),
-            },
-          };
-        }
-      }
-    }
+     for (const [num, names] of Object.entries(this.rules.alkaneStemComponents.units)) {
+       const nameList = names.split('|');
+       for (const nm of nameList) {
+         if (str.startsWith(nm)) {
+           // Validate that stem component is followed by valid continuation
+           const nextPos = nm.length;
+           const remainder = str.substring(nextPos);
+           
+           // Must be followed by: alkane suffix (ane/ene/yne/an), end/hyphen, or another stem
+           if (remainder.length === 0 || remainder[0] === '-') {
+             // OK: end of string or hyphen
+           } else if (/^(ane|ene|yne|an[eo])/.test(remainder)) {
+             // OK: alkane suffix
+           } else {
+             // Check if followed by another stem component (tens or hundreds)
+             let isValidStem = false;
+             for (const stemNames of [...Object.values(this.rules.alkaneStemComponents.tens), ...Object.values(this.rules.alkaneStemComponents.hundreds)]) {
+               const stemList = stemNames.split('|');
+               for (const s of stemList) {
+                 if (remainder.startsWith(s)) {
+                   isValidStem = true;
+                   break;
+                 }
+               }
+               if (isValidStem) break;
+             }
+             if (!isValidStem) {
+               // Not a valid stem continuation - skip this match
+               continue;
+             }
+           }
+           
+           return {
+             type: 'PARENT',
+             value: nm,
+             position: pos,
+             length: nm.length,
+             metadata: {
+               numPart: 'units',
+               number: parseInt(num),
+             },
+           };
+         }
+       }
+     }
 
     return null;
   }

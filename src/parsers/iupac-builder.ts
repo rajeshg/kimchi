@@ -131,17 +131,98 @@ export class IUPACBuilder {
           }
         }
       }
-    }
+     }
 
-    if (parentTokens.length === 0) {
-      throw new Error('No parent chain found in tokens');
-    }
+     // Handle multi-component alkane stems (e.g., "do" + "dec" + "ane" for dodecane)
+     // Check for adjacent PARENT tokens where at least one has numPart metadata
+     if (parentTokens.length > 1) {
+       let combinedTokens = [];
+       let i = 0;
+       
+       while (i < parentTokens.length) {
+         const current = parentTokens[i]!;
+         const next = parentTokens[i + 1];
+         
+         // Check if current is an alkane stem component (has numPart) or if next is
+         const currentIsComponent = current.metadata?.numPart !== undefined;
+         const nextIsComponent = next && (next.metadata?.numPart !== undefined);
+         
+         if (currentIsComponent || (nextIsComponent && i === 0)) {
+           // Collect consecutive alkane components
+           const components = [current];
+           let j = i + 1;
+           
+           // Also include next token if it's adjacent and forms a valid alkane chain
+           while (j < parentTokens.length) {
+             const token = parentTokens[j]!;
+             const isAdjacent = (token.position === components[components.length - 1]!.position + components[components.length - 1]!.length);
+             
+             if (isAdjacent && (token.metadata?.numPart !== undefined || token.metadata?.smiles !== undefined)) {
+               components.push(token);
+               j++;
+             } else {
+               break;
+             }
+           }
+           
+           // If we found multiple components, combine them
+           if (components.length > 1) {
+             let totalCarbons = 0;
+             
+             for (const comp of components) {
+               const num = comp.metadata?.number as number | undefined;
+               const smiles = comp.metadata?.smiles as string | undefined;
+               
+               if (num !== undefined) {
+                 totalCarbons += num;
+               } else if (smiles && /^C+$/.test(smiles)) {
+                 // Count carbons from SMILES
+                 totalCarbons += smiles.length;
+               }
+             }
+             
+             if (totalCarbons > 0) {
+               // Create synthetic parent
+               const syntheticParent: IUPACToken = {
+                 type: 'PARENT',
+                 value: components.map(c => c.value).join(''),
+                 position: components[0]!.position,
+                 length: components[components.length - 1]!.position + 
+                         components[components.length - 1]!.length - 
+                         components[0]!.position,
+                 metadata: {
+                   smiles: 'C'.repeat(totalCarbons),
+                   atomCount: totalCarbons,
+                   isRing: false,
+                 },
+               };
+               
+               combinedTokens.push(syntheticParent);
+               i = j;
+               continue;
+             }
+           }
+         }
+         
+         combinedTokens.push(current);
+         i++;
+       }
+       
+       // Replace parentTokens with combined version if we made changes
+       if (combinedTokens.length < parentTokens.length) {
+         parentTokens.splice(0, parentTokens.length, ...combinedTokens);
+       }
+     }
 
-    // Get parent chain SMILES
-    const parentSmiles = (parentTokens[0]?.metadata?.smiles as string) || '';
-    if (!parentSmiles) {
-      throw new Error('Parent chain has no SMILES data');
-    }
+     if (parentTokens.length === 0) {
+       throw new Error('No parent chain found in tokens');
+     }
+
+     // Get parent chain SMILES
+     const parentSmiles = (parentTokens[0]?.metadata?.smiles as string) || '';
+     if (!parentSmiles) {
+       throw new Error('Parent chain has no SMILES data');
+     }
 
     // Start with parent chain
     let smiles = parentSmiles;
