@@ -367,8 +367,13 @@ export class IUPACGraphBuilder {
           builder.addTertButyl(atomIdx);
         } else if (substValue === 'methoxy') {
           builder.addMethoxy(atomIdx);
+        } else if (substValue === 'ethoxy') {
+          builder.addEthoxy(atomIdx);
         } else if (substValue === 'hydroxy' || substValue === 'hydroxyl') {
           builder.addHydroxyl(atomIdx);
+        } else if (substValue === 'oxo') {
+          // Oxo = carbonyl =O on this carbon
+          builder.addCarbonyl(atomIdx);
         } else if (substValue === 'phenyl') {
           // Add benzene ring as substituent
           const benzeneAtoms = builder.createBenzeneRing();
@@ -523,11 +528,13 @@ export class IUPACGraphBuilder {
       console.log('[n-amide] Nitrogen index:', nitrogenIdx);
     }
 
-    // Find N-substituents (substituents that come after the N- prefix)
+    // Separate N-substituents (after N-prefix) from carbon substituents (before N-prefix)
     const nSubstituents = substituentTokens.filter(s => s.position > nPrefixToken.position);
+    const carbonSubstituents = substituentTokens.filter(s => s.position < nPrefixToken.position);
     
     if (process.env.VERBOSE) {
       console.log('[n-amide] N-substituents:', nSubstituents.map(s => s.value));
+      console.log('[n-amide] Carbon substituents:', carbonSubstituents.map(s => s.value));
     }
 
     // Add N-substituents to the nitrogen
@@ -565,6 +572,13 @@ export class IUPACGraphBuilder {
           }
         }
       }
+    }
+
+    // Add carbon substituents to the main chain
+    if (carbonSubstituents.length > 0) {
+      const carbonLocants = locantTokens.filter(l => l.position < nPrefixToken.position);
+      const carbonMultipliers = multiplierTokens.filter(m => m.position < nPrefixToken.position);
+      this.applySubstituents(builder, mainChainAtoms, carbonSubstituents, carbonLocants, carbonMultipliers, false);
     }
 
     return builder.build();

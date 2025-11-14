@@ -341,6 +341,18 @@ export class MoleculeGraphBuilder {
   }
 
   /**
+   * Add an ethoxy substituent (-OCH2CH3) to a specific atom
+   */
+  addEthoxy(atomIdx: number): void {
+    const oxygenIdx = this.addAtom('O');
+    const ch2Idx = this.addCarbon();
+    const ch3Idx = this.addCarbon();
+    this.addBond(atomIdx, oxygenIdx);
+    this.addBond(oxygenIdx, ch2Idx);
+    this.addBond(ch2Idx, ch3Idx);
+  }
+
+  /**
    * Add a substituent chain to a specific atom
    * @param atomIdx Target atom to attach to
    * @param chainLength Number of carbons in substituent
