@@ -597,11 +597,25 @@ export class IUPACBuilder {
    * Add amine group (-NH2) to specific position
    */
   private addAmineGroup(smiles: string, locantTokens: IUPACToken[]): string {
-    const _locant = this.getFirstLocant(locantTokens) ?? this.getChainLength(smiles);
+    const locant = this.getFirstLocant(locantTokens) ?? 1; // Default to position 1
 
+    // Handle simple alkane chains
     if (smiles.match(/^C+$/)) {
       return smiles.substring(0, smiles.length - 1) + 'CN';
     }
+    
+    // Handle aromatic rings
+    if ((smiles.includes('c') || smiles.includes('n') || smiles.includes('o') || smiles.includes('s')) && smiles.includes('1')) {
+      // Treat -NH2 as a substituent 'N' at the specified position
+      const isCyclic = /C.*\d/.test(smiles); // Non-aromatic rings
+      const isAromatic = /[cnos].*\d/.test(smiles); // Aromatic rings
+      if (isAromatic) {
+        return this.addSubstituentToAromaticRing(smiles, 'N', locant);
+      } else if (isCyclic) {
+        return this.addSubstituentToCycle(smiles, 'N', locant);
+      }
+    }
+    
     return smiles;
   }
 

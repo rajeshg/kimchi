@@ -4963,8 +4963,7 @@
     },
     "N1CCOCCC1": {
       "aliases": [
-        "homomorpholin",
-        "morpholine"
+        "homomorpholin"
       ],
       "labels": "4,para/3,meta/2,ortho/1/7/6/5"
     },
@@ -4995,8 +4994,7 @@
     },
     "N1CCCCCC1": {
       "aliases": [
-        "homopiperidin",
-        "piperidine"
+        "homopiperidin"
       ],
       "labels": "1/2/3/4/5/6/7"
     },
@@ -7851,6 +7849,13 @@
         "benzothiophen"
       ],
       "labels": "1/2/3/3a/7a/4/5/6/7"
+    },
+    "C1COCCN1": {
+      "aliases": [
+        "morpholine",
+        "morpholin"
+      ],
+      "labels": "1/2/3/4/5/6"
     }
   },
   "functionalGroupPriorities": {
