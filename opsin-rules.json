@@ -875,6 +875,60 @@
       ],
       "type": "connector"
     },
+    "oxa": {
+      "aliases": [
+        "oxa"
+      ],
+      "type": "heteroatom"
+    },
+    "aza": {
+      "aliases": [
+        "aza"
+      ],
+      "type": "heteroatom"
+    },
+    "thia": {
+      "aliases": [
+        "thia"
+      ],
+      "type": "heteroatom"
+    },
+    "phospha": {
+      "aliases": [
+        "phospha"
+      ],
+      "type": "heteroatom"
+    },
+    "arsa": {
+      "aliases": [
+        "arsa"
+      ],
+      "type": "heteroatom"
+    },
+    "stiba": {
+      "aliases": [
+        "stiba"
+      ],
+      "type": "heteroatom"
+    },
+    "bismuta": {
+      "aliases": [
+        "bismuta"
+      ],
+      "type": "heteroatom"
+    },
+    "selena": {
+      "aliases": [
+        "selena"
+      ],
+      "type": "heteroatom"
+    },
+    "tellura": {
+      "aliases": [
+        "tellura"
+      ],
+      "type": "heteroatom"
+    },
     "oxy": {
       "aliases": [
         "oxy"
