@@ -80,19 +80,19 @@ Your tautomer generation is **already extensively implemented** but **NOT export
 
 ```typescript
 // test/unit/tautomer/tautomer-enumeration.test.ts
-import { enumerateTautomers, canonicalTautomer } from 'index';
-import { parseSMILES } from 'index';
+import { enumerateTautomers, canonicalTautomer } from "index";
+import { parseSMILES } from "index";
 
-describe('Tautomer Enumeration', () => {
-  it('should generate keto-enol tautomers', () => {
-    const mol = parseSMILES('CC(=O)C').molecules[0]; // acetone
+describe("Tautomer Enumeration", () => {
+  it("should generate keto-enol tautomers", () => {
+    const mol = parseSMILES("CC(=O)C").molecules[0]; // acetone
     const tautomers = enumerateTautomers(mol);
     expect(tautomers.length).toBeGreaterThan(1);
     // Check for enol form: CC(O)=C
   });
 
-  it('should return canonical tautomer', () => {
-    const mol = parseSMILES('c1c[nH]cc1').molecules[0]; // pyrrole
+  it("should return canonical tautomer", () => {
+    const mol = parseSMILES("c1c[nH]cc1").molecules[0]; // pyrrole
     const canonical = canonicalTautomer(mol);
     expect(canonical).toBeDefined();
   });
@@ -125,13 +125,13 @@ const mol = parseSMILES('CC(=O)CC(=O)C').molecules[0]; // acetylacetone
 
 // Get all tautomers
 const tautomers = enumerateTautomers(mol, {
-  maxTautomers: 100,
-  maxTransforms: 1000
+maxTautomers: 100,
+maxTransforms: 1000
 });
 
 console.log(`Found ${tautomers.length} tautomers`);
 tautomers.forEach(t => {
-  console.log(`${t.smiles} (score: ${t.score})`);
+console.log(`${t.smiles} (score: ${t.score})`);
 });
 
 // Get canonical (highest-scoring) tautomer
@@ -165,19 +165,19 @@ console.log(`Canonical form: ${generateSMILES(canonical)}`);
 ```typescript
 // Immutable API (returns new molecule)
 const edited = editMolecule(mol)
-  .addAtom({ symbol: 'O', x: 1.5, y: 0 })
-  .addBond({ atom1: 0, atom2: 6, type: 'single' })
+  .addAtom({ symbol: "O", x: 1.5, y: 0 })
+  .addBond({ atom1: 0, atom2: 6, type: "single" })
   .removeAtom(5)
   .removeBond(3)
-  .setAtomProperty(2, 'charge', 1)
-  .setBondType(1, 'double')
+  .setAtomProperty(2, "charge", 1)
+  .setBondType(1, "double")
   .build();
 
 // Builder pattern
 const mol = new MoleculeBuilder()
-  .addAtom('C', { x: 0, y: 0 })
-  .addAtom('C', { x: 1.5, y: 0 })
-  .addBond(0, 1, 'single')
+  .addAtom("C", { x: 0, y: 0 })
+  .addAtom("C", { x: 1.5, y: 0 })
+  .addBond(0, 1, "single")
   .toMolecule();
 
 // Advanced operations
@@ -249,7 +249,7 @@ Every serious cheminformatics library needs this. RDKit's `RWMol` (read-write mo
 #### Features
 
 ```typescript
-import { getMurckoScaffold, getScaffoldTree, getBemisMurckoFramework } from 'openchem';
+import { getMurckoScaffold, getScaffoldTree, getBemisMurckoFramework } from "openchem";
 
 // Ibuprofen: CC(C)Cc1ccc(cc1)C(C)C(=O)O
 const scaffold = getMurckoScaffold(ibuprofen);
@@ -310,18 +310,18 @@ const tree = getScaffoldTree(ibuprofen);
 #### Features
 
 ```typescript
-import { applyReactionSMARTS, enumerateReactions } from 'openchem';
+import { applyReactionSMARTS, enumerateReactions } from "openchem";
 
 // Apply single reaction
 const products = applyReactionSMARTS(
   [acid, alcohol],
-  '[C:1](=O)[OH].[OH:2][C:3]>>[C:1](=O)[O:2][C:3]'
+  "[C:1](=O)[OH].[OH:2][C:3]>>[C:1](=O)[O:2][C:3]",
 );
 
 // Enumerate library
 const library = enumerateReactions(
   { acids: [acetic, propionic], alcohols: [methanol, ethanol] },
-  reactionTemplates.esterification
+  reactionTemplates.esterification,
 );
 
 // Common reactions
@@ -403,15 +403,15 @@ interface ReactionTemplate {
 #### Features
 
 ```typescript
-import { findMCS, alignToMCS, getRGroupDecomposition } from 'openchem';
+import { findMCS, alignToMCS, getRGroupDecomposition } from "openchem";
 
 // Find largest common substructure
 const compounds = [ibuprofen, naproxen, ketoprofen];
 const mcs = findMCS(compounds, {
-  atomCompare: 'elements',  // or 'any'
-  bondCompare: 'order',     // or 'any'
+  atomCompare: "elements", // or 'any'
+  bondCompare: "order", // or 'any'
   ringMatchesRingOnly: true,
-  timeout: 5000
+  timeout: 5000,
 });
 
 console.log(`MCS: ${mcs.smarts}`);
@@ -490,31 +490,26 @@ Result:
 #### Features
 
 ```typescript
-import {
-  generate3DCoordinates,
-  optimizeGeometry,
-  generateConformers,
-  computeRMSD
-} from 'openchem';
+import { generate3DCoordinates, optimizeGeometry, generateConformers, computeRMSD } from "openchem";
 
 // Generate 3D coordinates
 const mol3D = generate3DCoordinates(mol, {
-  algorithm: 'ETKDG',  // or 'distance-geometry'
-  randomSeed: 42
+  algorithm: "ETKDG", // or 'distance-geometry'
+  randomSeed: 42,
 });
 
 // Optimize with force field
 const optimized = optimizeGeometry(mol3D, {
-  forceField: 'MMFF94',  // or 'UFF'
+  forceField: "MMFF94", // or 'UFF'
   maxIterations: 200,
-  convergence: 0.001
+  convergence: 0.001,
 });
 
 // Generate multiple conformers
 const conformers = generateConformers(mol, {
   numConformers: 10,
   pruneRMSDThreshold: 0.5,
-  useRandomCoordinates: true
+  useRandomCoordinates: true,
 });
 
 // Compare 3D structures
@@ -575,13 +570,13 @@ const rmsd = computeRMSD(mol1, mol2, { align: true });
 #### Features
 
 ```typescript
-import { computePharmacoprint, matchPharmacophore } from 'openchem';
+import { computePharmacoprint, matchPharmacophore } from "openchem";
 
 // Pharmacophore fingerprint
 const fp = computePharmacoprint(mol, {
-  features: ['hbd', 'hba', 'aromatic', 'positive', 'negative', 'hydrophobic'],
+  features: ["hbd", "hba", "aromatic", "positive", "negative", "hydrophobic"],
   radius: 2,
-  bins: 10
+  bins: 10,
 });
 
 // 2D pharmacophore (atom type + topological distance)
@@ -589,7 +584,7 @@ const pharm2D = compute2DPharmacophore(mol);
 
 // 3D pharmacophore (atom type + 3D distance)
 const pharm3D = compute3DPharmacophore(mol3D, {
-  tolerance: 0.5  // Angstroms
+  tolerance: 0.5, // Angstroms
 });
 
 // Match pharmacophore query
@@ -623,28 +618,28 @@ const hits = matchPharmacophore(database, pharmacophoreQuery);
 #### Features
 
 ```typescript
-import { highlightSubstructure, highlightAtoms, renderSVG } from 'openchem';
+import { highlightSubstructure, highlightAtoms, renderSVG } from "openchem";
 
 // Highlight SMARTS match
-const svg = highlightSubstructure(mol, 'c1ccccc1', {
-  color: '#FF0000',
-  opacity: 0.3
+const svg = highlightSubstructure(mol, "c1ccccc1", {
+  color: "#FF0000",
+  opacity: 0.3,
 });
 
 // Highlight specific atoms
 const highlighted = highlightAtoms(mol, [0, 1, 2, 5], {
-  atomColor: '#00FF00',
-  bondColor: '#00FF00',
-  lineWidth: 3
+  atomColor: "#00FF00",
+  bondColor: "#00FF00",
+  lineWidth: 3,
 });
 
 // Multiple highlights
 const multiColor = renderSVG(mol, {
   highlights: [
-    { smarts: '[OH]', color: 'red', label: 'H-bond donor' },
-    { smarts: '[#7]', color: 'blue', label: 'Nitrogen' },
-    { atoms: [5, 6], color: 'green', label: 'Active site' }
-  ]
+    { smarts: "[OH]", color: "red", label: "H-bond donor" },
+    { smarts: "[#7]", color: "blue", label: "Nitrogen" },
+    { atoms: [5, 6], color: "green", label: "Active site" },
+  ],
 });
 
 // PAINS highlighting

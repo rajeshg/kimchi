@@ -64,7 +64,7 @@ Comprehensive test suite added to prevent regressions in the SVG substructure hi
 const celecoxib = "CC1=CC=C(C=C1)C2=CC(=NN2C3=CC=C(C=C3)S(=O)(=O)N)C(F)(F)F";
 const highlights = [
   { smarts: "S(=O)(=O)N", color: "yellow" },
-  { smarts: "C(F)(F)F", color: "blue" }
+  { smarts: "C(F)(F)F", color: "blue" },
 ];
 // Tests: SMARTS matching + SVG rendering with 2 highlights
 ```
@@ -73,9 +73,9 @@ const highlights = [
 
 ```typescript
 const molecules = [
-  "CC(=O)Oc1ccccc1C(=O)O",  // Aspirin
-  "CC(C)Cc1ccc(cc1)C(C)C(=O)O",  // Ibuprofen
-  "CC(C1=CC2=C(C=C1)C=C(C=C2)OC)C(=O)O"  // Naproxen
+  "CC(=O)Oc1ccccc1C(=O)O", // Aspirin
+  "CC(C)Cc1ccc(cc1)C(C)C(=O)O", // Ibuprofen
+  "CC(C1=CC2=C(C=C1)C=C(C=C2)OC)C(=O)O", // Naproxen
 ];
 const highlight = { smarts: "C(=O)O", color: "red" };
 // Tests: Pattern matching across different molecules
@@ -86,11 +86,11 @@ const highlight = { smarts: "C(=O)O", color: "red" };
 ```typescript
 // Malformed SMARTS - should not crash
 const highlight = { smarts: "invalid((((pattern", color: "red" };
-renderSVG(mol, { highlights: [highlight] });  // ✅ Renders without highlight
+renderSVG(mol, { highlights: [highlight] }); // ✅ Renders without highlight
 
 // Non-matching SMARTS - graceful degradation
-const highlight = { smarts: "N(=O)(=O)", color: "red" };  // Not in benzene
-renderSVG(benzene, { highlights: [highlight] });  // ✅ Renders normally
+const highlight = { smarts: "N(=O)(=O)", color: "red" }; // Not in benzene
+renderSVG(benzene, { highlights: [highlight] }); // ✅ Renders normally
 ```
 
 ## Test Execution
@@ -119,8 +119,8 @@ bun test
 function matchSMARTS(
   pattern: string | SMARTSPattern,
   molecule: Molecule,
-  options?: SMARTSMatchOptions
-): MatchResult
+  options?: SMARTSMatchOptions,
+): MatchResult;
 ```
 
 ### renderSVG Highlights Parameter
@@ -138,14 +138,14 @@ interface RenderOptions {
 
 ```typescript
 interface SubstructureHighlight {
-  smarts?: string;           // SMARTS pattern to match
-  atoms?: number[];          // Explicit atom indices
+  smarts?: string; // SMARTS pattern to match
+  atoms?: number[]; // Explicit atom indices
   bonds?: [number, number][]; // Explicit bond pairs
-  color?: string;            // Highlight color (hex or CSS name)
-  atomColor?: string;        // Override atom highlight color
-  bondColor?: string;        // Override bond highlight color
-  opacity?: number;          // 0-1, default 0.3 for atoms, 0.8 for bonds
-  label?: string;            // Optional label (not yet implemented)
+  color?: string; // Highlight color (hex or CSS name)
+  atomColor?: string; // Override atom highlight color
+  bondColor?: string; // Override bond highlight color
+  opacity?: number; // 0-1, default 0.3 for atoms, 0.8 for bonds
+  label?: string; // Optional label (not yet implemented)
 }
 ```
 

@@ -84,16 +84,16 @@ The `IUPACContext` interface is the **central state object** that flows through 
 
 ```typescript
 interface IUPACContext {
-  molecule: Molecule;                  // Original molecule
-  rings: Ring[];                       // SSSR rings
-  aromaticRings: number[];             // Indices of aromatic rings
+  molecule: Molecule; // Original molecule
+  rings: Ring[]; // SSSR rings
+  aromaticRings: number[]; // Indices of aromatic rings
   fusedRingSystems: FusedRingSystem[]; // Detected fusion systems
 
-  mainChain?: number[];                // Selected main chain atom IDs
-  numbering?: Map<number, number>;     // Atom ID → locant number
+  mainChain?: number[]; // Selected main chain atom IDs
+  numbering?: Map<number, number>; // Atom ID → locant number
 
   functionalGroups: FunctionalGroup[]; // Detected groups (alcohols, ketones, etc.)
-  principalGroup?: FunctionalGroup;    // Highest priority group
+  principalGroup?: FunctionalGroup; // Highest priority group
 
   substituentTree?: SubstituentNode[]; // Tree of substituents
 
@@ -235,7 +235,7 @@ The numbering engine assigns **locant numbers** to atoms in the main chain using
 
 ```typescript
 export function assignNumbering(context: IUPACContext): IUPACContext {
-  if (!context.mainChain) throw new Error('Main chain not selected');
+  if (!context.mainChain) throw new Error("Main chain not selected");
 
   const chain = context.mainChain;
 
@@ -247,7 +247,7 @@ export function assignNumbering(context: IUPACContext): IUPACContext {
   const better = compareLocantSets(forward, reverse, context);
 
   const numbering = new Map<number, number>();
-  const chosen = better === 'forward' ? forward : reverse;
+  const chosen = better === "forward" ? forward : reverse;
 
   for (let i = 0; i < chosen.length; i++) {
     numbering.set(chosen[i], i + 1); // Locants start at 1
@@ -256,18 +256,14 @@ export function assignNumbering(context: IUPACContext): IUPACContext {
   return { ...context, numbering };
 }
 
-function compareLocantSets(
-  a: number[],
-  b: number[],
-  ctx: IUPACContext
-): 'forward' | 'reverse' {
+function compareLocantSets(a: number[], b: number[], ctx: IUPACContext): "forward" | "reverse" {
   // Get locant sets for important features
   const heteroA = getHeteroatomLocants(a, ctx);
   const heteroB = getHeteroatomLocants(b, ctx);
 
   // Compare lexicographically
   const cmp = lexicographicCompare(heteroA, heteroB);
-  if (cmp !== 0) return cmp < 0 ? 'forward' : 'reverse';
+  if (cmp !== 0) return cmp < 0 ? "forward" : "reverse";
 
   // Continue with multiple bonds, substituents, etc.
   // ...
@@ -309,7 +305,7 @@ function addFunctionalGroups(context: IUPACContext) {
 function addFunctionalGroups(context: IUPACContext): IUPACContext {
   return {
     ...context,
-    functionalGroups: [...context.functionalGroups, newGroup]
+    functionalGroups: [...context.functionalGroups, newGroup],
   };
 }
 ```
@@ -361,13 +357,11 @@ function getAromaticRings(context: IUPACContext): number[] {
 **Location:** `src/iupac-engine/rules/initial-structure-layer/P-2.1-heteroatom-parents.ts`
 
 ```typescript
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
-const opsinDataPath = join(__dirname, '../../../../opsin-iupac-data');
-const LOOKUP = JSON.parse(
-  readFileSync(join(opsinDataPath, 'LOOKUP.json'), 'utf-8')
-);
+const opsinDataPath = join(__dirname, "../../../../opsin-iupac-data");
+const LOOKUP = JSON.parse(readFileSync(join(opsinDataPath, "LOOKUP.json"), "utf-8"));
 
 // Access names
 const alkaneName = LOOKUP.alkanes.methane; // "methane"
@@ -412,9 +406,9 @@ test/unit/iupac-engine/
 Test individual rules and functions in isolation:
 
 ```typescript
-describe('P-44.1: Main chain selection', () => {
-  it('selects longest chain in branched alkane', () => {
-    const smiles = 'CC(C)CCC'; // 2-methylpentane
+describe("P-44.1: Main chain selection", () => {
+  it("selects longest chain in branched alkane", () => {
+    const smiles = "CC(C)CCC"; // 2-methylpentane
     const mol = parseSMILES(smiles).molecules[0];
     const context = buildIUPACContext(mol);
     const result = selectMainChain(context);
@@ -429,12 +423,12 @@ describe('P-44.1: Main chain selection', () => {
 Test full name generation pipeline:
 
 ```typescript
-describe('IUPAC name generation', () => {
-  it('generates correct name for complex molecule', () => {
-    const smiles = 'CC(=O)Oc1ccccc1C(=O)O'; // Aspirin
+describe("IUPAC name generation", () => {
+  it("generates correct name for complex molecule", () => {
+    const smiles = "CC(=O)Oc1ccccc1C(=O)O"; // Aspirin
     const name = generateIUPACName(smiles);
 
-    expect(name).toBe('2-acetoxybenzoic acid');
+    expect(name).toBe("2-acetoxybenzoic acid");
   });
 });
 ```
@@ -444,9 +438,9 @@ describe('IUPAC name generation', () => {
 Compare against RDKit and OPSIN:
 
 ```typescript
-describe('RDKit comparison', () => {
-  it('matches RDKit name for caffeine', () => {
-    const smiles = 'CN1C=NC2=C1C(=O)N(C(=O)N2C)C';
+describe("RDKit comparison", () => {
+  it("matches RDKit name for caffeine", () => {
+    const smiles = "CN1C=NC2=C1C(=O)N(C(=O)N2C)C";
     const ourName = generateIUPACName(smiles);
     const rdkitName = getRDKitName(smiles);
 
@@ -487,10 +481,10 @@ bun test test/unit/iupac-engine/realistic-iupac-test.test.ts
 1. **Write failing test first**:
 
    ```typescript
-   it('should name 3-ethyl-2-methylhexane', () => {
-     const smiles = 'CCC(C)C(CC)CCC';
+   it("should name 3-ethyl-2-methylhexane", () => {
+     const smiles = "CCC(C)C(CC)CCC";
      const name = generateIUPACName(smiles);
-     expect(name).toBe('3-ethyl-2-methylhexane'); // FAILS initially
+     expect(name).toBe("3-ethyl-2-methylhexane"); // FAILS initially
    });
    ```
 
@@ -528,23 +522,23 @@ bun test test/unit/iupac-engine/realistic-iupac-test.test.ts
 
 ```typescript
 // test/unit/iupac-engine/p31-ez-stereo.test.ts
-describe('P-31.2: E/Z stereochemistry', () => {
-  it('assigns (E) to trans-but-2-ene', () => {
-    const smiles = 'C/C=C/C'; // Trans
+describe("P-31.2: E/Z stereochemistry", () => {
+  it("assigns (E) to trans-but-2-ene", () => {
+    const smiles = "C/C=C/C"; // Trans
     const name = generateIUPACName(smiles);
-    expect(name).toBe('(E)-but-2-ene');
+    expect(name).toBe("(E)-but-2-ene");
   });
 
-  it('assigns (Z) to cis-but-2-ene', () => {
-    const smiles = 'C/C=C\\C'; // Cis
+  it("assigns (Z) to cis-but-2-ene", () => {
+    const smiles = "C/C=C\\C"; // Cis
     const name = generateIUPACName(smiles);
-    expect(name).toBe('(Z)-but-2-ene');
+    expect(name).toBe("(Z)-but-2-ene");
   });
 
-  it('handles multiple stereocenters', () => {
-    const smiles = 'C/C=C/C=C\\C'; // (2E,4Z)-hexa-2,4-diene
+  it("handles multiple stereocenters", () => {
+    const smiles = "C/C=C/C=C\\C"; // (2E,4Z)-hexa-2,4-diene
     const name = generateIUPACName(smiles);
-    expect(name).toBe('(2E,4Z)-hexa-2,4-diene');
+    expect(name).toBe("(2E,4Z)-hexa-2,4-diene");
   });
 });
 ```
@@ -567,22 +561,19 @@ export function assignEZDescriptors(context: IUPACContext): IUPACContext {
 
   return {
     ...context,
-    ezDescriptors: ezAssignments
+    ezDescriptors: ezAssignments,
   };
 }
 
-function determineEZConfiguration(
-  bond: Bond,
-  context: IUPACContext
-): 'E' | 'Z' | null {
+function determineEZConfiguration(bond: Bond, context: IUPACContext): "E" | "Z" | null {
   // Implement Cahn-Ingold-Prelog priority rules
   const [highPriority1, lowPriority1] = getPriorities(bond.atom1, context);
   const [highPriority2, lowPriority2] = getPriorities(bond.atom2, context);
 
   if (areOnSameSide(highPriority1, highPriority2, bond)) {
-    return 'Z'; // Zusammen (together)
+    return "Z"; // Zusammen (together)
   } else {
-    return 'E'; // Entgegen (opposite)
+    return "E"; // Entgegen (opposite)
   }
 }
 ```
@@ -592,13 +583,11 @@ function determineEZConfiguration(
 ```typescript
 // src/iupac-engine/naming/iupac-name-assembler.ts
 function assembleFullName(context: IUPACContext): string {
-  let name = '';
+  let name = "";
 
   // Add E/Z descriptors
   if (context.ezDescriptors && context.ezDescriptors.length > 0) {
-    const descriptors = context.ezDescriptors
-      .map(d => `${d.locant}${d.descriptor}`)
-      .join(',');
+    const descriptors = context.ezDescriptors.map((d) => `${d.locant}${d.descriptor}`).join(",");
     name += `(${descriptors})-`;
   }
 
@@ -730,12 +719,7 @@ interface IUPACContext {
   molecule: Molecule;
   _rings?: Ring[]; // Cached lazily
 
-  get rings(): Ring[] {
-    if (!this._rings) {
-      this._rings = findSSSR(this.molecule.atoms, this.molecule.bonds);
-    }
-    return this._rings;
-  }
+  get rings(): Ring[];
 }
 ```
 

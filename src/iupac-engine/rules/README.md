@@ -293,12 +293,12 @@ Each modularized layer follows this pattern:
 
 ```typescript
 // P-44.3.1-maximum-length.ts
-import type { IUPACRule } from '../../types';
+import type { IUPACRule } from "../../types";
 
 export const maximumLengthRule: IUPACRule = {
-  id: 'P-44.3.1-maximum-length',
-  name: 'Maximum Chain Length',
-  description: 'Select chain with maximum number of skeletal atoms',
+  id: "P-44.3.1-maximum-length",
+  name: "Maximum Chain Length",
+  description: "Select chain with maximum number of skeletal atoms",
   phase: ExecutionPhase.PARENT_CHAIN_SELECTION,
   priority: 90,
 
@@ -307,7 +307,7 @@ export const maximumLengthRule: IUPACRule = {
     const candidates = context.chainCandidates || [];
     const filtered = candidates.filter(/* logic */);
     return context.withChainCandidates(filtered);
-  }
+  },
 };
 ```
 
@@ -315,8 +315,8 @@ export const maximumLengthRule: IUPACRule = {
 
 ```typescript
 // parent-chain-selection-layer/index.ts
-export { maximumLengthRule } from './P-44.3.1-maximum-length';
-export { multipleBondsRule } from './P-44.3.2-multiple-bonds';
+export { maximumLengthRule } from "./P-44.3.1-maximum-length";
+export { multipleBondsRule } from "./P-44.3.2-multiple-bonds";
 // ... 6 more rules
 
 export const PARENT_CHAIN_SELECTION_RULES = [
@@ -327,7 +327,7 @@ export const PARENT_CHAIN_SELECTION_RULES = [
   doubleBondLocantsRule,
   substituentsRule,
   substituentLocantsRule,
-  alphabeticalLocantRule
+  alphabeticalLocantRule,
 ];
 ```
 
@@ -401,13 +401,13 @@ export function compareChains(a: ChainCandidate, b: ChainCandidate): number {
 4. **Implement the rule** following the `IUPACRule` interface:
 
 ```typescript
-import type { IUPACRule } from '../../types';
-import { ExecutionPhase } from '../../immutable-context';
+import type { IUPACRule } from "../../types";
+import { ExecutionPhase } from "../../immutable-context";
 
 export const myNewRule: IUPACRule = {
-  id: 'P-XX.Y-my-rule',
-  name: 'Descriptive Rule Name',
-  description: 'What this rule does according to Blue Book P-XX.Y',
+  id: "P-XX.Y-my-rule",
+  name: "Descriptive Rule Name",
+  description: "What this rule does according to Blue Book P-XX.Y",
   phase: ExecutionPhase.APPROPRIATE_PHASE,
   priority: 50, // 0-100, higher = earlier execution
 
@@ -422,7 +422,7 @@ export const myNewRule: IUPACRule = {
 
     // 3. Return new context with updates
     return context.withSomeData(result);
-  }
+  },
 };
 ```
 
@@ -430,12 +430,12 @@ export const myNewRule: IUPACRule = {
 
 ```typescript
 // layer/index.ts
-export { myNewRule } from './P-XX.Y-my-rule';
+export { myNewRule } from "./P-XX.Y-my-rule";
 
 export const LAYER_RULES = [
   existingRule1,
   myNewRule, // Add in priority order
-  existingRule2
+  existingRule2,
 ];
 ```
 
@@ -443,11 +443,11 @@ export const LAYER_RULES = [
 
 ```typescript
 // test/unit/iupac-engine/rules/layer/P-XX.Y-my-rule.test.ts
-import { describe, it, expect } from 'bun:test';
-import { myNewRule } from 'src/iupac-engine/rules/layer/P-XX.Y-my-rule';
+import { describe, it, expect } from "bun:test";
+import { myNewRule } from "src/iupac-engine/rules/layer/P-XX.Y-my-rule";
 
-describe('P-XX.Y My Rule', () => {
-  it('should apply rule correctly', () => {
+describe("P-XX.Y My Rule", () => {
+  it("should apply rule correctly", () => {
     const context = createTestContext();
     const result = myNewRule.apply(context);
     expect(result.someData).toEqual(expectedValue);
@@ -473,9 +473,9 @@ describe('P-XX.Y My Rule', () => {
 Test individual rules in isolation:
 
 ```typescript
-describe('P-44.3.1 Maximum Length Rule', () => {
-  it('should select longest chain', () => {
-    const mol = parseSMILES('CCCCCC(CC)CC').molecules[0];
+describe("P-44.3.1 Maximum Length Rule", () => {
+  it("should select longest chain", () => {
+    const mol = parseSMILES("CCCCCC(CC)CC").molecules[0];
     const context = ImmutableNamingContext.create(mol);
     const result = maximumLengthRule.apply(context);
     expect(result.chainCandidates?.[0].length).toBe(8);
@@ -488,9 +488,9 @@ describe('P-44.3.1 Maximum Length Rule', () => {
 Test layer execution with multiple rules:
 
 ```typescript
-describe('Parent Chain Selection Layer', () => {
-  it('should apply all criteria in order', () => {
-    const mol = parseSMILES('CC(C)CCC(C)C').molecules[0];
+describe("Parent Chain Selection Layer", () => {
+  it("should apply all criteria in order", () => {
+    const mol = parseSMILES("CC(C)CCC(C)C").molecules[0];
     const result = selectParentChain(mol);
     expect(result.parentChain.atoms).toHaveLength(7);
   });
@@ -502,8 +502,8 @@ describe('Parent Chain Selection Layer', () => {
 Use PubChem dataset for validation:
 
 ```typescript
-describe('IUPAC Name Generation - PubChem 300', () => {
-  it('should match expected names for diverse molecules', () => {
+describe("IUPAC Name Generation - PubChem 300", () => {
+  it("should match expected names for diverse molecules", () => {
     const dataset = loadPubChemDataset();
     dataset.forEach(({ smiles, expectedName }) => {
       const result = generateIUPACName(smiles);

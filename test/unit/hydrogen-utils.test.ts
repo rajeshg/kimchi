@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { parseSMILES } from "index";
+import { parseSMILES, addExplicitHydrogens, removeExplicitHydrogens } from "index";
 import { addExplicitHydrogensWithMapping } from "src/utils/hydrogen-utils";
 import { BondType } from "types";
 
@@ -269,5 +269,65 @@ describe("Hydrogen utils - addExplicitHydrogensWithMapping", () => {
     // [CH4] has C with 4 implicit H
     expect(res.molecule.atoms.length).toBe(5);
     expect(res.originalAtomCount).toBe(1);
+  });
+});
+
+describe("hydrogen utilities - simple versions", () => {
+  it("should add explicit hydrogens", () => {
+    const result = parseSMILES("CCO"); // Implicit H on C and O
+    expect(result.molecules.length).toBeGreaterThan(0);
+    const ethanol = result.molecules[0]!;
+
+    const withHs = addExplicitHydrogens(ethanol);
+
+    expect(withHs.atoms.length).toBeGreaterThan(ethanol.atoms.length);
+    expect(withHs.atoms.some((a) => a.symbol === "H")).toBe(true);
+  });
+
+  it("should remove explicit hydrogens", () => {
+    const result = parseSMILES("[H]C([H])([H])O[H]"); // Explicit H on methanol
+    expect(result.molecules.length).toBeGreaterThan(0);
+    const methanol = result.molecules[0]!;
+
+    const withoutHs = removeExplicitHydrogens(methanol);
+
+    expect(withoutHs.atoms.length).toBeLessThan(methanol.atoms.length);
+    expect(withoutHs.atoms.some((a) => a.symbol === "H")).toBe(false);
+  });
+
+  it("should round-trip add/remove hydrogens", () => {
+    const result = parseSMILES("CCO");
+    expect(result.molecules.length).toBeGreaterThan(0);
+    const original = result.molecules[0]!;
+
+    const withHs = addExplicitHydrogens(original);
+    const withoutHs = removeExplicitHydrogens(withHs);
+
+    // Should be equivalent to original (implicit H counts restored)
+    expect(withoutHs.atoms.length).toBe(original.atoms.length);
+    expect(withoutHs.bonds.length).toBe(original.bonds.length);
+  });
+
+  it("should handle charged molecules", () => {
+    const result = parseSMILES("[NH4+]"); // Ammonium
+    expect(result.molecules.length).toBeGreaterThan(0);
+    const ammonium = result.molecules[0]!;
+
+    const withHs = addExplicitHydrogens(ammonium);
+
+    // Should add 4 H atoms to N
+    expect(withHs.atoms.length).toBe(5); // N + 4H
+  });
+
+  it("should handle molecules with explicit hydrogens", () => {
+    const result = parseSMILES("[CH4]"); // Methane with explicit H
+    expect(result.molecules.length).toBeGreaterThan(0);
+    const methane = result.molecules[0]!;
+
+    const withHs = addExplicitHydrogens(methane);
+
+    // May add more H if parser treats them as implicit
+    expect(withHs.atoms.length).toBeGreaterThanOrEqual(methane.atoms.length);
+    expect(withHs.atoms.some((a) => a.symbol === "H")).toBe(true);
   });
 });

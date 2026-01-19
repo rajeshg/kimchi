@@ -58,10 +58,10 @@ npm install openchem
 ```
 
 ```typescript
-import { parseSMILES, renderSVG, Descriptors } from 'openchem';
+import { parseSMILES, renderSVG, Descriptors } from "openchem";
 
 // Parse a molecule
-const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O').molecules[0];
+const aspirin = parseSMILES("CC(=O)Oc1ccccc1C(=O)O").molecules[0];
 
 // Render as SVG
 const svg = renderSVG(aspirin);
@@ -69,14 +69,14 @@ console.log(svg.svg); // SVG markup ready for display
 
 // Get all molecular properties at once
 const props = Descriptors.all(aspirin);
-console.log(props.formula);        // "C9H8O4"
-console.log(props.mass);           // 180.16
-console.log(props.logP);           // 1.19
-console.log(props.lipinskiPass);   // true - aspirin is drug-like!
+console.log(props.formula); // "C9H8O4"
+console.log(props.mass); // 180.16
+console.log(props.logP); // 1.19
+console.log(props.lipinskiPass); // true - aspirin is drug-like!
 
 // Or get specific categories
 const drugLike = Descriptors.drugLikeness(aspirin);
-console.log(drugLike.lipinski.passes);     // true
+console.log(drugLike.lipinski.passes); // true
 console.log(drugLike.lipinski.violations); // []
 ```
 
@@ -151,10 +151,17 @@ Restart Claude Desktop and try: _"Analyze aspirin using SMILES CC(=O)Oc1ccccc1C(
 ## Code Examples
 
 ```typescript
-import { parseSMILES, generateSMILES, parseMolfile, generateMolfile, parseSDF, writeSDF } from 'openchem';
+import {
+  parseSMILES,
+  generateSMILES,
+  parseMolfile,
+  generateMolfile,
+  parseSDF,
+  writeSDF,
+} from "openchem";
 
 // Parse SMILES into molecule structure
-const result = parseSMILES('CC(=O)O'); // acetic acid
+const result = parseSMILES("CC(=O)O"); // acetic acid
 console.log(result.molecules[0].atoms.length); // 4 atoms
 console.log(result.molecules[0].bonds.length); // 3 bonds
 
@@ -181,8 +188,8 @@ const molResult = parseMolfile(molContent);
 console.log(generateSMILES(molResult.molecule!)); // "CC(=O)O"
 
 // Generate MOL file from SMILES
-const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O');
-const molfile = generateMolfile(aspirin.molecules[0], { title: 'aspirin' });
+const aspirin = parseSMILES("CC(=O)Oc1ccccc1C(=O)O");
+const molfile = generateMolfile(aspirin.molecules[0], { title: "aspirin" });
 console.log(molfile); // Full MOL file with coordinates
 
 // Parse SDF file
@@ -242,10 +249,10 @@ console.log(`Similarity: ${(similarity * 100).toFixed(1)}%`); // ~45.2%
 Extract core molecular scaffolds for drug discovery and compound classification:
 
 ```typescript
-import { parseSMILES, getMurckoScaffold, getBemisMurckoFramework, generateSMILES } from 'openchem';
+import { parseSMILES, getMurckoScaffold, getBemisMurckoFramework, generateSMILES } from "openchem";
 
 // Extract scaffold (rings + linkers, remove side chains)
-const ibuprofen = parseSMILES('CC(C)Cc1ccc(cc1)C(C)C(=O)O').molecules[0];
+const ibuprofen = parseSMILES("CC(C)Cc1ccc(cc1)C(C)C(=O)O").molecules[0];
 const scaffold = getMurckoScaffold(ibuprofen);
 console.log(generateSMILES(scaffold)); // "c1ccc(cc1)" - benzene core
 
@@ -254,8 +261,8 @@ const framework = getBemisMurckoFramework(ibuprofen);
 console.log(generateSMILES(framework)); // "C1CCCCC1" - cyclohexane
 
 // Compare scaffolds of similar drugs
-import { haveSameScaffold } from 'openchem';
-const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O').molecules[0];
+import { haveSameScaffold } from "openchem";
+const aspirin = parseSMILES("CC(=O)Oc1ccccc1C(=O)O").molecules[0];
 console.log(haveSameScaffold(ibuprofen, aspirin)); // true - both have benzene scaffold
 ```
 
@@ -271,10 +278,10 @@ console.log(haveSameScaffold(ibuprofen, aspirin)); // true - both have benzene s
 Enumerate and score tautomers (keto-enol, imine-enamine, amide-imidol, etc.) with RDKit-compatible scoring:
 
 ```typescript
-import { parseSMILES, enumerateTautomers, generateSMILES } from 'openchem';
+import { parseSMILES, enumerateTautomers, generateSMILES } from "openchem";
 
 // Enumerate tautomers for acetylacetone (pentane-2,4-dione)
-const mol = parseSMILES('CC(=O)CC(=O)C').molecules[0];
+const mol = parseSMILES("CC(=O)CC(=O)C").molecules[0];
 const tautomers = enumerateTautomers(mol, { maxTautomers: 16 });
 
 console.log(`Found ${tautomers.length} tautomers:`);
@@ -283,7 +290,7 @@ tautomers.forEach((t, i) => {
 });
 
 // Get canonical tautomer (highest scoring)
-import { canonicalTautomer } from 'openchem';
+import { canonicalTautomer } from "openchem";
 const canonical = canonicalTautomer(mol);
 console.log(`Canonical: ${generateSMILES(canonical)}`);
 ```
@@ -323,10 +330,10 @@ console.log(`Canonical: ${generateSMILES(canonical)}`);
 ### SVG Rendering
 
 ```typescript
-import { parseSMILES, renderSVG } from 'openchem';
+import { parseSMILES, renderSVG } from "openchem";
 
 // Render molecule as SVG
-const caffeine = parseSMILES('CN1C=NC2=C1C(=O)N(C(=O)N2C)C');
+const caffeine = parseSMILES("CN1C=NC2=C1C(=O)N(C(=O)N2C)C");
 const svgResult = renderSVG(caffeine.molecules[0], {
   width: 300,
   height: 200,
@@ -400,21 +407,21 @@ RUN_RDKIT_BULK=1 bun test
 Add `RUN_VERBOSE=1` for more detailed RDKit reporting during the run.
 
 ```typescript
-import { parseSMILES } from 'openchem';
+import { parseSMILES } from "openchem";
 
 // Simple molecule
-const ethanol = parseSMILES('CCO');
+const ethanol = parseSMILES("CCO");
 console.log(ethanol.molecules[0].atoms.length); // 3
 
 // Check for errors
-const result = parseSMILES('invalid');
+const result = parseSMILES("invalid");
 if (result.errors.length > 0) {
-  console.error('Parse errors:', result.errors);
+  console.error("Parse errors:", result.errors);
 }
 
 // Complex molecule with stereochemistry
-const lAlanine = parseSMILES('C[C@H](N)C(=O)O');
-const chiralCenter = lAlanine.molecules[0].atoms.find(a => a.chiral);
+const lAlanine = parseSMILES("C[C@H](N)C(=O)O");
+const chiralCenter = lAlanine.molecules[0].atoms.find((a) => a.chiral);
 console.log(chiralCenter?.chiral); // '@'
 ```
 
@@ -425,14 +432,9 @@ openchem provides comprehensive molecular property calculations for drug discove
 #### Basic Properties
 
 ```typescript
-import {
-  parseSMILES,
-  getMolecularFormula,
-  getMolecularMass,
-  getExactMass
-} from 'openchem';
+import { parseSMILES, getMolecularFormula, getMolecularMass, getExactMass } from "openchem";
 
-const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O');
+const aspirin = parseSMILES("CC(=O)Oc1ccccc1C(=O)O");
 const mol = aspirin.molecules[0];
 
 // Get molecular formula (Hill notation)
@@ -457,10 +459,10 @@ import {
   getHeteroAtomCount,
   getRingCount,
   getAromaticRingCount,
-  getRingInfo
-} from 'openchem';
+  getRingInfo,
+} from "openchem";
 
-const ibuprofen = parseSMILES('CC(C)Cc1ccc(cc1)C(C)C(=O)O');
+const ibuprofen = parseSMILES("CC(C)Cc1ccc(cc1)C(C)C(=O)O");
 const mol = ibuprofen.molecules[0];
 
 // Count heavy atoms (non-hydrogen)
@@ -489,10 +491,10 @@ import {
   getFractionCSP3,
   getHBondDonorCount,
   getHBondAcceptorCount,
-  getTPSA
-} from 'openchem';
+  getTPSA,
+} from "openchem";
 
-const caffeine = parseSMILES('CN1C=NC2=C1C(=O)N(C(=O)N2C)C');
+const caffeine = parseSMILES("CN1C=NC2=C1C(=O)N(C(=O)N2C)C");
 const mol = caffeine.molecules[0];
 
 // Fraction of sp3 carbons (structural complexity)
@@ -514,14 +516,14 @@ console.log(getTPSA(mol)); // 61.82
 TPSA (Topological Polar Surface Area) is essential for predicting drug properties:
 
 ```typescript
-import { parseSMILES, getTPSA } from 'openchem';
+import { parseSMILES, getTPSA } from "openchem";
 
 // Oral bioavailability: TPSA < 140 Ų
-const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O');
+const aspirin = parseSMILES("CC(=O)Oc1ccccc1C(=O)O");
 console.log(getTPSA(aspirin.molecules[0])); // 63.60 ✓ Good oral availability
 
 // Blood-brain barrier penetration: TPSA < 90 Ų
-const morphine = parseSMILES('CN1CC[C@]23[C@@H]4[C@H]1CC5=C2C(=C(C=C5)O)O[C@H]3[C@H](C=C4)O');
+const morphine = parseSMILES("CN1CC[C@]23[C@@H]4[C@H]1CC5=C2C(=C(C=C5)O)O[C@H]3[C@H](C=C4)O");
 console.log(getTPSA(morphine.molecules[0])); // 52.93 ✓ CNS-active
 ```
 
@@ -532,11 +534,11 @@ import {
   parseSMILES,
   checkLipinskiRuleOfFive,
   checkVeberRules,
-  checkBBBPenetration
-} from 'openchem';
+  checkBBBPenetration,
+} from "openchem";
 
 // Lipinski's Rule of Five (oral drug-likeness)
-const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O');
+const aspirin = parseSMILES("CC(=O)Oc1ccccc1C(=O)O");
 const lipinski = checkLipinskiRuleOfFive(aspirin.molecules[0]);
 console.log(lipinski.passes); // true
 console.log(lipinski.properties);
@@ -549,7 +551,7 @@ console.log(veber.properties);
 // { rotatableBonds: 3, tpsa: 63.60 }
 
 // Blood-brain barrier penetration prediction
-const caffeine = parseSMILES('CN1C=NC2=C1C(=O)N(C(=O)N2C)C');
+const caffeine = parseSMILES("CN1C=NC2=C1C(=O)N(C(=O)N2C)C");
 const bbb = checkBBBPenetration(caffeine.molecules[0]);
 console.log(bbb.likelyPenetration); // true (TPSA: 61.82 < 90)
 ```
@@ -557,19 +559,19 @@ console.log(bbb.likelyPenetration); // true (TPSA: 61.82 < 90)
 ### Generating SMILES
 
 ```typescript
-import { parseSMILES, generateSMILES } from 'openchem';
+import { parseSMILES, generateSMILES } from "openchem";
 
 // Generate canonical SMILES (default)
-const input = 'CC(C)CC';
+const input = "CC(C)CC";
 const parsed = parseSMILES(input);
 const canonical = generateSMILES(parsed.molecules[0]);
 console.log(canonical); // "CCC(C)C" - canonicalized
 
 // Stereo normalization matches RDKit
-const trans1 = parseSMILES('C\\C=C\\C'); // trans (down markers)
+const trans1 = parseSMILES("C\\C=C\\C"); // trans (down markers)
 console.log(generateSMILES(trans1.molecules[0])); // "C/C=C/C" - normalized to up markers
 
-const trans2 = parseSMILES('C/C=C/C'); // trans (up markers)
+const trans2 = parseSMILES("C/C=C/C"); // trans (up markers)
 console.log(generateSMILES(trans2.molecules[0])); // "C/C=C/C" - already normalized
 
 // Generate simple (non-canonical) SMILES
@@ -581,7 +583,7 @@ const explicitCanonical = generateSMILES(parsed.molecules[0], true);
 console.log(explicitCanonical); // "CCC(C)C"
 
 // Handle multiple disconnected molecules
-const mixture = parseSMILES('CCO.O'); // ethanol + water
+const mixture = parseSMILES("CCO.O"); // ethanol + water
 const output = generateSMILES(mixture.molecules);
 console.log(output); // "CCO.O"
 ```
@@ -593,26 +595,26 @@ Render molecules as 2D SVG structures with automatic coordinate generation. open
 #### Basic SVG Rendering
 
 ```typescript
-import { parseSMILES, renderSVG } from 'openchem';
+import { parseSMILES, renderSVG } from "openchem";
 
 // Render from parsed molecule
-const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O');
+const aspirin = parseSMILES("CC(=O)Oc1ccccc1C(=O)O");
 const result = renderSVG(aspirin.molecules[0]);
 console.log(result.svg); // SVG string ready for display
 console.log(result.width); // Canvas width
 console.log(result.height); // Canvas height
 
 // Or render directly from SMILES (if parsing is included)
-const renderResult = renderSVG('CCO');
+const renderResult = renderSVG("CCO");
 if (renderResult.errors.length === 0) {
   console.log(renderResult.svg);
 }
 
 // Render multiple molecules in a grid
 const molecules = [
-  parseSMILES('CC(=O)O').molecules[0],
-  parseSMILES('CCO').molecules[0],
-  parseSMILES('CC(C)C').molecules[0]
+  parseSMILES("CC(=O)O").molecules[0],
+  parseSMILES("CCO").molecules[0],
+  parseSMILES("CC(C)C").molecules[0],
 ];
 const gridResult = renderSVG(molecules);
 console.log(gridResult.svg); // Multi-molecule grid
@@ -621,10 +623,10 @@ console.log(gridResult.svg); // Multi-molecule grid
 #### SVG Rendering Options
 
 ```typescript
-import { parseSMILES, renderSVG } from 'openchem';
-import type { SVGRendererOptions } from 'openchem';
+import { parseSMILES, renderSVG } from "openchem";
+import type { SVGRendererOptions } from "openchem";
 
-const benzene = parseSMILES('c1ccccc1');
+const benzene = parseSMILES("c1ccccc1");
 const mol = benzene.molecules[0];
 
 const options: SVGRendererOptions = {
@@ -636,35 +638,35 @@ const options: SVGRendererOptions = {
   // Bond styling
   bondLineWidth: 2,
   bondLength: 40,
-  bondColor: '#000000',
+  bondColor: "#000000",
 
   // Atom & text styling
   fontSize: 14,
-  fontFamily: 'Arial, sans-serif',
+  fontFamily: "Arial, sans-serif",
   showCarbonLabels: false, // Hide C labels for cleaner appearance
   showImplicitHydrogens: false, // Hide implicit hydrogens
 
   // Color mapping by element
   atomColors: {
-    C: '#222222',
-    N: '#3050F8',
-    O: '#FF0D0D',
-    S: '#E6C200',
-    F: '#50FF50',
-    Cl: '#1FF01F',
-    Br: '#A62929',
-    I: '#940094'
+    C: "#222222",
+    N: "#3050F8",
+    O: "#FF0D0D",
+    S: "#E6C200",
+    F: "#50FF50",
+    Cl: "#1FF01F",
+    Br: "#A62929",
+    I: "#940094",
   },
 
   // Background
-  backgroundColor: '#FFFFFF',
+  backgroundColor: "#FFFFFF",
 
   // Stereochemistry display
   showStereoBonds: true,
 
   // Layout & coordinate generation
   kekulize: true, // Convert aromatic to alternating single/double bonds (default: true)
-  moleculeSpacing: 60 // Spacing between molecules in grid layouts
+  moleculeSpacing: 60, // Spacing between molecules in grid layouts
 };
 
 const result = renderSVG(mol, options);
@@ -674,22 +676,22 @@ console.log(result.svg); // Custom-styled SVG
 #### Using Pre-computed Coordinates
 
 ```typescript
-import { parseSMILES, renderSVG } from 'openchem';
+import { parseSMILES, renderSVG } from "openchem";
 
-const ethanol = parseSMILES('CCO');
+const ethanol = parseSMILES("CCO");
 const mol = ethanol.molecules[0];
 
 // Provide your own atom coordinates (useful for custom layouts)
 const customCoords = [
-  { x: 0, y: 0 },    // C
-  { x: 40, y: 0 },   // C
-  { x: 80, y: 0 }    // O
+  { x: 0, y: 0 }, // C
+  { x: 40, y: 0 }, // C
+  { x: 80, y: 0 }, // O
 ];
 
 const result = renderSVG(mol, {
   atomCoordinates: customCoords,
   width: 200,
-  height: 100
+  height: 100,
 });
 
 console.log(result.svg);
@@ -707,14 +709,14 @@ openchem's coordinate generator provides:
 - **Publication-quality output** — Clean, chemically accurate 2D structures
 
 ```typescript
-import { parseSMILES, renderSVG } from 'openchem';
+import { parseSMILES, renderSVG } from "openchem";
 
 // Complex fused ring system
-const naphthalene = parseSMILES('c1ccc2ccccc2c1');
+const naphthalene = parseSMILES("c1ccc2ccccc2c1");
 const result = renderSVG(naphthalene.molecules[0], {
   width: 300,
   height: 300,
-  bondLength: 35
+  bondLength: 35,
 });
 
 console.log(result.svg);
@@ -723,11 +725,11 @@ console.log(result.svg);
 #### Error Handling
 
 ```typescript
-import { renderSVG } from 'openchem';
+import { renderSVG } from "openchem";
 
-const result = renderSVG('C');
+const result = renderSVG("C");
 if (result.errors.length > 0) {
-  console.error('SVG rendering errors:', result.errors);
+  console.error("SVG rendering errors:", result.errors);
 } else {
   console.log(result.svg);
 }
@@ -738,11 +740,11 @@ if (result.errors.length > 0) {
 Match molecular patterns using SMARTS (SMILES Arbitrary Target Specification) notation.
 
 ```typescript
-import { parseSMILES, parseSMARTS, matchSMARTS } from 'openchem';
+import { parseSMILES, parseSMARTS, matchSMARTS } from "openchem";
 
 // Parse molecule and SMARTS pattern
-const molecule = parseSMILES('CC(=O)Oc1ccccc1C(=O)O'); // aspirin
-const pattern = parseSMARTS('[O;D1]'); // Single-bonded oxygen (carbonyl)
+const molecule = parseSMILES("CC(=O)Oc1ccccc1C(=O)O"); // aspirin
+const pattern = parseSMARTS("[O;D1]"); // Single-bonded oxygen (carbonyl)
 
 // Find matching atoms
 const matches = matchSMARTS(molecule.molecules[0], pattern);
@@ -750,18 +752,18 @@ console.log(matches.length); // 2 (two carbonyl oxygens)
 console.log(matches); // [[2], [7]] (atom indices)
 
 // Example: Find aromatic rings
-const aromaticRing = parseSMARTS('c1ccccc1'); // benzene pattern
-const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O');
+const aromaticRing = parseSMARTS("c1ccccc1"); // benzene pattern
+const aspirin = parseSMILES("CC(=O)Oc1ccccc1C(=O)O");
 const ringMatches = matchSMARTS(aspirin.molecules[0], aromaticRing);
 console.log(ringMatches.length); // 1 (one benzene ring)
 
 // Example: Find carboxylic acid groups
-const carboxylPattern = parseSMARTS('[C](=O)[O;H1]'); // COOH
+const carboxylPattern = parseSMARTS("[C](=O)[O;H1]"); // COOH
 const matches2 = matchSMARTS(aspirin.molecules[0], carboxylPattern);
 console.log(matches2.length); // 1 (one carboxylic acid)
 
 // Example: Find all heteroatoms
-const heteroPattern = parseSMARTS('[!C;!H]'); // Any non-carbon, non-hydrogen
+const heteroPattern = parseSMARTS("[!C;!H]"); // Any non-carbon, non-hydrogen
 const heteroMatches = matchSMARTS(aspirin.molecules[0], heteroPattern);
 console.log(heteroMatches.length); // Number of heteroatoms
 ```
@@ -771,10 +773,10 @@ console.log(heteroMatches.length); // Number of heteroatoms
 Convert aromatic molecules to alternating single/double bond representations (Kekulé structures).
 
 ```typescript
-import { parseSMILES, kekulize, generateSMILES } from 'openchem';
+import { parseSMILES, kekulize, generateSMILES } from "openchem";
 
 // Parse aromatic molecule
-const benzene = parseSMILES('c1ccccc1');
+const benzene = parseSMILES("c1ccccc1");
 const mol = benzene.molecules[0];
 
 // Convert to Kekulé structure
@@ -785,10 +787,10 @@ const kekuleSMILES = generateSMILES(kekuleMol);
 console.log(kekuleSMILES); // "C1=CC=CC=C1" or similar alternating structure
 
 // SVG rendering automatically kekulizes (unless disabled)
-import { renderSVG } from 'openchem';
+import { renderSVG } from "openchem";
 
 const result = renderSVG(mol, {
-  kekulize: true  // default: true
+  kekulize: true, // default: true
 });
 // Rendered SVG shows alternating single/double bonds
 ```
@@ -798,15 +800,15 @@ const result = renderSVG(mol, {
 Calculate LogP (partition coefficient) for predicting lipophilicity and membrane permeability.
 
 ```typescript
-import { parseSMILES, computeLogP, crippenLogP } from 'openchem';
+import { parseSMILES, computeLogP, crippenLogP } from "openchem";
 
 const molecules = [
-  'CC(=O)Oc1ccccc1C(=O)O',  // aspirin
-  'CC(C)Cc1ccc(cc1)C(C)C(=O)O', // ibuprofen
-  'CC(=O)Nc1ccc(O)cc1'    // acetaminophen
+  "CC(=O)Oc1ccccc1C(=O)O", // aspirin
+  "CC(C)Cc1ccc(cc1)C(C)C(=O)O", // ibuprofen
+  "CC(=O)Nc1ccc(O)cc1", // acetaminophen
 ];
 
-molecules.forEach(smiles => {
+molecules.forEach((smiles) => {
   const mol = parseSMILES(smiles).molecules[0];
 
   // Wildman-Crippen method (more accurate)
@@ -819,31 +821,31 @@ molecules.forEach(smiles => {
 });
 
 // LogP guidelines for drug design
-const caffeine = parseSMILES('CN1C=NC2=C1C(=O)N(C(=O)N2C)C');
+const caffeine = parseSMILES("CN1C=NC2=C1C(=O)N(C(=O)N2C)C");
 const caffeineMol = caffeine.molecules[0];
 const logpValue = computeLogP(caffeineMol);
 
 console.log(`Caffeine LogP: ${logpValue.toFixed(2)}`);
 if (logpValue > 5) {
-  console.log('⚠️ High LogP - may have poor water solubility');
+  console.log("⚠️ High LogP - may have poor water solubility");
 } else if (logpValue < 0) {
-  console.log('✓ Good LogP - hydrophilic, good bioavailability');
+  console.log("✓ Good LogP - hydrophilic, good bioavailability");
 } else {
-  console.log('✓ Optimal LogP - good balance of lipophilicity and hydrophilicity');
+  console.log("✓ Optimal LogP - good balance of lipophilicity and hydrophilicity");
 }
 ```
 
 ### Molecule Structure
 
 ```typescript
-import { parseSMILES } from 'openchem';
-import { BondType } from 'openchem';
+import { parseSMILES } from "openchem";
+import { BondType } from "openchem";
 
-const result = parseSMILES('C=C');
+const result = parseSMILES("C=C");
 const mol = result.molecules[0];
 
 // Access atoms
-mol.atoms.forEach(atom => {
+mol.atoms.forEach((atom) => {
   console.log(`${atom.symbol} (id: ${atom.id})`);
   console.log(`  Aromatic: ${atom.aromatic}`);
   console.log(`  Charge: ${atom.charge}`);
@@ -851,9 +853,9 @@ mol.atoms.forEach(atom => {
 });
 
 // Access bonds
-mol.bonds.forEach(bond => {
+mol.bonds.forEach((bond) => {
   console.log(`Bond ${bond.atom1}-${bond.atom2}`);
-  console.log(`  Type: ${bond.type === BondType.DOUBLE ? 'DOUBLE' : 'SINGLE'}`);
+  console.log(`  Type: ${bond.type === BondType.DOUBLE ? "DOUBLE" : "SINGLE"}`);
 });
 ```
 
@@ -1001,9 +1003,9 @@ Generates a MOL file (V2000 format) from a molecule structure. Matches RDKit's o
 **Example**:
 
 ```typescript
-import { parseSMILES, generateMolfile } from 'openchem';
+import { parseSMILES, generateMolfile } from "openchem";
 
-const result = parseSMILES('CCO');
+const result = parseSMILES("CCO");
 const molfile = generateMolfile(result.molecules[0]);
 console.log(molfile);
 // Output: MOL file with header, atom coordinates, bond connectivity, etc.
@@ -1054,7 +1056,7 @@ Parses a MOL file (MDL Molfile format) into a molecule structure. Supports both 
 **Example**:
 
 ```typescript
-import { parseMolfile, generateSMILES } from 'openchem';
+import { parseMolfile, generateSMILES } from "openchem";
 
 const molContent = `
 ethanol
@@ -1080,19 +1082,19 @@ if (result.errors.length === 0) {
 }
 
 // Error handling
-const invalid = parseMolfile('invalid content');
+const invalid = parseMolfile("invalid content");
 if (invalid.errors.length > 0) {
-  console.error('Parse errors:', invalid.errors);
+  console.error("Parse errors:", invalid.errors);
 }
 ```
 
 **Round-trip workflow**:
 
 ```typescript
-import { parseSMILES, generateMolfile, parseMolfile, generateSMILES } from 'openchem';
+import { parseSMILES, generateMolfile, parseMolfile, generateSMILES } from "openchem";
 
 // SMILES → MOL → SMILES round-trip
-const original = 'CC(=O)O'; // acetic acid
+const original = "CC(=O)O"; // acetic acid
 const mol = parseSMILES(original).molecules[0];
 const molfile = generateMolfile(mol);
 const parsed = parseMolfile(molfile);
@@ -1132,7 +1134,7 @@ Parses an SDF (Structure-Data File) into molecule structures with associated pro
 **Example (single record)**:
 
 ```typescript
-import { parseSDF, generateSMILES } from 'openchem';
+import { parseSDF, generateSMILES } from "openchem";
 
 const sdfContent = `
   Mrv2311 02102409422D
@@ -1172,14 +1174,14 @@ if (result.errors.length === 0) {
 
 // Error handling
 if (result.records[0].errors.length > 0) {
-  console.error('Record errors:', result.records[0].errors);
+  console.error("Record errors:", result.records[0].errors);
 }
 ```
 
 **Example (multiple records)**:
 
 ```typescript
-import { parseSDF } from 'openchem';
+import { parseSDF } from "openchem";
 
 const multiRecordSDF = `
   Mrv2311 02102409422D
@@ -1222,13 +1224,13 @@ console.log(result.records[1].properties.NAME); // "Ethane"
 **Round-trip workflow**:
 
 ```typescript
-import { parseSMILES, writeSDF, parseSDF, generateSMILES } from 'openchem';
+import { parseSMILES, writeSDF, parseSDF, generateSMILES } from "openchem";
 
 // SMILES → SDF → SMILES round-trip
-const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O').molecules[0];
+const aspirin = parseSMILES("CC(=O)Oc1ccccc1C(=O)O").molecules[0];
 const sdfResult = writeSDF({
   molecule: aspirin,
-  properties: { NAME: 'aspirin', FORMULA: 'C9H8O4' }
+  properties: { NAME: "aspirin", FORMULA: "C9H8O4" },
 });
 
 const parsed = parseSDF(sdfResult.sdf);
@@ -1246,9 +1248,9 @@ Generates an InChI (International Chemical Identifier) string from a molecule st
 **Example**:
 
 ```typescript
-import { parseSMILES, generateInChI } from 'openchem';
+import { parseSMILES, generateInChI } from "openchem";
 
-const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O');
+const aspirin = parseSMILES("CC(=O)Oc1ccccc1C(=O)O");
 const inchi = await generateInChI(aspirin.molecules[0]);
 console.log(inchi); // "InChI=1S/C9H8O4/c1-6(10)13-8-5-3-2-4-7(8)9(11)12/h2-5H,1H3,(H,11,12)"
 ```
@@ -1306,16 +1308,16 @@ interface SDFRecord {
 **Example (single molecule)**:
 
 ```typescript
-import { parseSMILES, writeSDF } from 'openchem';
+import { parseSMILES, writeSDF } from "openchem";
 
-const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O');
+const aspirin = parseSMILES("CC(=O)Oc1ccccc1C(=O)O");
 const result = writeSDF({
   molecule: aspirin.molecules[0],
   properties: {
-    NAME: 'aspirin',
-    MOLECULAR_FORMULA: 'C9H8O4',
-    MOLECULAR_WEIGHT: 180.042
-  }
+    NAME: "aspirin",
+    MOLECULAR_FORMULA: "C9H8O4",
+    MOLECULAR_WEIGHT: 180.042,
+  },
 });
 
 console.log(result.sdf);
@@ -1325,26 +1327,26 @@ console.log(result.sdf);
 **Example (multiple molecules)**:
 
 ```typescript
-import { parseSMILES, writeSDF } from 'openchem';
+import { parseSMILES, writeSDF } from "openchem";
 
 const drugs = [
-  { smiles: 'CC(=O)Oc1ccccc1C(=O)O', name: 'aspirin' },
-  { smiles: 'CC(C)Cc1ccc(cc1)C(C)C(=O)O', name: 'ibuprofen' },
-  { smiles: 'CC(=O)Nc1ccc(O)cc1', name: 'acetaminophen' }
+  { smiles: "CC(=O)Oc1ccccc1C(=O)O", name: "aspirin" },
+  { smiles: "CC(C)Cc1ccc(cc1)C(C)C(=O)O", name: "ibuprofen" },
+  { smiles: "CC(=O)Nc1ccc(O)cc1", name: "acetaminophen" },
 ];
 
-const records = drugs.map(drug => {
+const records = drugs.map((drug) => {
   const mol = parseSMILES(drug.smiles).molecules[0];
   return {
     molecule: mol,
     properties: {
       NAME: drug.name,
-      SMILES: drug.smiles
-    }
+      SMILES: drug.smiles,
+    },
   };
 });
 
-const result = writeSDF(records, { programName: 'my-drug-tool' });
+const result = writeSDF(records, { programName: "my-drug-tool" });
 console.log(result.sdf);
 // Output: Multi-record SDF with all 3 molecules
 ```
@@ -1442,10 +1444,10 @@ Finds all matches of a SMARTS pattern in a molecule.
 **Example**:
 
 ```typescript
-import { parseSMILES, parseSMARTS, matchSMARTS } from 'openchem';
+import { parseSMILES, parseSMARTS, matchSMARTS } from "openchem";
 
-const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O').molecules[0];
-const carbonyl = parseSMARTS('[C](=O)').molecules[0];
+const aspirin = parseSMILES("CC(=O)Oc1ccccc1C(=O)O").molecules[0];
+const carbonyl = parseSMARTS("[C](=O)").molecules[0];
 
 const matches = matchSMARTS(aspirin, carbonyl);
 // matches: [[1, 2], [7, 8]] (two carbonyl groups)
@@ -1460,9 +1462,9 @@ Converts aromatic molecules to alternating single/double bond (Kekulé) represen
 **Example**:
 
 ```typescript
-import { parseSMILES, kekulize, generateSMILES } from 'openchem';
+import { parseSMILES, kekulize, generateSMILES } from "openchem";
 
-const benzene = parseSMILES('c1ccccc1');
+const benzene = parseSMILES("c1ccccc1");
 const kek = kekulize(benzene.molecules[0]);
 console.log(generateSMILES(kek)); // "C1=CC=CC=C1"
 ```
@@ -1482,9 +1484,9 @@ Generates a Morgan fingerprint (ECFP-like) for molecular similarity searching an
 **Example**:
 
 ```typescript
-import { parseSMILES, computeMorganFingerprint } from 'openchem';
+import { parseSMILES, computeMorganFingerprint } from "openchem";
 
-const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O');
+const aspirin = parseSMILES("CC(=O)Oc1ccccc1C(=O)O");
 const fingerprint = computeMorganFingerprint(aspirin.molecules[0], 2, 512);
 console.log(fingerprint.length); // 64 (512 bits / 8 bytes)
 ```
@@ -1525,9 +1527,9 @@ Extracts the Murcko scaffold from a molecule — the core ring systems and linke
 **Example**:
 
 ```typescript
-import { parseSMILES, getMurckoScaffold, generateSMILES } from 'openchem';
+import { parseSMILES, getMurckoScaffold, generateSMILES } from "openchem";
 
-const ibuprofen = parseSMILES('CC(C)Cc1ccc(cc1)C(C)C(=O)O').molecules[0];
+const ibuprofen = parseSMILES("CC(C)Cc1ccc(cc1)C(C)C(=O)O").molecules[0];
 const scaffold = getMurckoScaffold(ibuprofen);
 console.log(generateSMILES(scaffold)); // "c1ccccc1" - benzene core
 ```
@@ -1541,9 +1543,9 @@ Generates a generic Bemis-Murcko framework — the scaffold with all atoms conve
 **Example**:
 
 ```typescript
-import { parseSMILES, getBemisMurckoFramework, generateSMILES } from 'openchem';
+import { parseSMILES, getBemisMurckoFramework, generateSMILES } from "openchem";
 
-const pyridine = parseSMILES('c1ccncc1').molecules[0];
+const pyridine = parseSMILES("c1ccncc1").molecules[0];
 const framework = getBemisMurckoFramework(pyridine);
 console.log(generateSMILES(framework)); // "C1CCCCC1" - cyclohexane
 ```
@@ -1557,9 +1559,9 @@ Generates a hierarchical scaffold tree by iteratively removing rings from the Mu
 **Example**:
 
 ```typescript
-import { parseSMILES, getScaffoldTree, generateSMILES } from 'openchem';
+import { parseSMILES, getScaffoldTree, generateSMILES } from "openchem";
 
-const mol = parseSMILES('c1ccc2ccccc2c1').molecules[0]; // Naphthalene
+const mol = parseSMILES("c1ccc2ccccc2c1").molecules[0]; // Naphthalene
 const tree = getScaffoldTree(mol);
 console.log(tree.length); // 2 levels: full naphthalene, then single benzene
 tree.forEach((scaffold, idx) => {
@@ -1576,9 +1578,9 @@ Generates a pure topological framework with all atoms converted to wildcard atom
 **Example**:
 
 ```typescript
-import { parseSMILES, getGraphFramework, generateSMILES } from 'openchem';
+import { parseSMILES, getGraphFramework, generateSMILES } from "openchem";
 
-const caffeine = parseSMILES('CN1C=NC2=C1C(=O)N(C(=O)N2C)C').molecules[0];
+const caffeine = parseSMILES("CN1C=NC2=C1C(=O)N(C(=O)N2C)C").molecules[0];
 const graph = getGraphFramework(caffeine);
 console.log(generateSMILES(graph)); // "*1*=**2=*1*(*)*(*)*2*" - pure topology
 ```
@@ -1592,10 +1594,10 @@ Compares two molecules to determine if they share the same Murcko scaffold. Usef
 **Example**:
 
 ```typescript
-import { parseSMILES, haveSameScaffold } from 'openchem';
+import { parseSMILES, haveSameScaffold } from "openchem";
 
-const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O').molecules[0];
-const ibuprofen = parseSMILES('CC(C)Cc1ccc(cc1)C(C)C(=O)O').molecules[0];
+const aspirin = parseSMILES("CC(=O)Oc1ccccc1C(=O)O").molecules[0];
+const ibuprofen = parseSMILES("CC(C)Cc1ccc(cc1)C(C)C(=O)O").molecules[0];
 console.log(haveSameScaffold(aspirin, ibuprofen)); // true - both benzene scaffold
 ```
 
@@ -1635,9 +1637,9 @@ Enumerates all tautomers for a molecule using transform-based enumeration with R
 **Example**:
 
 ```typescript
-import { parseSMILES, enumerateTautomers } from 'openchem';
+import { parseSMILES, enumerateTautomers } from "openchem";
 
-const mol = parseSMILES('CC(=O)CC(=O)C').molecules[0]; // acetylacetone
+const mol = parseSMILES("CC(=O)CC(=O)C").molecules[0]; // acetylacetone
 const tautomers = enumerateTautomers(mol, { maxTautomers: 16 });
 
 console.log(`Found ${tautomers.length} tautomers:`);
@@ -1658,9 +1660,9 @@ Selects the canonical (most stable) tautomer based on scoring.
 **Example**:
 
 ```typescript
-import { parseSMILES, canonicalTautomer, generateSMILES } from 'openchem';
+import { parseSMILES, canonicalTautomer, generateSMILES } from "openchem";
 
-const mol = parseSMILES('CC(=O)CC(=O)C').molecules[0];
+const mol = parseSMILES("CC(=O)CC(=O)C").molecules[0];
 const canonical = canonicalTautomer(mol);
 console.log(generateSMILES(canonical)); // "CC(=O)CC(=O)C" - diketo form preferred
 ```
@@ -1684,9 +1686,9 @@ Calculates the LogP (partition coefficient) using the Wildman-Crippen method. Lo
 **Example**:
 
 ```typescript
-import { parseSMILES, computeLogP } from 'openchem';
+import { parseSMILES, computeLogP } from "openchem";
 
-const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O').molecules[0];
+const aspirin = parseSMILES("CC(=O)Oc1ccccc1C(=O)O").molecules[0];
 console.log(computeLogP(aspirin)); // 1.31 (good bioavailability)
 ```
 
@@ -1882,7 +1884,7 @@ enum BondType {
   DOUBLE = 2,
   TRIPLE = 3,
   QUADRUPLE = 4,
-  AROMATIC = 5
+  AROMATIC = 5,
 }
 ```
 
@@ -2128,12 +2130,12 @@ openchem implements RDKit-compatible canonical SMILES generation:
 
 ```typescript
 // Both inputs represent the same molecule (hydrogen cyanide)
-parseSMILES('C#N');  // → canonical: "C#N" (carbon first)
-parseSMILES('N#C');  // → canonical: "C#N" (canonical labels prioritized)
+parseSMILES("C#N"); // → canonical: "C#N" (carbon first)
+parseSMILES("N#C"); // → canonical: "C#N" (canonical labels prioritized)
 
 // Both inputs represent the same molecule (propanol)
-parseSMILES('OCCC'); // → canonical: "CCCO" (canonical labels prioritized)
-parseSMILES('CCCO'); // → canonical: "CCCO"
+parseSMILES("OCCC"); // → canonical: "CCCO" (canonical labels prioritized)
+parseSMILES("CCCO"); // → canonical: "CCCO"
 ```
 
 This implementation achieves 100% agreement with RDKit's canonical output across 325 diverse test molecules including 25 commercial pharmaceutical drugs.
@@ -2146,7 +2148,7 @@ All debug logging (e.g., console.log, console.warn, etc.) must be gated behind t
 
 ```typescript
 if (process.env.VERBOSE) {
-  console.log('Debug info...');
+  console.log("Debug info...");
 }
 ```
 

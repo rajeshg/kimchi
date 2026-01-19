@@ -24,13 +24,13 @@ openchem provides comprehensive SMARTS (SMiles ARbitrary Target Specification) p
 ### Basic Usage
 
 ```typescript
-import { parseSMILES, matchSMARTS } from 'index';
+import { parseSMILES, matchSMARTS } from "index";
 
 // Parse molecule
-const molecule = parseSMILES('c1ccccc1').molecules[0];
+const molecule = parseSMILES("c1ccccc1").molecules[0];
 
 // Match aromatic 6-membered ring
-const pattern = 'c1ccccc1';
+const pattern = "c1ccccc1";
 const matches = matchSMARTS(molecule, pattern);
 
 console.log(`Found ${matches.length} matches`);
@@ -40,19 +40,19 @@ console.log(`Found ${matches.length} matches`);
 
 ```typescript
 // Hydroxyl group
-matchSMARTS(molecule, '[OH]');
+matchSMARTS(molecule, "[OH]");
 
 // Carboxylic acid
-matchSMARTS(molecule, 'C(=O)O');
+matchSMARTS(molecule, "C(=O)O");
 
 // Primary amine
-matchSMARTS(molecule, '[NH2]');
+matchSMARTS(molecule, "[NH2]");
 
 // Aromatic nitrogen
-matchSMARTS(molecule, '[n]');
+matchSMARTS(molecule, "[n]");
 
 // Atom in 3 rings
-matchSMARTS(molecule, '[R3]');
+matchSMARTS(molecule, "[R3]");
 ```
 
 ---
@@ -225,69 +225,69 @@ RDKit identifies the 4 bridgehead carbons (1, 3, 5, 7) as being in 3 rings, whic
 
 ```typescript
 // Element symbols
-'C'     // Carbon
-'N'     // Nitrogen
-'[OH]'  // Oxygen with hydrogen
+"C"; // Carbon
+"N"; // Nitrogen
+"[OH]"; // Oxygen with hydrogen
 
 // Aromaticity
-'c'     // Aromatic carbon
-'n'     // Aromatic nitrogen
-'[a]'   // Any aromatic atom
-'[A]'   // Any aliphatic atom
+"c"; // Aromatic carbon
+"n"; // Aromatic nitrogen
+"[a]"; // Any aromatic atom
+"[A]"; // Any aliphatic atom
 
 // Ring membership
-'[R]'   // Any ring atom
-'[R2]'  // Atom in exactly 2 rings
-'[R3]'  // Atom in exactly 3 rings
+"[R]"; // Any ring atom
+"[R2]"; // Atom in exactly 2 rings
+"[R3]"; // Atom in exactly 3 rings
 
 // Degree (connectivity)
-'[D2]'  // Degree 2 (2 neighbors)
-'[D3]'  // Degree 3 (3 neighbors)
+"[D2]"; // Degree 2 (2 neighbors)
+"[D3]"; // Degree 3 (3 neighbors)
 
 // Hydrogen count
-'[H0]'  // No hydrogens
-'[H1]'  // One hydrogen
-'[H2]'  // Two hydrogens
+"[H0]"; // No hydrogens
+"[H1]"; // One hydrogen
+"[H2]"; // Two hydrogens
 
 // Charge
-'[+]'   // Positive charge
-'[+1]'  // +1 charge
-'[-]'   // Negative charge
-'[−1]'  // -1 charge
+"[+]"; // Positive charge
+"[+1]"; // +1 charge
+"[-]"; // Negative charge
+"[−1]"; // -1 charge
 ```
 
 ### Bond Primitives
 
 ```typescript
 // Bond types
-'-'     // Single bond
-'='     // Double bond
-'#'     // Triple bond
-':'     // Aromatic bond
-'~'     // Any bond
+"-"; // Single bond
+"="; // Double bond
+"#"; // Triple bond
+":"; // Aromatic bond
+"~"; // Any bond
 
 // Examples
-'C-C'   // Single bond between carbons
-'C=O'   // Double bond (carbonyl)
-'C#N'   // Triple bond (nitrile)
-'c:c'   // Aromatic bond
+"C-C"; // Single bond between carbons
+"C=O"; // Double bond (carbonyl)
+"C#N"; // Triple bond (nitrile)
+"c:c"; // Aromatic bond
 ```
 
 ### Logical Operators
 
 ```typescript
 // AND
-'[C,N]'     // Carbon OR nitrogen
-'[!C]'      // NOT carbon
-'[C&R]'     // Carbon AND in ring
-'[c&R2]'    // Aromatic carbon in 2 rings
+"[C,N]"; // Carbon OR nitrogen
+"[!C]"; // NOT carbon
+"[C&R]"; // Carbon AND in ring
+"[c&R2]"; // Aromatic carbon in 2 rings
 
 // OR
-'[C,N,O]'   // Carbon OR nitrogen OR oxygen
+"[C,N,O]"; // Carbon OR nitrogen OR oxygen
 
 // NOT
-'[!C]'      // Not carbon
-'[!R]'      // Not in ring
+"[!C]"; // Not carbon
+"[!R]"; // Not in ring
 ```
 
 ---
@@ -298,22 +298,22 @@ RDKit identifies the 4 bridgehead carbons (1, 3, 5, 7) as being in 3 rings, whic
 
 ```typescript
 // Find benzene rings with substituents
-const pattern = 'c1ccc([!H])cc1';
+const pattern = "c1ccc([!H])cc1";
 
 // Find tertiary amines
-const pattern = '[NX3;H0]';
+const pattern = "[NX3;H0]";
 
 // Find carboxylic acids or esters
-const pattern = 'C(=O)[O;H1,C]';
+const pattern = "C(=O)[O;H1,C]";
 ```
 
 ### Substructure Counting
 
 ```typescript
-import { parseSMILES, matchSMARTS } from 'index';
+import { parseSMILES, matchSMARTS } from "index";
 
-const molecule = parseSMILES('c1cc(O)c(O)cc1').molecules[0];
-const hydroxyls = matchSMARTS(molecule, '[OH]');
+const molecule = parseSMILES("c1cc(O)c(O)cc1").molecules[0];
+const hydroxyls = matchSMARTS(molecule, "[OH]");
 
 console.log(`Found ${hydroxyls.length} hydroxyl groups`);
 // Output: Found 2 hydroxyl groups
@@ -323,10 +323,10 @@ console.log(`Found ${hydroxyls.length} hydroxyl groups`);
 
 ```typescript
 const patterns = {
-  hydroxyl: '[OH]',
-  carboxyl: 'C(=O)O',
-  amine: '[NH2]',
-  aromatic: '[a]',
+  hydroxyl: "[OH]",
+  carboxyl: "C(=O)O",
+  amine: "[NH2]",
+  aromatic: "[a]",
 };
 
 const results = Object.entries(patterns).map(([name, pattern]) => ({

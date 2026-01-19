@@ -186,9 +186,9 @@ LogP (octanol-water partition coefficient) is computed using the Wildman-Crippen
 **Usage:**
 
 ```typescript
-import { parseSMILES, computeLogP, checkLipinskiRuleOfFive } from 'index';
+import { parseSMILES, computeLogP, checkLipinskiRuleOfFive } from "index";
 
-const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O').molecules[0];
+const aspirin = parseSMILES("CC(=O)Oc1ccccc1C(=O)O").molecules[0];
 
 // Direct computation
 const logP = computeLogP(aspirin);
@@ -239,10 +239,10 @@ From validation on 28 diverse drug-like molecules:
 **Usage Example:**
 
 ```typescript
-import { parseSMILES, computeMorganFingerprint, tanimotoSimilarity, getBitsSet } from 'index';
+import { parseSMILES, computeMorganFingerprint, tanimotoSimilarity, getBitsSet } from "index";
 
-const mol1 = parseSMILES('CC(=O)Oc1ccccc1C(=O)O').molecules[0];  // Aspirin
-const mol2 = parseSMILES('CC(C)Cc1ccc(cc1)C(C)C(=O)O').molecules[0];  // Ibuprofen
+const mol1 = parseSMILES("CC(=O)Oc1ccccc1C(=O)O").molecules[0]; // Aspirin
+const mol2 = parseSMILES("CC(C)Cc1ccc(cc1)C(C)C(=O)O").molecules[0]; // Ibuprofen
 
 const fp1 = computeMorganFingerprint(mol1, 2, 512);
 const fp2 = computeMorganFingerprint(mol2, 2, 512);
@@ -252,7 +252,9 @@ console.log(`Tanimoto similarity: ${(similarity * 100).toFixed(1)}%`);
 
 // Count bits set in fingerprint
 const bitsSet = getBitsSet(fp1);
-console.log(`Aspirin fingerprint has ${bitsSet} bits set (${(bitsSet/512*100).toFixed(2)}% density)`);
+console.log(
+  `Aspirin fingerprint has ${bitsSet} bits set (${((bitsSet / 512) * 100).toFixed(2)}% density)`,
+);
 ```
 
 **Applications:**
@@ -422,21 +424,21 @@ See `docs/smarts-matching.md` for detailed analysis.
 ### Usage Examples
 
 ```typescript
-import { parseSMILES, analyzeRings } from 'index';
+import { parseSMILES, analyzeRings } from "index";
 
-const benzene = parseSMILES('c1ccccc1').molecules[0];
+const benzene = parseSMILES("c1ccccc1").molecules[0];
 const ringInfo = analyzeRings(benzene);
 
 // Query methods
-console.log(ringInfo.ringCount);                    // 1
-console.log(ringInfo.aromaticRings.length);        // 1
-console.log(ringInfo.getRingsContainingAtom(0));   // [ring 0]
+console.log(ringInfo.ringCount); // 1
+console.log(ringInfo.aromaticRings.length); // 1
+console.log(ringInfo.getRingsContainingAtom(0)); // [ring 0]
 
 // Adamantane has 3 SSSR rings
-const adamantane = parseSMILES('C1C2CC3CC1CC(C2)C3').molecules[0];
+const adamantane = parseSMILES("C1C2CC3CC1CC(C2)C3").molecules[0];
 const adamRings = analyzeRings(adamantane);
-console.log(adamRings.ringCount);                  // 3
-console.log(adamRings.classifyRingSystems());      // bridged system
+console.log(adamRings.ringCount); // 3
+console.log(adamRings.classifyRingSystems()); // bridged system
 ```
 
 ### References

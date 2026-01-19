@@ -23,13 +23,13 @@ openchem's IUPAC parser converts systematic IUPAC names into SMILES strings. The
 ### Basic Usage
 
 ```typescript
-import { parseIUPACName, generateSMILES } from 'index';
+import { parseIUPACName, generateSMILES } from "index";
 
 // Parse IUPAC name → Molecule
-const result = parseIUPACName('propan-2-ol');
+const result = parseIUPACName("propan-2-ol");
 
 if (result.errors.length > 0) {
-  console.error('Parse failed:', result.errors);
+  console.error("Parse failed:", result.errors);
 } else if (result.molecule) {
   // Convert Molecule → SMILES
   const smiles = generateSMILES(result.molecule, true); // true = canonical
@@ -40,10 +40,10 @@ if (result.errors.length > 0) {
 ### Error Handling
 
 ```typescript
-const result = parseIUPACName('invalid-chemical-name');
+const result = parseIUPACName("invalid-chemical-name");
 
 if (result.errors.length > 0) {
-  console.error('Errors:', result.errors);
+  console.error("Errors:", result.errors);
   // ["Unrecognized chemical name: invalid-chemical-name"]
 }
 ```
@@ -57,34 +57,34 @@ if (result.errors.length > 0) {
 **Alkanes (100% coverage):**
 
 ```typescript
-parseIUPACName('methane')      // CH₄
-parseIUPACName('ethane')       // C₂H₆
-parseIUPACName('propane')      // C₃H₈
-parseIUPACName('butane')       // C₄H₁₀
-parseIUPACName('pentane')      // C₅H₁₂
-parseIUPACName('hexane')       // C₆H₁₄
-parseIUPACName('octane')       // C₈H₁₈
-parseIUPACName('decane')       // C₁₀H₂₂
+parseIUPACName("methane"); // CH₄
+parseIUPACName("ethane"); // C₂H₆
+parseIUPACName("propane"); // C₃H₈
+parseIUPACName("butane"); // C₄H₁₀
+parseIUPACName("pentane"); // C₅H₁₂
+parseIUPACName("hexane"); // C₆H₁₄
+parseIUPACName("octane"); // C₈H₁₈
+parseIUPACName("decane"); // C₁₀H₂₂
 ```
 
 **Branched Alkanes:**
 
 ```typescript
-parseIUPACName('2-methylpropane')         // (CH₃)₂CHCH₃
-parseIUPACName('2-methylbutane')          // CH₃CH(CH₃)CH₂CH₃
-parseIUPACName('2,2-dimethylpropane')     // (CH₃)₄C
-parseIUPACName('2,3-dimethylbutane')      // (CH₃)₂CHCH(CH₃)₂
+parseIUPACName("2-methylpropane"); // (CH₃)₂CHCH₃
+parseIUPACName("2-methylbutane"); // CH₃CH(CH₃)CH₂CH₃
+parseIUPACName("2,2-dimethylpropane"); // (CH₃)₄C
+parseIUPACName("2,3-dimethylbutane"); // (CH₃)₂CHCH(CH₃)₂
 ```
 
 **Alkenes & Alkynes:**
 
 ```typescript
-parseIUPACName('ethene')           // C₂H₄ (ethylene)
-parseIUPACName('propene')          // C₃H₆
-parseIUPACName('but-1-ene')        // CH₂=CHCH₂CH₃
-parseIUPACName('but-2-ene')        // CH₃CH=CHCH₃
-parseIUPACName('ethyne')           // C₂H₂ (acetylene)
-parseIUPACName('propyne')          // HC≡CCH₃
+parseIUPACName("ethene"); // C₂H₄ (ethylene)
+parseIUPACName("propene"); // C₃H₆
+parseIUPACName("but-1-ene"); // CH₂=CHCH₂CH₃
+parseIUPACName("but-2-ene"); // CH₃CH=CHCH₃
+parseIUPACName("ethyne"); // C₂H₂ (acetylene)
+parseIUPACName("propyne"); // HC≡CCH₃
 ```
 
 ### 2. Functional Groups
@@ -92,68 +92,68 @@ parseIUPACName('propyne')          // HC≡CCH₃
 **Alcohols:**
 
 ```typescript
-parseIUPACName('methanol')         // CH₃OH
-parseIUPACName('ethanol')          // CH₃CH₂OH
-parseIUPACName('propan-1-ol')      // CH₃CH₂CH₂OH
-parseIUPACName('propan-2-ol')      // (CH₃)₂CHOH (isopropanol)
-parseIUPACName('butan-2-ol')       // CH₃CH(OH)CH₂CH₃
+parseIUPACName("methanol"); // CH₃OH
+parseIUPACName("ethanol"); // CH₃CH₂OH
+parseIUPACName("propan-1-ol"); // CH₃CH₂CH₂OH
+parseIUPACName("propan-2-ol"); // (CH₃)₂CHOH (isopropanol)
+parseIUPACName("butan-2-ol"); // CH₃CH(OH)CH₂CH₃
 ```
 
 **Ketones:**
 
 ```typescript
-parseIUPACName('propan-2-one')     // (CH₃)₂CO (acetone)
-parseIUPACName('butan-2-one')      // CH₃COCH₂CH₃
-parseIUPACName('pentan-3-one')     // CH₃CH₂COCH₂CH₃
+parseIUPACName("propan-2-one"); // (CH₃)₂CO (acetone)
+parseIUPACName("butan-2-one"); // CH₃COCH₂CH₃
+parseIUPACName("pentan-3-one"); // CH₃CH₂COCH₂CH₃
 ```
 
 **Aldehydes:**
 
 ```typescript
-parseIUPACName('methanal')         // HCHO (formaldehyde)
-parseIUPACName('ethanal')          // CH₃CHO (acetaldehyde)
-parseIUPACName('propanal')         // CH₃CH₂CHO
+parseIUPACName("methanal"); // HCHO (formaldehyde)
+parseIUPACName("ethanal"); // CH₃CHO (acetaldehyde)
+parseIUPACName("propanal"); // CH₃CH₂CHO
 ```
 
 **Carboxylic Acids:**
 
 ```typescript
-parseIUPACName('methanoic acid')   // HCOOH (formic acid)
-parseIUPACName('ethanoic acid')    // CH₃COOH (acetic acid)
-parseIUPACName('propanoic acid')   // CH₃CH₂COOH
-parseIUPACName('butanoic acid')    // CH₃CH₂CH₂COOH
+parseIUPACName("methanoic acid"); // HCOOH (formic acid)
+parseIUPACName("ethanoic acid"); // CH₃COOH (acetic acid)
+parseIUPACName("propanoic acid"); // CH₃CH₂COOH
+parseIUPACName("butanoic acid"); // CH₃CH₂CH₂COOH
 ```
 
 **Esters:**
 
 ```typescript
-parseIUPACName('methyl ethanoate')     // CH₃COOCH₃ (methyl acetate)
-parseIUPACName('ethyl ethanoate')      // CH₃COOCH₂CH₃ (ethyl acetate)
-parseIUPACName('methyl propanoate')    // CH₃CH₂COOCH₃
+parseIUPACName("methyl ethanoate"); // CH₃COOCH₃ (methyl acetate)
+parseIUPACName("ethyl ethanoate"); // CH₃COOCH₂CH₃ (ethyl acetate)
+parseIUPACName("methyl propanoate"); // CH₃CH₂COOCH₃
 ```
 
 **Amines:**
 
 ```typescript
-parseIUPACName('methanamine')      // CH₃NH₂
-parseIUPACName('ethanamine')       // CH₃CH₂NH₂
-parseIUPACName('propan-1-amine')   // CH₃CH₂CH₂NH₂
-parseIUPACName('propan-2-amine')   // (CH₃)₂CHNH₂
+parseIUPACName("methanamine"); // CH₃NH₂
+parseIUPACName("ethanamine"); // CH₃CH₂NH₂
+parseIUPACName("propan-1-amine"); // CH₃CH₂CH₂NH₂
+parseIUPACName("propan-2-amine"); // (CH₃)₂CHNH₂
 ```
 
 **Amides:**
 
 ```typescript
-parseIUPACName('ethanamide')               // CH₃CONH₂ (acetamide)
-parseIUPACName('N-methylethanamide')       // CH₃CONHCH₃
-parseIUPACName('N,N-dimethylethanamide')   // CH₃CON(CH₃)₂
+parseIUPACName("ethanamide"); // CH₃CONH₂ (acetamide)
+parseIUPACName("N-methylethanamide"); // CH₃CONHCH₃
+parseIUPACName("N,N-dimethylethanamide"); // CH₃CON(CH₃)₂
 ```
 
 **Nitriles:**
 
 ```typescript
-parseIUPACName('ethanenitrile')    // CH₃CN (acetonitrile)
-parseIUPACName('propanenitrile')   // CH₃CH₂CN
+parseIUPACName("ethanenitrile"); // CH₃CN (acetonitrile)
+parseIUPACName("propanenitrile"); // CH₃CH₂CN
 ```
 
 ### 3. Aromatic Compounds
@@ -161,18 +161,18 @@ parseIUPACName('propanenitrile')   // CH₃CH₂CN
 **Simple Aromatics:**
 
 ```typescript
-parseIUPACName('benzene')          // C₆H₆
-parseIUPACName('methylbenzene')    // C₆H₅CH₃ (toluene)
-parseIUPACName('ethylbenzene')     // C₆H₅CH₂CH₃
-parseIUPACName('chlorobenzene')    // C₆H₅Cl
+parseIUPACName("benzene"); // C₆H₆
+parseIUPACName("methylbenzene"); // C₆H₅CH₃ (toluene)
+parseIUPACName("ethylbenzene"); // C₆H₅CH₂CH₃
+parseIUPACName("chlorobenzene"); // C₆H₅Cl
 ```
 
 **Fused Ring Systems:**
 
 ```typescript
-parseIUPACName('naphthalene')      // C₁₀H₈
-parseIUPACName('anthracene')       // C₁₄H₁₀
-parseIUPACName('phenanthrene')     // C₁₄H₁₀
+parseIUPACName("naphthalene"); // C₁₀H₈
+parseIUPACName("anthracene"); // C₁₄H₁₀
+parseIUPACName("phenanthrene"); // C₁₄H₁₀
 ```
 
 ### 4. Heterocycles
@@ -180,23 +180,23 @@ parseIUPACName('phenanthrene')     // C₁₄H₁₀
 **Aromatic Heterocycles:**
 
 ```typescript
-parseIUPACName('pyridine')         // C₅H₅N
-parseIUPACName('pyrimidine')       // C₄H₄N₂
-parseIUPACName('furan')            // C₄H₄O
-parseIUPACName('thiophene')        // C₄H₄S
-parseIUPACName('pyrrole')          // C₄H₅N
-parseIUPACName('imidazole')        // C₃H₄N₂
+parseIUPACName("pyridine"); // C₅H₅N
+parseIUPACName("pyrimidine"); // C₄H₄N₂
+parseIUPACName("furan"); // C₄H₄O
+parseIUPACName("thiophene"); // C₄H₄S
+parseIUPACName("pyrrole"); // C₄H₅N
+parseIUPACName("imidazole"); // C₃H₄N₂
 ```
 
 **Saturated Heterocycles:**
 
 ```typescript
-parseIUPACName('morpholine')       // C₄H₉NO
-parseIUPACName('piperazine')       // C₄H₁₀N₂
-parseIUPACName('piperidine')       // C₅H₁₁N
-parseIUPACName('pyrrolidine')      // C₄H₉N
-parseIUPACName('oxane')            // C₅H₁₀O (tetrahydropyran)
-parseIUPACName('oxolane')          // C₄H₈O (tetrahydrofuran)
+parseIUPACName("morpholine"); // C₄H₉NO
+parseIUPACName("piperazine"); // C₄H₁₀N₂
+parseIUPACName("piperidine"); // C₅H₁₁N
+parseIUPACName("pyrrolidine"); // C₄H₉N
+parseIUPACName("oxane"); // C₅H₁₀O (tetrahydropyran)
+parseIUPACName("oxolane"); // C₄H₈O (tetrahydrofuran)
 ```
 
 ### 5. Cyclic Hydrocarbons
@@ -204,18 +204,18 @@ parseIUPACName('oxolane')          // C₄H₈O (tetrahydrofuran)
 **Monocyclic:**
 
 ```typescript
-parseIUPACName('cyclopropane')     // C₃H₆
-parseIUPACName('cyclobutane')      // C₄H₈
-parseIUPACName('cyclopentane')     // C₅H₁₀
-parseIUPACName('cyclohexane')      // C₆H₁₂
-parseIUPACName('cyclohexene')      // C₆H₁₀
+parseIUPACName("cyclopropane"); // C₃H₆
+parseIUPACName("cyclobutane"); // C₄H₈
+parseIUPACName("cyclopentane"); // C₅H₁₀
+parseIUPACName("cyclohexane"); // C₆H₁₂
+parseIUPACName("cyclohexene"); // C₆H₁₀
 ```
 
 **Polycyclic:**
 
 ```typescript
-parseIUPACName('bicyclo[2.2.1]heptane')  // norbornane
-parseIUPACName('adamantane')              // C₁₀H₁₆
+parseIUPACName("bicyclo[2.2.1]heptane"); // norbornane
+parseIUPACName("adamantane"); // C₁₀H₁₆
 ```
 
 ---
@@ -226,12 +226,12 @@ The parser recognizes common trivial names through OPSIN data:
 
 ```typescript
 // Trivial names are automatically recognized
-parseIUPACName('acetone')          // → propan-2-one
-parseIUPACName('isopropanol')      // → propan-2-ol
-parseIUPACName('toluene')          // → methylbenzene
-parseIUPACName('acetic acid')      // → ethanoic acid
-parseIUPACName('acetonitrile')     // → ethanenitrile
-parseIUPACName('formic acid')      // → methanoic acid
+parseIUPACName("acetone"); // → propan-2-one
+parseIUPACName("isopropanol"); // → propan-2-ol
+parseIUPACName("toluene"); // → methylbenzene
+parseIUPACName("acetic acid"); // → ethanoic acid
+parseIUPACName("acetonitrile"); // → ethanenitrile
+parseIUPACName("formic acid"); // → methanoic acid
 ```
 
 **Supported trivial names:**
@@ -248,26 +248,26 @@ parseIUPACName('formic acid')      // → methanoic acid
 You can verify parsing accuracy with round-trip conversion:
 
 ```typescript
-import { parseIUPACName, generateIUPACName, generateSMILES } from 'index';
+import { parseIUPACName, generateIUPACName, generateSMILES } from "index";
 
 // Test: IUPAC → SMILES → IUPAC
-const originalName = 'propan-2-ol';
+const originalName = "propan-2-ol";
 
 // Step 1: Parse IUPAC name
 const parseResult = parseIUPACName(originalName);
-console.log('Parsed:', parseResult.molecule ? '✓' : '✗');
+console.log("Parsed:", parseResult.molecule ? "✓" : "✗");
 
 // Step 2: Convert to SMILES
 const smiles = generateSMILES(parseResult.molecule!, true);
-console.log('SMILES:', smiles);  // CC(C)O
+console.log("SMILES:", smiles); // CC(C)O
 
 // Step 3: Generate IUPAC name from molecule
 const nameResult = generateIUPACName(parseResult.molecule!);
-console.log('Generated name:', nameResult.name);  // propan-2-ol
+console.log("Generated name:", nameResult.name); // propan-2-ol
 
 // Compare names
 const match = nameResult.name.toLowerCase() === originalName.toLowerCase();
-console.log('Round-trip:', match ? '✓' : '✗');
+console.log("Round-trip:", match ? "✓" : "✗");
 ```
 
 ---
@@ -280,9 +280,9 @@ console.log('Round-trip:', match ? '✓' : '✗');
 
 ```typescript
 // These will fail or return errors:
-parseIUPACName('cholesterol')
-parseIUPACName('morphine')
-parseIUPACName('quinine')
+parseIUPACName("cholesterol");
+parseIUPACName("morphine");
+parseIUPACName("quinine");
 ```
 
 **Workaround:** Use SMILES input directly for complex molecules.
@@ -293,10 +293,10 @@ parseIUPACName('quinine')
 
 ```typescript
 // Basic E/Z works:
-parseIUPACName('(E)-but-2-ene')       // ✓
+parseIUPACName("(E)-but-2-ene"); // ✓
 
 // Complex R/S may fail:
-parseIUPACName('(2R,3S)-2,3-dihydroxybutanoic acid')  // ⚠️
+parseIUPACName("(2R,3S)-2,3-dihydroxybutanoic acid"); // ⚠️
 ```
 
 ### 3. Non-Standard Nomenclature
@@ -305,8 +305,8 @@ parseIUPACName('(2R,3S)-2,3-dihydroxybutanoic acid')  // ⚠️
 
 ```typescript
 // These will fail:
-parseIUPACName('Aspirin')     // Use: 2-acetoxybenzoic acid
-parseIUPACName('Tylenol')     // Use: N-(4-hydroxyphenyl)ethanamide
+parseIUPACName("Aspirin"); // Use: 2-acetoxybenzoic acid
+parseIUPACName("Tylenol"); // Use: N-(4-hydroxyphenyl)ethanamide
 ```
 
 ---
@@ -316,20 +316,20 @@ parseIUPACName('Tylenol')     // Use: N-(4-hydroxyphenyl)ethanamide
 ### Complete Example
 
 ```typescript
-import { parseIUPACName, generateSMILES, generateIUPACName } from 'index';
+import { parseIUPACName, generateSMILES, generateIUPACName } from "index";
 
 function demonstrateParsing() {
   const examples = [
-    'ethane',
-    '2-methylpropane',
-    'propan-2-ol',
-    'butan-2-one',
-    'ethanoic acid',
-    'benzene',
-    'pyridine',
+    "ethane",
+    "2-methylpropane",
+    "propan-2-ol",
+    "butan-2-one",
+    "ethanoic acid",
+    "benzene",
+    "pyridine",
   ];
 
-  console.log('IUPAC Name → SMILES Parsing\n');
+  console.log("IUPAC Name → SMILES Parsing\n");
 
   for (const iupacName of examples) {
     const result = parseIUPACName(iupacName);
@@ -355,7 +355,7 @@ demonstrateParsing();
 ### Working with Errors
 
 ```typescript
-const result = parseIUPACName('invalid-name');
+const result = parseIUPACName("invalid-name");
 
 if (result.errors.length > 0) {
   result.errors.forEach((error, i) => {
@@ -466,7 +466,7 @@ bun test test/unit/iupac-engine/realistic-iupac-dataset.test.ts
 **Example:**
 
 ```typescript
-const result = parseIUPACName('propan-2-ol');
+const result = parseIUPACName("propan-2-ol");
 // { molecule: {...}, errors: [] }
 ```
 

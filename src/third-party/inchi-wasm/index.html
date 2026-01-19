@@ -34,7 +34,7 @@
       }
 
       .output {
-        margin-bottom :1em;
+        margin-bottom: 1em;
       }
 
       #molfile {
@@ -48,7 +48,9 @@
         overflow-x: scroll;
       }
 
-      #inchi, #key, #error {
+      #inchi,
+      #key,
+      #error {
         width: 100%;
         height: 1.5em;
         font-size: 120%;
@@ -165,19 +167,19 @@ M  END</textarea
     </div>
     <script>
       const collectOptions = () => {
-        const options = [ ];
+        const options = [];
 
-        for (let box of document.querySelectorAll('.options input')) {
+        for (let box of document.querySelectorAll(".options input")) {
           if (box.checked) {
-            options.push(`-${box.name}`)
+            options.push(`-${box.name}`);
           }
         }
 
-        return options.join(' ');
+        return options.join(" ");
       };
 
       const update = () => {
-        let molfile = document.querySelector('#molfile').value;
+        let molfile = document.querySelector("#molfile").value;
         let options = collectOptions();
         let inchi, key;
 
@@ -185,21 +187,21 @@ M  END</textarea
           inchi = molfileToInChI(molfile, options);
           key = inchiToInChIKey(inchi);
         } catch (e) {
-          document.querySelector('#error').value = e.message;
-          document.querySelector('#inchi').value = '';
-          document.querySelector('#key').value = '';
+          document.querySelector("#error").value = e.message;
+          document.querySelector("#inchi").value = "";
+          document.querySelector("#key").value = "";
 
           return;
         }
 
-        document.querySelector('#inchi').value = inchi;
-        document.querySelector('#key').value = key;
-        document.querySelector('#error').value = '';
+        document.querySelector("#inchi").value = inchi;
+        document.querySelector("#key").value = key;
+        document.querySelector("#error").value = "";
       };
 
-      window.addEventListener('InChIReady', () => {
-        document.querySelector('#molfile').addEventListener('input', update);
-        document.querySelector('.options').addEventListener('change', update);
+      window.addEventListener("InChIReady", () => {
+        document.querySelector("#molfile").addEventListener("input", update);
+        document.querySelector(".options").addEventListener("change", update);
         update();
       });
     </script>

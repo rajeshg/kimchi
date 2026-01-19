@@ -9,8 +9,8 @@
     "allowImportingTsExtensions": false,
     "resolveJsonModule": true,
     "baseUrl": ".",
-    "paths": {},
+    "paths": {}
   },
   "include": ["index.ts", "types.ts", "src/**/*"],
-  "exclude": ["test", "scripts", "dist", "node_modules", "src/third-party/inchi-wasm/wasi.esm.js"],
+  "exclude": ["test", "scripts", "dist", "node_modules", "src/third-party/inchi-wasm/wasi.esm.js"]
 }

@@ -218,3 +218,10 @@ export interface IUPACGeneratorOptions {
   includeCommonNames?: boolean;
 }
 export { enumerateTautomers, canonicalTautomer } from "src/utils/tautomer";
+export { layoutMolecule } from "src/utils/layout";
+export type { LayoutedMolecule, AtomWithCoords, LayoutOptions } from "src/utils/layout";
+export { aromatizeMolecule } from "src/utils/aromaticity";
+export { checkStructure } from "src/validators/structure-validator";
+export type { ValidationResult, ValidationIssue } from "src/validators/structure-validator";
+export { ValidationSeverity } from "src/validators/structure-validator";
+export { addExplicitHydrogens, removeExplicitHydrogens } from "src/utils/hydrogen-utils";

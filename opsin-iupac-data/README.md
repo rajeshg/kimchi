@@ -95,11 +95,11 @@ Input: C6H5-CH2-CH3 (ethylbenzene)
 To load and parse these files in TypeScript:
 
 ```typescript
-import * as fs from 'fs';
-import * as xml2js from 'xml2js';
+import * as fs from "fs";
+import * as xml2js from "xml2js";
 
 const parser = new xml2js.Parser();
-const fileContent = fs.readFileSync('opsin-iupac-data/alkanes.xml', 'utf8');
+const fileContent = fs.readFileSync("opsin-iupac-data/alkanes.xml", "utf8");
 const result = await parser.parseStringPromise(fileContent);
 ```
 

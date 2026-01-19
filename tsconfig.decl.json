@@ -24,8 +24,8 @@
       "src/*": ["src/*"],
       "test/*": ["test/*"],
       "types": ["types.ts"],
-      "index": ["index.ts"],
-    },
+      "index": ["index.ts"]
+    }
   },
   "exclude": [
     "src/third-party/**/*",
@@ -38,6 +38,6 @@
     "check-*.ts",
     "check_*.ts",
     "verify-*.ts",
-    "analyze-*.ts",
-  ],
+    "analyze-*.ts"
+  ]
 }

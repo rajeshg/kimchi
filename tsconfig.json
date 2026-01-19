@@ -28,8 +28,8 @@
       "test/*": ["test/*"],
       "types": ["types.ts"],
       "index": ["index.ts"],
-      "openchem": ["index.ts"],
-    },
+      "openchem": ["index.ts"]
+    }
   },
   "exclude": [
     "packages/*/src",
@@ -37,6 +37,6 @@
     "node_modules",
     "dist",
     "test-*.ts",
-    "scripts/debug-*.ts",
-  ],
+    "scripts/debug-*.ts"
+  ]
 }

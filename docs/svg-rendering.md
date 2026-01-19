@@ -25,10 +25,10 @@ openchem provides a complete 2D molecular structure rendering system that genera
 ### Basic Usage
 
 ```typescript
-import { parseSMILES, renderSVG } from 'index';
+import { parseSMILES, renderSVG } from "index";
 
 // Parse SMILES and render to SVG
-const result = parseSMILES('c1ccccc1');
+const result = parseSMILES("c1ccccc1");
 const molecule = result.molecules[0];
 
 const svg = renderSVG(molecule);
@@ -38,22 +38,22 @@ const svg = renderSVG(molecule);
 ### With Options
 
 ```typescript
-import { parseSMILES, renderSVG } from 'index';
+import { parseSMILES, renderSVG } from "index";
 
-const molecule = parseSMILES('c1ccccc1').molecules[0];
+const molecule = parseSMILES("c1ccccc1").molecules[0];
 
 const svgResult = renderSVG(molecule, {
   width: 400,
   height: 300,
   bondLength: 50,
-  colorScheme: 'default', // or 'monochrome'
+  colorScheme: "default", // or 'monochrome'
   fontSize: 14,
   strokeWidth: 1.5,
 });
 
-console.log(svgResult.svg);     // SVG markup
-console.log(svgResult.width);   // 400
-console.log(svgResult.height);  // 300
+console.log(svgResult.svg); // SVG markup
+console.log(svgResult.width); // 400
+console.log(svgResult.height); // 300
 ```
 
 ### Usage in Web Applications
@@ -92,13 +92,13 @@ fs.writeFileSync('aspirin.svg', result.svg);
 
 ```typescript
 interface SVGRendererOptions {
-  width?: number;              // SVG width (default: 400)
-  height?: number;             // SVG height (default: 300)
-  bondLength?: number;         // Bond length in pixels (default: 40)
-  colorScheme?: 'default' | 'monochrome';  // Color scheme (default: 'default')
-  fontSize?: number;           // Font size for labels (default: 12)
-  strokeWidth?: number;        // Bond thickness (default: 1.5)
-  margin?: number;             // Margin around molecule (default: 20)
+  width?: number; // SVG width (default: 400)
+  height?: number; // SVG height (default: 300)
+  bondLength?: number; // Bond length in pixels (default: 40)
+  colorScheme?: "default" | "monochrome"; // Color scheme (default: 'default')
+  fontSize?: number; // Font size for labels (default: 12)
+  strokeWidth?: number; // Bond thickness (default: 1.5)
+  margin?: number; // Margin around molecule (default: 20)
 }
 ```
 
@@ -106,10 +106,10 @@ interface SVGRendererOptions {
 
 ```typescript
 interface SVGRenderResult {
-  svg: string;                 // Complete SVG markup
-  width: number;               // Canvas width
-  height: number;              // Canvas height
-  errors: string[];            // Any rendering errors
+  svg: string; // Complete SVG markup
+  width: number; // Canvas width
+  height: number; // Canvas height
+  errors: string[]; // Any rendering errors
 }
 ```
 
@@ -373,15 +373,15 @@ quality_score = Σ(rule_score × weight) / Σ(weight)
 ### Custom Coordinate Generation
 
 ```typescript
-import { parseSMILES, renderSVG } from 'index';
+import { parseSMILES, renderSVG } from "index";
 
 // Render molecule (coordinates generated automatically)
-const molecule = parseSMILES('CC(C)C').molecules[0];
+const molecule = parseSMILES("CC(C)C").molecules[0];
 const svg = renderSVG(molecule, {
   width: 300,
   height: 200,
   bondLength: 50,
-  colorScheme: 'monochrome',
+  colorScheme: "monochrome",
   strokeWidth: 2.0,
 });
 
@@ -394,11 +394,11 @@ console.log(svg.width, svg.height); // Canvas dimensions
 ### Batch Rendering
 
 ```typescript
-import { parseSMILES, renderSVG } from 'index';
+import { parseSMILES, renderSVG } from "index";
 
-const smilesList = ['c1ccccc1', 'CCO', 'CC(=O)O'];
+const smilesList = ["c1ccccc1", "CCO", "CC(=O)O"];
 
-const svgs = smilesList.map(smiles => {
+const svgs = smilesList.map((smiles) => {
   const molecule = parseSMILES(smiles).molecules[0];
   return renderSVG(molecule, { width: 300, height: 200 });
 });
@@ -414,18 +414,18 @@ svgs.forEach((svg, i) => {
 ```html
 <!DOCTYPE html>
 <html>
-<body>
-  <div id="molecule-container"></div>
+  <body>
+    <div id="molecule-container"></div>
 
-  <script type="module">
-    import { parseSMILES, renderSVG } from 'openchem';
+    <script type="module">
+      import { parseSMILES, renderSVG } from "openchem";
 
-    const molecule = parseSMILES('c1ccccc1').molecules[0];
-    const svg = renderSVG(molecule);
+      const molecule = parseSMILES("c1ccccc1").molecules[0];
+      const svg = renderSVG(molecule);
 
-    document.getElementById('molecule-container').innerHTML = svg;
-  </script>
-</body>
+      document.getElementById("molecule-container").innerHTML = svg;
+    </script>
+  </body>
 </html>
 ```
 
@@ -466,36 +466,36 @@ svgs.forEach((svg, i) => {
 
 ```typescript
 // Benzene
-renderSVG(parseSMILES('c1ccccc1').molecules[0]);
+renderSVG(parseSMILES("c1ccccc1").molecules[0]);
 
 // Ethanol
-renderSVG(parseSMILES('CCO').molecules[0]);
+renderSVG(parseSMILES("CCO").molecules[0]);
 
 // Acetic acid
-renderSVG(parseSMILES('CC(=O)O').molecules[0]);
+renderSVG(parseSMILES("CC(=O)O").molecules[0]);
 ```
 
 ### Complex Molecules
 
 ```typescript
 // Aspirin
-renderSVG(parseSMILES('CC(=O)Oc1ccccc1C(=O)O').molecules[0]);
+renderSVG(parseSMILES("CC(=O)Oc1ccccc1C(=O)O").molecules[0]);
 
 // Caffeine
-renderSVG(parseSMILES('CN1C=NC2=C1C(=O)N(C(=O)N2C)C').molecules[0]);
+renderSVG(parseSMILES("CN1C=NC2=C1C(=O)N(C(=O)N2C)C").molecules[0]);
 
 // Ibuprofen
-renderSVG(parseSMILES('CC(C)Cc1ccc(cc1)C(C)C(=O)O').molecules[0]);
+renderSVG(parseSMILES("CC(C)Cc1ccc(cc1)C(C)C(=O)O").molecules[0]);
 ```
 
 ### Stereochemistry
 
 ```typescript
 // (E)-but-2-ene
-renderSVG(parseSMILES('C/C=C/C').molecules[0]);
+renderSVG(parseSMILES("C/C=C/C").molecules[0]);
 
 // L-alanine
-renderSVG(parseSMILES('C[C@@H](N)C(=O)O').molecules[0]);
+renderSVG(parseSMILES("C[C@@H](N)C(=O)O").molecules[0]);
 ```
 
 ---

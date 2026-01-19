@@ -33,36 +33,36 @@ Add highlighting support to the SVG renderer:
 // New types in src/generators/svg-renderer.ts
 
 export interface AtomHighlight {
-  atoms: number[];          // Atom indices to highlight
-  color?: string;           // Default: '#FFFF00' (yellow)
-  opacity?: number;         // Default: 0.3
-  radius?: number;          // Circle radius multiplier, default: 1.5
+  atoms: number[]; // Atom indices to highlight
+  color?: string; // Default: '#FFFF00' (yellow)
+  opacity?: number; // Default: 0.3
+  radius?: number; // Circle radius multiplier, default: 1.5
 }
 
 export interface BondHighlight {
-  bonds: Array<[number, number]>;  // Pairs of atom indices
-  color?: string;           // Default: '#FF0000' (red)
-  width?: number;           // Line width multiplier, default: 2.0
-  opacity?: number;         // Default: 0.8
+  bonds: Array<[number, number]>; // Pairs of atom indices
+  color?: string; // Default: '#FF0000' (red)
+  width?: number; // Line width multiplier, default: 2.0
+  opacity?: number; // Default: 0.8
 }
 
 export interface SubstructureHighlight {
-  smarts?: string;          // SMARTS pattern to match
-  atoms?: number[];         // Or explicit atom indices
+  smarts?: string; // SMARTS pattern to match
+  atoms?: number[]; // Or explicit atom indices
   bonds?: Array<[number, number]>; // Explicit bonds
-  color?: string;           // Unified color for atoms+bonds
-  atomColor?: string;       // Override atom highlight color
-  bondColor?: string;       // Override bond highlight color
-  opacity?: number;         // Unified opacity
-  label?: string;           // Optional label for legend
+  color?: string; // Unified color for atoms+bonds
+  atomColor?: string; // Override atom highlight color
+  bondColor?: string; // Override bond highlight color
+  opacity?: number; // Unified opacity
+  label?: string; // Optional label for legend
 }
 
 // Updated SVGRendererOptions
 export interface SVGRendererOptions {
   // ... existing options ...
-  highlights?: SubstructureHighlight[];  // NEW
-  atomHighlights?: AtomHighlight[];      // NEW (low-level)
-  bondHighlights?: BondHighlight[];      // NEW (low-level)
+  highlights?: SubstructureHighlight[]; // NEW
+  atomHighlights?: AtomHighlight[]; // NEW (low-level)
+  bondHighlights?: BondHighlight[]; // NEW (low-level)
 }
 ```
 
@@ -74,33 +74,37 @@ export interface SVGRendererOptions {
 function renderAtomHighlight(
   atomIdx: number,
   coords: AtomCoordinates,
-  options: AtomHighlight
+  options: AtomHighlight,
 ): string {
   // Render colored circle behind atom
-  const { color = '#FFFF00', opacity = 0.3, radius = 1.5 } = options;
+  const { color = "#FFFF00", opacity = 0.3, radius = 1.5 } = options;
   const r = 8 * radius; // Base radius
-  return `<circle cx="${coords.x}" cy="${coords.y}" r="${r}" ` +
-         `fill="${color}" opacity="${opacity}" />`;
+  return (
+    `<circle cx="${coords.x}" cy="${coords.y}" r="${r}" ` +
+    `fill="${color}" opacity="${opacity}" />`
+  );
 }
 
 function renderBondHighlight(
   bond: [number, number],
   coords1: AtomCoordinates,
   coords2: AtomCoordinates,
-  options: BondHighlight
+  options: BondHighlight,
 ): string {
   // Render thick colored line behind bond
-  const { color = '#FF0000', width = 2.0, opacity = 0.8 } = options;
+  const { color = "#FF0000", width = 2.0, opacity = 0.8 } = options;
   const lineWidth = 2 * width; // Base width
-  return `<line x1="${coords1.x}" y1="${coords1.y}" ` +
-         `x2="${coords2.x}" y2="${coords2.y}" ` +
-         `stroke="${color}" stroke-width="${lineWidth}" ` +
-         `opacity="${opacity}" stroke-linecap="round" />`;
+  return (
+    `<line x1="${coords1.x}" y1="${coords1.y}" ` +
+    `x2="${coords2.x}" y2="${coords2.y}" ` +
+    `stroke="${color}" stroke-width="${lineWidth}" ` +
+    `opacity="${opacity}" stroke-linecap="round" />`
+  );
 }
 
 function processHighlights(
   molecule: Molecule,
-  highlights: SubstructureHighlight[]
+  highlights: SubstructureHighlight[],
 ): { atomHighlights: AtomHighlight[]; bondHighlights: BondHighlight[] } {
   const atomHighlights: AtomHighlight[] = [];
   const bondHighlights: BondHighlight[] = [];
@@ -127,7 +131,7 @@ function processHighlights(
     if (atoms.length > 0) {
       atomHighlights.push({
         atoms,
-        color: hl.atomColor || hl.color || '#FFFF00',
+        color: hl.atomColor || hl.color || "#FFFF00",
         opacity: hl.opacity || 0.3,
       });
     }
@@ -136,7 +140,7 @@ function processHighlights(
     if (bonds.length > 0) {
       bondHighlights.push({
         bonds,
-        color: hl.bondColor || hl.color || '#FF0000',
+        color: hl.bondColor || hl.color || "#FF0000",
         opacity: hl.opacity || 0.8,
       });
     }
@@ -145,10 +149,7 @@ function processHighlights(
   return { atomHighlights, bondHighlights };
 }
 
-function inferBondsBetweenAtoms(
-  molecule: Molecule,
-  atoms: number[]
-): Array<[number, number]> {
+function inferBondsBetweenAtoms(molecule: Molecule, atoms: number[]): Array<[number, number]> {
   const atomSet = new Set(atoms);
   const bonds: Array<[number, number]> = [];
 
@@ -184,16 +185,21 @@ const renderSchema = z.object({
   outputPath: z.string().optional(),
 
   // NEW: Highlighting support
-  highlights: z.array(z.object({
-    smarts: z.string().optional().describe("SMARTS pattern to highlight"),
-    atoms: z.array(z.number()).optional().describe("Atom indices to highlight"),
-    bonds: z.array(z.tuple([z.number(), z.number()])).optional(),
-    color: z.string().optional().describe("Highlight color (hex or CSS name)"),
-    atomColor: z.string().optional(),
-    bondColor: z.string().optional(),
-    opacity: z.number().min(0).max(1).optional(),
-    label: z.string().optional().describe("Label for legend"),
-  })).optional().describe("Substructure highlights"),
+  highlights: z
+    .array(
+      z.object({
+        smarts: z.string().optional().describe("SMARTS pattern to highlight"),
+        atoms: z.array(z.number()).optional().describe("Atom indices to highlight"),
+        bonds: z.array(z.tuple([z.number(), z.number()])).optional(),
+        color: z.string().optional().describe("Highlight color (hex or CSS name)"),
+        atomColor: z.string().optional(),
+        bondColor: z.string().optional(),
+        opacity: z.number().min(0).max(1).optional(),
+        label: z.string().optional().describe("Label for legend"),
+      }),
+    )
+    .optional()
+    .describe("Substructure highlights"),
 });
 ```
 

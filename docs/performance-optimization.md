@@ -121,7 +121,7 @@ for (const result of bulkComputeProperties(molecules)) {
 }
 
 // BAD: Creating new molecules defeats cache
-const mols = smilesArray.map(s => parseSMILES(s).molecules[0]!);
+const mols = smilesArray.map((s) => parseSMILES(s).molecules[0]!);
 // Then immediately compute properties
 // LogP cache only hits if same molecule object is reused later
 ```

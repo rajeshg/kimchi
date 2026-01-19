@@ -29,34 +29,34 @@ openchem's IUPAC naming engine generates systematic chemical names from SMILES s
 ### Basic Usage
 
 ```typescript
-import { parseSMILES, generateIUPACName } from 'index';
+import { parseSMILES, generateIUPACName } from "index";
 
 // Parse SMILES → Molecule
-const result = parseSMILES('CC(C)O');
+const result = parseSMILES("CC(C)O");
 const molecule = result.molecules[0];
 
 // Generate IUPAC name
 const nameResult = generateIUPACName(molecule);
-console.log(nameResult.name);  // propan-2-ol
+console.log(nameResult.name); // propan-2-ol
 ```
 
 ### Shortcut Function
 
 ```typescript
-import { generateIUPACNameFromSMILES } from 'index';
+import { generateIUPACNameFromSMILES } from "index";
 
 // Direct SMILES → IUPAC name
-const result = generateIUPACNameFromSMILES('CC(=O)O');
-console.log(result.name);  // ethanoic acid
+const result = generateIUPACNameFromSMILES("CC(=O)O");
+console.log(result.name); // ethanoic acid
 ```
 
 ### Error Handling
 
 ```typescript
-const result = generateIUPACNameFromSMILES('invalid-smiles');
+const result = generateIUPACNameFromSMILES("invalid-smiles");
 
 if (result.errors.length > 0) {
-  console.error('Errors:', result.errors);
+  console.error("Errors:", result.errors);
 }
 ```
 
@@ -69,42 +69,42 @@ if (result.errors.length > 0) {
 #### Linear Alkanes
 
 ```typescript
-generateIUPACNameFromSMILES('C')         // → methane
-generateIUPACNameFromSMILES('CC')        // → ethane
-generateIUPACNameFromSMILES('CCC')       // → propane
-generateIUPACNameFromSMILES('CCCC')      // → butane
-generateIUPACNameFromSMILES('CCCCC')     // → pentane
-generateIUPACNameFromSMILES('CCCCCC')    // → hexane
-generateIUPACNameFromSMILES('CCCCCCCC')  // → octane
+generateIUPACNameFromSMILES("C"); // → methane
+generateIUPACNameFromSMILES("CC"); // → ethane
+generateIUPACNameFromSMILES("CCC"); // → propane
+generateIUPACNameFromSMILES("CCCC"); // → butane
+generateIUPACNameFromSMILES("CCCCC"); // → pentane
+generateIUPACNameFromSMILES("CCCCCC"); // → hexane
+generateIUPACNameFromSMILES("CCCCCCCC"); // → octane
 ```
 
 #### Branched Alkanes
 
 ```typescript
-generateIUPACNameFromSMILES('CC(C)C')           // → 2-methylpropane
-generateIUPACNameFromSMILES('CC(C)CC')          // → 2-methylbutane
-generateIUPACNameFromSMILES('CC(C)C(C)C')       // → 2,3-dimethylbutane
-generateIUPACNameFromSMILES('CC(C)(C)C')        // → 2,2-dimethylpropane
-generateIUPACNameFromSMILES('CCCC(C)CC')        // → 3-methylhexane
+generateIUPACNameFromSMILES("CC(C)C"); // → 2-methylpropane
+generateIUPACNameFromSMILES("CC(C)CC"); // → 2-methylbutane
+generateIUPACNameFromSMILES("CC(C)C(C)C"); // → 2,3-dimethylbutane
+generateIUPACNameFromSMILES("CC(C)(C)C"); // → 2,2-dimethylpropane
+generateIUPACNameFromSMILES("CCCC(C)CC"); // → 3-methylhexane
 ```
 
 #### Alkenes
 
 ```typescript
-generateIUPACNameFromSMILES('C=C')              // → ethene
-generateIUPACNameFromSMILES('C=CC')             // → propene
-generateIUPACNameFromSMILES('C=CCC')            // → but-1-ene
-generateIUPACNameFromSMILES('CC=CC')            // → but-2-ene
-generateIUPACNameFromSMILES('C=CC=C')           // → buta-1,3-diene
+generateIUPACNameFromSMILES("C=C"); // → ethene
+generateIUPACNameFromSMILES("C=CC"); // → propene
+generateIUPACNameFromSMILES("C=CCC"); // → but-1-ene
+generateIUPACNameFromSMILES("CC=CC"); // → but-2-ene
+generateIUPACNameFromSMILES("C=CC=C"); // → buta-1,3-diene
 ```
 
 #### Alkynes
 
 ```typescript
-generateIUPACNameFromSMILES('C#C')              // → ethyne
-generateIUPACNameFromSMILES('C#CC')             // → propyne
-generateIUPACNameFromSMILES('C#CCC')            // → but-1-yne
-generateIUPACNameFromSMILES('CC#CC')            // → but-2-yne
+generateIUPACNameFromSMILES("C#C"); // → ethyne
+generateIUPACNameFromSMILES("C#CC"); // → propyne
+generateIUPACNameFromSMILES("C#CCC"); // → but-1-yne
+generateIUPACNameFromSMILES("CC#CC"); // → but-2-yne
 ```
 
 ### 2. Functional Groups (100%)
@@ -112,83 +112,83 @@ generateIUPACNameFromSMILES('CC#CC')            // → but-2-yne
 #### Alcohols
 
 ```typescript
-generateIUPACNameFromSMILES('CO')               // → methanol
-generateIUPACNameFromSMILES('CCO')              // → ethanol
-generateIUPACNameFromSMILES('CCCO')             // → propan-1-ol
-generateIUPACNameFromSMILES('CC(O)C')           // → propan-2-ol
-generateIUPACNameFromSMILES('CCCCO')            // → butan-1-ol
-generateIUPACNameFromSMILES('CC(O)CC')          // → butan-2-ol
+generateIUPACNameFromSMILES("CO"); // → methanol
+generateIUPACNameFromSMILES("CCO"); // → ethanol
+generateIUPACNameFromSMILES("CCCO"); // → propan-1-ol
+generateIUPACNameFromSMILES("CC(O)C"); // → propan-2-ol
+generateIUPACNameFromSMILES("CCCCO"); // → butan-1-ol
+generateIUPACNameFromSMILES("CC(O)CC"); // → butan-2-ol
 ```
 
 #### Ketones
 
 ```typescript
-generateIUPACNameFromSMILES('CC(=O)C')          // → propan-2-one
-generateIUPACNameFromSMILES('CC(=O)CC')         // → butan-2-one
-generateIUPACNameFromSMILES('CCC(=O)CC')        // → pentan-3-one
-generateIUPACNameFromSMILES('CC(=O)CCC')        // → pentan-2-one
+generateIUPACNameFromSMILES("CC(=O)C"); // → propan-2-one
+generateIUPACNameFromSMILES("CC(=O)CC"); // → butan-2-one
+generateIUPACNameFromSMILES("CCC(=O)CC"); // → pentan-3-one
+generateIUPACNameFromSMILES("CC(=O)CCC"); // → pentan-2-one
 ```
 
 #### Aldehydes
 
 ```typescript
-generateIUPACNameFromSMILES('C=O')              // → methanal
-generateIUPACNameFromSMILES('CC=O')             // → ethanal
-generateIUPACNameFromSMILES('CCC=O')            // → propanal
-generateIUPACNameFromSMILES('CCCC=O')           // → butanal
+generateIUPACNameFromSMILES("C=O"); // → methanal
+generateIUPACNameFromSMILES("CC=O"); // → ethanal
+generateIUPACNameFromSMILES("CCC=O"); // → propanal
+generateIUPACNameFromSMILES("CCCC=O"); // → butanal
 ```
 
 #### Carboxylic Acids
 
 ```typescript
-generateIUPACNameFromSMILES('C(=O)O')           // → methanoic acid
-generateIUPACNameFromSMILES('CC(=O)O')          // → ethanoic acid
-generateIUPACNameFromSMILES('CCC(=O)O')         // → propanoic acid
-generateIUPACNameFromSMILES('CCCC(=O)O')        // → butanoic acid
+generateIUPACNameFromSMILES("C(=O)O"); // → methanoic acid
+generateIUPACNameFromSMILES("CC(=O)O"); // → ethanoic acid
+generateIUPACNameFromSMILES("CCC(=O)O"); // → propanoic acid
+generateIUPACNameFromSMILES("CCCC(=O)O"); // → butanoic acid
 ```
 
 #### Esters
 
 ```typescript
-generateIUPACNameFromSMILES('CC(=O)OC')         // → methyl ethanoate
-generateIUPACNameFromSMILES('CC(=O)OCC')        // → ethyl ethanoate
-generateIUPACNameFromSMILES('CCC(=O)OC')        // → methyl propanoate
-generateIUPACNameFromSMILES('CCCC(=O)OCC')      // → ethyl butanoate
+generateIUPACNameFromSMILES("CC(=O)OC"); // → methyl ethanoate
+generateIUPACNameFromSMILES("CC(=O)OCC"); // → ethyl ethanoate
+generateIUPACNameFromSMILES("CCC(=O)OC"); // → methyl propanoate
+generateIUPACNameFromSMILES("CCCC(=O)OCC"); // → ethyl butanoate
 ```
 
 #### Amines
 
 ```typescript
-generateIUPACNameFromSMILES('CN')               // → methanamine
-generateIUPACNameFromSMILES('CCN')              // → ethanamine
-generateIUPACNameFromSMILES('CCCN')             // → propan-1-amine
-generateIUPACNameFromSMILES('CC(N)C')           // → propan-2-amine
-generateIUPACNameFromSMILES('CNCC')             // → N-methylethanamine
+generateIUPACNameFromSMILES("CN"); // → methanamine
+generateIUPACNameFromSMILES("CCN"); // → ethanamine
+generateIUPACNameFromSMILES("CCCN"); // → propan-1-amine
+generateIUPACNameFromSMILES("CC(N)C"); // → propan-2-amine
+generateIUPACNameFromSMILES("CNCC"); // → N-methylethanamine
 ```
 
 #### Amides (Including Tertiary)
 
 ```typescript
-generateIUPACNameFromSMILES('CC(=O)N')          // → ethanamide
-generateIUPACNameFromSMILES('CC(=O)NC')         // → N-methylethanamide
-generateIUPACNameFromSMILES('CC(=O)N(C)C')      // → N,N-dimethylethanamide
-generateIUPACNameFromSMILES('CCC(=O)N(C)C')     // → N,N-dimethylpropanamide
-generateIUPACNameFromSMILES('CC(=O)Nc1ccccc1')  // → N-phenylethanamide
+generateIUPACNameFromSMILES("CC(=O)N"); // → ethanamide
+generateIUPACNameFromSMILES("CC(=O)NC"); // → N-methylethanamide
+generateIUPACNameFromSMILES("CC(=O)N(C)C"); // → N,N-dimethylethanamide
+generateIUPACNameFromSMILES("CCC(=O)N(C)C"); // → N,N-dimethylpropanamide
+generateIUPACNameFromSMILES("CC(=O)Nc1ccccc1"); // → N-phenylethanamide
 ```
 
 #### Nitriles
 
 ```typescript
-generateIUPACNameFromSMILES('CC#N')             // → ethanenitrile
-generateIUPACNameFromSMILES('CCC#N')            // → propanenitrile
-generateIUPACNameFromSMILES('CCCC#N')           // → butanenitrile
+generateIUPACNameFromSMILES("CC#N"); // → ethanenitrile
+generateIUPACNameFromSMILES("CCC#N"); // → propanenitrile
+generateIUPACNameFromSMILES("CCCC#N"); // → butanenitrile
 ```
 
 #### Sulfur Compounds
 
 ```typescript
-generateIUPACNameFromSMILES('CS(=O)C')          // → methylsulfinylmethane (DMSO)
-generateIUPACNameFromSMILES('CS(=O)(=O)C')      // → methylsulfonylmethane (DMSO₂)
+generateIUPACNameFromSMILES("CS(=O)C"); // → methylsulfinylmethane (DMSO)
+generateIUPACNameFromSMILES("CS(=O)(=O)C"); // → methylsulfonylmethane (DMSO₂)
 ```
 
 ### 3. Aromatic Hydrocarbons (100%)
@@ -196,17 +196,17 @@ generateIUPACNameFromSMILES('CS(=O)(=O)C')      // → methylsulfonylmethane (DM
 #### Simple Aromatics
 
 ```typescript
-generateIUPACNameFromSMILES('c1ccccc1')         // → benzene
-generateIUPACNameFromSMILES('Cc1ccccc1')        // → methylbenzene
-generateIUPACNameFromSMILES('CCc1ccccc1')       // → ethylbenzene
-generateIUPACNameFromSMILES('Clc1ccccc1')       // → chlorobenzene
+generateIUPACNameFromSMILES("c1ccccc1"); // → benzene
+generateIUPACNameFromSMILES("Cc1ccccc1"); // → methylbenzene
+generateIUPACNameFromSMILES("CCc1ccccc1"); // → ethylbenzene
+generateIUPACNameFromSMILES("Clc1ccccc1"); // → chlorobenzene
 ```
 
 #### Fused Ring Systems
 
 ```typescript
-generateIUPACNameFromSMILES('c1ccc2ccccc2c1')   // → naphthalene
-generateIUPACNameFromSMILES('c1ccc2cc3ccccc3cc2c1')  // → anthracene
+generateIUPACNameFromSMILES("c1ccc2ccccc2c1"); // → naphthalene
+generateIUPACNameFromSMILES("c1ccc2cc3ccccc3cc2c1"); // → anthracene
 ```
 
 ### 4. Heterocycles (100%)
@@ -214,28 +214,28 @@ generateIUPACNameFromSMILES('c1ccc2cc3ccccc3cc2c1')  // → anthracene
 #### Aromatic Heterocycles
 
 ```typescript
-generateIUPACNameFromSMILES('c1ccncc1')         // → pyridine
-generateIUPACNameFromSMILES('c1cncnc1')         // → pyrimidine
-generateIUPACNameFromSMILES('c1ccnc(n1)N')      // → pyrimidin-2-amine
-generateIUPACNameFromSMILES('c1ccoc1')          // → furan
-generateIUPACNameFromSMILES('c1ccsc1')          // → thiophene
-generateIUPACNameFromSMILES('c1cc[nH]c1')       // → pyrrole
-generateIUPACNameFromSMILES('c1cnc[nH]1')       // → imidazole
-generateIUPACNameFromSMILES('c1csc(n1)N')       // → thiazol-2-amine
+generateIUPACNameFromSMILES("c1ccncc1"); // → pyridine
+generateIUPACNameFromSMILES("c1cncnc1"); // → pyrimidine
+generateIUPACNameFromSMILES("c1ccnc(n1)N"); // → pyrimidin-2-amine
+generateIUPACNameFromSMILES("c1ccoc1"); // → furan
+generateIUPACNameFromSMILES("c1ccsc1"); // → thiophene
+generateIUPACNameFromSMILES("c1cc[nH]c1"); // → pyrrole
+generateIUPACNameFromSMILES("c1cnc[nH]1"); // → imidazole
+generateIUPACNameFromSMILES("c1csc(n1)N"); // → thiazol-2-amine
 ```
 
 #### Saturated Heterocycles
 
 ```typescript
-generateIUPACNameFromSMILES('C1COCCN1')         // → morpholine
-generateIUPACNameFromSMILES('C1CNCCN1')         // → piperazine
-generateIUPACNameFromSMILES('C1CCNCC1')         // → piperidine
-generateIUPACNameFromSMILES('C1CCNC1')          // → pyrrolidine
-generateIUPACNameFromSMILES('C1CCOCC1')         // → oxane (tetrahydropyran)
-generateIUPACNameFromSMILES('C1CCOC1')          // → oxolane (tetrahydrofuran)
-generateIUPACNameFromSMILES('C1CCSC1')          // → thiolane
-generateIUPACNameFromSMILES('C1CNC1')           // → azetidine
-generateIUPACNameFromSMILES('C1COC1')           // → oxetane
+generateIUPACNameFromSMILES("C1COCCN1"); // → morpholine
+generateIUPACNameFromSMILES("C1CNCCN1"); // → piperazine
+generateIUPACNameFromSMILES("C1CCNCC1"); // → piperidine
+generateIUPACNameFromSMILES("C1CCNC1"); // → pyrrolidine
+generateIUPACNameFromSMILES("C1CCOCC1"); // → oxane (tetrahydropyran)
+generateIUPACNameFromSMILES("C1CCOC1"); // → oxolane (tetrahydrofuran)
+generateIUPACNameFromSMILES("C1CCSC1"); // → thiolane
+generateIUPACNameFromSMILES("C1CNC1"); // → azetidine
+generateIUPACNameFromSMILES("C1COC1"); // → oxetane
 ```
 
 ### 5. Cyclic Hydrocarbons (95%)
@@ -243,18 +243,18 @@ generateIUPACNameFromSMILES('C1COC1')           // → oxetane
 #### Monocyclic
 
 ```typescript
-generateIUPACNameFromSMILES('C1CC1')            // → cyclopropane
-generateIUPACNameFromSMILES('C1CCC1')           // → cyclobutane
-generateIUPACNameFromSMILES('C1CCCC1')          // → cyclopentane
-generateIUPACNameFromSMILES('C1CCCCC1')         // → cyclohexane
-generateIUPACNameFromSMILES('C1=CCCCC1')        // → cyclohexene
+generateIUPACNameFromSMILES("C1CC1"); // → cyclopropane
+generateIUPACNameFromSMILES("C1CCC1"); // → cyclobutane
+generateIUPACNameFromSMILES("C1CCCC1"); // → cyclopentane
+generateIUPACNameFromSMILES("C1CCCCC1"); // → cyclohexane
+generateIUPACNameFromSMILES("C1=CCCCC1"); // → cyclohexene
 ```
 
 #### Polycyclic
 
 ```typescript
-generateIUPACNameFromSMILES('C1CC2CCC1C2')      // → bicyclo[2.2.1]heptane
-generateIUPACNameFromSMILES('C1C2CC3CC1CC(C2)C3')  // → adamantane
+generateIUPACNameFromSMILES("C1CC2CCC1C2"); // → bicyclo[2.2.1]heptane
+generateIUPACNameFromSMILES("C1C2CC3CC1CC(C2)C3"); // → adamantane
 ```
 
 ---
@@ -355,9 +355,9 @@ generateIUPACNameFromSMILES('C1C2CC3CC1CC(C2)C3')  // → adamantane
 
 ```typescript
 // These are strategically excluded from testing:
-generateIUPACNameFromSMILES('quinine_smiles')     // Too complex
-generateIUPACNameFromSMILES('morphine_smiles')    // Too complex
-generateIUPACNameFromSMILES('strychnine_smiles')  // Too complex
+generateIUPACNameFromSMILES("quinine_smiles"); // Too complex
+generateIUPACNameFromSMILES("morphine_smiles"); // Too complex
+generateIUPACNameFromSMILES("strychnine_smiles"); // Too complex
 ```
 
 **Rationale:**
@@ -376,7 +376,7 @@ generateIUPACNameFromSMILES('strychnine_smiles')  // Too complex
 
 ```typescript
 // Cyclohexanone
-generateIUPACNameFromSMILES('C1CCC(=O)CC1')
+generateIUPACNameFromSMILES("C1CCC(=O)CC1");
 // Generated: cyclohexan-1-one
 // Expected:  cyclohexanone (locant omitted when unambiguous)
 ```
@@ -465,24 +465,20 @@ flowchart LR
 ### Complete Example with Error Handling
 
 ```typescript
-import {
-  parseSMILES,
-  generateIUPACName,
-  generateIUPACNameFromSMILES,
-} from 'index';
+import { parseSMILES, generateIUPACName, generateIUPACNameFromSMILES } from "index";
 
 function demonstrateNaming() {
   const examples = [
-    'CC',                // ethane
-    'CC(C)C',            // 2-methylpropane
-    'CCO',               // ethanol
-    'CC(=O)C',           // propan-2-one
-    'c1ccccc1',          // benzene
-    'c1ccncc1',          // pyridine
-    'C1COCCN1',          // morpholine
+    "CC", // ethane
+    "CC(C)C", // 2-methylpropane
+    "CCO", // ethanol
+    "CC(=O)C", // propan-2-one
+    "c1ccccc1", // benzene
+    "c1ccncc1", // pyridine
+    "C1COCCN1", // morpholine
   ];
 
-  console.log('SMILES → IUPAC Name Generation\n');
+  console.log("SMILES → IUPAC Name Generation\n");
 
   for (const smiles of examples) {
     const result = generateIUPACNameFromSMILES(smiles);
@@ -506,16 +502,11 @@ demonstrateNaming();
 ### Batch Processing
 
 ```typescript
-import { generateIUPACNameFromSMILES } from 'index';
+import { generateIUPACNameFromSMILES } from "index";
 
-const smilesList = [
-  'CC',
-  'CCC',
-  'CCCC',
-  'CCCCC',
-];
+const smilesList = ["CC", "CCC", "CCCC", "CCCCC"];
 
-const results = smilesList.map(smiles => ({
+const results = smilesList.map((smiles) => ({
   smiles,
   name: generateIUPACNameFromSMILES(smiles).name,
 }));
@@ -590,9 +581,9 @@ bun test
 **Example:**
 
 ```typescript
-const molecule = parseSMILES('CC(C)O').molecules[0];
+const molecule = parseSMILES("CC(C)O").molecules[0];
 const result = generateIUPACName(molecule);
-console.log(result.name);  // propan-2-ol
+console.log(result.name); // propan-2-ol
 ```
 
 ### `generateIUPACNameFromSMILES(smiles: string)`
@@ -606,8 +597,8 @@ console.log(result.name);  // propan-2-ol
 **Example:**
 
 ```typescript
-const result = generateIUPACNameFromSMILES('CC(=O)O');
-console.log(result.name);  // ethanoic acid
+const result = generateIUPACNameFromSMILES("CC(=O)O");
+console.log(result.name); // ethanoic acid
 ```
 
 ---

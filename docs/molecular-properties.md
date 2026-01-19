@@ -26,9 +26,9 @@ openchem provides comprehensive molecular property calculation and descriptor ge
 ### Basic Descriptors
 
 ```typescript
-import { parseSMILES, computeDescriptors } from 'index';
+import { parseSMILES, computeDescriptors } from "index";
 
-const molecule = parseSMILES('CCO').molecules[0];
+const molecule = parseSMILES("CCO").molecules[0];
 const descriptors = computeDescriptors(molecule);
 
 console.log(descriptors);
@@ -44,12 +44,12 @@ console.log(descriptors);
 ### Drug-Likeness Rules
 
 ```typescript
-import { checkLipinskiRuleOfFive } from 'index';
+import { checkLipinskiRuleOfFive } from "index";
 
-const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O').molecules[0];
+const aspirin = parseSMILES("CC(=O)Oc1ccccc1C(=O)O").molecules[0];
 const result = checkLipinskiRuleOfFive(aspirin);
 
-console.log(result.passes);  // true
+console.log(result.passes); // true
 console.log(result.properties);
 // {
 //   molecularWeight: 180.16,
@@ -62,12 +62,12 @@ console.log(result.properties);
 ### LogP Calculation
 
 ```typescript
-import { computeLogP } from 'index';
+import { computeLogP } from "index";
 
-const ethanol = parseSMILES('CCO').molecules[0];
-const logP = computeLogP(ethanol, true);  // true = include hydrogens
+const ethanol = parseSMILES("CCO").molecules[0];
+const logP = computeLogP(ethanol, true); // true = include hydrogens
 
-console.log(`LogP: ${logP.toFixed(2)}`);  // LogP: -0.31
+console.log(`LogP: ${logP.toFixed(2)}`); // LogP: -0.31
 ```
 
 ---
@@ -89,11 +89,11 @@ Computes a comprehensive set of basic descriptors.
 
 ```typescript
 {
-  atomCount: number;           // Explicit atoms only
-  bondCount: number;           // All bonds
-  formalCharge: number;        // Sum of atomic charges
-  elementCounts: Record<string, number>;  // Element → count
-  heavyAtomFraction: number;   // Heavy atoms / total atoms
+  atomCount: number; // Explicit atoms only
+  bondCount: number; // All bonds
+  formalCharge: number; // Sum of atomic charges
+  elementCounts: Record<string, number>; // Element → count
+  heavyAtomFraction: number; // Heavy atoms / total atoms
 }
 ```
 
@@ -101,8 +101,8 @@ Computes a comprehensive set of basic descriptors.
 
 ```typescript
 interface DescriptorOptions {
-  includeImplicitH?: boolean;  // Include implicit H in counts (default: true)
-  includeIsotopes?: boolean;   // Use isotope notation (e.g., "13C") (default: false)
+  includeImplicitH?: boolean; // Include implicit H in counts (default: true)
+  includeIsotopes?: boolean; // Use isotope notation (e.g., "13C") (default: false)
 }
 ```
 
@@ -110,17 +110,17 @@ interface DescriptorOptions {
 
 ```typescript
 // Atom and bond counts
-getAtomCount(molecule);        // Returns molecule.atoms.length
-getBondCount(molecule);        // Returns molecule.bonds.length
+getAtomCount(molecule); // Returns molecule.atoms.length
+getBondCount(molecule); // Returns molecule.bonds.length
 
 // Charge
-getFormalCharge(molecule);     // Sum of atom.charge values
+getFormalCharge(molecule); // Sum of atom.charge values
 
 // Element counts
-getElementCounts(molecule, options);  // Record<string, number>
+getElementCounts(molecule, options); // Record<string, number>
 
 // Heavy atom fraction
-getHeavyAtomFraction(molecule);  // Heavy atoms / total atoms
+getHeavyAtomFraction(molecule); // Heavy atoms / total atoms
 ```
 
 ### Examples
@@ -128,7 +128,7 @@ getHeavyAtomFraction(molecule);  // Heavy atoms / total atoms
 #### Element Counts
 
 ```typescript
-const molecule = parseSMILES('CCO').molecules[0];
+const molecule = parseSMILES("CCO").molecules[0];
 
 // With implicit hydrogens (default)
 const counts1 = getElementCounts(molecule);
@@ -142,7 +142,7 @@ const counts2 = getElementCounts(molecule, { includeImplicitH: false });
 #### Isotope Notation
 
 ```typescript
-const molecule = parseSMILES('[13C]C[2H]').molecules[0];
+const molecule = parseSMILES("[13C]C[2H]").molecules[0];
 
 const counts = getElementCounts(molecule, { includeIsotopes: true });
 // { '13C': 1, C: 1, '2H': 1, H: 5 }
@@ -151,7 +151,7 @@ const counts = getElementCounts(molecule, { includeIsotopes: true });
 #### Heavy Atom Fraction
 
 ```typescript
-const ethanol = parseSMILES('CCO').molecules[0];
+const ethanol = parseSMILES("CCO").molecules[0];
 const fraction = getHeavyAtomFraction(ethanol);
 // 0.333 (3 heavy atoms / 9 total atoms)
 ```
@@ -173,9 +173,9 @@ Count the total number of valence electrons in the molecule.
 **Examples:**
 
 ```typescript
-getNumValenceElectrons(parseSMILES('CC').molecules[0])      // 14 (ethane)
-getNumValenceElectrons(parseSMILES('C(=O)O').molecules[0])  // 18 (formic acid)
-getNumValenceElectrons(parseSMILES('c1ccccc1').molecules[0]) // 30 (benzene)
+getNumValenceElectrons(parseSMILES("CC").molecules[0]); // 14 (ethane)
+getNumValenceElectrons(parseSMILES("C(=O)O").molecules[0]); // 18 (formic acid)
+getNumValenceElectrons(parseSMILES("c1ccccc1").molecules[0]); // 30 (benzene)
 ```
 
 **RDKit-compatible:** ✅ Matches `NumValenceElectrons` exactly
@@ -199,9 +199,9 @@ Count the number of amide bonds (C(=O)-N linkages) in the molecule.
 **Examples:**
 
 ```typescript
-getNumAmideBonds(parseSMILES('CC(=O)N').molecules[0])   // 1 (acetamide)
-getNumAmideBonds(parseSMILES('NC(=O)N').molecules[0])   // 2 (urea)
-getNumAmideBonds(parseSMILES('NCC(=O)O').molecules[0])  // 0 (glycine - no direct C=O-N bond)
+getNumAmideBonds(parseSMILES("CC(=O)N").molecules[0]); // 1 (acetamide)
+getNumAmideBonds(parseSMILES("NC(=O)N").molecules[0]); // 2 (urea)
+getNumAmideBonds(parseSMILES("NCC(=O)O").molecules[0]); // 0 (glycine - no direct C=O-N bond)
 ```
 
 **RDKit-compatible:** ✅ Matches `NumAmideBonds` exactly
@@ -217,8 +217,8 @@ Count the number of spiro atoms (atoms shared by exactly two rings at a single p
 **Examples:**
 
 ```typescript
-getNumSpiroAtoms(parseSMILES('C1CC2(C1)CCC2').molecules[0])  // 1 (spiro[3.3]heptane)
-getNumSpiroAtoms(parseSMILES('c1ccccc1').molecules[0])       // 0 (benzene - no spiro)
+getNumSpiroAtoms(parseSMILES("C1CC2(C1)CCC2").molecules[0]); // 1 (spiro[3.3]heptane)
+getNumSpiroAtoms(parseSMILES("c1ccccc1").molecules[0]); // 0 (benzene - no spiro)
 ```
 
 **RDKit-compatible:** ✅ Matches `NumSpiroAtoms` exactly
@@ -232,8 +232,8 @@ Count the number of bridgehead atoms (atoms belonging to 3 or more rings).
 **Examples:**
 
 ```typescript
-getNumBridgeheadAtoms(parseSMILES('C1C2CC3CC1CC(C2)C3').molecules[0])  // 4 (adamantane)
-getNumBridgeheadAtoms(parseSMILES('c1ccccc1').molecules[0])            // 0 (benzene)
+getNumBridgeheadAtoms(parseSMILES("C1C2CC3CC1CC(C2)C3").molecules[0]); // 4 (adamantane)
+getNumBridgeheadAtoms(parseSMILES("c1ccccc1").molecules[0]); // 0 (benzene)
 ```
 
 **RDKit-compatible:** ✅ Matches `NumBridgeheadAtoms` definition
@@ -247,8 +247,8 @@ Count the number of saturated rings (rings with only single bonds).
 **Examples:**
 
 ```typescript
-getNumSaturatedRings(parseSMILES('C1CCCCC1').molecules[0])  // 1 (cyclohexane)
-getNumSaturatedRings(parseSMILES('c1ccccc1').molecules[0])  // 0 (benzene - aromatic)
+getNumSaturatedRings(parseSMILES("C1CCCCC1").molecules[0]); // 1 (cyclohexane)
+getNumSaturatedRings(parseSMILES("c1ccccc1").molecules[0]); // 0 (benzene - aromatic)
 ```
 
 #### `getNumAliphaticRings(molecule: Molecule): number`
@@ -258,9 +258,9 @@ Count the number of non-aromatic rings.
 **Examples:**
 
 ```typescript
-getNumAliphaticRings(parseSMILES('C1CCCCC1').molecules[0])  // 1 (cyclohexane)
-getNumAliphaticRings(parseSMILES('C1=CCCCC1').molecules[0]) // 1 (cyclohexene)
-getNumAliphaticRings(parseSMILES('c1ccccc1').molecules[0])  // 0 (benzene)
+getNumAliphaticRings(parseSMILES("C1CCCCC1").molecules[0]); // 1 (cyclohexane)
+getNumAliphaticRings(parseSMILES("C1=CCCCC1").molecules[0]); // 1 (cyclohexene)
+getNumAliphaticRings(parseSMILES("c1ccccc1").molecules[0]); // 0 (benzene)
 ```
 
 #### `getNumSaturatedAliphaticRings(molecule: Molecule): number`
@@ -270,8 +270,8 @@ Count the number of saturated non-aromatic rings.
 **Examples:**
 
 ```typescript
-getNumSaturatedAliphaticRings(parseSMILES('C1CCCCC1').molecules[0])  // 1 (cyclohexane)
-getNumSaturatedAliphaticRings(parseSMILES('C1=CCCCC1').molecules[0]) // 0 (cyclohexene - has C=C)
+getNumSaturatedAliphaticRings(parseSMILES("C1CCCCC1").molecules[0]); // 1 (cyclohexane)
+getNumSaturatedAliphaticRings(parseSMILES("C1=CCCCC1").molecules[0]); // 0 (cyclohexene - has C=C)
 ```
 
 #### `getNumHeterocycles(molecule: Molecule): number`
@@ -281,9 +281,9 @@ Count the number of heterocyclic rings (rings containing at least one non-carbon
 **Examples:**
 
 ```typescript
-getNumHeterocycles(parseSMILES('c1ccncc1').molecules[0])  // 1 (pyridine)
-getNumHeterocycles(parseSMILES('C1CCOC1').molecules[0])   // 1 (tetrahydrofuran)
-getNumHeterocycles(parseSMILES('c1ccccc1').molecules[0])  // 0 (benzene - all carbon)
+getNumHeterocycles(parseSMILES("c1ccncc1").molecules[0]); // 1 (pyridine)
+getNumHeterocycles(parseSMILES("C1CCOC1").molecules[0]); // 1 (tetrahydrofuran)
+getNumHeterocycles(parseSMILES("c1ccccc1").molecules[0]); // 0 (benzene - all carbon)
 ```
 
 #### `getNumAromaticHeterocycles(molecule: Molecule): number`
@@ -293,9 +293,9 @@ Count the number of aromatic heterocyclic rings.
 **Examples:**
 
 ```typescript
-getNumAromaticHeterocycles(parseSMILES('c1ccncc1').molecules[0])  // 1 (pyridine)
-getNumAromaticHeterocycles(parseSMILES('o1cccc1').molecules[0])   // 1 (furan)
-getNumAromaticHeterocycles(parseSMILES('C1CCOC1').molecules[0])   // 0 (THF - not aromatic)
+getNumAromaticHeterocycles(parseSMILES("c1ccncc1").molecules[0]); // 1 (pyridine)
+getNumAromaticHeterocycles(parseSMILES("o1cccc1").molecules[0]); // 1 (furan)
+getNumAromaticHeterocycles(parseSMILES("C1CCOC1").molecules[0]); // 0 (THF - not aromatic)
 ```
 
 #### `getNumSaturatedHeterocycles(molecule: Molecule): number`
@@ -305,8 +305,8 @@ Count the number of saturated heterocyclic rings.
 **Examples:**
 
 ```typescript
-getNumSaturatedHeterocycles(parseSMILES('C1CCOC1').molecules[0])  // 1 (tetrahydrofuran)
-getNumSaturatedHeterocycles(parseSMILES('c1ccncc1').molecules[0]) // 0 (pyridine - aromatic)
+getNumSaturatedHeterocycles(parseSMILES("C1CCOC1").molecules[0]); // 1 (tetrahydrofuran)
+getNumSaturatedHeterocycles(parseSMILES("c1ccncc1").molecules[0]); // 0 (pyridine - aromatic)
 ```
 
 #### `getNumAliphaticHeterocycles(molecule: Molecule): number`
@@ -316,8 +316,8 @@ Count the number of non-aromatic heterocyclic rings.
 **Examples:**
 
 ```typescript
-getNumAliphaticHeterocycles(parseSMILES('C1CCOC1').molecules[0])  // 1 (tetrahydrofuran)
-getNumAliphaticHeterocycles(parseSMILES('c1ccncc1').molecules[0]) // 0 (pyridine - aromatic)
+getNumAliphaticHeterocycles(parseSMILES("C1CCOC1").molecules[0]); // 1 (tetrahydrofuran)
+getNumAliphaticHeterocycles(parseSMILES("c1ccncc1").molecules[0]); // 0 (pyridine - aromatic)
 ```
 
 ### Stereochemistry
@@ -331,10 +331,10 @@ Count the number of defined (specified) tetrahedral stereocenters.
 **Examples:**
 
 ```typescript
-getNumAtomStereoCenters(parseSMILES('C[C@H](O)Cl').molecules[0])   // 1 (R configuration)
-getNumAtomStereoCenters(parseSMILES('C[C@@H](O)Cl').molecules[0])  // 1 (S configuration)
-getNumAtomStereoCenters(parseSMILES('CC(O)Cl').molecules[0])       // 0 (no stereo specified)
-getNumAtomStereoCenters(parseSMILES('O[C@H](C(=O)O)[C@H](O)C(=O)O').molecules[0])  // 2 (tartaric acid)
+getNumAtomStereoCenters(parseSMILES("C[C@H](O)Cl").molecules[0]); // 1 (R configuration)
+getNumAtomStereoCenters(parseSMILES("C[C@@H](O)Cl").molecules[0]); // 1 (S configuration)
+getNumAtomStereoCenters(parseSMILES("CC(O)Cl").molecules[0]); // 0 (no stereo specified)
+getNumAtomStereoCenters(parseSMILES("O[C@H](C(=O)O)[C@H](O)C(=O)O").molecules[0]); // 2 (tartaric acid)
 ```
 
 **RDKit-compatible:** ✅ Matches `NumAtomStereoCenters` exactly
@@ -348,9 +348,9 @@ Count the number of potential (unspecified) tetrahedral stereocenters.
 **Examples:**
 
 ```typescript
-getNumUnspecifiedAtomStereoCenters(parseSMILES('CC(O)Cl').molecules[0])      // 1 (chiral but unspecified)
-getNumUnspecifiedAtomStereoCenters(parseSMILES('C[C@H](O)Cl').molecules[0]) // 0 (stereo is specified)
-getNumUnspecifiedAtomStereoCenters(parseSMILES('CC(C)C').molecules[0])      // 0 (symmetric, not chiral)
+getNumUnspecifiedAtomStereoCenters(parseSMILES("CC(O)Cl").molecules[0]); // 1 (chiral but unspecified)
+getNumUnspecifiedAtomStereoCenters(parseSMILES("C[C@H](O)Cl").molecules[0]); // 0 (stereo is specified)
+getNumUnspecifiedAtomStereoCenters(parseSMILES("CC(C)C").molecules[0]); // 0 (symmetric, not chiral)
 ```
 
 **Notes:**
@@ -410,16 +410,16 @@ Evaluates oral bioavailability using Lipinski's Rule of Five.
 **Example:**
 
 ```typescript
-import { parseSMILES, checkLipinskiRuleOfFive } from 'index';
+import { parseSMILES, checkLipinskiRuleOfFive } from "index";
 
-const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O').molecules[0];
+const aspirin = parseSMILES("CC(=O)Oc1ccccc1C(=O)O").molecules[0];
 const result = checkLipinskiRuleOfFive(aspirin);
 
 if (result.passes) {
-  console.log('✓ Passes Lipinski rules');
+  console.log("✓ Passes Lipinski rules");
   console.log(`LogP: ${result.properties.logP.toFixed(2)}`);
 } else {
-  console.log('✗ Violations:', result.violations);
+  console.log("✗ Violations:", result.violations);
 }
 ```
 
@@ -478,9 +478,9 @@ Predicts blood-brain barrier (BBB) penetration potential.
 ```typescript
 const result = checkBBBPenetration(molecule);
 if (result.likelyPenetration) {
-  console.log('✓ Likely BBB penetration');
+  console.log("✓ Likely BBB penetration");
 } else {
-  console.log('✗ Unlikely BBB penetration');
+  console.log("✗ Unlikely BBB penetration");
 }
 ```
 
@@ -610,7 +610,7 @@ LogP computation is automatically cached using WeakMap for dramatic performance 
 **Usage (transparent - no code changes needed):**
 
 ```typescript
-const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O').molecules[0];
+const aspirin = parseSMILES("CC(=O)Oc1ccccc1C(=O)O").molecules[0];
 
 // First call: ~138 ms (SMARTS pattern matching)
 const logP1 = computeLogP(aspirin);
@@ -622,27 +622,27 @@ const logP2 = computeLogP(aspirin);
 ### Examples
 
 ```typescript
-import { parseSMILES, computeLogP, logP, crippenLogP } from 'index';
+import { parseSMILES, computeLogP, logP, crippenLogP } from "index";
 
 // Simple molecules
-const ethanol = parseSMILES('CCO').molecules[0];
-console.log(computeLogP(ethanol, true));  // -0.31
+const ethanol = parseSMILES("CCO").molecules[0];
+console.log(computeLogP(ethanol, true)); // -0.31
 
-const benzene = parseSMILES('c1ccccc1').molecules[0];
-console.log(logP(benzene));  // 1.69
+const benzene = parseSMILES("c1ccccc1").molecules[0];
+console.log(logP(benzene)); // 1.69
 
 // Drug molecules
-const aspirin = parseSMILES('CC(=O)Oc1ccccc1C(=O)O').molecules[0];
-console.log(crippenLogP(aspirin));  // 1.23
+const aspirin = parseSMILES("CC(=O)Oc1ccccc1C(=O)O").molecules[0];
+console.log(crippenLogP(aspirin)); // 1.23
 
-const caffeine = parseSMILES('CN1C=NC2=C1C(=O)N(C(=O)N2C)C').molecules[0];
-console.log(computeLogP(caffeine));  // -0.07
+const caffeine = parseSMILES("CN1C=NC2=C1C(=O)N(C(=O)N2C)C").molecules[0];
+console.log(computeLogP(caffeine)); // -0.07
 ```
 
 ### Advanced Usage: Per-Atom Contributions
 
 ```typescript
-const molecule = parseSMILES('CCO').molecules[0];
+const molecule = parseSMILES("CCO").molecules[0];
 const contribs = getCrippenAtomContribs(molecule, true);
 
 contribs.forEach((contrib, i) => {
@@ -796,15 +796,15 @@ bun test test/unit/molecular-properties.test.ts
 ### Batch Processing with Caching
 
 ```typescript
-import { parseSMILES, computeLogP, checkLipinskiRuleOfFive } from 'index';
+import { parseSMILES, computeLogP, checkLipinskiRuleOfFive } from "index";
 
 const smilesList = [
-  'CC(=O)Oc1ccccc1C(=O)O',  // Aspirin
-  'CN1C=NC2=C1C(=O)N(C(=O)N2C)C',  // Caffeine
-  'CC(C)Cc1ccc(cc1)C(C)C(=O)O',  // Ibuprofen
+  "CC(=O)Oc1ccccc1C(=O)O", // Aspirin
+  "CN1C=NC2=C1C(=O)N(C(=O)N2C)C", // Caffeine
+  "CC(C)Cc1ccc(cc1)C(C)C(=O)O", // Ibuprofen
 ];
 
-const results = smilesList.map(smiles => {
+const results = smilesList.map((smiles) => {
   const molecule = parseSMILES(smiles).molecules[0];
 
   // LogP is cached automatically
@@ -830,7 +830,7 @@ import {
   computeLogP,
   checkLipinskiRuleOfFive,
   checkVeberRules,
-} from 'index';
+} from "index";
 
 function analyzeCompound(smiles: string) {
   const molecule = parseSMILES(smiles).molecules[0];
@@ -843,7 +843,7 @@ function analyzeCompound(smiles: string) {
   };
 }
 
-const results = analyzeCompound('CC(=O)Oc1ccccc1C(=O)O');
+const results = analyzeCompound("CC(=O)Oc1ccccc1C(=O)O");
 console.log(JSON.stringify(results, null, 2));
 ```
 

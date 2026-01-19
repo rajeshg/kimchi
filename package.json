@@ -1,28 +1,36 @@
 {
   "name": "openchem",
-  "version": "0.2.16",
+  "version": "0.2.17",
   "description": "A fast TypeScript / JavaScript chemistry toolkit for working with molecular structures: parsing & generation (SMILES, MOL, SDF), canonicalization, pattern matching (SMARTS), 2D rendering, and molecular descriptors.",
-  "author": "rajeshg",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/rajeshg/openchem"
-  },
+  "keywords": [
+    "2d-rendering",
+    "cheminformatics",
+    "chemistry",
+    "javascript",
+    "mol",
+    "molecular-structures",
+    "sdf",
+    "smarts",
+    "smiles",
+    "typescript"
+  ],
   "homepage": "https://github.com/rajeshg/openchem",
   "bugs": {
     "url": "https://github.com/rajeshg/openchem/issues"
   },
-  "keywords": [
-    "chemistry",
-    "cheminformatics",
-    "smiles",
-    "mol",
-    "sdf",
-    "smarts",
-    "molecular-structures",
-    "2d-rendering",
-    "typescript",
-    "javascript"
+  "license": "MIT",
+  "author": "rajeshg",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rajeshg/openchem"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
   ],
   "type": "module",
   "main": "./dist/index.js",
@@ -33,11 +41,9 @@
       "default": "./dist/index.js"
     }
   },
-  "files": [
-    "dist",
-    "README.md",
-    "LICENSE"
-  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "test": "bun test",
     "test:full": "RUN_RDKIT_BULK=1 bun test",
@@ -54,16 +60,10 @@
     "@rdkit/rdkit": "latest",
     "@total-typescript/ts-reset": "^0.6.1",
     "@types/bun": "latest",
-    "@types/node": "^24.10.1",
+    "@types/node": "^24.10.9",
     "tsc-alias": "^1.8.16"
   },
   "peerDependencies": {
     "typescript": "^5.9.3"
-  },
-  "publishConfig": {
-    "access": "public"
-  },
-  "workspaces": [
-    "packages/*"
-  ]
+  }
 }

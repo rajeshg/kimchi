@@ -104,11 +104,13 @@ Highlight benzene ring in aspirin:
 {
   "tool": "render",
   "smiles": "CC(=O)Oc1ccccc1C(=O)O",
-  "highlights": [{
-    "smarts": "c1ccccc1",
-    "color": "#FFFF00",
-    "opacity": 0.4
-  }]
+  "highlights": [
+    {
+      "smarts": "c1ccccc1",
+      "color": "#FFFF00",
+      "opacity": 0.4
+    }
+  ]
 }
 ```
 

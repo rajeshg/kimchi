@@ -130,7 +130,8 @@
         margin-bottom: 20px;
       }
 
-      .input-section input, .input-section textarea {
+      .input-section input,
+      .input-section textarea {
         flex: 1;
         background: rgba(255, 255, 255, 0.05);
         border: 1px solid var(--border);
@@ -141,7 +142,8 @@
         font-family: "Menlo", "Monaco", monospace;
       }
 
-      .input-section input:focus, .input-section textarea:focus {
+      .input-section input:focus,
+      .input-section textarea:focus {
         outline: none;
         border-color: var(--accent);
         box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
@@ -271,7 +273,8 @@
         border-collapse: collapse;
       }
 
-      .table th, .table td {
+      .table th,
+      .table td {
         padding: 10px;
         text-align: left;
         border-bottom: 1px solid var(--border);
@@ -457,7 +460,8 @@
       }
 
       @media (max-width: 768px) {
-        .grid-2, .grid-3 {
+        .grid-2,
+        .grid-3 {
           grid-template-columns: 1fr;
         }
 
@@ -491,7 +495,7 @@
         <button
           class="btn-secondary"
           onclick="showShortcuts()"
-          style="margin-left: auto; padding: 8px 16px; font-size: 12px;"
+          style="margin-left: auto; padding: 8px 16px; font-size: 12px"
         >
           ⌨️ Shortcuts
         </button>
@@ -561,27 +565,27 @@
             <div class="output-item">
               <div class="output-label">Lipinski Rule of Five</div>
               <div id="lipinski-result" class="status">-</div>
-              <div id="lipinski-props" style="margin-top: 8px; font-size: 11px;"></div>
+              <div id="lipinski-props" style="margin-top: 8px; font-size: 11px"></div>
               <div
                 id="lipinski-violations"
-                style="margin-top: 8px; font-size: 11px; color: var(--error);"
+                style="margin-top: 8px; font-size: 11px; color: var(--error)"
               ></div>
             </div>
 
             <div class="output-item">
               <div class="output-label">Veber Rules</div>
               <div id="veber-result" class="status">-</div>
-              <div id="veber-props" style="margin-top: 8px; font-size: 11px;"></div>
+              <div id="veber-props" style="margin-top: 8px; font-size: 11px"></div>
               <div
                 id="veber-violations"
-                style="margin-top: 8px; font-size: 11px; color: var(--error);"
+                style="margin-top: 8px; font-size: 11px; color: var(--error)"
               ></div>
             </div>
 
             <div class="output-item">
               <div class="output-label">BBB Penetration</div>
               <div id="bbb-result" class="status">-</div>
-              <div id="bbb-props" style="margin-top: 8px; font-size: 11px;"></div>
+              <div id="bbb-props" style="margin-top: 8px; font-size: 11px"></div>
             </div>
           </div>
         </div>
@@ -593,7 +597,13 @@
           <h3 class="card-title">Molecular Properties</h3>
           <div class="input-section">
             <input id="desc-smiles" type="text" placeholder="Enter SMILES" />
-            <button class="btn" onclick="computeDescriptors(); computeFingerprints();">
+            <button
+              class="btn"
+              onclick="
+                computeDescriptors();
+                computeFingerprints();
+              "
+            >
               Calculate All
             </button>
           </div>
@@ -611,7 +621,7 @@
           <div class="input-section">
             <label
               >Radius:
-              <input id="fp-radius" type="number" value="2" min="0" max="5" style="width: 60px;"
+              <input id="fp-radius" type="number" value="2" min="0" max="5" style="width: 60px"
             /></label>
             <label
               >Bits:
@@ -622,12 +632,12 @@
                 step="256"
                 min="256"
                 max="4096"
-                style="width: 80px;"
+                style="width: 80px"
             /></label>
           </div>
           <div id="fingerprint-info"></div>
 
-          <h4 style="margin-top: 24px;">Similarity Comparison</h4>
+          <h4 style="margin-top: 24px">Similarity Comparison</h4>
           <div class="input-section">
             <input id="fp-smiles2" type="text" placeholder="Enter second SMILES for comparison" />
             <button class="btn" onclick="compareFingerprints()">Compare</button>
@@ -721,14 +731,14 @@
           <div class="card">
             <h3 class="card-title">MOL File</h3>
             <div class="output-item">
-              <div class="output-value" id="mol-file" style="max-height: 300px;"></div>
+              <div class="output-value" id="mol-file" style="max-height: 300px"></div>
             </div>
           </div>
 
           <div class="card">
             <h3 class="card-title">SDF File</h3>
             <div class="output-item">
-              <div class="output-value" id="sdf-file" style="max-height: 300px;"></div>
+              <div class="output-value" id="sdf-file" style="max-height: 300px"></div>
             </div>
           </div>
         </div>
@@ -740,14 +750,14 @@
           <h3 class="card-title">IUPAC Name Generation & Parsing</h3>
           <div class="grid-2">
             <div>
-              <h4 style="margin-bottom: 10px; color: var(--text-muted);">SMILES → IUPAC</h4>
+              <h4 style="margin-bottom: 10px; color: var(--text-muted)">SMILES → IUPAC</h4>
               <div class="input-section">
                 <input id="iupac-smiles" type="text" placeholder="Enter SMILES" />
                 <button class="btn" onclick="generateIUPAC()">Generate</button>
               </div>
             </div>
             <div>
-              <h4 style="margin-bottom: 10px; color: var(--text-muted);">IUPAC → SMILES</h4>
+              <h4 style="margin-bottom: 10px; color: var(--text-muted)">IUPAC → SMILES</h4>
               <div class="input-section">
                 <input id="iupac-name" type="text" placeholder="Enter IUPAC name" />
                 <button class="btn" onclick="parseIUPAC()">Parse</button>
@@ -777,28 +787,28 @@
       <div class="tab-content" id="tools">
         <div class="card">
           <h3 class="card-title">Batch SMILES Processing</h3>
-          <div class="input-section" style="flex-direction: column;">
+          <div class="input-section" style="flex-direction: column">
             <textarea
               id="batch-smiles"
               rows="10"
               placeholder="Enter one SMILES per line&#10;CC(=O)Oc1ccccc1C(=O)O&#10;Cn1cnc2c1c(=O)n(C)c(=O)n2C&#10;c1ccccc1"
             ></textarea>
-            <div style="display: flex; gap: 12px; margin-top: 12px;">
+            <div style="display: flex; gap: 12px; margin-top: 12px">
               <button class="btn" onclick="processBatch()">Process All</button>
               <button class="btn-secondary" onclick="exportBatchCSV()">Export as CSV</button>
             </div>
           </div>
           <div
             id="batch-results"
-            style="max-height: 400px; overflow-y: auto; margin-top: 16px;"
+            style="max-height: 400px; overflow-y: auto; margin-top: 16px"
           ></div>
         </div>
 
         <div class="card">
           <h3 class="card-title">Recent Molecules</h3>
-          <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+          <div style="display: flex; gap: 12px; margin-bottom: 16px">
             <button class="btn-secondary" onclick="clearHistory()">Clear History</button>
-            <span style="color: var(--text-muted); font-size: 12px; align-self: center;"
+            <span style="color: var(--text-muted); font-size: 12px; align-self: center"
               >Last 20 molecules analyzed</span
             >
           </div>
@@ -834,7 +844,7 @@
           <span>Close modal</span>
           <span class="shortcut-key">Esc</span>
         </div>
-        <div style="margin-top: 16px; text-align: center;">
+        <div style="margin-top: 16px; text-align: center">
           <button class="btn" onclick="hideShortcuts()">Close</button>
         </div>
       </div>
@@ -851,12 +861,18 @@
           basic: [
             { name: "Aspirin", smiles: "CC(=O)Oc1ccccc1C(=O)O" },
             { name: "Caffeine", smiles: "Cn1cnc2c1c(=O)n(C)c(=O)n2C" },
-            { name: "Morphine", smiles: "CN1CC[C@]23[C@@H]4[C@H]1CC5=C2C(=C(C=C5)O)O[C@H]3[C@H](C=C4)O" },
-            { name: "Testosterone", smiles: "C[C@]12CC[C@H]3[C@H]([C@@H]1CC[C@@H]2O)CCC4=CC(=O)CC[C@H]34" },
+            {
+              name: "Morphine",
+              smiles: "CN1CC[C@]23[C@@H]4[C@H]1CC5=C2C(=C(C=C5)O)O[C@H]3[C@H](C=C4)O",
+            },
+            {
+              name: "Testosterone",
+              smiles: "C[C@]12CC[C@H]3[C@H]([C@@H]1CC[C@@H]2O)CCC4=CC(=O)CC[C@H]34",
+            },
             { name: "Glucose", smiles: "C(C1C(C(C(C(O1)O)O)O)O)O" },
             { name: "Benzene", smiles: "c1ccccc1" },
             { name: "Pyridine", smiles: "c1ccncc1" },
-            { name: "Adamantane", smiles: "C1C2CC3CC1CC(C2)C3" }
+            { name: "Adamantane", smiles: "C1C2CC3CC1CC(C2)C3" },
           ],
           smarts: [
             { name: "Carboxylic Acid", smarts: "[CX3](=O)[OX2H]" },
@@ -864,7 +880,7 @@
             { name: "Amine", smarts: "[NX3;H2,H1;!$(N=*)]" },
             { name: "Phenol", smarts: "c1ccc(cc1)O" },
             { name: "Ester", smarts: "[CX3](=O)[OX2H0][#6]" },
-            { name: "Halogen", smarts: "[F,Cl,Br,I]" }
+            { name: "Halogen", smarts: "[F,Cl,Br,I]" },
           ],
           transforms: [
             { name: "Guanine", smiles: "NC1=NC2=C(N1)N=CN2C" },
@@ -873,14 +889,14 @@
             { name: "Uracil", smiles: "O=C1NC=CC(=O)N1" },
             { name: "Imidazole", smiles: "c1ncc[nH]1" },
             { name: "Ibuprofen", smiles: "CC(C)Cc1ccc(cc1)[C@@H](C)C(=O)O" },
-            { name: "Propranolol", smiles: "CC(C)NCC(O)COC1=CC=CC=C1O" }
+            { name: "Propranolol", smiles: "CC(C)NCC(O)COC1=CC=CC=C1O" },
           ],
           iupac: [
             { name: "Ethane", smiles: "CC" },
             { name: "Propane", smiles: "CCC" },
             { name: "Butane", smiles: "CCCC" },
-            { name: "Pentane", smiles: "CCCCC" }
-          ]
+            { name: "Pentane", smiles: "CCCCC" },
+          ],
         };
 
         let lib = null;
@@ -900,7 +916,7 @@
         // History management
         function loadHistory() {
           try {
-            const stored = localStorage.getItem('openchem-history');
+            const stored = localStorage.getItem("openchem-history");
             history = stored ? JSON.parse(stored) : [];
           } catch (e) {
             history = [];
@@ -908,16 +924,16 @@
           updateHistoryDisplay();
         }
 
-        function saveToHistory(smiles, name = '') {
+        function saveToHistory(smiles, name = "") {
           const entry = {
             smiles,
             name,
-            timestamp: Date.now()
+            timestamp: Date.now(),
           };
           history.unshift(entry);
           history = history.slice(0, 20); // Keep last 20
           try {
-            localStorage.setItem('openchem-history', JSON.stringify(history));
+            localStorage.setItem("openchem-history", JSON.stringify(history));
           } catch (e) {
             // Ignore storage errors
           }
@@ -925,41 +941,44 @@
         }
 
         function updateHistoryDisplay() {
-          const listEl = document.getElementById('history-list');
+          const listEl = document.getElementById("history-list");
           if (!listEl) return;
 
           if (history.length === 0) {
-            listEl.innerHTML = '<div style="color: var(--text-muted); text-align: center; padding: 20px;">No molecules in history yet</div>';
+            listEl.innerHTML =
+              '<div style="color: var(--text-muted); text-align: center; padding: 20px;">No molecules in history yet</div>';
             return;
           }
 
-          listEl.innerHTML = history.map((entry, idx) => {
-            const date = new Date(entry.timestamp);
-            const timeStr = date.toLocaleString();
-            return `
+          listEl.innerHTML = history
+            .map((entry, idx) => {
+              const date = new Date(entry.timestamp);
+              const timeStr = date.toLocaleString();
+              return `
               <div class="history-item" onclick="loadFromHistory(${idx})">
                 <div>
-                  <div>${entry.name || 'Unnamed'}</div>
-                  <div style="font-size: 10px; color: var(--text-muted);">${entry.smiles.substring(0, 50)}${entry.smiles.length > 50 ? '...' : ''}</div>
+                  <div>${entry.name || "Unnamed"}</div>
+                  <div style="font-size: 10px; color: var(--text-muted);">${entry.smiles.substring(0, 50)}${entry.smiles.length > 50 ? "..." : ""}</div>
                 </div>
                 <div class="history-item-time">${timeStr}</div>
               </div>
             `;
-          }).join('');
+            })
+            .join("");
         }
 
-        window.loadFromHistory = function(idx) {
+        window.loadFromHistory = function (idx) {
           const entry = history[idx];
           if (!entry) return;
-          document.getElementById('basic-smiles').value = entry.smiles;
+          document.getElementById("basic-smiles").value = entry.smiles;
           document.querySelector('[data-tab="basic"]').click();
           computeBasic();
         };
 
-        window.clearHistory = function() {
-          if (confirm('Clear all history?')) {
+        window.clearHistory = function () {
+          if (confirm("Clear all history?")) {
             history = [];
-            localStorage.removeItem('openchem-history');
+            localStorage.removeItem("openchem-history");
             updateHistoryDisplay();
           }
         };
@@ -970,31 +989,31 @@
             await navigator.clipboard.writeText(text);
             if (buttonEl) {
               const originalText = buttonEl.textContent;
-              buttonEl.textContent = '✓ Copied';
-              buttonEl.classList.add('copied');
+              buttonEl.textContent = "✓ Copied";
+              buttonEl.classList.add("copied");
               setTimeout(() => {
                 buttonEl.textContent = originalText;
-                buttonEl.classList.remove('copied');
+                buttonEl.classList.remove("copied");
               }, 2000);
             }
           } catch (e) {
-            alert('Failed to copy to clipboard');
+            alert("Failed to copy to clipboard");
           }
         }
 
         // Add copy button to output elements
         function addCopyButton(elementId, textGetter) {
           const el = document.getElementById(elementId);
-          if (!el || el.querySelector('.copy-btn')) return;
+          if (!el || el.querySelector(".copy-btn")) return;
 
-          const btn = document.createElement('button');
-          btn.className = 'copy-btn';
-          btn.textContent = 'Copy';
+          const btn = document.createElement("button");
+          btn.className = "copy-btn";
+          btn.textContent = "Copy";
           btn.onclick = () => {
-            const text = typeof textGetter === 'function' ? textGetter() : el.textContent;
+            const text = typeof textGetter === "function" ? textGetter() : el.textContent;
             copyToClipboard(text, btn);
           };
-          el.style.position = 'relative';
+          el.style.position = "relative";
           el.appendChild(btn);
         }
 
@@ -1007,63 +1026,65 @@
         function setURLParameter(name, value) {
           const url = new URL(window.location);
           url.searchParams.set(name, value);
-          window.history.pushState({}, '', url);
+          window.history.pushState({}, "", url);
         }
 
         // Keyboard shortcuts
         function setupKeyboardShortcuts() {
-          document.addEventListener('keydown', (e) => {
+          document.addEventListener("keydown", (e) => {
             // Ctrl+Enter: Analyze
-            if (e.ctrlKey && e.key === 'Enter') {
+            if (e.ctrlKey && e.key === "Enter") {
               e.preventDefault();
-              const activeTab = document.querySelector('.tab.active')?.dataset.tab;
-              if (activeTab === 'basic') computeBasic();
-              else if (activeTab === 'properties') { computeDescriptors(); computeFingerprints(); }
-              else if (activeTab === 'smarts') matchSMARTS();
-              else if (activeTab === 'transforms') enumerateTautomers();
-              else if (activeTab === 'files') generateFiles();
-              else if (activeTab === 'iupac') generateIUPAC();
-              else if (activeTab === 'tools') processBatch();
+              const activeTab = document.querySelector(".tab.active")?.dataset.tab;
+              if (activeTab === "basic") computeBasic();
+              else if (activeTab === "properties") {
+                computeDescriptors();
+                computeFingerprints();
+              } else if (activeTab === "smarts") matchSMARTS();
+              else if (activeTab === "transforms") enumerateTautomers();
+              else if (activeTab === "files") generateFiles();
+              else if (activeTab === "iupac") generateIUPAC();
+              else if (activeTab === "tools") processBatch();
             }
 
             // Ctrl+K: Show shortcuts
-            if (e.ctrlKey && e.key === 'k') {
+            if (e.ctrlKey && e.key === "k") {
               e.preventDefault();
               showShortcuts();
             }
 
             // Ctrl+/: Focus input
-            if (e.ctrlKey && e.key === '/') {
+            if (e.ctrlKey && e.key === "/") {
               e.preventDefault();
-              const activeTab = document.querySelector('.tab.active')?.dataset.tab;
+              const activeTab = document.querySelector(".tab.active")?.dataset.tab;
               const input = document.querySelector(`#${activeTab}-smiles, #${activeTab} input`);
               if (input) input.focus();
             }
 
             // Escape: Close modal
-            if (e.key === 'Escape') {
+            if (e.key === "Escape") {
               hideShortcuts();
             }
           });
         }
 
-        window.showShortcuts = function() {
-          document.getElementById('shortcuts-modal').classList.add('active');
+        window.showShortcuts = function () {
+          document.getElementById("shortcuts-modal").classList.add("active");
         };
 
-        window.hideShortcuts = function() {
-          document.getElementById('shortcuts-modal').classList.remove('active');
+        window.hideShortcuts = function () {
+          document.getElementById("shortcuts-modal").classList.remove("active");
         };
 
         // Batch processing
-        window.processBatch = function() {
-          const input = document.getElementById('batch-smiles').value;
+        window.processBatch = function () {
+          const input = document.getElementById("batch-smiles").value;
           if (!input || !lib) return;
 
-          const lines = input.split('\n').filter(line => line.trim());
+          const lines = input.split("\n").filter((line) => line.trim());
           batchResults = [];
 
-          const resultsEl = document.getElementById('batch-results');
+          const resultsEl = document.getElementById("batch-results");
           resultsEl.innerHTML = '<div class="status success">Processing...</div>';
 
           // Process each SMILES
@@ -1073,7 +1094,7 @@
               if (parseResult.errors.length > 0) {
                 batchResults.push({
                   input: smiles,
-                  error: parseResult.errors[0].message
+                  error: parseResult.errors[0].message,
                 });
                 return;
               }
@@ -1093,12 +1114,12 @@
                 tpsa: props.tpsa.toFixed(2),
                 hbd: props.hbondDonors,
                 hba: props.hbondAcceptors,
-                rings: props.rings
+                rings: props.rings,
               });
             } catch (e) {
               batchResults.push({
                 input: smiles,
-                error: e.message
+                error: e.message,
               });
             }
           });
@@ -1136,8 +1157,8 @@
               html += `
                 <tr>
                   <td>${idx + 1}</td>
-                  <td title="${result.input}">${result.input.substring(0, 20)}${result.input.length > 20 ? '...' : ''}</td>
-                  <td title="${result.smiles}">${result.smiles.substring(0, 20)}${result.smiles.length > 20 ? '...' : ''}</td>
+                  <td title="${result.input}">${result.input.substring(0, 20)}${result.input.length > 20 ? "..." : ""}</td>
+                  <td title="${result.smiles}">${result.smiles.substring(0, 20)}${result.smiles.length > 20 ? "..." : ""}</td>
                   <td>${result.formula}</td>
                   <td>${result.mw}</td>
                   <td>${result.logP}</td>
@@ -1150,18 +1171,18 @@
             }
           });
 
-          html += '</tbody></table>';
+          html += "</tbody></table>";
           resultsEl.innerHTML = html;
         };
 
-        window.exportBatchCSV = function() {
+        window.exportBatchCSV = function () {
           if (batchResults.length === 0) {
-            alert('No results to export. Process batch first.');
+            alert("No results to export. Process batch first.");
             return;
           }
 
-          let csv = 'Input SMILES,Canonical SMILES,Formula,MW,LogP,TPSA,HBD,HBA,Rings,Error\n';
-          batchResults.forEach(result => {
+          let csv = "Input SMILES,Canonical SMILES,Formula,MW,LogP,TPSA,HBD,HBA,Rings,Error\n";
+          batchResults.forEach((result) => {
             if (result.error) {
               csv += `"${result.input}",,,,,,,,"${result.error}"\n`;
             } else {
@@ -1169,30 +1190,30 @@
             }
           });
 
-          const blob = new Blob([csv], { type: 'text/csv' });
+          const blob = new Blob([csv], { type: "text/csv" });
           const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
+          const a = document.createElement("a");
           a.href = url;
-          a.download = 'openchem-batch-results.csv';
+          a.download = "openchem-batch-results.csv";
           a.click();
           URL.revokeObjectURL(url);
         };
 
         // Initialize tabs
         function initTabs() {
-          const tabs = document.querySelectorAll('.tab');
-          const contents = document.querySelectorAll('.tab-content');
+          const tabs = document.querySelectorAll(".tab");
+          const contents = document.querySelectorAll(".tab-content");
 
-          tabs.forEach(tab => {
-            tab.addEventListener('click', () => {
+          tabs.forEach((tab) => {
+            tab.addEventListener("click", () => {
               const targetId = tab.dataset.tab;
 
               // Update active states
-              tabs.forEach(t => t.classList.remove('active'));
-              contents.forEach(c => c.classList.remove('active'));
+              tabs.forEach((t) => t.classList.remove("active"));
+              contents.forEach((c) => c.classList.remove("active"));
 
-              tab.classList.add('active');
-              document.getElementById(targetId).classList.add('active');
+              tab.classList.add("active");
+              document.getElementById(targetId).classList.add("active");
             });
           });
         }
@@ -1200,30 +1221,33 @@
         // Setup examples
         function setupExamples() {
           // Basic examples
-          const basicExamplesEl = document.getElementById('basic-examples');
+          const basicExamplesEl = document.getElementById("basic-examples");
           EXAMPLES.basic.forEach(({ name, smiles }) => {
-            const btn = document.createElement('button');
-            btn.className = 'example-btn';
+            const btn = document.createElement("button");
+            btn.className = "example-btn";
             btn.textContent = name;
             btn.onclick = () => {
-              document.getElementById('basic-smiles').value = smiles;
+              document.getElementById("basic-smiles").value = smiles;
               computeBasic();
-              document.querySelectorAll('#basic-examples .example-btn').forEach(b => b.classList.remove('active'));
-              btn.classList.add('active');
+              document
+                .querySelectorAll("#basic-examples .example-btn")
+                .forEach((b) => b.classList.remove("active"));
+              btn.classList.add("active");
             };
             basicExamplesEl.appendChild(btn);
           });
         }
 
         // Basic computation
-        window.computeBasic = function() {
-          const smiles = document.getElementById('basic-smiles').value;
+        window.computeBasic = function () {
+          const smiles = document.getElementById("basic-smiles").value;
           if (!smiles || !lib) return;
 
           try {
             const parseResult = lib.parseSMILES(smiles);
             if (parseResult.errors.length > 0) {
-              document.getElementById('basic-structure').innerHTML = `<div style="color: #ef4444">${parseResult.errors.map(e => e.message).join('; ')}</div>`;
+              document.getElementById("basic-structure").innerHTML =
+                `<div style="color: #ef4444">${parseResult.errors.map((e) => e.message).join("; ")}</div>`;
               return;
             }
 
@@ -1233,7 +1257,7 @@
             // Render structure
             if (lib.renderSVG) {
               const svgResult = lib.renderSVG(mol, { width: 400, height: 300 });
-              document.getElementById('basic-structure').innerHTML = svgResult.svg;
+              document.getElementById("basic-structure").innerHTML = svgResult.svg;
             }
 
             // Basic info
@@ -1256,18 +1280,18 @@
                 <div class="output-value">${props.rings}</div>
               </div>
             `;
-            document.getElementById('basic-info').innerHTML = basicInfo;
+            document.getElementById("basic-info").innerHTML = basicInfo;
 
             // Drug-likeness checks
             const drugLike = lib.Descriptors.drugLikeness(mol);
 
             // Lipinski Rule of Five
-            const lipinskiEl = document.getElementById('lipinski-result');
-            const lipinskiPropsEl = document.getElementById('lipinski-props');
-            const lipinskiViolationsEl = document.getElementById('lipinski-violations');
+            const lipinskiEl = document.getElementById("lipinski-result");
+            const lipinskiPropsEl = document.getElementById("lipinski-props");
+            const lipinskiViolationsEl = document.getElementById("lipinski-violations");
 
-            lipinskiEl.className = `status ${drugLike.lipinski.passes ? 'success' : 'error'}`;
-            lipinskiEl.textContent = drugLike.lipinski.passes ? 'PASS' : 'FAIL';
+            lipinskiEl.className = `status ${drugLike.lipinski.passes ? "success" : "error"}`;
+            lipinskiEl.textContent = drugLike.lipinski.passes ? "PASS" : "FAIL";
 
             lipinskiPropsEl.innerHTML = `
               MW: ${drugLike.lipinski.properties.mw.toFixed(1)} |
@@ -1277,18 +1301,18 @@
             `;
 
             if (drugLike.lipinski.violations.length > 0) {
-              lipinskiViolationsEl.textContent = `Violations: ${drugLike.lipinski.violations.join(', ')}`;
+              lipinskiViolationsEl.textContent = `Violations: ${drugLike.lipinski.violations.join(", ")}`;
             } else {
-              lipinskiViolationsEl.textContent = '';
+              lipinskiViolationsEl.textContent = "";
             }
 
             // Veber Rules
-            const veberEl = document.getElementById('veber-result');
-            const veberPropsEl = document.getElementById('veber-props');
-            const veberViolationsEl = document.getElementById('veber-violations');
+            const veberEl = document.getElementById("veber-result");
+            const veberPropsEl = document.getElementById("veber-props");
+            const veberViolationsEl = document.getElementById("veber-violations");
 
-            veberEl.className = `status ${drugLike.veber.passes ? 'success' : 'error'}`;
-            veberEl.textContent = drugLike.veber.passes ? 'PASS' : 'FAIL';
+            veberEl.className = `status ${drugLike.veber.passes ? "success" : "error"}`;
+            veberEl.textContent = drugLike.veber.passes ? "PASS" : "FAIL";
 
             veberPropsEl.innerHTML = `
               Rot. Bonds: ${drugLike.veber.properties.rotatableBonds} |
@@ -1296,55 +1320,54 @@
             `;
 
             if (drugLike.veber.violations.length > 0) {
-              veberViolationsEl.textContent = `Violations: ${drugLike.veber.violations.join(', ')}`;
+              veberViolationsEl.textContent = `Violations: ${drugLike.veber.violations.join(", ")}`;
             } else {
-              veberViolationsEl.textContent = '';
+              veberViolationsEl.textContent = "";
             }
 
             // BBB Penetration
-            const bbbEl = document.getElementById('bbb-result');
-            const bbbPropsEl = document.getElementById('bbb-props');
+            const bbbEl = document.getElementById("bbb-result");
+            const bbbPropsEl = document.getElementById("bbb-props");
 
-            bbbEl.className = `status ${drugLike.bbb.penetrates ? 'success' : 'error'}`;
-            bbbEl.textContent = drugLike.bbb.penetrates ? 'LIKELY' : 'UNLIKELY';
+            bbbEl.className = `status ${drugLike.bbb.penetrates ? "success" : "error"}`;
+            bbbEl.textContent = drugLike.bbb.penetrates ? "LIKELY" : "UNLIKELY";
 
             bbbPropsEl.innerHTML = `
               TPSA: ${drugLike.bbb.properties.tpsa.toFixed(1)} Å² |
-              Prediction: ${drugLike.bbb.penetrates ? 'Penetrates BBB' : 'Poor BBB penetration'}
+              Prediction: ${drugLike.bbb.penetrates ? "Penetrates BBB" : "Poor BBB penetration"}
             `;
 
             // Outputs
             const canonicalSmiles = lib.generateSMILES(mol);
-            document.getElementById('basic-smiles-output').textContent = canonicalSmiles;
+            document.getElementById("basic-smiles-output").textContent = canonicalSmiles;
 
             // InChI (async)
-            lib.generateInChI(mol).then(inchi => {
-              document.getElementById('basic-inchi').textContent = inchi;
-              addCopyButton('basic-inchi');
+            lib.generateInChI(mol).then((inchi) => {
+              document.getElementById("basic-inchi").textContent = inchi;
+              addCopyButton("basic-inchi");
             });
 
-            lib.generateInChIKey(mol).then(key => {
-              document.getElementById('basic-inchikey').textContent = key;
-              addCopyButton('basic-inchikey');
+            lib.generateInChIKey(mol).then((key) => {
+              document.getElementById("basic-inchikey").textContent = key;
+              addCopyButton("basic-inchikey");
             });
 
             // Add copy buttons
-            addCopyButton('basic-smiles-output');
+            addCopyButton("basic-smiles-output");
 
             // Save to history
             saveToHistory(smiles, props.formula);
 
             // Update URL
-            setURLParameter('smiles', canonicalSmiles);
-
+            setURLParameter("smiles", canonicalSmiles);
           } catch (e) {
-            document.getElementById('diagnostics').textContent = "Error: " + e.message;
+            document.getElementById("diagnostics").textContent = "Error: " + e.message;
           }
         };
 
         // Descriptors computation
-        window.computeDescriptors = function() {
-          const smiles = document.getElementById('desc-smiles').value;
+        window.computeDescriptors = function () {
+          const smiles = document.getElementById("desc-smiles").value;
           if (!smiles || !lib) return;
 
           try {
@@ -1377,40 +1400,45 @@
               { label: "Fraction CSP3", value: all.fractionCsp3.toFixed(3) },
               { label: "Kappa1", value: topo.kappa1.toFixed(3) },
               { label: "Kappa2", value: topo.kappa2.toFixed(3) },
-              { label: "Kappa3", value: topo.kappa3.toFixed(3) }
+              { label: "Kappa3", value: topo.kappa3.toFixed(3) },
             ];
 
-            const grid = document.getElementById('descriptors-grid');
-            grid.innerHTML = descriptors.map(desc => `
+            const grid = document.getElementById("descriptors-grid");
+            grid.innerHTML = descriptors
+              .map(
+                (desc) => `
               <div class="output-item">
                 <div class="output-label">${desc.label}</div>
                 <div class="output-value">${desc.value}</div>
               </div>
-            `).join('');
-
+            `,
+              )
+              .join("");
           } catch (e) {
-            document.getElementById('diagnostics').textContent = "Error: " + e.message;
+            document.getElementById("diagnostics").textContent = "Error: " + e.message;
           }
         };
 
         // SMARTS matching
-        window.matchSMARTS = function() {
-          const pattern = document.getElementById('smarts-pattern').value;
-          const smiles = document.getElementById('smarts-smiles').value;
+        window.matchSMARTS = function () {
+          const pattern = document.getElementById("smarts-pattern").value;
+          const smiles = document.getElementById("smarts-smiles").value;
           if (!pattern || !smiles || !lib) return;
 
           try {
             // Parse SMARTS
             const smartsResult = lib.parseSMARTS(pattern);
             if (smartsResult.errors.length > 0) {
-              document.getElementById('smarts-results').innerHTML = `<div class="status error">SMARTS Error: ${smartsResult.errors[0].message}</div>`;
+              document.getElementById("smarts-results").innerHTML =
+                `<div class="status error">SMARTS Error: ${smartsResult.errors[0].message}</div>`;
               return;
             }
 
             // Parse target molecule
             const parseResult = lib.parseSMILES(smiles);
             if (parseResult.errors.length > 0) {
-              document.getElementById('smarts-results').innerHTML = `<div class="status error">SMILES Error: ${parseResult.errors[0].message}</div>`;
+              document.getElementById("smarts-results").innerHTML =
+                `<div class="status error">SMILES Error: ${parseResult.errors[0].message}</div>`;
               return;
             }
 
@@ -1423,52 +1451,61 @@
             // Render structures with highlights
             if (lib.renderSVG) {
               const patternSVG = lib.renderSVG(smartsResult.pattern, { width: 300, height: 200 });
-              document.getElementById('smarts-pattern-structure').innerHTML = patternSVG.svg;
+              document.getElementById("smarts-pattern-structure").innerHTML = patternSVG.svg;
 
               const targetSVG = lib.renderSVG(mol, {
                 width: 300,
                 height: 200,
-                highlights: [{
-                  smarts: pattern,
-                  color: "#FFD700",
-                  opacity: 0.5
-                }]
+                highlights: [
+                  {
+                    smarts: pattern,
+                    color: "#FFD700",
+                    opacity: 0.5,
+                  },
+                ],
               });
-              document.getElementById('smarts-target-structure').innerHTML = targetSVG.svg;
+              document.getElementById("smarts-target-structure").innerHTML = targetSVG.svg;
             }
 
             // Show results
             const resultsHTML = `
-              <div class="status ${matchResult.matches.length > 0 ? 'success' : 'error'}">
-                ${matchResult.matches.length > 0 ? `${matchResult.matches.length} matches found` : 'No matches'}
+              <div class="status ${matchResult.matches.length > 0 ? "success" : "error"}">
+                ${matchResult.matches.length > 0 ? `${matchResult.matches.length} matches found` : "No matches"}
               </div>
-              ${matchResult.matches.length > 0 ? `
+              ${
+                matchResult.matches.length > 0
+                  ? `
                 <table class="table">
                   <thead>
                     <tr><th>Match</th><th>Atoms</th><th>Bonds</th></tr>
                   </thead>
                   <tbody>
-                    ${matchResult.matches.map((match, i) => `
+                    ${matchResult.matches
+                      .map(
+                        (match, i) => `
                       <tr>
                         <td>${i + 1}</td>
-                        <td>[${match.atoms.map(a => a.moleculeIndex).join(', ')}]</td>
-                        <td>[${match.bonds?.map(b => b.moleculeIndex).join(', ') || ''}]</td>
+                        <td>[${match.atoms.map((a) => a.moleculeIndex).join(", ")}]</td>
+                        <td>[${match.bonds?.map((b) => b.moleculeIndex).join(", ") || ""}]</td>
                       </tr>
-                    `).join('')}
+                    `,
+                      )
+                      .join("")}
                   </tbody>
                 </table>
-              ` : ''}
+              `
+                  : ""
+              }
             `;
-            document.getElementById('smarts-results').innerHTML = resultsHTML;
-
+            document.getElementById("smarts-results").innerHTML = resultsHTML;
           } catch (e) {
-            document.getElementById('diagnostics').textContent = "Error: " + e.message;
+            document.getElementById("diagnostics").textContent = "Error: " + e.message;
           }
         };
 
         // Tautomer enumeration
-        window.enumerateTautomers = function() {
-          const smiles = document.getElementById('tautomer-smiles').value;
+        window.enumerateTautomers = function () {
+          const smiles = document.getElementById("tautomer-smiles").value;
           if (!smiles || !lib) return;
 
           try {
@@ -1499,17 +1536,16 @@
               `;
             });
 
-            html += '</tbody></table>';
-            document.getElementById('tautomer-results').innerHTML = html;
-
+            html += "</tbody></table>";
+            document.getElementById("tautomer-results").innerHTML = html;
           } catch (e) {
-            document.getElementById('diagnostics').textContent = "Error: " + e.message;
+            document.getElementById("diagnostics").textContent = "Error: " + e.message;
           }
         };
 
         // Scaffold extraction
-        window.extractScaffolds = function() {
-          const smiles = document.getElementById('scaffold-smiles').value;
+        window.extractScaffolds = function () {
+          const smiles = document.getElementById("scaffold-smiles").value;
           if (!smiles || !lib) return;
 
           try {
@@ -1522,7 +1558,7 @@
             // Render original
             if (lib.renderSVG) {
               const originalSVG = lib.renderSVG(mol, { width: 250, height: 200 });
-              document.getElementById('scaffold-original').innerHTML = originalSVG.svg;
+              document.getElementById("scaffold-original").innerHTML = originalSVG.svg;
             }
 
             // Extract scaffolds
@@ -1533,27 +1569,28 @@
             if (lib.renderSVG) {
               if (murcko.atoms.length > 0) {
                 const murckoSVG = lib.renderSVG(murcko, { width: 250, height: 200 });
-                document.getElementById('scaffold-murcko').innerHTML = murckoSVG.svg;
+                document.getElementById("scaffold-murcko").innerHTML = murckoSVG.svg;
               } else {
-                document.getElementById('scaffold-murcko').innerHTML = '<div style="color: #666">No scaffold</div>';
+                document.getElementById("scaffold-murcko").innerHTML =
+                  '<div style="color: #666">No scaffold</div>';
               }
 
               if (framework.atoms.length > 0) {
                 const frameworkSVG = lib.renderSVG(framework, { width: 250, height: 200 });
-                document.getElementById('scaffold-framework').innerHTML = frameworkSVG.svg;
+                document.getElementById("scaffold-framework").innerHTML = frameworkSVG.svg;
               } else {
-                document.getElementById('scaffold-framework').innerHTML = '<div style="color: #666">No framework</div>';
+                document.getElementById("scaffold-framework").innerHTML =
+                  '<div style="color: #666">No framework</div>';
               }
             }
-
           } catch (e) {
-            document.getElementById('diagnostics').textContent = "Error: " + e.message;
+            document.getElementById("diagnostics").textContent = "Error: " + e.message;
           }
         };
 
         // Compute fingerprints for current molecule
-        window.computeFingerprints = function() {
-          const smiles = document.getElementById('desc-smiles').value;
+        window.computeFingerprints = function () {
+          const smiles = document.getElementById("desc-smiles").value;
           if (!smiles || !lib) return;
 
           try {
@@ -1563,31 +1600,31 @@
             const mol = parseResult.molecules[0];
             if (!mol) return;
 
-            const radius = parseInt(document.getElementById('fp-radius').value) || 2;
-            const fpSize = parseInt(document.getElementById('fp-bits').value) || 2048;
+            const radius = parseInt(document.getElementById("fp-radius").value) || 2;
+            const fpSize = parseInt(document.getElementById("fp-bits").value) || 2048;
 
             const fp = lib.computeMorganFingerprint(mol, radius, fpSize);
             const bitsSet = lib.getBitsSet(fp);
 
-            document.getElementById('fingerprint-info').innerHTML = `
+            document.getElementById("fingerprint-info").innerHTML = `
               <div class="output-item">
                 <div class="output-label">Bits Set</div>
-                <div class="output-value">${bitsSet} / ${fpSize} (${(bitsSet/fpSize*100).toFixed(2)}%)</div>
+                <div class="output-value">${bitsSet} / ${fpSize} (${((bitsSet / fpSize) * 100).toFixed(2)}%)</div>
               </div>
               <div class="output-item">
                 <div class="output-label">Fingerprint Density</div>
-                <div class="output-value">${(bitsSet/fpSize).toFixed(4)}</div>
+                <div class="output-value">${(bitsSet / fpSize).toFixed(4)}</div>
               </div>
             `;
           } catch (e) {
-            document.getElementById('diagnostics').textContent = "Error: " + e.message;
+            document.getElementById("diagnostics").textContent = "Error: " + e.message;
           }
         };
 
         // Fingerprint comparison
-        window.compareFingerprints = function() {
-          const smiles1 = document.getElementById('desc-smiles').value;
-          const smiles2 = document.getElementById('fp-smiles2').value;
+        window.compareFingerprints = function () {
+          const smiles1 = document.getElementById("desc-smiles").value;
+          const smiles2 = document.getElementById("fp-smiles2").value;
           if (!smiles1 || !smiles2 || !lib) return;
 
           try {
@@ -1601,8 +1638,8 @@
 
             if (!mol1 || !mol2) return;
 
-            const radius = parseInt(document.getElementById('fp-radius').value) || 2;
-            const fpSize = parseInt(document.getElementById('fp-bits').value) || 2048;
+            const radius = parseInt(document.getElementById("fp-radius").value) || 2;
+            const fpSize = parseInt(document.getElementById("fp-bits").value) || 2048;
 
             // Generate fingerprints
             const fp1 = lib.computeMorganFingerprint(mol1, radius, fpSize);
@@ -1615,15 +1652,15 @@
             const bits1 = lib.getBitsSet(fp1);
             const bits2 = lib.getBitsSet(fp2);
 
-            document.getElementById('similarity-results').innerHTML = `
+            document.getElementById("similarity-results").innerHTML = `
               <div class="grid-2">
                 <div class="output-item">
                   <div class="output-label">Molecule 1 Bits</div>
-                  <div class="output-value">${bits1} / ${fpSize} (${(bits1/fpSize*100).toFixed(1)}%)</div>
+                  <div class="output-value">${bits1} / ${fpSize} (${((bits1 / fpSize) * 100).toFixed(1)}%)</div>
                 </div>
                 <div class="output-item">
                   <div class="output-label">Molecule 2 Bits</div>
-                  <div class="output-value">${bits2} / ${fpSize} (${(bits2/fpSize*100).toFixed(1)}%)</div>
+                  <div class="output-value">${bits2} / ${fpSize} (${((bits2 / fpSize) * 100).toFixed(1)}%)</div>
                 </div>
               </div>
               <div class="output-item" style="margin-top: 16px;">
@@ -1633,22 +1670,24 @@
               <div class="output-item">
                 <div class="output-label">Interpretation</div>
                 <div class="output-value">${
-                  similarity > 0.85 ? '🟢 Very similar compounds' :
-                  similarity > 0.6 ? '🟡 Moderately similar' :
-                  similarity > 0.3 ? '🟠 Somewhat similar' :
-                  '🔴 Dissimilar compounds'
+                  similarity > 0.85
+                    ? "🟢 Very similar compounds"
+                    : similarity > 0.6
+                      ? "🟡 Moderately similar"
+                      : similarity > 0.3
+                        ? "🟠 Somewhat similar"
+                        : "🔴 Dissimilar compounds"
                 }</div>
               </div>
             `;
-
           } catch (e) {
-            document.getElementById('diagnostics').textContent = "Error: " + e.message;
+            document.getElementById("diagnostics").textContent = "Error: " + e.message;
           }
         };
 
         // File generation
-        window.generateFiles = function() {
-          const smiles = document.getElementById('file-smiles').value;
+        window.generateFiles = function () {
+          const smiles = document.getElementById("file-smiles").value;
           if (!smiles || !lib) return;
 
           try {
@@ -1661,9 +1700,9 @@
             // Generate MOL file
             const molfile = lib.generateMolfile(mol, {
               title: "Generated by openchem",
-              programName: "openchem-playground"
+              programName: "openchem-playground",
             });
-            document.getElementById('mol-file').textContent = molfile;
+            document.getElementById("mol-file").textContent = molfile;
 
             // Generate SDF file
             const props = lib.Descriptors.all(mol);
@@ -1673,25 +1712,24 @@
                 SMILES: smiles,
                 FORMULA: props.formula,
                 MASS: props.mass.toFixed(3),
-                LOGP: props.logP.toFixed(3)
-              }
+                LOGP: props.logP.toFixed(3),
+              },
             };
 
             const sdfResult = lib.writeSDF([sdfRecord], {
               title: "openchem Playground",
-              programName: "openchem-playground"
+              programName: "openchem-playground",
             });
 
-            document.getElementById('sdf-file').textContent = sdfResult.sdf;
-
+            document.getElementById("sdf-file").textContent = sdfResult.sdf;
           } catch (e) {
-            document.getElementById('diagnostics').textContent = "Error: " + e.message;
+            document.getElementById("diagnostics").textContent = "Error: " + e.message;
           }
         };
 
         // IUPAC generation
-        window.generateIUPAC = function() {
-          const smiles = document.getElementById('iupac-smiles').value;
+        window.generateIUPAC = function () {
+          const smiles = document.getElementById("iupac-smiles").value;
           if (!smiles || !lib) return;
 
           try {
@@ -1702,62 +1740,63 @@
             if (!mol) return;
 
             const iupacResult = lib.generateIUPACName(mol);
-            document.getElementById('iupac-generated').textContent = iupacResult.name || 'Error generating name';
-
+            document.getElementById("iupac-generated").textContent =
+              iupacResult.name || "Error generating name";
           } catch (e) {
-            document.getElementById('diagnostics').textContent = "Error: " + e.message;
+            document.getElementById("diagnostics").textContent = "Error: " + e.message;
           }
         };
 
         // IUPAC parsing
-        window.parseIUPAC = function() {
-          const name = document.getElementById('iupac-name').value;
+        window.parseIUPAC = function () {
+          const name = document.getElementById("iupac-name").value;
           if (!name || !lib) return;
 
           try {
             const result = lib.parseIUPACName(name);
             if (result.errors.length > 0) {
-              document.getElementById('iupac-parsed').innerHTML = `<div style="color: #ef4444">${result.errors[0].message}</div>`;
+              document.getElementById("iupac-parsed").innerHTML =
+                `<div style="color: #ef4444">${result.errors[0].message}</div>`;
             } else if (result.molecule) {
               const smiles = lib.generateSMILES(result.molecule);
-              document.getElementById('iupac-parsed').textContent = smiles;
+              document.getElementById("iupac-parsed").textContent = smiles;
             }
-
           } catch (e) {
-            document.getElementById('diagnostics').textContent = "Error: " + e.message;
+            document.getElementById("diagnostics").textContent = "Error: " + e.message;
           }
         };
 
         // Initialize
         tryLoadLibrary()
-          .then(mod => {
+          .then((mod) => {
             lib = mod;
-            document.getElementById('diagnostics').textContent = "✅ openchem library loaded successfully";
+            document.getElementById("diagnostics").textContent =
+              "✅ openchem library loaded successfully";
 
             // Check for URL parameter
-            const urlSmiles = getURLParameter('smiles');
+            const urlSmiles = getURLParameter("smiles");
             if (urlSmiles) {
-              document.getElementById('basic-smiles').value = urlSmiles;
+              document.getElementById("basic-smiles").value = urlSmiles;
               computeBasic();
             } else {
               // Load default example
-              document.getElementById('basic-smiles').value = "CC(=O)Oc1ccccc1C(=O)O";
+              document.getElementById("basic-smiles").value = "CC(=O)Oc1ccccc1C(=O)O";
               computeBasic();
-              document.querySelector('#basic-examples .example-btn').classList.add('active');
+              document.querySelector("#basic-examples .example-btn").classList.add("active");
             }
 
             // Load history
             loadHistory();
           })
-          .catch(err => {
-            document.getElementById('diagnostics').textContent = "⚠️ Failed to load library: " + err.message;
+          .catch((err) => {
+            document.getElementById("diagnostics").textContent =
+              "⚠️ Failed to load library: " + err.message;
           });
 
         // Setup UI
         initTabs();
         setupExamples();
         setupKeyboardShortcuts();
-
       })();
     </script>
   </body>

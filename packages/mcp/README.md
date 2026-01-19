@@ -379,20 +379,15 @@ You can also use the MCP server programmatically:
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 
-const client = new Client(
-  { name: "my-app", version: "1.0.0" },
-  { capabilities: { tools: {} } }
-);
+const client = new Client({ name: "my-app", version: "1.0.0" }, { capabilities: { tools: {} } });
 
-const transport = new StreamableHTTPClientTransport(
-  new URL("http://localhost:4141/mcp")
-);
+const transport = new StreamableHTTPClientTransport(new URL("http://localhost:4141/mcp"));
 
 await client.connect(transport);
 
 const result = await client.callTool("analyze", {
   smiles: "CC(=O)Oc1ccccc1C(=O)O",
-  includeRendering: false
+  includeRendering: false,
 });
 
 console.log(result);

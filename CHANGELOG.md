@@ -5,6 +5,23 @@ All notable changes to openchem will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.17] - 2025-01-19
+
+### Added
+
+- **Indigo-compatible API functions** - Added layout, aromatize, and structure validation features for Ketcher editor compatibility:
+  - `layoutMolecule()` - Generate 2D coordinates using rigid unit placement algorithm
+  - `aromatizeMolecule()` - Convert Kekulé (alternating double/single) bonds to aromatic representation
+  - `checkStructure()` - Comprehensive validation including valence, aromaticity, stereo, elements, and connectivity
+  - `addExplicitHydrogens()` - Add explicit hydrogens to satisfy valence requirements
+  - `removeExplicitHydrogens()` - Remove explicit hydrogens, preserving stereochemistry
+- **Demo folder** - Added `docs/demo/` with working examples for browser and Node.js usage
+- **Tautomer comparison tests** - Added 10-molecule test suite comparing openchem to RDKit's new TautomerEnumerator algorithm
+
+### Improved
+
+- **Better test coverage** - Added 39 new tests for Indigo-compatible features (all passing)
+
 ## [0.2.16] - 2025-12-03
 
 ### Fixed
@@ -391,8 +408,8 @@ import {
   getMolecularMass,
   computeLogP,
   getTPSA,
-  checkLipinskiRuleOfFive
-} from 'openchem';
+  checkLipinskiRuleOfFive,
+} from "openchem";
 
 const formula = getMolecularFormula(mol);
 const mass = getMolecularMass(mol);
@@ -400,7 +417,7 @@ const logP = computeLogP(mol);
 const lipinski = checkLipinskiRuleOfFive(mol);
 
 // After (v0.2.2)
-import { Descriptors, computeLogP } from 'openchem';
+import { Descriptors, computeLogP } from "openchem";
 
 // Get all at once
 const all = Descriptors.all(mol);

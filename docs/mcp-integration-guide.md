@@ -273,16 +273,17 @@ import express from "express";
 const app = express();
 app.use(express.json());
 
-const mcpClient = new Client({
-  name: "chatgpt-bridge",
-  version: "1.0.0"
-}, {
-  capabilities: { tools: {} }
-});
-
-const transport = new StreamableHTTPClientTransport(
-  new URL("http://localhost:3000/mcp")
+const mcpClient = new Client(
+  {
+    name: "chatgpt-bridge",
+    version: "1.0.0",
+  },
+  {
+    capabilities: { tools: {} },
+  },
 );
+
+const transport = new StreamableHTTPClientTransport(new URL("http://localhost:3000/mcp"));
 
 await mcpClient.connect(transport);
 
@@ -292,7 +293,7 @@ app.post("/api/analyze", async (req, res) => {
 
   const result = await mcpClient.callTool("analyze", {
     smiles,
-    includeRendering: false
+    includeRendering: false,
   });
 
   res.json(JSON.parse(result.content[0].text));
@@ -320,19 +321,20 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 
 // Create client
-const client = new Client({
-  name: "my-chemistry-app",
-  version: "1.0.0"
-}, {
-  capabilities: {
-    tools: {}
-  }
-});
+const client = new Client(
+  {
+    name: "my-chemistry-app",
+    version: "1.0.0",
+  },
+  {
+    capabilities: {
+      tools: {},
+    },
+  },
+);
 
 // Connect to OpenChem MCP server
-const transport = new StreamableHTTPClientTransport(
-  new URL("http://localhost:3000/mcp")
-);
+const transport = new StreamableHTTPClientTransport(new URL("http://localhost:3000/mcp"));
 
 await client.connect(transport);
 
@@ -341,7 +343,7 @@ const result = await client.callTool("analyze", {
   smiles: "CC(=O)Oc1ccccc1C(=O)O",
   includeRendering: true,
   renderWidth: 500,
-  renderHeight: 500
+  renderHeight: 500,
 });
 
 const data = JSON.parse(result.content[0].text);
@@ -433,7 +435,7 @@ docker run -p 3000:3000 openchem-mcp
 **Docker Compose:**
 
 ```yaml
-version: '3.8'
+version: "3.8"
 services:
   openchem-mcp:
     build: .
@@ -533,19 +535,17 @@ import { writeFileSync } from "node:fs";
 
 const client = new Client(
   { name: "batch-analyzer", version: "1.0.0" },
-  { capabilities: { tools: {} } }
+  { capabilities: { tools: {} } },
 );
 
-const transport = new StreamableHTTPClientTransport(
-  new URL("http://localhost:3000/mcp")
-);
+const transport = new StreamableHTTPClientTransport(new URL("http://localhost:3000/mcp"));
 
 await client.connect(transport);
 
 const molecules = [
   { name: "Aspirin", smiles: "CC(=O)Oc1ccccc1C(=O)O" },
   { name: "Ibuprofen", smiles: "CC(C)Cc1ccc(cc1)C(C)C(=O)O" },
-  { name: "Caffeine", smiles: "CN1C=NC2=C1C(=O)N(C(=O)N2C)C" }
+  { name: "Caffeine", smiles: "CN1C=NC2=C1C(=O)N(C(=O)N2C)C" },
 ];
 
 const results = [];
@@ -553,7 +553,7 @@ const results = [];
 for (const mol of molecules) {
   const result = await client.callTool("analyze", {
     smiles: mol.smiles,
-    includeRendering: false
+    includeRendering: false,
   });
 
   const data = JSON.parse(result.content[0].text);
@@ -565,14 +565,14 @@ for (const mol of molecules) {
     LogP: data.properties.logP,
     "H-Bond Donors": data.properties.hBondDonors,
     "H-Bond Acceptors": data.properties.hBondAcceptors,
-    "Lipinski Pass": data.drugLikeness.lipinski.passed
+    "Lipinski Pass": data.drugLikeness.lipinski.passed,
   });
 }
 
 // Convert to CSV
 const csv = [
   Object.keys(results[0]).join(","),
-  ...results.map(r => Object.values(r).join(","))
+  ...results.map((r) => Object.values(r).join(",")),
 ].join("\n");
 
 writeFileSync("analysis.csv", csv);
@@ -597,12 +597,10 @@ app.use(express.static("public"));
 
 const mcpClient = new Client(
   { name: "web-dashboard", version: "1.0.0" },
-  { capabilities: { tools: {} } }
+  { capabilities: { tools: {} } },
 );
 
-const transport = new StreamableHTTPClientTransport(
-  new URL("http://localhost:3000/mcp")
-);
+const transport = new StreamableHTTPClientTransport(new URL("http://localhost:3000/mcp"));
 
 await mcpClient.connect(transport);
 
@@ -614,7 +612,7 @@ app.post("/api/analyze", async (req, res) => {
       smiles,
       includeRendering: true,
       renderWidth: 400,
-      renderHeight: 400
+      renderHeight: 400,
     });
 
     res.json(JSON.parse(result.content[0].text));
@@ -632,45 +630,61 @@ app.listen(8080, () => {
 <!-- public/index.html -->
 <!DOCTYPE html>
 <html>
-<head>
-  <title>OpenChem Dashboard</title>
-  <style>
-    body { font-family: sans-serif; max-width: 800px; margin: 50px auto; }
-    input { width: 100%; padding: 10px; font-size: 16px; }
-    button { padding: 10px 20px; font-size: 16px; cursor: pointer; }
-    #result { margin-top: 20px; }
-    svg { border: 1px solid #ccc; }
-  </style>
-</head>
-<body>
-  <h1>OpenChem Analyzer</h1>
-  <input id="smiles" type="text" placeholder="Enter SMILES (e.g., CCO)" />
-  <button onclick="analyze()">Analyze</button>
-  <div id="result"></div>
+  <head>
+    <title>OpenChem Dashboard</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        max-width: 800px;
+        margin: 50px auto;
+      }
+      input {
+        width: 100%;
+        padding: 10px;
+        font-size: 16px;
+      }
+      button {
+        padding: 10px 20px;
+        font-size: 16px;
+        cursor: pointer;
+      }
+      #result {
+        margin-top: 20px;
+      }
+      svg {
+        border: 1px solid #ccc;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>OpenChem Analyzer</h1>
+    <input id="smiles" type="text" placeholder="Enter SMILES (e.g., CCO)" />
+    <button onclick="analyze()">Analyze</button>
+    <div id="result"></div>
 
-  <script>
-    async function analyze() {
-      const smiles = document.getElementById('smiles').value;
-      const response = await fetch('/api/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ smiles })
-      });
+    <script>
+      async function analyze() {
+        const smiles = document.getElementById("smiles").value;
+        const response = await fetch("/api/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ smiles }),
+        });
 
-      const data = await response.json();
+        const data = await response.json();
 
-      document.getElementById('result').innerHTML = `
+        document.getElementById("result").innerHTML = `
         <h2>${data.iupacName}</h2>
         <div>${data.rendering.svg}</div>
         <p><b>Molecular Weight:</b> ${data.properties.molecularWeight}</p>
         <p><b>LogP:</b> ${data.properties.logP}</p>
         <p><b>H-Bond Donors:</b> ${data.properties.hBondDonors}</p>
         <p><b>H-Bond Acceptors:</b> ${data.properties.hBondAcceptors}</p>
-        <p><b>Lipinski Rule of Five:</b> ${data.drugLikeness.lipinski.passed ? '✅ Pass' : '❌ Fail'}</p>
+        <p><b>Lipinski Rule of Five:</b> ${data.drugLikeness.lipinski.passed ? "✅ Pass" : "❌ Fail"}</p>
       `;
-    }
-  </script>
-</body>
+      }
+    </script>
+  </body>
 </html>
 ```
 
@@ -745,7 +759,7 @@ bun -e "import { parseSMILES } from './index.ts'; console.log(parseSMILES('CCO')
 // Disable rendering for faster analysis
 await client.callTool("analyze", {
   smiles: "...",
-  includeRendering: false  // ⚡ Faster
+  includeRendering: false, // ⚡ Faster
 });
 ```
 

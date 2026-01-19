@@ -156,12 +156,12 @@ export OPENCHEM_TAUTOMER_V2=1
 ### Enable V2 Per-Call
 
 ```typescript
-import { enumerateTautomers, canonicalTautomer } from 'index';
+import { enumerateTautomers, canonicalTautomer } from "index";
 
 // Enumerate all tautomers with V2
 const tautomers = enumerateTautomers(molecule, {
   maxTautomers: 50,
-  useV2: true
+  useV2: true,
 });
 
 // Get canonical tautomer with V2
@@ -172,12 +172,12 @@ const canonical = canonicalTautomer(molecule, true);
 
 ```typescript
 interface TautomerOptions {
-  maxTautomers?: number;      // Max unique tautomers to generate (default: 256)
-  maxCombinations?: number;   // Max transformations to attempt (default: 8192)
+  maxTautomers?: number; // Max unique tautomers to generate (default: 256)
+  maxCombinations?: number; // Max transformations to attempt (default: 8192)
   useFingerprintDedup?: boolean; // Use Morgan fingerprints (default: false)
-  fpRadius?: number;          // Fingerprint radius (default: 2)
-  fpSize?: number;            // Fingerprint size (default: 2048)
-  useV2?: boolean;            // Enable V2 engine (default: from env)
+  fpRadius?: number; // Fingerprint radius (default: 2)
+  fpSize?: number; // Fingerprint size (default: 2048)
+  useV2?: boolean; // Enable V2 engine (default: from env)
 }
 ```
 

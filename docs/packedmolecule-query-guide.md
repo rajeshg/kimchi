@@ -7,23 +7,23 @@
 ## Basic Usage
 
 ```typescript
-import { PackedMolecule } from 'openchem';
-import { parseSMILES } from 'openchem';
+import { PackedMolecule } from "openchem";
+import { parseSMILES } from "openchem";
 
 // Create from a Molecule
-const mol = parseSMILES('CCO').molecules[0];
+const mol = parseSMILES("CCO").molecules[0];
 const packed = new PackedMolecule(mol);
 
 // Access basic properties (no deserialization)
-console.log(packed.atomCount);    // 3
-console.log(packed.bondCount);    // 2
-console.log(packed.bufferSize);   // ~64 bytes
+console.log(packed.atomCount); // 3
+console.log(packed.bondCount); // 2
+console.log(packed.bufferSize); // ~64 bytes
 
 // Access query interface
-console.log(packed.query.atomCount);           // 3
-console.log(packed.query.formula);             // { 6: 2, 8: 1 }
-console.log(packed.query.totalHydrogens);      // 6
-console.log(packed.query.molecularCharge);     // 0
+console.log(packed.query.atomCount); // 3
+console.log(packed.query.formula); // { 6: 2, 8: 1 }
+console.log(packed.query.totalHydrogens); // 6
+console.log(packed.query.molecularCharge); // 0
 ```
 
 ## Query Interface Methods
@@ -34,19 +34,19 @@ Get molecular-level information without deserialization:
 
 ```typescript
 // Molecular composition
-packed.query.atomCount          // Total atoms
-packed.query.bondCount          // Total bonds
-packed.query.totalHydrogens     // Sum of all H atoms
-packed.query.molecularCharge    // Sum of formal charges
-packed.query.aromaticAtomCount  // Number of aromatic atoms
-packed.query.chiralAtomCount    // Number of chiral centers
-packed.query.formula            // Record<atomicNumber, count>
+packed.query.atomCount; // Total atoms
+packed.query.bondCount; // Total bonds
+packed.query.totalHydrogens; // Sum of all H atoms
+packed.query.molecularCharge; // Sum of formal charges
+packed.query.aromaticAtomCount; // Number of aromatic atoms
+packed.query.chiralAtomCount; // Number of chiral centers
+packed.query.formula; // Record<atomicNumber, count>
 
 // Examples
-const aspirin = new PackedMolecule(parseSMILES('CC(=O)Oc1ccccc1C(=O)O').molecules[0]);
-console.log(aspirin.query.formula);           // { 6: 9, 8: 4, 1: 8 } (C₉H₈O₄)
+const aspirin = new PackedMolecule(parseSMILES("CC(=O)Oc1ccccc1C(=O)O").molecules[0]);
+console.log(aspirin.query.formula); // { 6: 9, 8: 4, 1: 8 } (C₉H₈O₄)
 console.log(aspirin.query.aromaticAtomCount); // 6
-console.log(aspirin.query.chiralAtomCount);   // 0
+console.log(aspirin.query.chiralAtomCount); // 0
 ```
 
 ### Atom-Level Queries
@@ -55,21 +55,21 @@ Inspect individual atoms efficiently:
 
 ```typescript
 // Properties of atom at index
-packed.query.getAtomicNumber(0)  // Element (atomic number)
-packed.query.getFormalCharge(0)  // Integer charge
-packed.query.getHydrogens(0)     // Explicit H count
-packed.query.getDegree(0)        // Number of bonds
+packed.query.getAtomicNumber(0); // Element (atomic number)
+packed.query.getFormalCharge(0); // Integer charge
+packed.query.getHydrogens(0); // Explicit H count
+packed.query.getDegree(0); // Number of bonds
 
 // Atom flags
-packed.query.isAromatic(0)       // Is in aromatic system?
-packed.query.isChiral(0)         // Is chiral center?
-packed.query.isDummy(0)          // Is dummy atom (*)?
+packed.query.isAromatic(0); // Is in aromatic system?
+packed.query.isChiral(0); // Is chiral center?
+packed.query.isDummy(0); // Is dummy atom (*)?
 
 // Neighbors
-packed.query.getNeighbors(0)     // [[neighborAtom, bondIndex], ...]
+packed.query.getNeighbors(0); // [[neighborAtom, bondIndex], ...]
 
 // Example: Inspect ethanol atoms
-const ethanol = new PackedMolecule(parseSMILES('CCO').molecules[0]);
+const ethanol = new PackedMolecule(parseSMILES("CCO").molecules[0]);
 for (let i = 0; i < ethanol.query.atomCount; i++) {
   const atomicNum = ethanol.query.getAtomicNumber(i);
   const degree = ethanol.query.getDegree(i);
@@ -88,11 +88,11 @@ Inspect individual bonds:
 
 ```typescript
 // Bond properties
-const [atom1, atom2] = packed.query.getBondAtoms(0);  // Connected atoms
-packed.query.getBondDirection(0);                      // "up", "down", or "none"
+const [atom1, atom2] = packed.query.getBondAtoms(0); // Connected atoms
+packed.query.getBondDirection(0); // "up", "down", or "none"
 
 // Example: List all bonds
-const benzene = new PackedMolecule(parseSMILES('c1ccccc1').molecules[0]);
+const benzene = new PackedMolecule(parseSMILES("c1ccccc1").molecules[0]);
 for (let i = 0; i < benzene.query.bondCount; i++) {
   const [a1, a2] = benzene.query.getBondAtoms(i);
   const direction = benzene.query.getBondDirection(i);
@@ -106,18 +106,18 @@ Find atoms matching criteria:
 
 ```typescript
 // Count atoms of specific type
-packed.query.countAtomType(6)       // How many carbons?
-packed.query.countAtomType(8)       // How many oxygens?
+packed.query.countAtomType(6); // How many carbons?
+packed.query.countAtomType(8); // How many oxygens?
 
 // Find all atoms of specific type
 const carbons = packed.query.findAtomsByType(6);
 const oxygens = packed.query.findAtomsByType(8);
 
 // Example: Analyze aspirin composition
-const aspirin = new PackedMolecule(parseSMILES('CC(=O)Oc1ccccc1C(=O)O').molecules[0]);
-console.log(`Carbons: ${aspirin.query.countAtomType(6)}`);     // 9
-console.log(`Hydrogens: ${aspirin.query.countAtomType(1)}`);   // 8
-console.log(`Oxygens: ${aspirin.query.countAtomType(8)}`);     // 4
+const aspirin = new PackedMolecule(parseSMILES("CC(=O)Oc1ccccc1C(=O)O").molecules[0]);
+console.log(`Carbons: ${aspirin.query.countAtomType(6)}`); // 9
+console.log(`Hydrogens: ${aspirin.query.countAtomType(1)}`); // 8
+console.log(`Oxygens: ${aspirin.query.countAtomType(8)}`); // 4
 ```
 
 ## Performance Benefits
@@ -126,10 +126,10 @@ The `.query` interface avoids deserialization entirely:
 
 ```typescript
 // FAST: No deserialization
-const atomCount = packed.query.atomCount;        // ~1 μs
+const atomCount = packed.query.atomCount; // ~1 μs
 
 // SLOW: Full deserialization
-const molecule = packed.molecule;                // ~1-5 ms
+const molecule = packed.molecule; // ~1-5 ms
 const atomCount2 = molecule.atoms.length;
 ```
 
@@ -140,8 +140,7 @@ const atomCount2 = molecule.atoms.length;
 ```typescript
 // Filter drug-like molecules without deserialization
 function isSmallMolecule(packed: PackedMolecule): boolean {
-  return packed.query.atomCount <= 50 &&
-         packed.query.bondCount <= 60;
+  return packed.query.atomCount <= 50 && packed.query.bondCount <= 60;
 }
 
 const molecules = [packed1, packed2, packed3];
@@ -163,10 +162,10 @@ function isSameFormula(p1: PackedMolecule, p2: PackedMolecule): boolean {
 
 ```typescript
 // Count aromatic atoms without full decode
-const benzene = new PackedMolecule(parseSMILES('c1ccccc1').molecules[0]);
+const benzene = new PackedMolecule(parseSMILES("c1ccccc1").molecules[0]);
 console.log(`Aromatic atoms: ${benzene.query.aromaticAtomCount}`); // 6
 
-const naphthalene = new PackedMolecule(parseSMILES('c1ccc2ccccc2c1').molecules[0]);
+const naphthalene = new PackedMolecule(parseSMILES("c1ccc2ccccc2c1").molecules[0]);
 console.log(`Aromatic atoms: ${naphthalene.query.aromaticAtomCount}`); // 10
 ```
 
@@ -174,7 +173,7 @@ console.log(`Aromatic atoms: ${naphthalene.query.aromaticAtomCount}`); // 10
 
 ```typescript
 // Analyze connectivity patterns
-const mol = new PackedMolecule(parseSMILES('CC(C)CC1=CC=C(C=C1)C(C)C(=O)O').molecules[0]); // Ibuprofen
+const mol = new PackedMolecule(parseSMILES("CC(C)CC1=CC=C(C=C1)C(C)C(=O)O").molecules[0]); // Ibuprofen
 
 for (let i = 0; i < mol.query.atomCount; i++) {
   const degree = mol.query.getDegree(i);
@@ -195,12 +194,12 @@ const packed = new PackedMolecule(mol);
 
 // Quick queries first (no deserialization)
 if (packed.query.atomCount > 100) {
-  console.log('Molecule too large');
+  console.log("Molecule too large");
   return;
 }
 
 // Now deserialize if needed
-const fullMol = packed.molecule;  // One-time cost (~1-5ms)
+const fullMol = packed.molecule; // One-time cost (~1-5ms)
 
 // Use fullMol for complex operations
 // SMILES generation, IUPAC naming, etc.
@@ -250,7 +249,7 @@ export interface PackedMoleculeQuery {
 PackedMolecule is 20-40x smaller than standard Molecule objects:
 
 ```typescript
-const mol = parseSMILES('CC(=O)Oc1ccccc1C(=O)O').molecules[0];
+const mol = parseSMILES("CC(=O)Oc1ccccc1C(=O)O").molecules[0];
 const packed = new PackedMolecule(mol);
 
 console.log(`Molecule JSON: ${JSON.stringify(mol).length} bytes`);

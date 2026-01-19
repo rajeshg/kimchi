@@ -212,25 +212,26 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 
-const client = new Client({
-  name: "my-chemistry-client",
-  version: "1.0.0",
-}, {
-  capabilities: {
-    tools: {}
-  }
-});
-
-const transport = new StreamableHTTPClientTransport(
-  new URL("http://localhost:3000/mcp")
+const client = new Client(
+  {
+    name: "my-chemistry-client",
+    version: "1.0.0",
+  },
+  {
+    capabilities: {
+      tools: {},
+    },
+  },
 );
+
+const transport = new StreamableHTTPClientTransport(new URL("http://localhost:3000/mcp"));
 
 await client.connect(transport);
 
 // Call analyze tool
 const result = await client.callTool("analyze", {
   smiles: "CC(=O)Oc1ccccc1C(=O)O",
-  includeRendering: true
+  includeRendering: true,
 });
 
 console.log(result.content[0].text);

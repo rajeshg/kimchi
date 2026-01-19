@@ -2,39 +2,42 @@
   "name": "@openchem/mcp",
   "version": "0.1.11",
   "description": "Model Context Protocol (MCP) server for OpenChem - AI assistant integration for chemistry analysis",
-  "author": "rajeshg",
+  "keywords": [
+    "ai",
+    "chatgpt",
+    "cheminformatics",
+    "chemistry",
+    "claude",
+    "llm",
+    "mcp",
+    "model-context-protocol",
+    "openchem"
+  ],
+  "homepage": "https://github.com/rajeshg/openchem/tree/main/packages/mcp",
+  "bugs": {
+    "url": "https://github.com/rajeshg/openchem/issues"
+  },
   "license": "MIT",
+  "author": "rajeshg",
   "repository": {
     "type": "git",
     "url": "https://github.com/rajeshg/openchem",
     "directory": "packages/mcp"
   },
-  "homepage": "https://github.com/rajeshg/openchem/tree/main/packages/mcp",
-  "bugs": {
-    "url": "https://github.com/rajeshg/openchem/issues"
-  },
-  "keywords": [
-    "openchem",
-    "mcp",
-    "model-context-protocol",
-    "ai",
-    "chemistry",
-    "cheminformatics",
-    "claude",
-    "chatgpt",
-    "llm"
-  ],
-  "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
   "bin": {
     "openchem-mcp": "./dist/cli.js"
   },
   "files": [
     "dist",
-    "README.md",
-    "LICENSE"
+    "LICENSE",
+    "README.md"
   ],
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc --project tsconfig.json",
     "dev": "bun --watch src/cli.ts",
@@ -47,16 +50,13 @@
     "@resvg/resvg-js": "^2.6.2",
     "zod": "^4.1.13"
   },
-  "peerDependencies": {
-    "openchem": ">=0.2.16"
-  },
   "devDependencies": {
     "@types/node": "^24.10.1",
     "openchem": "^0.2.16",
     "typescript": "^5.9.3"
   },
-  "publishConfig": {
-    "access": "public"
+  "peerDependencies": {
+    "openchem": ">=0.2.16"
   },
   "engines": {
     "node": ">=18.0.0"
